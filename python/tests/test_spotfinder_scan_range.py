@@ -27,11 +27,11 @@ hdf5plugin = pytest.importorskip("hdf5plugin")
 
 from mxeq import refl
 
-BINARY = os.environ.get("MXI_FIND_SPOTS") or shutil.which(
-    "mxi-find-spots"
+BINARY = os.environ.get("MXI_FIND") or shutil.which(
+    "mxi_find"
 )
 pytestmark = pytest.mark.skipif(
-    not BINARY, reason="mxi-find-spots is not built or not on PATH"
+    not BINARY, reason="mxi_find is not built or not on PATH"
 )
 TEMPLATE_EXPT = os.environ.get("MXI_TEMPLATE_EXPT")
 

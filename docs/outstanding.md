@@ -194,7 +194,7 @@ where something is missing.
   the fill overwrites, needed only where a frame is missing -- and counts kept
   as 16 bits, half of the rest.
   Tried and reverted: boxes not zeroed when they open, each unfilled slice
-  zeroed when its frame came up (4ac5285) -- byte-identical, and checked with
+  zeroed when its frame came up (32e28e9) -- byte-identical, and checked with
   every new box poisoned with NaN and with a frame forced missing. On the 32
   thread machine it changed nothing: opening 15.05 s against 15.09, the
   integration 94.79 against 94.75; on the MacBook it was slower. So writing the
@@ -260,8 +260,8 @@ where something is missing.
   byte-identical -- and made a MacBook's integration from an external drive 10 s
   slower, 19.7 to 30.0 s, its user time barely changed: waiting, perhaps sixteen
   threads defeating the drive's read-ahead. Reading through HDF5 was fast enough
-  there, and a second path to keep was not worth it; removed (commits 59e4764
-  and 5ef916f, reverted).
+  there, and a second path to keep was not worth it; removed (commits 0619381
+  and c7e1879, reverted).
 * **41.** `mxi_scale --threads`, measured: on the MacBook's 16M sweep with
   `--d-min-auto`, 5.3 s, then 2.9 once the thread pool, the error model's search
   and gathering were fixed (item 45). Byte-identical on any count.

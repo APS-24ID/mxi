@@ -280,6 +280,15 @@ where something is missing.
   of +9.6 per cent against a median of +0.5) are worth rerunning
   `mxeq equivalents` on. Overloads are still not masked: the trusted range is
   not applied in integration.
+* **51.** **correctness -- A third of a data set not profile fitted.** On
+  Graeme's 8BXT (2.8 million reflections to 1.18 A, sigma_m 0.047 degrees,
+  Metal), summation 2.56 million and profile fitting 1.87 million -- 67 per cent,
+  the same at low resolution as high -- and scaling, taking profile-fitted
+  observations only, merged 1.39 million against DIALS's 1.91. Reference
+  profiles were learned from only 12129 reflections, 216 of 324 regions
+  borrowing. Not reproduced here: insulin loses 4.8 per cent, the same on the
+  device's path and with sigma_m forced to 0.047. The integrator now says why
+  each reflection was not fitted; that run on 8BXT is the next step.
 * **23.** A resolution estimate: dials.estimate_resolution's tanh fit through
   CC half, at 0.3, and its significance limit, with the "Suggested" column.
   `docs/scaling.md`.

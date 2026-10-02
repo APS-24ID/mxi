@@ -258,6 +258,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--limit", type=int, default=0, help="keep only the N worst; 0 for all"
     )
 
+    fl = sub.add_parser(
+        "failures",
+        help="where profile fitting fails: an integrated table's profile.failure, "
+        "counted by reason and binned by scan, zeta, box size, detector place",
+    )
+    fl.add_argument("refl", help="an integrated table from mxi_integrate")
+    fl.add_argument(
+        "--code", type=int, default=None, help="one reason only, by its code"
+    )
+
     ce = sub.add_parser(
         "compare-expt",
         help="two experiment lists' models side by side: mxi_import's against "
@@ -334,6 +344,12 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "failures":
+        from . import failures
+
+        print(failures.analyse(args.refl, args.code))
+        return 0
 
     if args.command == "compare-expt":
         from . import compare_expt

@@ -690,8 +690,15 @@ ProfileFit fit_on_pixels(const Shoebox &box,
     if (box.mask[i] & shoebox_mask::kValid)
       seen += pixel_profile[i];
   }
-  if (!(profile_sum > 0.0) || !(seen > 0.0))
+  if (!(profile_sum > 0.0)) {
+    out.why = FitFailure::profile_off_foreground;
     return out;
+  }
+  if (!(seen > 0.0)) {
+    out.why = FitFailure::foreground_masked;
+    out.measured = 0.0;
+    return out;
+  }
   out.measured = seen / profile_sum;
 
   double scale = 0.0;
@@ -720,8 +727,10 @@ ProfileFit fit_on_pixels(const Shoebox &box,
       numerator += pixel_profile[i] * residual / v;
       denominator += pixel_profile[i] * pixel_profile[i] / v;
     }
-    if (!(denominator > 0.0))
+    if (!(denominator > 0.0)) {
+      out.why = FitFailure::degenerate;
       return out;
+    }
     scale = numerator / denominator;
     variance = 1.0 / denominator;
     out.iterations = round + 1;

@@ -247,8 +247,25 @@ profile_on_pixels_direct(const Experiment &e, const Shoebox &box,
                          const GridSpec &spec,
                          const std::vector<double> &reference);
 
+//: Why a profile fit failed, where it did: written to the table as
+//: profile.failure, 0 for a reflection fitted, so that where a data set's fits
+//: fail can be looked at rather than guessed.
+enum class FitFailure : int {
+  none = 0,
+  no_box = 1,       //: the box rejected before fitting
+  no_reference = 2, //: no reference profile for its place and scan block
+  no_pixels = 3,    //: the profile not carried onto its pixels
+  profile_off_foreground = 4, //: the profile is zero over the whole foreground
+  foreground_masked =
+      5,          //: the profile is there, but none of the foreground measured
+  too_little = 6, //: under --least-measured of the profile measured
+  degenerate = 7, //: the least squares had no solution
+  device = 8,     //: the device's fit failed; without --gpu says which
+};
+
 struct ProfileFit {
   bool valid = false;
+  FitFailure why = FitFailure::none;
   double intensity = 0.0;
   double variance = 0.0;
   //: Pearson correlation between the reference profile and this reflection's

@@ -148,6 +148,19 @@ A reflection crossing a module gap is fitted to the pixels it has, and its
 intensity is the fitted scale times the WHOLE profile, not the visible part --
 which is what lets a fitted intensity recover what the gap took.
 
+## Why a reflection is not profile fitted
+
+Scaling takes only profile-fitted observations, so a reflection the fit loses is
+lost to the merged data. After its summary the integrator says how many were
+lost and why: the box rejected before fitting; no reference profile for its
+place and scan block; the profile not carried onto its pixels; nothing of the
+profile on its measured foreground -- a reflection wholly in a module gap, most
+often; or under `--least-measured` of the profile measured. The CPU's fits and
+the device's are counted alike. On the 300 image insulin sweep, 1011 of 21031:
+728 with nothing on the measured foreground and 283 under 0.60 measured, the
+same with `--gpu-emulate`, on the device's batching path, and with sigma_m
+forced to 0.047 degrees.
+
 ## The detector's markers
 
 A detector marks two kinds of pixel with the largest values of its width, and

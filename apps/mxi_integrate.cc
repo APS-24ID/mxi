@@ -1086,17 +1086,27 @@ int run_program(int argc, char **argv) {
     // reference, carrying it onto the pixels, and the least squares.
     ThreadSeconds t_fit_interpolate, t_fit_onto, t_fit_solve;
     // A fit recorded in the table, the CPU's or the device's alike.
+    // Why a reflection was not profile fitted, counted, the CPU's way and the
+    // device's: scaling takes only profile-fitted observations, so every one
+    // lost here is lost to the merged data, and a third of a data set's
+    // failing said nothing of which reason it was.
+    std::atomic<std::size_t> prf_no_box{0}, prf_no_reference{0},
+        prf_no_pixels{0}, prf_invalid{0}, prf_too_little{0};
     const auto record_fit = [&](std::size_t row, const ProfileFit &fit) {
-      if (!fit.valid)
+      if (!fit.valid) {
+        prf_invalid.fetch_add(1, std::memory_order_relaxed);
         return;
+      }
       // A fit is an extrapolation when part of the reflection is missing,
       // and past some point it is guesswork dressed as a measurement. The
       // intensity is still written, so it can be looked at; the flag that
       // says it was profile fitted is not, so nothing downstream merges it
       // by accident.
       measured.reals[row] = fit.measured;
-      if (fit.measured < least_measured)
+      if (fit.measured < least_measured) {
+        prf_too_little.fetch_add(1, std::memory_order_relaxed);
         return;
+      }
       iprf.reals[row] = fit.intensity;
       iprf_var.reals[row] = fit.variance;
       prf_cc.reals[row] = fit.correlation;
@@ -1105,8 +1115,10 @@ int run_program(int argc, char **argv) {
 
     const auto fit_one = [&](std::size_t row, Shoebox &box,
                              const PixelCells *cells) {
-      if (box.data.empty())
+      if (box.data.empty()) {
+        prf_no_box.fetch_add(1, std::memory_order_relaxed);
         return;
+      }
       const Prediction &q = *planned[row].prediction;
       // The background the GLM found in the first pass, put back so the
       // fit subtracts the same thing the sum did.
@@ -1125,6 +1137,10 @@ int run_program(int argc, char **argv) {
                      q.px_fast, q.px_slow, q.z);
       const double f1 = Timing::now();
       t_fit_interpolate.add(f1 - f0);
+      if (local.size() != grid_spec.size()) {
+        prf_no_reference.fetch_add(1, std::memory_order_relaxed);
+        return;
+      }
       // Fitted against the PIXELS, with the profile carried onto them,
       // rather than against the grid with the pixels carried onto it. The
       // two give the same intensity and very different variances: the grid
@@ -1138,8 +1154,10 @@ int run_program(int argc, char **argv) {
           profile_on_pixels(e, box, q.s1, q.phi, grid_spec, local, cells);
       const double f2 = Timing::now();
       t_fit_onto.add(f2 - f1);
-      if (on_pixels.empty())
+      if (on_pixels.empty()) {
+        prf_no_pixels.fetch_add(1, std::memory_order_relaxed);
         return;
+      }
       const ProfileFit fit =
           fit_on_pixels(box, on_pixels, integrate_options.gain);
       t_fit_solve.add(Timing::now() - f2);
@@ -1237,8 +1255,14 @@ int run_program(int argc, char **argv) {
         std::vector<BatchEntry> entries;
         for (std::size_t n = 0; n < to - from; ++n) {
           const Shoebox &box = held[which[from + n]];
-          if (box.data.empty() || locals[n].size() != grid_spec.size())
+          if (box.data.empty()) {
+            prf_no_box.fetch_add(1, std::memory_order_relaxed);
             continue;
+          }
+          if (locals[n].size() != grid_spec.size()) {
+            prf_no_reference.fetch_add(1, std::memory_order_relaxed);
+            continue;
+          }
           const std::size_t row = held_rows[which[from + n]];
           const Prediction &q = *planned[row].prediction;
           entries.push_back({&box, q.s1, q.phi, bmean.reals[row], &locals[n]});
@@ -1824,6 +1848,29 @@ int run_program(int argc, char **argv) {
     }
     if (!e.identifier.empty())
       out.identifiers[0] = e.identifier;
+
+    {
+      const std::size_t lost = prf_no_box + prf_no_reference + prf_no_pixels +
+                               prf_invalid + prf_too_little;
+      if (lost > 0 && fitting) {
+        std::printf("Not profile fitted, %zu, and why:\n", lost);
+        const auto line = [](std::size_t n, const char *why) {
+          if (n > 0)
+            std::printf("  %10zu  %s\n", n, why);
+        };
+        line(prf_no_box, "the box was rejected before fitting");
+        line(prf_no_reference,
+             "no reference profile for its place and scan block");
+        line(prf_no_pixels, "the profile could not be carried onto its pixels");
+        line(prf_invalid, "nothing of the profile on its measured foreground");
+        char cut[96];
+        std::snprintf(cut, sizeof cut,
+                      "under %.2f of the profile measured (--least-measured)",
+                      least_measured);
+        line(prf_too_little, cut);
+        std::printf("\n");
+      }
+    }
 
     const std::string path = args.value("-o", "integrated.refl");
     const double t_write_start = now_wall();

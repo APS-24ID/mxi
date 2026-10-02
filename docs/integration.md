@@ -152,14 +152,26 @@ which is what lets a fitted intensity recover what the gap took.
 
 Scaling takes only profile-fitted observations, so a reflection the fit loses is
 lost to the merged data. After its summary the integrator says how many were
-lost and why: the box rejected before fitting; no reference profile for its
-place and scan block; the profile not carried onto its pixels; nothing of the
-profile on its measured foreground -- a reflection wholly in a module gap, most
-often; or under `--least-measured` of the profile measured. The CPU's fits and
-the device's are counted alike. On the 300 image insulin sweep, 1011 of 21031:
-728 with nothing on the measured foreground and 283 under 0.60 measured, the
-same with `--gpu-emulate`, on the device's batching path, and with sigma_m
-forced to 0.047 degrees.
+lost and why, and writes each reflection's reason to the table as
+`profile.failure`, 0 if it was fitted (DIALS ignores the column):
+
+| code | reason |
+| --- | --- |
+| 1 | the box rejected before fitting |
+| 2 | no reference profile for its place and scan block |
+| 3 | the profile not carried onto its pixels |
+| 4 | the profile zero over the whole foreground: off its box |
+| 5 | none of the foreground measured: wholly in a gap, say |
+| 6 | under `--least-measured` of the profile measured |
+| 7 | the least squares had no solution |
+| 8 | the device's fit failed; a run without `--gpu` says which |
+
+`mxeq failures integrated.refl` counts them and bins the failures by position in
+the scan, |zeta|, the box's depth and width, place on the detector, resolution
+and summed I/sigma, so that a cause shows as the variable whose bins differ. On
+the 300 image insulin sweep, 1011 of 21031: 728 wholly in a gap and 283 under
+0.60 measured -- the same with `--gpu-emulate`, on the device's batching path,
+and with sigma_m or sigma_b forced small.
 
 ## The detector's markers
 

@@ -117,3 +117,24 @@ def test_every_fit_submitted_to_a_device_is_collected(tmp_path):
     assert (tmp_path / "fake.refl").read_bytes() == (
         tmp_path / "emulated.refl"
     ).read_bytes()
+
+
+@needs_data
+def test_a_device_fit_that_fails_is_code_8_exactly_where_the_cpu_says_why(tmp_path):
+    # A device returns only that a fit failed; the CPU's fit says why (4, 5 or
+    # 7). profile.failure on the device's path must be 8 exactly there, and
+    # every other code the CPU's.
+    import numpy as np
+
+    from mxeq import refl
+
+    integrate(tmp_path, "emulated", "--gpu-emulate")
+    integrate(tmp_path, "cpu")
+    d = np.asarray(
+        refl.load(str(tmp_path / "emulated.refl")).columns["profile.failure"]
+    ).ravel()
+    c = np.asarray(
+        refl.load(str(tmp_path / "cpu.refl")).columns["profile.failure"]
+    ).ravel()
+    assert np.array_equal(d == 8, np.isin(c, [4, 5, 7]))
+    assert np.array_equal(d[d != 8], c[d != 8])

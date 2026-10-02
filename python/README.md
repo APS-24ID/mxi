@@ -63,6 +63,15 @@ shows it against image, resolution and detector position, with a summary that
 separates the systematic offset, the counting noise and the prediction error.
 See `docs/integration.md` for what it cannot tell you in z.
 
+## Where profile fitting fails
+
+`mxeq failures integrated.refl` reads the `profile.failure` column
+`mxi_integrate` writes -- each reflection's reason for not being profile fitted,
+0 if it was -- counts the reasons, and bins the failures by position in the
+scan, |zeta|, the box's depth and width, place on the detector, resolution and
+summed I/sigma (`--code N` for one reason). A cause shows as the variable whose
+bins differ sharply where the others are flat.
+
 ## Two experiment lists
 
 `mxeq compare-expt a.expt b.expt` puts two experiment lists' models side by

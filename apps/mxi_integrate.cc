@@ -1091,10 +1091,45 @@ int run_program(int argc, char **argv) {
     // lost here is lost to the merged data, and a third of a data set's
     // failing said nothing of which reason it was.
     std::atomic<std::size_t> prf_no_box{0}, prf_no_reference{0},
-        prf_no_pixels{0}, prf_invalid{0}, prf_too_little{0};
+        prf_no_pixels{0}, prf_off_foreground{0}, prf_masked{0},
+        prf_degenerate{0}, prf_device{0}, prf_too_little{0};
+    // Each reflection's reason, written as profile.failure: 0 fitted, else why
+    // not (FitFailure), so that where a data set's fits fail can be looked at.
+    std::vector<std::uint8_t> failure_of(planned.size(), 0);
+    const auto failed = [&](std::size_t row, FitFailure why) {
+      failure_of[row] = static_cast<std::uint8_t>(why);
+      std::atomic<std::size_t> *counter = &prf_degenerate;
+      switch (why) {
+      case FitFailure::no_box:
+        counter = &prf_no_box;
+        break;
+      case FitFailure::no_reference:
+        counter = &prf_no_reference;
+        break;
+      case FitFailure::no_pixels:
+        counter = &prf_no_pixels;
+        break;
+      case FitFailure::profile_off_foreground:
+        counter = &prf_off_foreground;
+        break;
+      case FitFailure::foreground_masked:
+        counter = &prf_masked;
+        break;
+      case FitFailure::too_little:
+        counter = &prf_too_little;
+        break;
+      case FitFailure::device:
+        counter = &prf_device;
+        break;
+      default:
+        break;
+      }
+      counter->fetch_add(1, std::memory_order_relaxed);
+    };
     const auto record_fit = [&](std::size_t row, const ProfileFit &fit) {
       if (!fit.valid) {
-        prf_invalid.fetch_add(1, std::memory_order_relaxed);
+        failed(row,
+               fit.why == FitFailure::none ? FitFailure::degenerate : fit.why);
         return;
       }
       // A fit is an extrapolation when part of the reflection is missing,
@@ -1104,7 +1139,7 @@ int run_program(int argc, char **argv) {
       // by accident.
       measured.reals[row] = fit.measured;
       if (fit.measured < least_measured) {
-        prf_too_little.fetch_add(1, std::memory_order_relaxed);
+        failed(row, FitFailure::too_little);
         return;
       }
       iprf.reals[row] = fit.intensity;
@@ -1116,7 +1151,7 @@ int run_program(int argc, char **argv) {
     const auto fit_one = [&](std::size_t row, Shoebox &box,
                              const PixelCells *cells) {
       if (box.data.empty()) {
-        prf_no_box.fetch_add(1, std::memory_order_relaxed);
+        failed(row, FitFailure::no_box);
         return;
       }
       const Prediction &q = *planned[row].prediction;
@@ -1138,7 +1173,7 @@ int run_program(int argc, char **argv) {
       const double f1 = Timing::now();
       t_fit_interpolate.add(f1 - f0);
       if (local.size() != grid_spec.size()) {
-        prf_no_reference.fetch_add(1, std::memory_order_relaxed);
+        failed(row, FitFailure::no_reference);
         return;
       }
       // Fitted against the PIXELS, with the profile carried onto them,
@@ -1155,7 +1190,7 @@ int run_program(int argc, char **argv) {
       const double f2 = Timing::now();
       t_fit_onto.add(f2 - f1);
       if (on_pixels.empty()) {
-        prf_no_pixels.fetch_add(1, std::memory_order_relaxed);
+        failed(row, FitFailure::no_pixels);
         return;
       }
       const ProfileFit fit =
@@ -1223,8 +1258,14 @@ int run_program(int argc, char **argv) {
       if (!fit_batch_collect(p.ticket, &fits))
         throw std::runtime_error("profile fitting on the device failed");
       t_gpu_wait.add(Timing::now() - t0);
-      for (std::size_t n = 0; n < p.rows.size(); ++n)
-        record_fit(p.rows[n], to_profile_fit(fits[n]));
+      for (std::size_t n = 0; n < p.rows.size(); ++n) {
+        // A device's fit that failed says only that: the reason is the
+        // CPU's to give (a run without --gpu).
+        ProfileFit fit = to_profile_fit(fits[n]);
+        if (!fit.valid)
+          fit.why = FitFailure::device;
+        record_fit(p.rows[n], fit);
+      }
     };
     const auto fit_on_gpu = [&](const std::vector<std::size_t> &which) {
       const std::size_t chunk = 4096;
@@ -1255,15 +1296,15 @@ int run_program(int argc, char **argv) {
         std::vector<BatchEntry> entries;
         for (std::size_t n = 0; n < to - from; ++n) {
           const Shoebox &box = held[which[from + n]];
+          const std::size_t row = held_rows[which[from + n]];
           if (box.data.empty()) {
-            prf_no_box.fetch_add(1, std::memory_order_relaxed);
+            failed(row, FitFailure::no_box);
             continue;
           }
           if (locals[n].size() != grid_spec.size()) {
-            prf_no_reference.fetch_add(1, std::memory_order_relaxed);
+            failed(row, FitFailure::no_reference);
             continue;
           }
-          const std::size_t row = held_rows[which[from + n]];
           const Prediction &q = *planned[row].prediction;
           entries.push_back({&box, q.s1, q.phi, bmean.reals[row], &locals[n]});
           in_batch.push_back(row);
@@ -1293,8 +1334,12 @@ int run_program(int argc, char **argv) {
           pending_fits.push_back({ticket, std::move(in_batch)});
         } else {
           const std::vector<fitdev::FitF> fits = fit_batch_emulated(fit_batch);
-          for (std::size_t n = 0; n < in_batch.size(); ++n)
-            record_fit(in_batch[n], to_profile_fit(fits[n]));
+          for (std::size_t n = 0; n < in_batch.size(); ++n) {
+            ProfileFit fit = to_profile_fit(fits[n]);
+            if (!fit.valid)
+              fit.why = FitFailure::device;
+            record_fit(in_batch[n], fit);
+          }
         }
         t_gpu_device.add(Timing::now() - t_device);
         t_fit_batched.add(Timing::now() - t_prepare);
@@ -1846,12 +1891,20 @@ int run_program(int argc, char **argv) {
       column.bytes = std::move(shoebox_bytes);
       out.set_opaque("shoebox", std::move(column));
     }
+    {
+      // Why each reflection was not profile fitted, 0 if it was: FitFailure's
+      // codes, for mxeq failures. DIALS ignores a column it does not know.
+      Column &why = out.int_column("profile.failure", "int", 1);
+      for (std::size_t r = 0; r < planned.size(); ++r)
+        why.ints[r] = failure_of[r];
+    }
     if (!e.identifier.empty())
       out.identifiers[0] = e.identifier;
 
     {
       const std::size_t lost = prf_no_box + prf_no_reference + prf_no_pixels +
-                               prf_invalid + prf_too_little;
+                               prf_off_foreground + prf_masked +
+                               prf_degenerate + prf_device + prf_too_little;
       if (lost > 0 && fitting) {
         std::printf("Not profile fitted, %zu, and why:\n", lost);
         const auto line = [](std::size_t n, const char *why) {
@@ -1862,7 +1915,12 @@ int run_program(int argc, char **argv) {
         line(prf_no_reference,
              "no reference profile for its place and scan block");
         line(prf_no_pixels, "the profile could not be carried onto its pixels");
-        line(prf_invalid, "nothing of the profile on its measured foreground");
+        line(prf_off_foreground,
+             "the profile zero over the whole foreground: off its box");
+        line(prf_masked,
+             "none of the foreground measured: wholly in a gap, say");
+        line(prf_degenerate, "the least squares had no solution");
+        line(prf_device, "the device's fit failed (without --gpu says why)");
         char cut[96];
         std::snprintf(cut, sizeof cut,
                       "under %.2f of the profile measured (--least-measured)",

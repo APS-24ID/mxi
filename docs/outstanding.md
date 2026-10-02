@@ -289,6 +289,13 @@ where something is missing.
   borrowing. Not reproduced here: insulin loses 4.8 per cent, the same on the
   device's path and with sigma_m forced to 0.047. The integrator now says why
   each reflection was not fitted; that run on 8BXT is the next step.
+  The report, run on 8BXT: 900607 'nothing of the profile on its measured
+  foreground' and 31761 under 0.60, the same on the CPU and Metal. That reason
+  is now split -- the profile zero over the whole foreground (code 4), or none
+  of the foreground measured (code 5) -- each reflection's reason written as
+  profile.failure, and `mxeq failures` bins them. Not the cause, tried here:
+  sigma_m or sigma_b forced small on insulin, the device's path, phi wrapping,
+  empty scan blocks in one pass.
 * **23.** A resolution estimate: dials.estimate_resolution's tanh fit through
   CC half, at 0.3, and its significance limit, with the "Suggested" column.
   `docs/scaling.md`.

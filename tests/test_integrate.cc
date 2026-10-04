@@ -567,3 +567,66 @@ TEST(a_reflection_reaching_a_masked_pixel_is_not_flagged_as_summed) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+namespace {
+
+//: The planted box's background redrawn as Poisson about mean_at(x), seeded.
+template <typename F> Shoebox poisson_background(F mean_at, unsigned seed) {
+  Shoebox box = planted(0.0, 50.0, 25);
+  std::mt19937 rng(seed);
+  for (std::int32_t z = 0; z < box.nz(); ++z)
+    for (std::int32_t y = 0; y < box.ny(); ++y)
+      for (std::int32_t x = 0; x < box.nx(); ++x) {
+        const std::size_t at = box.at(x, y, z);
+        if (box.mask[at] & shoebox_mask::kBackground) {
+          std::poisson_distribution<int> draw(mean_at(x));
+          box.data[at] = static_cast<float>(draw(rng));
+        }
+      }
+  return box;
+}
+
+} // namespace
+
+TEST(the_backgrounds_dispersion_is_one_when_flat_and_more_on_a_ramp) {
+  // A flat Poisson background has its variance equal to its mean; a ramp
+  // across the box -- the edge of a backstop shadow -- adds the ramp's own
+  // spread: from 0 to 25 across 15 columns, a mean of some 12.5 and a variance
+  // of 12.5 + 25^2 / 12, so a dispersion of some 5.2. And a neighbour's spot in
+  // the background raises the dispersion over every pixel, but not trimmed.
+  IntegrateOptions options;
+  Shoebox flat = poisson_background([](std::int32_t) { return 20.0; }, 1);
+  const IntegratedReflection f = integrate_shoebox(&flat, options);
+  check::is_true(f.background_dispersion > 0.85 &&
+                     f.background_dispersion < 1.15,
+                 "flat: about 1, over every pixel");
+  check::is_true(f.background_dispersion_trimmed > 0.85 &&
+                     f.background_dispersion_trimmed < 1.15,
+                 "flat: about 1, trimmed");
+  check::equal(static_cast<long long>(f.n_background_trimmed),
+               static_cast<long long>(f.n_background), "flat: nothing trimmed");
+
+  Shoebox ramp =
+      poisson_background([](std::int32_t x) { return 25.0 * x / 14.0; }, 2);
+  const IntegratedReflection r = integrate_shoebox(&ramp, options);
+  check::is_true(r.background_dispersion > 4.0 && r.background_dispersion < 6.5,
+                 "a ramp: some 5, over every pixel");
+  check::is_true(r.background_dispersion_trimmed > 3.0,
+                 "a ramp: still well above 1, trimmed");
+
+  Shoebox spot = poisson_background([](std::int32_t) { return 20.0; }, 3);
+  spot.data[spot.at(1, 1, 0)] =
+      5000.0f; // a neighbour's spot, in the background
+  const IntegratedReflection s = integrate_shoebox(&spot, options);
+  check::is_true(s.background_dispersion > 20.0,
+                 "a neighbour: high over every pixel");
+  check::is_true(s.background_dispersion_trimmed > 0.85 &&
+                     s.background_dispersion_trimmed < 1.15,
+                 "a neighbour: about 1, trimmed");
+  check::equal(static_cast<long long>(s.n_background_trimmed),
+               static_cast<long long>(s.n_background) - 1,
+               "a neighbour: its one pixel trimmed");
+}
+
+} // namespace mxi

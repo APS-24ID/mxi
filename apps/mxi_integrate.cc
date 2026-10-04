@@ -744,6 +744,12 @@ int run_program(int argc, char **argv) {
     Column &part_column = out.real_column("partiality", "double", 1);
     Column &partial_id = out.int_column("partial_id", "std::size_t", 1);
     Column &n_bg_used = out.int_column("num_pixels.background_used", "int", 1);
+    Column &bg_dispersion =
+        out.real_column("background.dispersion", "double", 1);
+    Column &bg_dispersion_trimmed =
+        out.real_column("background.dispersion_trimmed", "double", 1);
+    Column &n_bg_trimmed =
+        out.int_column("num_pixels.background_trimmed", "int", 1);
     Column &obs_mm_var =
         out.real_column("xyzobs.mm.variance", "vec3<double>", 3);
 
@@ -837,6 +843,10 @@ int run_program(int argc, char **argv) {
       // Everything not foreground was used: this integrator has no second
       // round of rejection on top of the GLM's own weighting.
       n_bg_used.ints[row] = static_cast<std::int64_t>(r.n_background);
+      bg_dispersion.reals[row] = r.background_dispersion;
+      bg_dispersion_trimmed.reals[row] = r.background_dispersion_trimmed;
+      n_bg_trimmed.ints[row] =
+          static_cast<std::int64_t>(r.n_background_trimmed);
       // The centroid variance in millimetres and radians. The px values it
       // comes from do not reproduce DIALS' and neither will these.
       obs_mm_var.reals[row * 3 + 0] =

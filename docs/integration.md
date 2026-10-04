@@ -272,7 +272,7 @@ Every column DIALS' own `integrated.refl` has that this computes:
 `xyzobs.px.value/variance` and `xyzobs.mm.value/variance`. `lp`, `qe`, `d` and
 `partiality` were each checked against DIALS' values for the same reflections.
 
-Two columns of this package's own:
+Columns of this package's own:
 
 * **`xyzres.px.value`** and **`.variance`** -- the observed centre of mass less
   the prediction, in fast pixels, slow pixels and images. Both ends are in the
@@ -283,6 +283,16 @@ Two columns of this package's own:
   its own box. See the open questions for what it cannot tell you in z.
 * **`profile.measured`** -- the fraction of the reflection's profile the
   detector recorded; one unless it crosses a masked pixel.
+* **`profile.failure`** -- why it was not profile fitted, 0 if it was; the codes
+  are under "Why a reflection is not profile fitted".
+* **`background.dispersion`** and **`background.dispersion_trimmed`**, with
+  **`num_pixels.background_trimmed`** -- the background pixels' sample variance
+  over their sample mean: about 1 on a flat background, Poisson on a photon
+  counter, far more on a ramp such as a backstop shadow's edge. Over every
+  valid background pixel, and trimmed of those beyond five Poisson standard
+  deviations of the robust mean (a neighbour's spot, a hot pixel), with how
+  many that leaves. NaN where it cannot be said. Measured; nothing is decided by
+  it yet (`docs/backstop.md`).
 
 ### Flags
 

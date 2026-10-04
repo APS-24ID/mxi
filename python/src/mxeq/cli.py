@@ -258,6 +258,26 @@ def build_parser() -> argparse.ArgumentParser:
         "--limit", type=int, default=0, help="keep only the N worst; 0 for all"
     )
 
+    un = sub.add_parser(
+        "unique",
+        help="two scaled data sets, DIALS's and mxi's say, compared one unique "
+        "reflection at a time: I/sigma split into intensity, multiplicity and "
+        "sigma, and the observations' scatter, by resolution shell",
+    )
+    un.add_argument("expt_a", help="the first data set's scaled experiments")
+    un.add_argument("refl_a", help="its scaled reflections")
+    un.add_argument("expt_b", help="the second's scaled experiments")
+    un.add_argument("refl_b", help="its scaled reflections")
+    un.add_argument(
+        "--shells", type=int, default=10, help="resolution shells, of equal counts (10)"
+    )
+    un.add_argument(
+        "--csv", default=None, help="also write every matched reflection to this file"
+    )
+    un.add_argument(
+        "--labels", nargs=2, default=None, metavar=("A", "B"), help="names for the two"
+    )
+
     fl = sub.add_parser(
         "failures",
         help="where profile fitting fails: an integrated table's profile.failure, "
@@ -344,6 +364,15 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "unique":
+        from . import unique
+
+        names = args.labels or [args.refl_a, args.refl_b]
+        a = unique.load(args.expt_a, args.refl_a, names[0])
+        b = unique.load(args.expt_b, args.refl_b, names[1])
+        print(unique.compare(a, b, args.shells, args.csv))
+        return 0
 
     if args.command == "failures":
         from . import failures

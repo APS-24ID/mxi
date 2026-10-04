@@ -299,6 +299,17 @@ where something is missing.
   profile.failure, and `mxeq failures` bins them. Not the cause, tried here:
   sigma_m or sigma_b forced small on insulin, the device's path, phi wrapping,
   empty scan blocks in one pass.
+* **52.** **correctness -- DIALS's inner shell a shade better in CC1/2 and
+  I/sigma**, on ferritin and before; `mxi_find --subtract-background` made it
+  slightly worse there, the RMSDs slightly better. `mxeq unique` compares the two
+  scaled data sets one unique reflection at a time, splitting I/sigma into
+  intensity, multiplicity and per-observation sigma, and comparing the
+  observations' scatter, which CC1/2 follows. A suspect: overloads. mxi's
+  integrator does not apply the trusted range, so the strongest reflections --
+  the inner shell's -- are integrated with saturated pixels and kept; DIALS
+  flags them overloaded, and the tool reports how many DIALS's table flags and
+  scaling used. Insulin's own inner shell has the lower CC1/2 of its first two
+  (0.983 against 0.997 over five shells).
 * **23.** A resolution estimate: dials.estimate_resolution's tanh fit through
   CC half, at 0.3, and its significance limit, with the "Suggested" column.
   `docs/scaling.md`.

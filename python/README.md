@@ -63,6 +63,24 @@ shows it against image, resolution and detector position, with a summary that
 separates the systematic offset, the counting noise and the prediction error.
 See `docs/integration.md` for what it cannot tell you in z.
 
+## Two scaled data sets, one unique reflection at a time
+
+`mxeq unique a.expt a.refl b.expt b.refl` -- DIALS's scaled data against mxi's,
+say -- matches the two data sets' unique reflections and, by resolution shell,
+splits the difference in I/sigma into its three parts: the mean intensity's
+ratio (a scale or a bias), the root of the multiplicity's (outlier rejection,
+observations lost) and the inverse of the per-observation sigma's (variance
+estimates, the error model). Their product is the ratio of I/sigma, per
+reflection. CC1/2 does not see sigma, so each reflection's scatter -- the
+standard deviation of its observations -- is compared too: less scatter is
+observations that agree better; the same scatter with a smaller sigma is the
+error model. Each data set's own CC1/2, I/sigma, multiplicity and chi2/nu over
+the reflections both have are given, and how many observations its table flags
+overloaded -- DIALS does, mxi does not apply the trusted range. Intensities are
+what merging uses, `intensity.scale.value` over `inverse_scale_factor`; the
+second data set is reindexed by whichever lattice operator makes the two agree
+best. `--csv` writes every matched reflection.
+
 ## Where profile fitting fails
 
 `mxeq failures integrated.refl` reads the `profile.failure` column

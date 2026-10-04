@@ -23,6 +23,7 @@ struct ScaleDataOptions {
   //: dials.scale's default: a partial below 0.4 is too uncertain to scale up.
   double partiality_cutoff = 0.4;
   double d_min = 0.0;
+  double d_max = 0.0; //: reflections with d above it left out; 0, none
   //: Friedel mates kept apart: for an acentric reflection I(+) and I(-) are
   //: separate groups, so scaling, the error model and outlier rejection do not
   //: take a real anomalous difference for error, as dials.scale's
@@ -244,6 +245,7 @@ struct ScaleRunOptions {
   //: 48 at 6.
   int lmax = -1;
   double d_min = 0.0;
+  double d_max = 0.0; //: low resolution limit; 0, none
   ScaleFitOptions fit;
 };
 

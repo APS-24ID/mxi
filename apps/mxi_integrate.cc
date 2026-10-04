@@ -199,6 +199,9 @@ void usage(const char *program) {
       "1/|zeta|,\n"
       "                    so the smallest are forty images deep\n"
       "  --d-min D         resolution limit\n"
+      "  --d-max D         low resolution limit: nothing integrated with d "
+      "above\n"
+      "                    D A -- reflections beside a backstop, say\n"
       "  --first-image N --last-image N   restrict to part of the scan\n"
       "  --gain G          detector gain, counts per photon (1)\n"
 
@@ -362,6 +365,7 @@ int run_program(int argc, char **argv) {
                                        "--n-sigma",
                                        "--box-scale",
                                        "--d-min",
+                                       "--d-max",
                                        "--first-image",
                                        "--last-image",
                                        "--gain",
@@ -598,6 +602,7 @@ int run_program(int argc, char **argv) {
 
     PredictOptions predict_options;
     predict_options.d_min = args.number("--d-min", 0.0);
+    const double d_max = args.number("--d-max", 0.0);
     // Prediction was 39.7 per cent of a large integration and all of it on one
     // thread. One unit of work per h, joined in h order, so the list is the
     // same whatever the thread count.
@@ -634,6 +639,11 @@ int run_program(int argc, char **argv) {
     for (const Prediction &p : predictions) {
       if (p.z < first_image || p.z > last_image) {
         ++outside_range;
+        continue;
+      }
+      if (d_max > 0.0 && e.crystal &&
+          resolution(*e.crystal, p.h, p.k, p.l) > d_max) {
+        ++refused["lower resolution than --d-max"];
         continue;
       }
       Planned item;

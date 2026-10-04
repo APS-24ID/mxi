@@ -1,6 +1,8 @@
 # The backstop: its shadow, its flare, and the outliers they make
 
-STATUS: a plan, 4 October 2026, not yet built. Items 52 and 53 in
+STATUS: a plan, 4 October 2026, not yet built; revised the same day to
+Graeme's metric, the background's own dispersion, in place of a model of the
+images. Items 52 and 53 in
 `docs/outstanding.md` are the findings; this is what is to be done about them,
 in what order, and how it will be judged.
 
@@ -60,45 +62,54 @@ scaled at -0.04. `--d-max` in both programs leaves such reflections out by hand;
 on ferritin it is being tested now, and Graeme will judge by refining a
 structure against each data set.
 
-## 1. The backstop shadow, found from the background
+## 1. The shadow's edge, from each reflection's own background
 
-**A map of the expected background.** Before the one pass, read a sample of
-frames spread over the scan -- every k-th, at least 50; on ferritin 1 in 20 of
-3600, some 5 per cent more reading -- and sum each pixel's counts over them,
-markers excluded. Group pixels in rings about the beam centre, a pixel or two
-wide, the centre from the experiment's geometry; each ring's median sum, over its
-valid pixels, is the background expected at that distance, unshadowed. The
-ring is mostly not shadowed, so its median is not.
+**Not a model of the images.** An earlier draft built a map of the background
+expected at each distance from the beam, from a sample of frames, and compared
+each reflection with it. Graeme's objection stands: anything that must look at
+images to model the background is a heuristic, and will fail on the data it
+did not anticipate. Instead, a test on what each reflection's shoebox already
+holds.
 
-**Each reflection's transmission.** Integration measures each reflection's
-background. Its transmission is that background over the map's expectation for
-its pixels, on the same per-frame scale. A reflection whose transmission is
-below t -- 0.9 to start, judged on the data -- and below by more than the
-counting noise of the expectation, is attenuated: flagged, not profile fitted,
-not scaled. This is the test for an abnormal background: it catches the deep
-shadow and the partly attenuated edge alike, and on (3,1,1) it would leave the
-13 and drop the 14.
+**The dispersion of its background.** On a flat background a photon-counting
+detector's pixels are Poisson: their variance over their mean, the dispersion,
+is about 1. A reflection on the shadow's edge sits on a ramp from nearly nothing
+to the full background, and its dispersion is far above 1: across a box whose
+background ramps by D with mean m it is about 1 + D^2 / 12m, so on (3,1,1)'s
+edge -- a ramp of some 25 under a mean of some 5 -- about 11, where a flat
+background gives 1 at any level.
 
-**Pixels in deep shadow** -- a sum below a fifth of its ring's, by more than five
-Poisson standard deviations of the ring's -- are also masked as a module gap is,
-so that a reflection partly in deep shadow is fitted from its illuminated
-pixels. A dead pixel the detector did not mark is caught the same way, rightly.
+**A test, not a threshold.** For n Poisson pixels with a flat mean, (n - 1)
+times the dispersion is chi-squared on n - 1 degrees of freedom. A reflection is
+flagged when its background is incompatible with that at a stated false-alarm
+probability -- 1e-6, a few false flags among millions -- and is then not profile
+fitted, and not scaled. A detector that is not photon counting has its gain,
+`--gain`, divided out.
 
-**The flare** raises a ring's pixels above its median, not below: it does not
-look like attenuation, and is left to part 3.
+**What it does not catch.** A reflection wholly in the shadow sits on a flat,
+nearly empty background: dispersion about 1, intensity about 0. That one is
+left to scaling (part 2), which must reject it -- once the edge is flagged,
+(3,1,1) has 13 unharmed observations against 2 wholly shadowed, and a test the
+many cannot lose to the few rejects the 2.
 
-**Assumed, and to be checked.** The backstop is fixed to the detector, so the
-shadow does not move through the scan: one map from the sum. A shadow that
-moves -- the goniometer's, the cryostream's -- would need a map per scan block;
-not in the first version, which reports how much it flagged and where, so a
-moving shadow shows as too little.
+**What may raise it besides.** The flare has a gradient too, though under a
+mean of 25 a ramp must be large to double the dispersion; and on dense data a
+neighbour's spot in a box's background region adds variance. Which background
+pixels the dispersion is taken over -- all the valid ones, or those the robust
+background fit kept -- decides both, and is to be measured, not chosen in
+advance.
 
-**Interface.** `mxi_integrate --backstop`, off at first; on by default once it
-has been judged. It reports the reflections flagged and the pixels masked, and
-can write the transmission map (`--write-transmission`) to view beside a frame.
-The flag goes into the table, so `mxeq` can count it.
+**First, measurement only.** Each reflection's background dispersion written to
+`integrated.refl` as `background.dispersion`, with how many pixels it was taken
+over, so that on ferritin `mxeq observations` and `mxeq equivalents` can show
+whether the edge stands out, where the flare falls, and whether dense regions
+flag falsely. Then the test, `mxi_integrate --flag-background`, off until it has
+been judged; the flag goes into the table, so `mxeq` can count it.
 
 ## 2. Outlier rejection that the few cannot win
+
+Essential, not only a guard: a reflection wholly in the backstop shadow passes
+part 1's test, and must be rejected here.
 
 The same test -- an observation against the others in its group, the worst
 beyond zmax removed and the rest retested -- with two changes, so that a few
@@ -131,16 +142,19 @@ plane for the background there, or a flag and leaving them out.
 
 ## Order, and how each is judged
 
-1. **The backstop shadow** first, the fault where it happens. Judged by
-   (3,1,1)'s 14 attenuated observations flagged and its 13 kept, insulin's
-   (1,1,0) leaving the scaled data, the transmission map drawn beside a frame
-   matching the shadow and its edge, nothing flagged away from the backstop,
-   `--d-max`'s results matched without it, `mxeq unique`'s inner shell against
-   DIALS, and Graeme's refinement.
-2. **Outlier rejection** second, the guard: judged by a planted test (a group of
-   20 consistent and 3 near zero with small sigmas: the 3 go, the 20 stay), by
+1. **The background dispersion, measured**: the column, and on ferritin where
+   (3,1,1)'s 27 observations, the flare's, and those on dense regions fall.
+2. **Its test** if the measurement bears it out: judged by whether (3,1,1)'s
+   12 attenuated observations are flagged -- those on the ramp should be; any
+   that are not lie in shadow flat enough to be left to part 2 -- and its 13
+   kept, by nothing flagged on flat backgrounds beyond the false-alarm rate, by
+   `mxeq unique`'s inner shell against DIALS, and by Graeme's refinement.
+3. **Outlier rejection**, with it: judged by a planted test (a group of 20
+   consistent and 3 near zero with small sigmas: the 3 go, the 20 stay), by the
+   wholly shadowed observations of (3,1,1) and insulin's (1,1,0) rejected, by
    the rejected counts against the present test's, and by refinement.
-3. **The flare** third, measured, and changed only if the measurement says so.
+4. **The flare**, measured -- the dispersion will show where it is -- and
+   changed only if the measurement says so.
 
 Each default stays as it is until the change has been judged, and each is
 byte-identical when off.

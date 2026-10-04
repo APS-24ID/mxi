@@ -60,7 +60,7 @@ first integration byte for byte.
 | reference profiles | `--scan-blocks` (one per 10 degrees), `--regions` (3), `--reference-signal` (10), `--grid-points` (4), `--subdivisions` (5) |
 | profile fitting | `--least-measured` (0.6), `--summation-only`, `--two-pass`, `-g`/`--gpu` (single precision on the device, `docs/gpu.md`), `--gpu-emulate` |
 | speed and memory | `--threads` (0, one per core), `--window` (64), `--max-boxes` (6000 a thread, at least 20000) |
-| output | `-o`, `--save-shoeboxes`, `--save-profiles`, `--timing` |
+| output | `-o`, `--save-shoeboxes`, `--save-profiles`, `--save-background-parameters`, `--timing` |
 
 Choosing a few of them:
 
@@ -286,13 +286,14 @@ Columns of this package's own:
 * **`profile.failure`** -- why it was not profile fitted, 0 if it was; the codes
   are under "Why a reflection is not profile fitted".
 * **`background.dispersion`** and **`background.dispersion_trimmed`**, with
-  **`num_pixels.background_trimmed`** -- the background pixels' sample variance
-  over their sample mean: about 1 on a flat background, Poisson on a photon
-  counter, far more on a ramp such as a backstop shadow's edge. Over every
-  valid background pixel, and trimmed of those beyond five Poisson standard
-  deviations of the robust mean (a neighbour's spot, a hot pixel), with how
-  many that leaves. NaN where it cannot be said. Measured; nothing is decided by
-  it yet (`docs/backstop.md`).
+  **`num_pixels.background_trimmed`**, under `--save-background-parameters`
+  only, so that by default the table is what it was -- the background pixels'
+  sample variance over their sample mean: about 1 on a flat background, Poisson
+  on a photon counter, far more on a ramp such as a backstop shadow's edge. Over
+  every valid background pixel, and trimmed of those beyond five Poisson
+  standard deviations of the robust mean (a neighbour's spot, a hot pixel), with
+  how many that leaves. NaN where it cannot be said. Measured; nothing is
+  decided by it yet (`docs/backstop.md`).
 
 ### Flags
 

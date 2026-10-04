@@ -145,6 +145,14 @@ void usage(const char *program, std::FILE *to = stderr) {
       "  --min-spot-size N  contiguous pixels a spot needs (3)\n"
       "  --max-spot-size N  and the most it may have (1000)\n"
       "  --max-separation D peak to centroid, in pixels; 0 turns it off (2)\n"
+      "  --subtract-background\n"
+      "                     centroids weighted by count less the threshold's "
+      "local\n"
+      "                     background, the intensity less it, and the "
+      "background\n"
+      "                     kept in the shoeboxes, where the integrator's "
+      "profile\n"
+      "                     model uses it; off, as DIALS has it\n"
       "  --2d               group each frame on its own, as for stills\n"
       "  --z-offset N       array index of image number 0; taken from -e when\n"
       "                     that is given, and 0 otherwise\n"
@@ -220,6 +228,8 @@ bool parse_options(int argc, char **argv, Options *options) {
           stderr,
           "warning: -gpu is now --gpu, or -g; the old spelling will go\n");
       options->gpu = true;
+    } else if (flag == "--subtract-background") {
+      options->grouping.subtract_background = true;
     } else if (flag == "--gpu-force") {
       options->gpu_force = true;
     } else if (flag == "--gpu" || flag == "-g") {

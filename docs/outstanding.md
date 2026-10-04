@@ -34,6 +34,9 @@ where something is missing.
 * **3.** **correctness -- sigma_m is 0.129 degrees here against DIALS' 0.089** on the
    same 300 image sweep; it sets how large the boxes are. Not yet investigated.
   The partials put it at 0.082 to 0.086 degrees (`mxeq equivalents`, item 1).
+  Not background in the spots: with `mxi_find --subtract-background` and the
+  profile model subtracting what the shoeboxes record, sigma_m stays 0.1286
+  (sigma_b 0.0273 to 0.0270).
 * **4.** **correctness -- The background is about one per cent high at low
    resolution.** A guard ring around the foreground would likely fix it.
    `docs/integration.md`.

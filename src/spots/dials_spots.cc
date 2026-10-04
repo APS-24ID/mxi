@@ -93,6 +93,7 @@ void Labeller::add(std::int64_t frame, const std::vector<SignalPixel> &signal) {
     held.frame = static_cast<std::int32_t>(frame);
     held.index = pixel.index;
     held.value = pixel.value;
+    held.background = options_.subtract_background ? pixel.background : 0.0f;
     parent_.push_back(static_cast<std::uint32_t>(live_.size()));
     live_.push_back(held);
   }
@@ -238,7 +239,16 @@ void Labeller::emit(const std::uint32_t *members, std::size_t n) {
   // them that way in CentroidMaskedImage3d and the halves are what put a
   // single-pixel spot in the middle of its pixel rather than at its corner.
   double sum = 0.0, sum_sq = 0.0;
+  double counts = 0.0, net = 0.0; // the raw counts, and less their background
   double weighted[3] = {0.0, 0.0, 0.0};
+  // A pixel's weight in the centroid: its count, or under subtract_background
+  // its count less its local background, clamped at zero, so that a pixel below
+  // its background pulls nowhere rather than away.
+  const auto weight_of = [&](const Pixel &pixel) {
+    const double v = static_cast<double>(pixel.value);
+    const double w = v - static_cast<double>(pixel.background);
+    return options_.subtract_background ? (w > 0.0 ? w : 0.0) : v;
+  };
   std::int32_t x0 = 0, x1 = 0, y0 = 0, y1 = 0, z0 = 0, z1 = 0;
   std::uint32_t peak_value = 0;
   double peak[3] = {0.0, 0.0, 0.0};
@@ -264,12 +274,15 @@ void Labeller::emit(const std::uint32_t *members, std::size_t n) {
       z1 = z + 1 > z1 ? z + 1 : z1;
     }
 
-    const double value = static_cast<double>(pixel.value);
+    const double value = weight_of(pixel);
     const double position[3] = {static_cast<double>(x) + 0.5,
                                 static_cast<double>(y) + 0.5,
                                 static_cast<double>(z) + 0.5};
     sum += value;
     sum_sq += value * value;
+    counts += static_cast<double>(pixel.value);
+    net += static_cast<double>(pixel.value) -
+           static_cast<double>(pixel.background);
     for (int axis = 0; axis < 3; axis++)
       weighted[axis] += value * position[axis];
 
@@ -294,8 +307,10 @@ void Labeller::emit(const std::uint32_t *members, std::size_t n) {
   // A shoebox whose background array is all zero, which is what the spot finder
   // produces: DIALS' Summation then reports the sum of the foreground and a
   // variance equal to it.
-  spot.intensity = sum;
-  spot.intensity_variance = sum;
+  // Under subtract_background the intensity is the counts less their
+  // background, unclamped -- the estimate -- and its variance the counts'.
+  spot.intensity = options_.subtract_background ? net : counts;
+  spot.intensity_variance = counts;
 
   if (sum > 0.0) {
     for (int axis = 0; axis < 3; axis++)
@@ -304,7 +319,7 @@ void Labeller::emit(const std::uint32_t *members, std::size_t n) {
     double delta_sq[3] = {0.0, 0.0, 0.0};
     for (std::size_t k = 0; k < n; k++) {
       const Pixel &pixel = live_[members[k]];
-      const double value = static_cast<double>(pixel.value);
+      const double value = weight_of(pixel);
       const double position[3] = {
           static_cast<double>(pixel.index % width_) + 0.5,
           static_cast<double>(pixel.index / width_) + 0.5,

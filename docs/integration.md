@@ -91,7 +91,15 @@ Choosing a few of them:
 ## How it works
 
 1. **The profile model.** sigma_b and sigma_m, from the command line, else the
-   strong spots, else the `.expt`, in that order.
+   strong spots, else the `.expt`, in that order. From the strong spots, each
+   pixel's count less the background its shoebox records, as Kabsch section 3.1
+   step (v) says and DIALS does not: on a table from `dials.find_spots`, or
+   `mxi_find` by default, that background is zero and nothing changes; under
+   `mxi_find --subtract-background` it is the threshold's local mean, and the
+   widths are the spots', not the spots' and their background's. On the 300
+   image insulin sweep it took sigma_b from 0.0273 to 0.0270 degrees and left
+   sigma_m at 0.1286 -- so background in the spots is not why sigma_m is wider
+   than DIALS's.
 2. **Prediction.** Every reflection's crossings of the Ewald sphere, once per
    turn on a sweep of more than one, with a scan-varying crystal looked up at
    each reflection's own position in the scan.

@@ -496,6 +496,32 @@ order by construction and each holds about four pixels. O(n) rather than
 O(n log n), and it uses nothing about the emit order, which is a property of the
 threadgroup shape and the scheduler and would break quietly if relied on.
 
+## Subtracting the background
+
+The threshold emits each signal pixel with its local background: the mean, over
+its final window, of the pixels the dispersion stage did not take for signal --
+a fair background, the spot left out. DIALS' spot finder discards it, weighting
+each centroid by raw counts and summing them for the intensity, and `mxi_find`
+does the same by default, byte for byte. `mxi_find --subtract-background` keeps
+it:
+
+* the centroid weighted by count less background, clamped at zero, so that a
+  weak spot is not drawn towards the middle of the pixels selected, nor in z to
+  the middle of its images;
+* the intensity the sum of count less background, unclamped, its variance still
+  the counts';
+* the background written into the shoeboxes, where `mxi_integrate`'s profile
+  model subtracts it before measuring sigma_b and sigma_m.
+
+It is the same on every backend, since the background comes from the CPU's,
+Metal's and CUDA's thresholds alike. On the 300 image insulin sweep, through
+the whole chain against the default: 12920 spots against 12915, the median
+intensity 232 against 246; indexing the same; refinement's RMSDs 0.2954 px,
+0.2311 px and 0.2373 images against 0.2981, 0.2327 and 0.2401, about 1 per cent
+better on each; sigma_b 0.0270 degrees against 0.0273, sigma_m unchanged. A
+strong sweep with little background, so a small effect; weak data with more
+background should show more.
+
 ## 32-bit frames on a GPU of 16 bits
 
 Metal's threshold takes 16-bit frames only, Apple's GPUs having no double

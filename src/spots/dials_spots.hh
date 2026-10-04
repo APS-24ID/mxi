@@ -51,6 +51,10 @@ struct Pixel {
   std::int32_t frame;
   std::uint32_t index;
   std::uint32_t value;
+  // The threshold's local background at this pixel -- the mean over its final
+  // window of the pixels the dispersion stage did not take for signal -- under
+  // Options::subtract_background; 0 otherwise, as DIALS' spot finder has it.
+  float background = 0.0f;
 };
 
 // One accepted spot, in DIALS' terms and DIALS' units.
@@ -88,6 +92,14 @@ struct Options {
   // Maximum distance between the brightest pixel and the centroid, in pixels.
   // Zero or less turns the filter off, which is what max_separation=None does.
   double max_separation = 2.0;
+
+  // Weight the centroid by each pixel's count less its local background,
+  // clamped at zero, report the intensity as the sum of count less background,
+  // and keep the background in the shoebox: so that a weak spot's centroid is
+  // not drawn towards the middle of its pixels, and the profile model's widths
+  // are not widened by the background they would otherwise include. Off, as
+  // DIALS has it -- raw counts, a zero background.
+  bool subtract_background = false;
 
   // Group each frame on its own, as DIALS does for a still or under
   // spotfinder.force_2d=True. A rotation series wants this off.

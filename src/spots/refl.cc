@@ -293,7 +293,7 @@ void write(const std::string &path, const std::vector<dials_spots::Spot> &spots,
 
   if (options.shoeboxes) {
     open_column(out, "shoebox", "Shoebox<>", rows, shoebox_column_bytes(spots));
-    std::vector<float> data;
+    std::vector<float> data, background;
     std::vector<std::uint8_t> mask;
     for (const dials_spots::Spot &spot : spots) {
       const std::size_t xsize =
@@ -305,6 +305,7 @@ void write(const std::string &path, const std::vector<dials_spots::Spot> &spots,
       const std::size_t n = xsize * ysize * zsize;
 
       data.assign(n, 0.0f);
+      background.assign(n, 0.0f);
       mask.assign(n, 0);
       for (std::uint32_t k = 0; k < spot.n_signal; k++) {
         const dials_spots::Pixel &pixel = pixels[spot.first + k];
@@ -317,6 +318,7 @@ void write(const std::string &path, const std::vector<dials_spots::Spot> &spots,
         // c_grid<3>(zsize, ysize, xsize): z slowest, x fastest.
         const std::size_t at = (z * ysize + y) * xsize + x;
         data[at] = static_cast<float>(pixel.value);
+        background[at] = pixel.background;
         mask[at] = kValid | kForeground;
       }
 
@@ -326,10 +328,10 @@ void write(const std::string &path, const std::vector<dials_spots::Spot> &spots,
       out.byte(2); // version 2: a uint8 mask rather than the original int one
       out.bytes(data.data(), n * sizeof(float));
       out.bytes(mask.data(), n);
-      // The background, which the spot finder never fills. Reusing the data
-      // buffer would write the pixels twice; this is a zeroed one.
-      data.assign(n, 0.0f);
-      out.bytes(data.data(), n * sizeof(float));
+      // The background: each signal pixel's local background under
+      // mxi_find --subtract-background, zero otherwise, as DIALS' spot finder
+      // writes it.
+      out.bytes(background.data(), n * sizeof(float));
     }
   }
 

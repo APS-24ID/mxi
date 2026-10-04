@@ -22,14 +22,17 @@ bool spot_angular_variance(const Experiment &e, const Shoebox &box,
     for (std::int32_t y = 0; y < box.ny(); ++y) {
       for (std::int32_t x = 0; x < box.nx(); ++x) {
         const std::size_t at = box.at(x, y, z);
-        // Any pixel the spot finder marked, not only the foreground, and the
-        // background is NOT subtracted. Kabsch section 3.1 step (v) says to
-        // subtract it; DIALS does not, and carries a note saying so. Matching
-        // DIALS is the point here, and on a table out of dials.find_spots the
-        // background is zero in any case.
+        // Any pixel the spot finder marked, not only the foreground, less the
+        // shoebox's background, as Kabsch section 3.1 step (v) says. DIALS does
+        // not subtract it, and carries a note saying so -- but its spot finder,
+        // and mxi_find by default, write a background of zero, so there it is
+        // the same; under mxi_find --subtract-background the background is the
+        // threshold's local mean, and the width is the spot's, not the spot's
+        // and its background's.
         if ((box.mask[at] & shoebox_mask::kValid) == 0)
           continue;
-        const double count = static_cast<double>(box.data[at]);
+        const double count = static_cast<double>(box.data[at]) -
+                             static_cast<double>(box.background[at]);
         if (!(count > 0.0))
           continue;
 

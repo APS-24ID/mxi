@@ -64,7 +64,8 @@ ScaleData build_scale_data(const ExperimentList &experiments,
     const double v = var.reals[i];
     const double d = dcol.reals[i];
     if (!(v > 0.0) || !std::isfinite(value.reals[i]) || !(d > 0.0) ||
-        !std::isfinite(d) || d < options.d_min)
+        !std::isfinite(d) || d < options.d_min ||
+        (options.d_max > 0.0 && d > options.d_max))
       return;
     const double part = part_col ? part_col->reals[i] : 1.0;
     if (!(part >= options.partiality_cutoff))
@@ -1188,6 +1189,7 @@ ScaleRun scale_sweep(const ExperimentList &experiments,
     shape.lmax = 0;
   ScaleDataOptions data_options;
   data_options.d_min = options.d_min;
+  data_options.d_max = options.d_max;
   data_options.anomalous = options.anomalous;
   run.data =
       build_scale_data(experiments, reflections, group, shape, data_options);

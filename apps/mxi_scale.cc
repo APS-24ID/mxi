@@ -35,6 +35,8 @@ void usage() {
       "  --d-min D         leave out reflections beyond D A; the summary then "
       "has\n"
       "                    no Suggested column\n"
+      "  --d-max D         leave out reflections with d above D A: a low\n"
+      "                    resolution limit\n"
       "  --d-min-auto      scale everything, estimate the limit from CC half, "
       "and\n"
       "                    scale again to it, if CC half falls to the limit\n"
@@ -68,11 +70,11 @@ int run_program(int argc, char **argv) {
       "--anomalous", "--l-max",         "--d-min-auto",   "--cc-half-limit",
       "--threads",   "--timing",        "--space-group",  "--change-of-basis",
       "--d-min",     "--no-absorption", "--profile-only", "--shells",
-      "-o",          "--output-expt"};
+      "-o",          "--output-expt",   "--d-max"};
   const std::set<std::string> takes_value = {
       "--l-max",           "--cc-half-limit", "--threads", "--space-group",
       "--change-of-basis", "--d-min",         "--shells",  "-o",
-      "--output-expt"};
+      "--output-expt",     "--d-max"};
   const Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (args.help) {
     usage();
@@ -149,6 +151,7 @@ int run_program(int argc, char **argv) {
     options.lmax = static_cast<int>(args.number("--l-max", -1.0));
     options.anomalous = args.has("--anomalous");
     options.d_min = args.number("--d-min", 0.0);
+    options.d_max = args.number("--d-max", 0.0);
     const double cc_half_limit = args.number("--cc-half-limit", 0.3);
     phase("reindexing");
     // --d-min-auto: everything scaled once, for the estimate alone, and then

@@ -322,6 +322,15 @@ where something is missing.
   overloads; but DIALS masks pixels over the trusted range and profile fits
   around them, where mxi counts them at their capped value. The suspect, and
   the fix: the trusted range applied in integration.
+  Not the trusted range after all: the inner shell's far-apart reflections are
+  the very lowest-resolution ones, near the beam. On ferritin their observations
+  pair across the beam: those on one side integrate well (backgrounds 4 to 57),
+  those on the other read 0 with no valid pixels (masked, and left out); but
+  some beside the beam, in the backstop's shadow, have valid pixels that see
+  almost nothing (backgrounds 0.28) and integrate to about zero -- fitted,
+  scaled, and dragging the merged mean down: (2,2,2) 144 against DIALS's 2812.
+  Reproduced here: insulin's (1,1,0) is measured once, in the shadow, and
+  scaled at -0.04. `mxeq observations` lists a reflection's observations.
 * **23.** A resolution estimate: dials.estimate_resolution's tanh fit through
   CC half, at 0.3, and its significance limit, with the "Suggested" column.
   `docs/scaling.md`.

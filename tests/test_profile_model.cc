@@ -142,15 +142,15 @@ TEST(the_variance_is_weighted_by_the_counts) {
                  "and weight away from it widens it");
 }
 
-TEST(the_background_is_not_subtracted_which_is_a_departure_from_kabsch) {
+TEST(a_recorded_background_is_subtracted_as_kabsch_says) {
   // Kabsch section 3.1 step (v) says to subtract the background before
   // measuring the spread. DIALS does not, and carries a note in its own source
-  // saying so. This follows DIALS, because standing in for dials.integrate is
-  // the point, and the difference is recorded rather than quietly improved.
-  //
-  // It costs nothing on a table out of dials.find_spots, where the background
-  // is zero. It would matter on one where it is not, and a pedestal does widen
-  // the measured spread -- which is what this test now pins.
+  // saying so -- but its spot finder records a background of zero, as mxi_find
+  // does by default, and on such a table subtracting it changes nothing. Under
+  // mxi_find --subtract-background the shoebox records the threshold's local
+  // background, and then the spread is the spot's, not the spot's and its
+  // pedestal's: subtracted, a recorded pedestal measures as the clean spot; not
+  // recorded, it still widens the spot, as on a DIALS table.
   const Experiment e = simple_experiment(200.0);
   Shoebox box;
   box.panel = 0;
@@ -171,10 +171,17 @@ TEST(the_background_is_not_subtracted_which_is_a_departure_from_kabsch) {
 
   box.data = {20.0f, 120.0f, 20.0f};
   box.background = {20.0f, 20.0f, 20.0f};
-  double pedestal = 0.0;
-  spot_angular_variance(e, box, s1, &pedestal);
-  check::is_true(pedestal > clean,
-                 "with the background left in, a pedestal widens the spot");
+  double recorded = 0.0;
+  spot_angular_variance(e, box, s1, &recorded);
+  check::close(recorded, clean, 1e-12 * clean,
+               "a recorded pedestal, subtracted, is the clean spot");
+
+  box.background = {0.0f, 0.0f, 0.0f};
+  double unrecorded = 0.0;
+  spot_angular_variance(e, box, s1, &unrecorded);
+  check::is_true(
+      unrecorded > clean,
+      "a pedestal not recorded, as on a DIALS table, still widens the spot");
 }
 
 TEST(a_spot_with_one_count_has_no_variance_and_is_skipped) {

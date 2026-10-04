@@ -122,7 +122,7 @@ wall time and 3m42 of CPU (30 September 2026).
 
 | program | does | options worth knowing |
 | --- | --- | --- |
-| `mxi_find` | finds spots on every frame, of the images an experiment list names or a master given itself | `-j N` threads (every core), `-g`/`--gpu` the threshold on the GPU, `--no-shoeboxes` a much smaller table, `--min-spot-size N` |
+| `mxi_find` | finds spots on every frame, of the images an experiment list names or a master given itself | `-j N` threads (every core), `-g`/`--gpu` the threshold on the GPU, `--subtract-background` centroids and profile widths less the local background, `--no-shoeboxes` a much smaller table, `--min-spot-size N` |
 | `mxi_index` | indexes by 3D FFT, reduces the cell, refines | `--d-min D`, `--max-cell A`, `--verbose` the search |
 | `mxi_refine` | refines beam, detector and crystal; scan-varying by default, one control point per 10 degrees | `--analytic` analytical derivatives (recommended), `--beam` the beam direction too, `--static` one crystal setting for the scan, `--scan-varying N` N control points |
 | `mxi_integrate` | predicts, integrates by summation and profile fitting, in one pass over the images | `-g`/`--gpu` profile fitting on the GPU, `--threads N` (default every core), `--d-min D`, `--postrefine` refine against integration's own centres and integrate again, `--summation-only`, `--save-shoeboxes` |

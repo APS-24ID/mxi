@@ -411,6 +411,34 @@ int main() {
           static_cast<unsigned>(6 * frames));
   }
 
+  // -------------------------------------------------------------------------
+  // Under subtract_background: three pixels in a row at 20, 12, 11 on a local
+  // background of 10 each. Raw counts put the centroid at
+  //   (0.5 * 20 + 1.5 * 12 + 2.5 * 11) / 43 = 55.5 / 43
+  // and the intensity at 43; less the background the weights are 10, 2, 1,
+  //   (0.5 * 10 + 1.5 * 2 + 2.5 * 1) / 13 = 10.5 / 13
+  // and the intensity 13, its variance still the counts', 43. With the option
+  // off the backgrounds are ignored, as DIALS' spot finder has none.
+  // -------------------------------------------------------------------------
+  for (const bool subtract : {false, true}) {
+    dials_spots::Options options = plain();
+    options.subtract_background = subtract;
+    dials_spots::Labeller labeller(height, width, options);
+    labeller.add(0, std::vector<SignalPixel>{{0, 20, 10.0F, 121, 0},
+                                             {1, 12, 10.0F, 121, 0},
+                                             {2, 11, 10.0F, 121, 0}});
+    labeller.finish();
+    const std::string how = subtract ? "less its background" : "raw";
+    check("one spot, " + how, labeller.spots().size(), 1);
+    if (labeller.spots().size() == 1) {
+      const dials_spots::Spot &spot = labeller.spots()[0];
+      close("centroid x, " + how, spot.position[0],
+            subtract ? 10.5 / 13.0 : 55.5 / 43.0);
+      close("intensity, " + how, spot.intensity, subtract ? 13.0 : 43.0);
+      close("intensity variance, " + how, spot.intensity_variance, 43.0);
+    }
+  }
+
   std::printf("%s: DIALS-compatible grouping, %d failures\n",
               failures == 0 ? "PASS" : "FAILED", failures);
   return failures == 0 ? 0 : 1;

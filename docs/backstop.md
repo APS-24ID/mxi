@@ -2,7 +2,8 @@
 
 STATUS: a plan, 4 October 2026; revised the same day to Graeme's metric, the
 background's own dispersion, in place of a model of the images. Step 1, the
-measurement, is built: see "Measured so far". Items 52 and 53 in
+measurement, is built, and on ferritin it says the dispersion cannot find the
+attenuation: see "Measured so far" and "What can, then". Items 52 and 53 in
 `docs/outstanding.md` are the findings; this is what is to be done about them,
 in what order, and how it will be judged.
 
@@ -162,6 +163,54 @@ does what it is for. And insulin's shadowed (1,1,0), background 0.43, has a
 dispersion of 1.09: wholly in the shadow, on a flat empty background, as part
 1 says it would be, and left to part 2. Ferritin's flare and shadow edge are
 the measurement still to make.
+
+### On ferritin: the dispersion does not find the attenuation
+
+(3,1,1)'s observations, trimmed dispersion against scaled intensity:
+
+| observations | scaled intensity | background | trimmed dispersion |
+| --- | --- | --- | --- |
+| 13 unharmed | 900 to 1032 | 22 to 27 | 3.5 to 5.4 |
+| 7 partly attenuated | 142 to 572 | 3.8 to 15 | 1.9 to 2.5 |
+| 5 deeply attenuated | 22 to 96 | 0.5 to 2.8 | 1.3 to 2.1 |
+| 2 wholly shadowed, kept | 10 | 0.5 | 1.35 and 1.43 |
+
+The opposite of the hypothesis. The unharmed lie in the flare, whose gradient
+under a background of 25 gives them the highest dispersion; and the attenuation
+is uniform across each box -- the shadow's edge is wider than a box -- so an
+attenuated box is a dimmed copy of an unharmed one, signal, background and the
+flare's gradient alike reduced by its transmission T. A gradient adds to the
+dispersion its square over the mean, so the excess falls as T: lowest where the
+attenuation is deepest. With the intensity-to-background ratio constant, some
+40, it is one picture: **nothing measured inside one box can see its
+attenuation.**
+
+Over the whole data set (`mxeq equivalents`, profile fitted, observations clean
+otherwise): 597776 between 0.9 and 1.1, 14366 between 1.1 and 1.3, 786 between
+1.3 and 2, 2 above; the higher bins 1 to 2 per cent below the rest. So the
+dispersion flags nothing widespread -- and finds nothing at the backstop.
+
+And in passing, ferritin's partials do not repeat insulin's: integrated with
+sigma_m 0.0920 degrees, the partials suggest 0.0931, and are a few per cent low
+rather than high -- insulin's sigma_m (items 1 and 3) does not generalise.
+
+### What can, then
+
+A box cannot see its own attenuation, so the answer must come from outside it:
+
+1. **A mask of the backstop, given by the user**: a circle or polygon over its
+   shadow and attenuated edge, as `dials.generate_mask` gives untrusted regions
+   -- explicit, no heuristic, and the practice already. Its pixels treated as a
+   module gap's are.
+2. **`--d-max`**, which exists: cruder, a whole ring, and on ferritin it helped.
+3. **In scaling, the physics: attenuation only lowers an intensity.** The true
+   value is then the largest set of observations consistent with each other --
+   (3,1,1)'s 13 near 950 -- where the attenuated spread from 10 to 590 and no
+   value among them gathers as many. It would catch shadows nobody masked, but
+   it assumes a low outlier is physical, to be tested on other data first.
+
+Part 2, the outlier rejection, still stands: a wholly shadowed observation,
+masked or not, must not outvote unharmed ones.
 
 ## Order, and how each is judged
 

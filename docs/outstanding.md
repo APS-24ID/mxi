@@ -37,6 +37,8 @@ where something is missing.
   Not background in the spots: with `mxi_find --subtract-background` and the
   profile model subtracting what the shoeboxes record, sigma_m stays 0.1286
   (sigma_b 0.0273 to 0.0270).
+  Not on ferritin: integrated with 0.0920 degrees, its partials suggest 0.0931,
+  and are a few per cent low rather than high.
 * **4.** **correctness -- The background is about one per cent high at low
    resolution.** A guard ring around the foreground would likely fix it.
    `docs/integration.md`.
@@ -342,6 +344,13 @@ sinks towards the attenuated, whose sigmas are small (item 53). `--d-max D`, in
 mxi_integrate and mxi_scale, leaves the reflections out to test it: on insulin,
 8 beyond 30 A, the inner shell's CC1/2 0.977 to 0.979. The plan is
 `docs/backstop.md`.
+  The background's dispersion, Graeme's metric, measured on ferritin: it does
+  not find the attenuation. (3,1,1)'s unharmed observations, in the flare, have
+  the highest (3.5 to 5.4); the attenuated lower (1.3 to 2.5) -- the shadow's
+  edge is wider than a box, so each attenuated box is a dimmed copy of an
+  unharmed one, and nothing inside it can tell. What can: a user's mask of the
+  backstop, `--d-max`, or in scaling the physics that attenuation only lowers
+  an intensity (`docs/backstop.md`, "What can, then").
 * **53.** **correctness -- Scaling's outlier rejection outvoted by small
   sigmas.** Each observation is compared with its group's mean weighted by
   1/sigma^2, so a few observations with tiny sigmas -- shadowed by a backstop,

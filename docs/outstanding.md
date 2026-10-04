@@ -331,23 +331,26 @@ where something is missing.
   scaled, and dragging the merged mean down: (2,2,2) 144 against DIALS's 2812.
   Reproduced here: insulin's (1,1,0) is measured once, in the shadow, and
   scaled at -0.04. `mxeq observations` lists a reflection's observations.
-  And it is not only integration's. `mxeq observations` on the scaled table:
-  (3,1,1)'s 48 observations -- some 22 consistent at a scaled 930 to 1040, every
-  one flagged an outlier, and kept only two in the shadow at 10.66 and 10.53,
-  whose mean is the 10.6 merged. Scaling's outlier rejection compares each
-  observation with a mean weighted by 1/sigma^2; a shadowed one, near zero, has
-  a tiny sigma, and a few of them outweigh twenty strong ones (item 53).
-  `--d-max D`, in mxi_integrate and mxi_scale, leaves the reflections out to
-  test it: on insulin, 8 beyond 30 A, the inner shell's CC1/2 0.977 to 0.979.
+  And it is not only integration's. `mxeq observations` on the scaled table,
+(3,1,1): of the 27 observations outside the module gap, 13 at a scaled 934 to
+1078, 7 at 146 to 588, 5 at 23 to 99 -- all flagged outliers -- and two at 10.5
+and 10.7 kept, whose mean merged. Intensity over background is some 40 for
+every one: the shadow's edge attenuates signal and background alike, so a
+reflection's background against that expected at its radius is its
+transmission. Scaling's rejection, a 1/sigma^2-weighted mean of the others,
+sinks towards the attenuated, whose sigmas are small (item 53). `--d-max D`, in
+mxi_integrate and mxi_scale, leaves the reflections out to test it: on insulin,
+8 beyond 30 A, the inner shell's CC1/2 0.977 to 0.979. The plan is
+`docs/backstop.md`.
 * **53.** **correctness -- Scaling's outlier rejection outvoted by small
   sigmas.** Each observation is compared with its group's mean weighted by
   1/sigma^2, so a few observations with tiny sigmas -- shadowed by a backstop,
   integrating to about nothing -- outweigh many consistent strong ones, which
-  are then rejected one by one: on ferritin's (3,1,1), 22 observations near 1000
-  rejected and two near 10 kept (item 52). Whatever makes small, wrong
+  are then rejected one by one: on ferritin's (3,1,1), 25 rejected, the 13 at
+  some 1000 among them, and two near 10 kept (item 52). Whatever makes small, wrong
   observations triggers it. Wanted: a test the many consistent cannot lose to
   the few -- a median's, or a weight that a near-zero observation's tiny
-  variance cannot make overwhelming.
+  variance cannot make overwhelming. The plan is `docs/backstop.md`, part 2.
 * **23.** A resolution estimate: dials.estimate_resolution's tanh fit through
   CC half, at 0.3, and its significance limit, with the "Suggested" column.
   `docs/scaling.md`.

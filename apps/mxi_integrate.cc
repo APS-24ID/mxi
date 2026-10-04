@@ -205,6 +205,12 @@ void usage(const char *program) {
       "  --first-image N --last-image N   restrict to part of the scan\n"
       "  --gain G          detector gain, counts per photon (1)\n"
 
+      "  --save-background-parameters\n"
+      "                    also write each reflection's background "
+      "dispersion,\n"
+      "                    variance over mean, over every background pixel "
+      "and\n"
+      "                    trimmed, with how many pixels: under investigation\n"
       "  --save-shoeboxes  keep the pixels and the mask in the output\n"
       "  --threads N       threads fetching and decompressing frames; 0 is "
       "one\n"
@@ -381,6 +387,7 @@ int run_program(int argc, char **argv) {
                                        "--scan-blocks",
                                        "--reference-signal",
                                        "--summation-only",
+                                       "--save-background-parameters",
                                        "--two-pass",
                                        "-g",
                                        "--gpu",
@@ -395,6 +402,7 @@ int run_program(int argc, char **argv) {
   takes_value.erase("--save-shoeboxes");
   takes_value.erase("--timing");
   takes_value.erase("--summation-only");
+  takes_value.erase("--save-background-parameters");
   takes_value.erase("--two-pass");
   takes_value.erase("-g");
   takes_value.erase("--gpu");
@@ -744,12 +752,21 @@ int run_program(int argc, char **argv) {
     Column &part_column = out.real_column("partiality", "double", 1);
     Column &partial_id = out.int_column("partial_id", "std::size_t", 1);
     Column &n_bg_used = out.int_column("num_pixels.background_used", "int", 1);
-    Column &bg_dispersion =
-        out.real_column("background.dispersion", "double", 1);
-    Column &bg_dispersion_trimmed =
-        out.real_column("background.dispersion_trimmed", "double", 1);
-    Column &n_bg_trimmed =
-        out.int_column("num_pixels.background_trimmed", "int", 1);
+    // The background's dispersion, under --save-background-parameters only:
+    // measured while it is under investigation (docs/backstop.md), so that by
+    // default the table is what it was.
+    const bool save_background = args.has("--save-background-parameters");
+    Column *bg_dispersion =
+        save_background ? &out.real_column("background.dispersion", "double", 1)
+                        : nullptr;
+    Column *bg_dispersion_trimmed =
+        save_background
+            ? &out.real_column("background.dispersion_trimmed", "double", 1)
+            : nullptr;
+    Column *n_bg_trimmed =
+        save_background
+            ? &out.int_column("num_pixels.background_trimmed", "int", 1)
+            : nullptr;
     Column &obs_mm_var =
         out.real_column("xyzobs.mm.variance", "vec3<double>", 3);
 
@@ -843,10 +860,12 @@ int run_program(int argc, char **argv) {
       // Everything not foreground was used: this integrator has no second
       // round of rejection on top of the GLM's own weighting.
       n_bg_used.ints[row] = static_cast<std::int64_t>(r.n_background);
-      bg_dispersion.reals[row] = r.background_dispersion;
-      bg_dispersion_trimmed.reals[row] = r.background_dispersion_trimmed;
-      n_bg_trimmed.ints[row] =
-          static_cast<std::int64_t>(r.n_background_trimmed);
+      if (save_background) {
+        bg_dispersion->reals[row] = r.background_dispersion;
+        bg_dispersion_trimmed->reals[row] = r.background_dispersion_trimmed;
+        n_bg_trimmed->ints[row] =
+            static_cast<std::int64_t>(r.n_background_trimmed);
+      }
       // The centroid variance in millimetres and radians. The px values it
       // comes from do not reproduce DIALS' and neither will these.
       obs_mm_var.reals[row * 3 + 0] =

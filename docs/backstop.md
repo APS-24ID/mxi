@@ -143,8 +143,9 @@ plane for the background there, or a flag and leaving them out.
 
 ## Measured so far
 
-`mxi_integrate` writes `background.dispersion`, over every valid background
-pixel, and `background.dispersion_trimmed`, leaving out those beyond five
+`mxi_integrate --save-background-parameters` writes `background.dispersion`
+-- only when asked, so that by default the table is what it was -- over every
+valid background pixel, and `background.dispersion_trimmed`, leaving out those beyond five
 Poisson standard deviations of the robust mean, with
 `num_pixels.background_trimmed`. `mxeq observations` lists both for each
 observation, and `mxeq equivalents` bins the bias by the trimmed one.

@@ -291,6 +291,18 @@ def compare(
             if both.any()
             else np.nan
         )
+        # The same, each scatter over its reflection's mean intensity: a
+        # difference of overall scale between the two cancels, which it does
+        # not in the scatter's ratio alone.
+        rel = both & (a.mean[sa] > 0) & (b.mean[sb] > 0)
+        relative = (
+            np.median(
+                (a.scatter[sa][rel] / a.mean[sa][rel])
+                / (b.scatter[sb][rel] / b.mean[sb][rel])
+            )
+            if rel.any()
+            else np.nan
+        )
         label = "overall" if s is None else f"{d[mask].min():6.2f}-{d[mask].max():6.2f}"
 
         def pct(x):
@@ -298,13 +310,13 @@ def compare(
 
         rows.append(
             f"{label:>13} {_cc(a.mean[sa], b.mean[sb]):7.4f} {pct(lr_total)} {pct(lr_mean)} "
-            f"{pct(lr_n)} {pct(lr_sig)} {100 * (scatter - 1):+8.2f}"
+            f"{pct(lr_n)} {pct(lr_sig)} {100 * (scatter - 1):+8.2f} {100 * (relative - 1):+9.2f}"
         )
     block(
         f"  {a_obs.label} against {b_obs.label}: medians, in per cent, of the ratio per reflection",
         rows,
         f"{'d (A)':>13} {'CC I':>7} {'I/sig':>7} {'= mean':>7} {'+ mult':>7} {'+ 1/sig':>7} "
-        f"{'scatter':>8}",
+        f"{'scatter':>8} {'scatter/I':>9}",
     )
     lines.append(
         "  I/sig's ratio is the product of the three after it -- the mean intensity's, the root"
@@ -315,7 +327,12 @@ def compare(
     lines.append(
         "  reflections positive in both; scatter is the observations' spread, no sigma in it,"
     )
-    lines.append("  which CC1/2 follows: less scatter, observations that agree better.")
+    lines.append(
+        "  which CC1/2 follows: less scatter, observations that agree better; scatter/I is it"
+    )
+    lines.append(
+        "  over the reflection's mean intensity, so that a difference of overall scale cancels."
+    )
 
     if csv:
         with open(csv, "w") as f:

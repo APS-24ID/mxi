@@ -59,6 +59,16 @@ def overall(text):
     return cc, total, mean, mult, inv_sigma, scatter
 
 
+def relative_scatter(text):
+    lines = text.splitlines()
+    start = max(i for i, line in enumerate(lines) if "medians, in per cent" in line)
+    return float(
+        next(
+            line for line in lines[start:] if line.strip().startswith("overall")
+        ).split()[7]
+    )
+
+
 def test_sigmas_larger_by_a_fifth_read_as_sigma_and_nothing_else():
     a = observations()
     b = unique.Observations("b", HALL, a.hkl, a.intensity, a.variance * 1.44, a.d)
@@ -105,3 +115,16 @@ def test_overloaded_observations_are_counted_where_a_table_flags_them():
         line for line in lines[start:] if line.strip().startswith("overall")
     ).split()
     assert int(row[-1]) == 30
+
+
+def test_a_difference_of_overall_scale_cancels_in_the_relative_scatter():
+    # One data set the other times 0.8, sigmas and all: the mean intensity and
+    # the scatter differ by a quarter, the relative scatter, I/sigma and
+    # sigma's part not at all.
+    a = observations()
+    b = unique.Observations("b", HALL, a.hkl, 0.8 * a.intensity, 0.64 * a.variance, a.d)
+    text = unique.compare(a, b, shells=3)
+    cc, total, mean, mult, inv_sigma, scatter = overall(text)
+    assert abs(mean - 25.0) < 0.05 and abs(scatter - 25.0) < 0.05
+    assert abs(relative_scatter(text)) < 0.05
+    assert abs(total) < 0.05 and abs(inv_sigma + 20.0) < 0.05

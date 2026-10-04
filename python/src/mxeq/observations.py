@@ -70,6 +70,8 @@ def listing(
         ("sum", col("intensity.sum.value"), "{:10.1f}"),
         ("prf", col("intensity.prf.value"), "{:10.1f}"),
         ("bg", col("background.mean"), "{:7.2f}"),
+        ("disp", col("background.dispersion"), "{:7.2f}"),
+        ("disp t", col("background.dispersion_trimmed"), "{:7.2f}"),
         ("cc", col("profile.correlation"), "{:5.2f}"),
         ("why", col("profile.failure"), "{:3d}"),
         ("lp", col("lp"), "{:7.4f}"),

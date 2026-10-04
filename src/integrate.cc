@@ -1,7 +1,9 @@
 #include "integrate.hh"
 #include "refl.hh"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace mxi {
 
@@ -125,6 +127,37 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
   if (!background.valid) {
     out.background_failed = true;
     return out;
+  }
+
+  // The background's dispersion, over every pixel and trimmed of those beyond
+  // five Poisson standard deviations of the robust mean (plus one count, so
+  // that at a low mean the band does not cut a Poisson tail): the sample
+  // variance over the sample mean of each set.
+  {
+    const auto dispersion = [](double sum, double sum_sq, double count) {
+      if (!(count > 1.0) || !(sum > 0.0))
+        return std::numeric_limits<double>::quiet_NaN();
+      const double mean = sum / count;
+      const double variance = (sum_sq - sum * mean) / (count - 1.0);
+      return variance / mean;
+    };
+    const double band = 5.0 * std::sqrt(std::max(background.mean, 0.0)) + 1.0;
+    double s = 0.0, s2 = 0.0, ts = 0.0, ts2 = 0.0;
+    std::size_t kept = 0;
+    for (const double v : background_values) {
+      s += v;
+      s2 += v * v;
+      if (std::abs(v - background.mean) <= band) {
+        ts += v;
+        ts2 += v * v;
+        ++kept;
+      }
+    }
+    out.background_dispersion =
+        dispersion(s, s2, static_cast<double>(background_values.size()));
+    out.background_dispersion_trimmed =
+        dispersion(ts, ts2, static_cast<double>(kept));
+    out.n_background_trimmed = kept;
   }
 
   const double m = static_cast<double>(n_foreground);

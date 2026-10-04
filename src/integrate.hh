@@ -36,6 +36,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 #include "background.hh"
@@ -67,6 +68,17 @@ struct IntegratedReflection {
   double background_mean = 0.0;
   double background_sum = 0.0;
   double background_sum_variance = 0.0;
+  //: The background's dispersion, its pixels' sample variance over their
+  //: sample mean: about 1 on a flat background, Poisson on a photon counter;
+  //: far more on a ramp, as at the edge of a backstop shadow. Over every
+  //: valid background pixel, and trimmed -- leaving out those beyond five
+  //: Poisson standard deviations of the robust mean, a neighbour's spot or a
+  //: hot pixel -- with how many that leaves. NaN where it cannot be said.
+  //: Measured, for now: nothing is decided by it (docs/backstop.md).
+  double background_dispersion = std::numeric_limits<double>::quiet_NaN();
+  double background_dispersion_trimmed =
+      std::numeric_limits<double>::quiet_NaN();
+  std::size_t n_background_trimmed = 0;
   //: The observed centre of mass, in pixels and images, over the foreground
   //: with the background taken off. dials.scale wants this; it is also the
   //: only thing in the output that says where the spot actually was rather

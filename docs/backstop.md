@@ -1,8 +1,8 @@
 # The backstop: its shadow, its flare, and the outliers they make
 
-STATUS: a plan, 4 October 2026, not yet built; revised the same day to
-Graeme's metric, the background's own dispersion, in place of a model of the
-images. Items 52 and 53 in
+STATUS: a plan, 4 October 2026; revised the same day to Graeme's metric, the
+background's own dispersion, in place of a model of the images. Step 1, the
+measurement, is built: see "Measured so far". Items 52 and 53 in
 `docs/outstanding.md` are the findings; this is what is to be done about them,
 in what order, and how it will be judged.
 
@@ -139,6 +139,29 @@ before excluding them or fitting a sloped background: measure each reflection's
 background gradient across its box, binned in `mxeq equivalents` against its
 equivalents. Only if those in the flare are biased does something change -- a
 plane for the background there, or a flag and leaving them out.
+
+## Measured so far
+
+`mxi_integrate` writes `background.dispersion`, over every valid background
+pixel, and `background.dispersion_trimmed`, leaving out those beyond five
+Poisson standard deviations of the robust mean, with
+`num_pixels.background_trimmed`. `mxeq observations` lists both for each
+observation, and `mxeq equivalents` bins the bias by the trimmed one.
+
+On the 300 image insulin sweep, which has no flare:
+
+| | median | 1st to 99th percentile | largest |
+| --- | --- | --- | --- |
+| over every pixel | 1.001 | 0.90 to 1.20 | 184 |
+| trimmed | 0.996 | 0.90 to 1.07 | 1.3 |
+
+Poisson, as a photon counter should be. The largest untrimmed values, 5 to 21,
+are strong reflections beside the beam whose boxes hold a few bright pixels --
+a neighbour's spot, their own tails -- and trimmed they are about 1: trimming
+does what it is for. And insulin's shadowed (1,1,0), background 0.43, has a
+dispersion of 1.09: wholly in the shadow, on a flat empty background, as part
+1 says it would be, and left to part 2. Ferritin's flare and shadow edge are
+the measurement still to make.
 
 ## Order, and how each is judged
 

@@ -367,6 +367,7 @@ def from_files(
     qe = np.where(qe > 0, qe, 1.0)
     partiality_col = column("partiality", 1.0).astype(float)
     measured = column("profile.measured", 1.0).astype(float)
+    dispersion = column("background.dispersion_trimmed", np.nan).astype(float)
     zeta = column("zeta", np.nan).astype(float)
     px = (
         column("xyzcal.px").reshape(-1, 3)
@@ -443,6 +444,12 @@ def from_files(
                 [0, 1, 2, 5, 10, np.inf],
                 ["last", "last but one", "3rd-5th", "6th-10th", "earlier"],
                 condition=(full & unmasked)[rows] if others else None,
+            ),
+            Explanatory(
+                "background dispersion, trimmed: variance over mean, 1 if flat",
+                dispersion[rows],
+                [0.0, 0.9, 1.1, 1.3, 2.0, 5.0, np.inf],
+                condition=clean_base[rows] if others else None,
             ),
             Explanatory(
                 "resolution d (A), a control",

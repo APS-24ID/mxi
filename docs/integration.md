@@ -55,7 +55,7 @@ first integration byte for byte.
 
 | purpose | options |
 | --- | --- |
-| what to integrate | `--d-min`, `--first-image`, `--last-image`, `--min-zeta` (0.05) |
+| what to integrate | `--d-min`, `--d-max` (a low resolution limit), `--first-image`, `--last-image`, `--min-zeta` (0.05) |
 | the profile model | `--sigma-b`, `--sigma-m`, `--n-sigma` (3), `--box-scale` (1.9), `--gain` (1) |
 | reference profiles | `--scan-blocks` (one per 10 degrees), `--regions` (3), `--reference-signal` (10), `--grid-points` (4), `--subdivisions` (5) |
 | profile fitting | `--least-measured` (0.6), `--summation-only`, `--two-pass`, `-g`/`--gpu` (single precision on the device, `docs/gpu.md`), `--gpu-emulate` |

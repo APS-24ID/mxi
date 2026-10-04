@@ -258,6 +258,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--limit", type=int, default=0, help="keep only the N worst; 0 for all"
     )
 
+    ob = sub.add_parser(
+        "observations",
+        help="every observation of given reflections, all their symmetry "
+        "equivalents, with what the table records of each",
+    )
+    ob.add_argument(
+        "expt",
+        help="the experiments, for the space group: a scaled one for all equivalents",
+    )
+    ob.add_argument("refl", help="the reflections, DIALS's or mxi's")
+    ob.add_argument("hkl", nargs="+", help="reflections, as h,k,l")
+    ob.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="at most this many observations each (0, all)",
+    )
+
     un = sub.add_parser(
         "unique",
         help="two scaled data sets, DIALS's and mxi's say, compared one unique "
@@ -364,6 +382,19 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "observations":
+        from . import observations
+
+        print(
+            observations.listing(
+                args.expt,
+                args.refl,
+                [observations.parse_index(h) for h in args.hkl],
+                args.limit,
+            )
+        )
+        return 0
 
     if args.command == "unique":
         from . import unique

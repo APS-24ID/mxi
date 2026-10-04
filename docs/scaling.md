@@ -14,7 +14,8 @@ decay and the paper's spherical harmonics for the absorption surface.
 
 The space group is the crystal's, as `mxi_symmetry` wrote it (`docs/symmetry.md`).
 `--space-group` and `--change-of-basis` override it for data that have not been
-through `mxi_symmetry`; `--d-min`, `--no-absorption`, `--profile-only` and
+through `mxi_symmetry`; `--d-min`, `--d-max` (a low resolution limit: beside a
+backstop, see `docs/backstop.md`), `--no-absorption`, `--profile-only` and
 `--shells N` (20) do what they say. `mxi_scale --help` is the authority.
 
 ## The model

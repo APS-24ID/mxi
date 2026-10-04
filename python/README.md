@@ -131,8 +131,9 @@ observation shows without a second program or a reference data set.
 * **The tables** bin the relative difference by partiality, by
   `profile.measured` -- the profile's fraction on valid pixels, which a module
   gap lowers -- by the masked-foreground flag, by images from each end of the
-  scan, and by resolution (quantiles of what is counted) and I/sigma as
-  controls; each counts, by default, only the observations clean in every other
+  scan, by the background's dispersion where the table has it
+  (`mxi_integrate --save-background-parameters`), and by resolution
+  (quantiles of what is counted) and I/sigma as controls; each counts, by default, only the observations clean in every other
   respect (`--all` for every one). Read the median and the ratio of the sums.
 * **sigma_m from the partials.** A partial's intensity before the division by
   its partiality, against its clean reference, is its observed partiality.

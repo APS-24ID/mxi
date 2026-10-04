@@ -1,6 +1,6 @@
 # Reviewing this code: a guide for DIALS developers
 
-STATUS: written 30 September 2026 for external review, brought up to date 2
+STATUS: written 30 September 2026 for external review, brought up to date 4
 October 2026. It says what this is,
 how to build and run it on your own data, where the code for each step lives,
 what follows DIALS and where it departs from it, and how correctness has been
@@ -40,7 +40,7 @@ Its size, excluding third-party code: the library 15350 lines in `src/` and the
 spot finder 6339 in `src/spots/`; eleven programs in 4273 lines in `apps/`, and
 `mxi_find` in `src/spots/find_spots.cc`; C++ tests 14465 lines; a Python package
 of comparison tools, `mxeq`, 5950 lines, with 2852 of tests; 5400 lines of
-documents. Some 308 commits over three weeks.
+documents. Some 325 commits over three weeks.
 
 ## Building it and running it on your data
 
@@ -48,7 +48,7 @@ documents. Some 308 commits over three weeks.
 git clone --recursive <this repository> && cd mxi
 cmake -S . -B build && cmake --build build -j
 (cd build && ctest)              # the ctest suites, the spot finder's among them
-build/mxi_tests                  # 282 unit tests
+build/mxi_tests                  # 284 unit tests
 ```
 
 Add `-DSPOTFINDER_METAL=ON` or `-DSPOTFINDER_CUDA=ON` for the GPU threshold and profile fitting,
@@ -72,7 +72,10 @@ mxi_scale     symmetrized.expt symmetrized.refl          # scaled.expt, .refl
 
 Beside a DIALS run of the same data, `mxeq` (in `python/`) compares the two at
 each boundary -- `mxeq check strong|indexed|refined|integrated|scaled <dials>
-<this>` -- and explains where integrations differ. It needs no cctbx.
+<this>` -- and explains where integrations differ; with no second program,
+`mxeq equivalents` measures integration's bias against the data's own
+equivalents, and `mxeq unique` compares two scaled data sets one unique
+reflection at a time. It needs no cctbx.
 
 On the 3600 images of an EIGER2 XE 16M sweep -- `ins10_1.nxs` of
 https://zenodo.org/records/8376818 -- on an M4 Max MacBook, the chain from the
@@ -207,9 +210,15 @@ numbered list):
 * Reports and export: an HTML report and MTZ / mmCIF output are not written;
   `dials.merge` takes the scaled table.
 * **Known biases in integration**, measured by `mxeq equivalents` against the
-  data's own symmetry equivalents (`python/README.md`): partials high, likely
-  because the profile model's sigma_m is too wide, and reflections crossing a
-  module gap low in profile fitting (`docs/outstanding.md`, items 1 to 3).
+  data's own symmetry equivalents (`python/README.md`): reflections crossing a
+  module gap low in profile fitting; on insulin, partials high with a sigma_m
+  wider than DIALS's, not repeated on ferritin (`docs/outstanding.md`, items 1
+  to 3).
+* **The backstop** (`docs/backstop.md`, items 52 and 53): observations its
+  shadow attenuates integrate low, and scaling's outlier rejection keeps them
+  over the unharmed, so the lowest-resolution reflections merge too low.
+  `--d-max` leaves them out for now; a user's mask of the backstop and an
+  outlier test the few cannot win are the plan.
 
 ## What this work found in DIALS
 

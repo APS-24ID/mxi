@@ -278,9 +278,13 @@ For looking inside it:
 
 And `mxeq`, which judges the output: `check` compares two pipelines at a
 boundary; `trend`, `html`, `explain` and `disagree` find and explain where two
-integrations differ; `residuals` shows how well positions were predicted; and
-`profiles` draws the learned reference profiles. Every program answers
-`--help`.
+integrations differ; `unique` compares two scaled data sets one unique
+reflection at a time, and `observations` lists every observation of a
+reflection; `equivalents` measures integration's bias against the data's own
+symmetry equivalents, with no second program; `failures` shows where profile
+fitting failed and why; `compare-expt` puts two experiment lists side by side;
+`residuals` shows how well positions were predicted; and `profiles` draws the
+learned reference profiles. Every program answers `--help`.
 
 ## Where it stands
 
@@ -301,10 +305,15 @@ DIALS' alike; on a 3600 image Eiger 16M sweep the merging statistics are close
 to DIALS'. The 16M sweep -- 1.08 million
 reflections -- integrates in 19.4 s on a MacBook's 16 threads, 14.6 with
 profile fitting on its GPU. `docs/integration.md` is the reference, and lists
-what is still open -- among it two biases `mxeq equivalents` measures against the
-data's own equivalents: partials high, likely because our sigma_m is too wide
-(the partials suggest DIALS's value), and reflections crossing a module gap 3 to
-5 per cent low in profile fitting.
+what is still open. Two biases `mxeq equivalents` measures against the data's
+own equivalents: reflections crossing a module gap 3 to 5 per cent low in
+profile fitting; and on insulin partials high, with a sigma_m wider than DIALS's
+-- though not on ferritin, whose partials agree with the sigma_m it used. And
+one fault found by comparing with DIALS reflection by reflection
+(`docs/backstop.md`): beside the backstop, observations its shadow attenuates
+integrate low, and scaling's outlier rejection, weighting by 1/sigma^2, keeps
+them over the unharmed -- the lowest-resolution reflections merge far too low.
+`--d-max` leaves them out until it is fixed.
 
 **Symmetry and scaling are written for one sweep.** `mxi_symmetry`
 (`docs/symmetry.md`) chooses the Laue group as dials.symmetry does and the space

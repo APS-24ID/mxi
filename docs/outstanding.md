@@ -26,6 +26,9 @@ where something is missing.
   sigma_m half again too wide makes a cut box's rocking curve look more partial
   than it is, and dividing by that overshoots: items 1 and 3 are likely one. To
   test, `mxi_integrate --sigma-m 0.086` and the tool again.
+  Not repeated on ferritin: there partials are a few per cent low, and suggest
+  the sigma_m integrated with (item 3). So insulin's, not the integrator's in
+  general -- a question for more data sets.
 * **2.** **correctness -- Gap-crossing reflections are about 3 per cent low**, 3.4 by
    symmetry equivalents in scaling; the suspect is profile learning from
    reflections that are themselves cut. `docs/integration.md`, open questions.

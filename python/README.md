@@ -74,7 +74,8 @@ estimates, the error model). Their product is the ratio of I/sigma, per
 reflection. CC1/2 does not see sigma, so each reflection's scatter -- the
 standard deviation of its observations -- is compared too: less scatter is
 observations that agree better; the same scatter with a smaller sigma is the
-error model. Each data set's own CC1/2, I/sigma, multiplicity and chi2/nu over
+error model -- and scatter over each reflection's mean intensity, in which a
+difference of overall scale between the two cancels. Each data set's own CC1/2, I/sigma, multiplicity and chi2/nu over
 the reflections both have are given, and how many observations its table flags
 overloaded -- DIALS does, mxi does not apply the trusted range. Intensities are
 what merging uses, `intensity.scale.value` over `inverse_scale_factor`; the

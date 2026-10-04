@@ -310,6 +310,18 @@ where something is missing.
   flags them overloaded, and the tool reports how many DIALS's table flags and
   scaling used. Insulin's own inner shell has the lower CC1/2 of its first two
   (0.983 against 0.997 over five shells).
+  On ferritin, DIALS against mxi (`mxeq unique`, ten shells): overall scales
+  18 per cent apart, which is arbitrary; scale removed, the observations
+  scatter about as much in each. Outside 2.2 A mxi's CC1/2 is the higher (1.46
+  to 1.51 A: 0.397 against 0.328), and DIALS's sigmas are some 2.3 times its
+  own scatter there (chi2/nu 0.19, mxi's 0.83 to 1.1), so its I/sigma reads low
+  -- if its stored variance is the one dials.merge uses. In the inner shell
+  DIALS's CC1/2 is the higher (0.9998 against 0.9992) and the two data sets'
+  merged intensities correlate at only 0.971, against 0.99 and more elsewhere:
+  a minority of the strongest reflections differ greatly. Neither table flags
+  overloads; but DIALS masks pixels over the trusted range and profile fits
+  around them, where mxi counts them at their capped value. The suspect, and
+  the fix: the trusted range applied in integration.
 * **23.** A resolution estimate: dials.estimate_resolution's tanh fit through
   CC half, at 0.3, and its significance limit, with the "Suggested" column.
   `docs/scaling.md`.

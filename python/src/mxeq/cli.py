@@ -278,7 +278,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=None,
         metavar=("DMAX", "DMIN"),
-        help="limit the azimuth and image panels to this resolution range",
+        help="limit the table, and the azimuth and image panels, to this resolution range",
     )
     bk.add_argument(
         "--zoom",
@@ -419,7 +419,9 @@ def main(argv: list[str] | None = None) -> int:
         from . import background
 
         b = background.load(args.expt, args.refl)
-        print(background.table(b, args.shells))
+        print(
+            background.table(b, args.shells, tuple(args.range) if args.range else None)
+        )
         if not args.no_plot:
             from .plots import background as background_plot
 

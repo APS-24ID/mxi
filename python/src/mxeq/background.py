@@ -122,17 +122,48 @@ def ratios(b: Backgrounds, c: Curve) -> np.ndarray:
         return np.where(expected > 0, b.background / expected, np.nan)
 
 
-def table(b: Backgrounds, shells: int = 20) -> str:
-    """The background by resolution shell: its median, its spread about it, and
-    how many reflections lie far below or above."""
+def _subset(b: Backgrounds, r: np.ndarray, d_range):
+    """The reflections in a resolution range, and their ratios -- measured
+    against the curve from all of them, so a range does not move its own
+    reference."""
+    if d_range is None:
+        return b, r, "all resolutions"
+    hi, lo = max(d_range), min(d_range)
+    sel = (b.d <= hi) & (b.d >= lo)
+    part = Backgrounds(
+        b.d[sel],
+        b.background[sel],
+        b.x[sel],
+        b.y[sel],
+        b.z[sel],
+        b.azimuth[sel],
+        b.radius[sel],
+        b.centre,
+    )
+    return part, r[sel], f"{hi:g} to {lo:g} A"
+
+
+def table(
+    b: Backgrounds,
+    shells: int = 20,
+    d_range=None,
+    azimuth_bins: int = 24,
+    image_bins: int = 12,
+) -> str:
+    """The background by resolution shell -- its median, its spread about it,
+    and how many reflections lie far below or above -- and, over a resolution
+    range if one is given, the same against the azimuth and against the image."""
     c = curve(b)
-    r = ratios(b, c)
-    s2 = 1.0 / b.d**2
+    r_all = ratios(b, c)
+    part, r, label = _subset(b, r_all, d_range)
+    s2 = 1.0 / part.d**2
     edges = np.quantile(s2, np.linspace(0, 1, shells + 1))
     lines = [
         f"{len(b.d)} reflections with a background; beam centre at pixel {b.centre[0]:.1f}, {b.centre[1]:.1f}",
+        f"{len(part.d)} of them in {label}; each ratio against the median at its resolution over all",
         "",
-        f"  {'d (A)':>15} {'n':>8} {'median bg':>10} {'spread':>7} {'below 0.5':>10} {'above 2':>8}",
+        "by resolution",
+        f"  {'d (A)':>15} {'n':>8} {'median bg':>10} {'ratio':>7} {'spread':>7} {'below 0.5':>10} {'above 2':>8}",
     ]
     for k in range(shells):
         sel = (s2 >= edges[k]) & (
@@ -140,18 +171,52 @@ def table(b: Backgrounds, shells: int = 20) -> str:
         )
         if not sel.any():
             continue
-        dd = b.d[sel]
-        med = np.median(b.background[sel])
-        mad = np.median(np.abs(b.background[sel] - med))
+        dd = part.d[sel]
+        med = np.median(part.background[sel])
         rr = r[sel]
+        rmed = float(np.nanmedian(rr))
+        mad = float(np.nanmedian(np.abs(rr - rmed)))
         lines.append(
-            f"  {dd.max():6.2f} -{dd.min():7.2f} {sel.sum():8d} {med:10.3f} {mad / med if med > 0 else np.nan:7.3f} "
-            f"{np.mean(rr < 0.5) * 100:9.2f}% {np.mean(rr > 2.0) * 100:7.2f}%"
+            f"  {dd.max():6.2f} -{dd.min():7.2f} {sel.sum():8d} {med:10.3f} {rmed:7.3f} "
+            f"{mad / rmed if rmed > 0 else np.nan:7.3f} {np.mean(rr < 0.5) * 100:9.2f}% "
+            f"{np.mean(rr > 2.0) * 100:7.2f}%"
         )
+    for title, values, bins, unit in (
+        ("by azimuth around the beam", part.azimuth, azimuth_bins, "deg"),
+        ("by image", part.z, image_bins, ""),
+    ):
+        lines += [
+            "",
+            title + f", {label}",
+            f"  {('from - to ' + unit).strip():>15} {'n':>8} {'ratio':>7} {'spread':>7} {'below 0.5':>10} "
+            f"{'above 2':>8}",
+        ]
+        lo, hi = (
+            (-180.0, 180.0)
+            if unit == "deg"
+            else (float(values.min()), float(values.max()))
+        )
+        e = np.linspace(lo, hi, bins + 1)
+        for k in range(bins):
+            last = k == bins - 1
+            sel = (values >= e[k]) & (
+                (values <= e[k + 1]) if last else (values < e[k + 1])
+            )
+            if not sel.any():
+                continue
+            rr = r[sel]
+            rmed = float(np.nanmedian(rr))
+            mad = float(np.nanmedian(np.abs(rr - rmed)))
+            lines.append(
+                f"  {e[k]:7.1f} -{e[k + 1]:7.1f} {sel.sum():8d} {rmed:7.3f} "
+                f"{mad / rmed if rmed > 0 else np.nan:7.3f} {np.mean(rr < 0.5) * 100:9.2f}% "
+                f"{np.mean(rr > 2.0) * 100:7.2f}%"
+            )
     lines += [
         "",
-        "  spread is the median absolute deviation over the median; below 0.5 and above 2",
-        "  are the reflections whose background is less than half, or more than twice, the",
-        "  median at their resolution: the backstop shadow, and its flare, would be among them.",
+        "  ratio is the median of each reflection's background over the median at its",
+        "  resolution, over all reflections; spread its median absolute deviation over it;",
+        "  below 0.5 and above 2 the reflections with less than half, or more than twice, that",
+        "  median: the backstop shadow, and its flare, would be among them.",
     ]
     return "\n".join(lines)

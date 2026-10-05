@@ -336,6 +336,33 @@ On the 300 image insulin sweep:
   positive below -- something the model does not hold, the air's path or the
   backstop's asymmetry. Ferritin will say whether it matters.
 
+### On ferritin: what the model flags, mapped
+
+`mxeq background-model` on ferritin's 6.2 million reflections fits well -- R
+through the innermost rise and the water ring, G a wave from 0.75 to 1.05 with
+a period of half a turn -- and flags 11606 low and 2213 high. The map of the
+removed (Graeme's request) shows they are of several kinds, not two:
+
+| on the map | flagged | the likely cause |
+| --- | --- | --- |
+| a band left of the beam, along the horizontal | low | the backstop arm's shadow |
+| patches about the beam, within some 100 pixels | high | the flare |
+| a rectangle bottom left, some 1000 by 450 pixels | low | one detector module, lower than the rest |
+| lines along the horizontal module gaps, every some 550 pixels | high | pixels at the modules' edges |
+| rings about the beam out to some 600 pixels | high | narrow rings, ice likely, too sharp for R |
+
+So the model knows only that a background is too low or too high, and the report
+and the map now say just that. Whether each kind should go is a question of its
+intensities, not its background: a module counting low lowers signal and
+background alike, so its reflections are biased and should go; the module
+edges and the rings may be unusual in background only. `--annotate-only` adds
+the model's columns and changes no flag, and `mxeq equivalents` bins the bias
+against equivalents by `background.z`: that measures each kind. A deep shadow's
+observation integrates to nearly nothing and falls below the I/sigma cut, so the
+table measures the moderately affected, and the map the deep. The report also
+lists the fine resolution bins richest in the too-high, which on ferritin should
+show whether the rings fall at ice's spacings.
+
 ## Order, and how each is judged
 
 1. **The background dispersion, measured**: the column, and on ferritin where

@@ -118,9 +118,15 @@ its integrated flags are cleared and excluded-for-scaling set, so that neither
 `background.expected` and `background.z`. The report gives, by resolution
 shell, the median of observed over model, the z spread -- 1 where model and
 counting explain the backgrounds -- and how many were flagged low and high;
-`--reject-shells SPREAD` leaves out whole shells beyond it. `--plot` draws R
+`--reject-shells SPREAD` leaves out whole shells beyond it. `--annotate-only`
+adds the columns and changes no flag, so that the flagged can be judged
+against their equivalents first: `mxeq equivalents` bins by `background.z`
+where the table has it. The report says the background is too low or too high,
+not why, and lists the fine resolution bins richest in the too-high, where a
+ring too narrow for R's spline -- ice -- would pile up. `--plot` draws R
 and G through the data, z against resolution, z on the detector by the beam,
-and where reflections were removed -- low, high, by whole shells -- and kept,
+and where reflections were removed -- background too low, too high, by whole
+shells -- and kept,
 over the whole detector and by the beam. `--knots`, `--phi-spacing` and `--smoothness` shape the splines.
 
 ## Every observation of a reflection

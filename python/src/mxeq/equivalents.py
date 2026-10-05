@@ -368,6 +368,7 @@ def from_files(
     partiality_col = column("partiality", 1.0).astype(float)
     measured = column("profile.measured", 1.0).astype(float)
     dispersion = column("background.dispersion_trimmed", np.nan).astype(float)
+    zb = column("background.z", np.nan).astype(float)
     zeta = column("zeta", np.nan).astype(float)
     px = (
         column("xyzcal.px").reshape(-1, 3)
@@ -449,6 +450,23 @@ def from_files(
                 "background dispersion, trimmed: variance over mean, 1 if flat",
                 dispersion[rows],
                 [0.0, 0.9, 1.1, 1.3, 2.0, 5.0, np.inf],
+                condition=clean_base[rows] if others else None,
+            ),
+            Explanatory(
+                "background z, against mxeq background-model (--annotate-only)",
+                zb[rows],
+                [-np.inf, -20.0, -10.0, -5.0, -3.0, 3.0, 5.0, 10.0, 20.0, np.inf],
+                [
+                    "below -20",
+                    "-20 to -10",
+                    "-10 to -5",
+                    "-5 to -3",
+                    "-3 to 3",
+                    "3 to 5",
+                    "5 to 10",
+                    "10 to 20",
+                    "above 20",
+                ],
                 condition=clean_base[rows] if others else None,
             ),
             Explanatory(

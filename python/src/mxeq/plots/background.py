@@ -251,8 +251,8 @@ def draw_model(
             )
         for mask, colour, label in (
             (shell, "tab:orange", "a whole shell left out"),
-            (high, "tab:red", "high: the flare's kind"),
-            (low, "tab:blue", "low: the shadow's kind"),
+            (high, "tab:red", "background too high"),
+            (low, "tab:blue", "background too low"),
         ):
             m = mask & have
             if window is not None:

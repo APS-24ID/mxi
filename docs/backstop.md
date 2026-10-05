@@ -442,6 +442,55 @@ pixels -- every reflection inside goes and under 1 per cent beyond. On insulin,
 whose backstop has no flare, the innermost shell's spread is within 3 and
 nothing goes; its few shadowed are taken one by one as too low.
 
+## Attenuation judged in scaling: the design, to be agreed before it is built
+
+`--reject-inner 3` on ferritin gave a limit of 30 A: too much. Graeme's proposal:
+keep the decision until scaling, where more is known -- the background, giving a
+prior; the spread of each reflection's observations, as outlier rejection uses;
+and that a spot can only be attenuated downwards -- and weigh them together,
+iterating until the answer is sane.
+
+**Two kinds of evidence, answering different questions.** The equivalents say
+whether an observation is low; its background says why. An observation whose
+background is low against its equivalents' backgrounds -- at nearly the same
+radius, so the comparison is local and needs no global model -- has been dimmed,
+signal and background together: on ferritin intensity over background is some
+40 for unharmed and attenuated alike. And attenuation only lowers: an
+observation above the reflection's value cannot be attenuated, and the truth lies
+with the upper consistent group -- (3,1,1)'s 13 near 950.
+
+**The model.** Each observation of a reflection is either good, I ~ N(Ibar,
+sigma^2), or attenuated, I ~ N(T Ibar, sigma^2) with T unknown in (0, 1); sigma
+the observation's evaluated at Ibar, not at its own reading.
+
+1. **The prior** that it is attenuated, from its background: against its
+   equivalents' backgrounds first; the global model's z where a reflection has
+   too few equivalents. A background well below its group's, a strong prior; a
+   normal one, weak; the flare's, raising a background, none.
+2. **The likelihood**, from the equivalents, one-sided: above Ibar the
+   attenuated likelihood is nil; below, the good falls off with
+   |I - Ibar| / sigma, the attenuated stays broad over 0 to Ibar.
+3. **Expectation-maximisation**: each observation's probability of attenuation,
+   then Ibar as the mean weighted by the probability of being good, until it
+   settles -- started from the observations whose backgrounds are normal, so near
+   the upper group.
+4. **Each evidence checks the other**: an attenuated observation's background
+   ratio predicts its intensity, T-hat Ibar. A low intensity on a normal
+   background is an ordinary outlier, for the standard test; on a background as
+   low, attenuation.
+5. **Rejected, not corrected**: dividing by T-hat is possible, the ratio being
+   clean, but rejection is the safer start.
+
+**Iterated with scaling**: the scale factors are pulled by the attenuated too, so
+scale, judge, flag, scale again, until the flags stop changing.
+
+**Built in two steps**: a prototype, `mxeq attenuation scaled.expt
+scaled.refl`, writing each observation's probability of attenuation and the
+flags for `mxi_scale`'s next round, judged on (3,1,1) and the equivalents' tables
+and Graeme's refinement; then, if it holds, inside `mxi_scale`'s outlier
+rejection, where it also mends item 53 -- a few small sigmas outvoting many good
+observations. `--reject-inner` stays, an option.
+
 ## Order, and how each is judged
 
 1. **The background dispersion, measured**: the column, and on ferritin where

@@ -14,6 +14,7 @@
 
 #include <array>
 #include <cmath>
+#include <vector>
 
 #include "../src/geometry.hh"
 #include "../src/linalg.hh"
@@ -609,6 +610,39 @@ TEST(pruning_predicts_exactly_what_the_full_search_does) {
     const std::string d = pruned_against_full(e);
     check::is_true(d.empty(), "a crystal turning three degrees: " + d);
   }
+}
+
+} // namespace mxi
+
+namespace mxi {
+
+TEST(a_scan_from_image_151_starts_its_angles_at_frame_150) {
+  // dxtbx: angle(z) = osc[0] + (z + 1 - image_range[0]) * width, z the frame's
+  // array index. A scan from image 151 begins at frame 150 at its osc_start;
+  // anchoring z to image one instead put every angle 15 degrees on, which no
+  // scan from image one could show.
+  std::vector<double> osc(150);
+  for (std::size_t i = 0; i < osc.size(); ++i)
+    osc[i] = 15.0 + 0.1 * static_cast<double>(i);
+  const Scan s = Scan::from_oscillation(osc, 151, 300);
+  check::close(s.z_offset, 150.0, 0.0, "the offset is the first image's index");
+  check::close(Scan::degrees(s.phi_from_z(150.0)), 15.0, 1e-12, "frame 150");
+  check::close(Scan::degrees(s.phi_from_z(225.0)), 22.5, 1e-12, "mid-scan");
+  check::close(s.z_from_phi(Scan::radians(22.5)), 225.0, 1e-9, "and back");
+  check::close(Scan::degrees(s.phi_start()), 15.0, 1e-12, "the start");
+  check::close(Scan::degrees(s.phi_end()), 30.0, 1e-12, "the end");
+  check::close(s.z_first(), 150.0, 0.0, "the first frame");
+  check::close(s.z_last(), 300.0, 0.0, "one past the last");
+  check::close(s.fraction(150.0), 0.0, 0.0, "a scan-varying model's start");
+  check::close(s.fraction(300.0), 1.0, 1e-12, "and its end");
+
+  // From image one, nothing moves.
+  std::vector<double> from_one(300);
+  for (std::size_t i = 0; i < from_one.size(); ++i)
+    from_one[i] = 0.1 * static_cast<double>(i);
+  const Scan one = Scan::from_oscillation(from_one, 1, 300);
+  check::close(one.z_offset, 0.0, 0.0, "from image one, no offset");
+  check::close(Scan::degrees(one.phi_from_z(150.0)), 15.0, 1e-12, "frame 150");
 }
 
 } // namespace mxi

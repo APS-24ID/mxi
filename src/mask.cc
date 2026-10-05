@@ -131,9 +131,11 @@ bool integration_bbox(const Experiment &e, const Prediction &p,
       bbox[1], static_cast<std::int32_t>(panel.image_size[0]));
   bbox[3] = std::min<std::int32_t>(
       bbox[3], static_cast<std::int32_t>(panel.image_size[1]));
-  bbox[4] = std::max<std::int32_t>(bbox[4], 0);
-  bbox[5] = std::min<std::int32_t>(
-      bbox[5], static_cast<std::int32_t>(e.scan.num_images()));
+  // The scan's own frames, which begin at its first image's array index.
+  bbox[4] = std::max<std::int32_t>(bbox[4],
+                                   static_cast<std::int32_t>(e.scan.z_first()));
+  bbox[5] = std::min<std::int32_t>(bbox[5],
+                                   static_cast<std::int32_t>(e.scan.z_last()));
   if (!(bbox[1] > bbox[0] && bbox[3] > bbox[2] && bbox[5] > bbox[4])) {
     return refuse(BoxRejection::kOffDetector);
   }

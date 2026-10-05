@@ -49,6 +49,7 @@ Scan Scan::from_oscillation(const std::vector<double> &oscillation_deg,
   Scan s;
   s.first_image = first;
   s.last_image = last;
+  s.z_offset = static_cast<double>(first - 1);
   if (oscillation_deg.empty())
     return s;
   s.osc_start = oscillation_deg.front();
@@ -308,8 +309,7 @@ Mat3 Experiment::setting_at(double z) const {
     return Mat3::identity();
   if (!crystal->scan_varying())
     return crystal->A;
-  const double n = static_cast<double>(scan.num_images());
-  return crystal->A_at(n > 0.0 ? z / n : 0.0);
+  return crystal->A_at(scan.fraction(z));
 }
 
 double Crystal::d_spacing(int h, int k, int l) const {

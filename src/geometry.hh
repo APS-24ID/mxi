@@ -29,13 +29,17 @@
 //               frame, which is what indexing works on.
 //   A         = the setting matrix with a*, b*, c* as its COLUMNS, so that
 //               r0 = A * h with h a column of Miller indices.
-//   phi(z)    = osc_start + (z - z_offset) * osc_width.
+//   phi(z)    = osc_start + (z - z_offset) * osc_width, z_offset = first_image
+//   - 1.
 //
-// The last one has a known wrinkle. DIALS anchors the scan z coordinate to
-// image number one rather than to the start of the array, so z_offset is zero
-// and the two agree only when first_image is one. That is the common case and
-// the disagreement is a constant otherwise. z_offset is left settable rather
-// than hard-coded so the choice is visible.
+// z is the frame's array index in the file, as dials.find_spots writes it --
+// image n at z = n - 1 -- and osc_start the angle at the scan's FIRST image, so
+// the scan's own first frame is where phi starts: dxtbx's
+// get_angle_from_array_index, osc[0] + (z + 1 - image_range[0]) * width. This
+// once said DIALS anchored z to image one, and set z_offset to zero always: a
+// scan from image 151 then put every angle 15 degrees on, which nothing saw
+// while every scan began at image one -- found when two halves of one sweep
+// were indexed together.
 
 #pragma once
 
@@ -216,6 +220,16 @@ struct Scan {
   double z_offset = 0.0;
 
   std::int64_t num_images() const { return last_image - first_image + 1; }
+  //: The scan's own frames, as array indices: z_first() the first image's
+  //: start, z_last() the last's end.
+  double z_first() const { return z_offset; }
+  double z_last() const { return z_offset + static_cast<double>(num_images()); }
+  //: How far through the scan z lies, 0 at its start and 1 at its end: where
+  //: a scan-varying model is evaluated.
+  double fraction(double z) const {
+    const double n = static_cast<double>(num_images());
+    return n > 0.0 ? (z - z_offset) / n : 0.0;
+  }
 
   // Build from the per-image array of start angles that dxtbx writes under
   // scan.properties.oscillation.
@@ -243,10 +257,8 @@ struct Scan {
       return z_offset;
     return (degrees(phi) - osc_start) / osc_width + z_offset;
   }
-  double phi_start() const { return phi_from_z(0.0); }
-  double phi_end() const {
-    return phi_from_z(static_cast<double>(num_images()));
-  }
+  double phi_start() const { return phi_from_z(z_first()); }
+  double phi_end() const { return phi_from_z(z_last()); }
 
   static double radians(double d) { return d * 3.14159265358979323846 / 180.0; }
   static double degrees(double r) { return r * 180.0 / 3.14159265358979323846; }

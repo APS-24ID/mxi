@@ -73,6 +73,24 @@ void write(const std::string &path, const std::vector<dials_spots::Spot> &spots,
            const std::vector<dials_spots::Pixel> &pixels, std::size_t width,
            const Options &options);
 
+// One experiment's spots, for a table of several: its spots and the pixels and
+// frame width the Labeller was given, the experiment's index for the id column
+// and its identifier for the table's map.
+struct Part {
+  const std::vector<dials_spots::Spot> *spots = nullptr;
+  const std::vector<dials_spots::Pixel> *pixels = nullptr;
+  std::size_t width = 0;
+  int id = 0;
+  std::string identifier;
+};
+
+// Several experiments' spots as one table, an experiment's rows together and
+// in the order given, each with its id, as dials.find_spots writes several
+// sweeps. write() is this with one part; options.id and options.identifier are
+// the parts' own here.
+void write_parts(const std::string &path, const std::vector<Part> &parts,
+                 const Options &options);
+
 } // namespace refl
 
 #endif // SPOTFINDER_REFL_HH

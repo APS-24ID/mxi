@@ -72,6 +72,8 @@ def listing(
         ("bg", col("background.mean"), "{:7.2f}"),
         ("disp", col("background.dispersion"), "{:7.2f}"),
         ("disp t", col("background.dispersion_trimmed"), "{:7.2f}"),
+        ("bg z", col("background.z"), "{:7.1f}"),
+        ("bg exp", col("background.expected"), "{:7.2f}"),
         ("cc", col("profile.correlation"), "{:5.2f}"),
         ("why", col("profile.failure"), "{:3d}"),
         ("lp", col("lp"), "{:7.4f}"),

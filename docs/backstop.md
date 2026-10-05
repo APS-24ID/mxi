@@ -395,6 +395,34 @@ scaled to -- the corner is the detector's highest resolution -- and out of
 reach of a comparison with equivalents; it is taken out with the other
 too-low.
 
+### On ferritin, filtered: the innermost has no anchor
+
+Filtered and scaled, `mxeq observations` showed (3,1,1) merged from one
+observation, scaled 148.5 with a background of 4.1 -- an attenuated one -- and
+every other outside the module gap excluded, the 13 unharmed near 950 among
+them; (2,2,2) and (2,2,0) with nothing left. `mxeq unique`: the inner shell's
+merged intensities against DIALS's at 0.976, from 0.971 -- mxi's inner CC1/2
+0.9996, from 0.9992, DIALS's 0.9998.
+
+Beside the backstop no observation has an unaffected background: each is in the
+flare or in the shadow. The model's notion of the normal there is an average of
+the two, so z cannot tell the unharmed from the attenuated -- the unharmed, in
+the flare, read too high, and an attenuated one can read as normal. The
+per-reflection test is the wrong instrument for that region.
+
+**Proposed: judge the region, not the reflection.** The model measures, shell by
+shell, how far z spreads beyond 1; where it spreads far beyond, the backgrounds
+cannot be trusted and neither can intensities measured on them. Working outward
+from the lowest resolution, in fine shells of equal width in 1/d (some 0.005
+1/A -- equal-count shells are too coarse: ferritin's innermost of twelve holds
+half a million reflections and reaches 3 A), leave out each shell while its z
+spread exceeds a stated value, stopping at the first that does not: the data
+choose `--d-max`, and the report says where. Outside it the per-reflection test
+still takes the too-low -- the arm's shadow, the corner module.
+
+`mxeq observations` now lists `background.z` and `background.expected` where the
+table has them, so that what flagged an observation can be seen.
+
 ## Order, and how each is judged
 
 1. **The background dispersion, measured**: the column, and on ferritin where

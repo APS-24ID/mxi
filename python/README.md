@@ -138,8 +138,9 @@ of the reflections given -- all their symmetry equivalents, by the experiment
 list's own space group, so a scaled table gives them all where an integrated
 one gives only what its indexing setting relates -- with whatever the table
 records: position, summed and fitted intensities, background, profile
-correlation, mxi's reason for not fitting, LP, partiality, the flags, and for a
-scaled table the scale factor and scaled intensity. Columns a table does not
+correlation, mxi's reason for not fitting, the background's dispersion and,
+after `mxeq background-model`, its z and expected value, LP, partiality, the
+flags, and for a scaled table the scale factor and scaled intensity. Columns a table does not
 have are left out, so DIALS's tables list too.
 
 ## Where profile fitting fails

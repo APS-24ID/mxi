@@ -293,6 +293,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="also leave out whole resolution shells whose z spread exceeds this",
     )
     bm.add_argument(
+        "--annotate-only",
+        action="store_true",
+        help="add background.expected and background.z but change no flags: to judge the "
+        "flagged against their equivalents (mxeq equivalents bins by background.z) first",
+    )
+    bm.add_argument(
         "--plot", default=None, help="draw the model against the data to this file"
     )
     bm.add_argument(
@@ -468,6 +474,7 @@ def main(argv: list[str] | None = None) -> int:
             args.refl,
             args.z_max,
             args.reject_shells,
+            annotate_only=args.annotate_only,
             knots_s=args.knots,
             phi_spacing=args.phi_spacing,
             smoothness=args.smoothness,

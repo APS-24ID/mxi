@@ -156,3 +156,15 @@ def test_the_figure_maps_the_removed_and_the_kept(tmp_path):
     plot.draw_model(r.fit, bg, px[:, 0], px[:, 1], CENTRE, str(tmp_path / "m.png"))
     assert (tmp_path / "m.png").stat().st_size > 20000
     assert len(r.fit.flagged_shell) == len(bg) and not r.fit.flagged_shell.any()
+
+
+def test_annotate_only_adds_the_columns_and_changes_no_flag(tmp_path):
+    write(tmp_path)
+    r = bm.run(str(tmp_path / "a.expt"), str(tmp_path / "a.refl"), annotate_only=True)
+    flags = np.asarray(r.table.columns["flags"]).astype(np.int64)
+    assert np.all(flags == ((1 << 8) | (1 << 9) | 1))
+    assert (r.fit.flagged_low | r.fit.flagged_high).any()  # found, but left in
+    assert (
+        "background.z" in r.table.columns and "background.expected" in r.table.columns
+    )
+    assert "annotate-only" in r.report

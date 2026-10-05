@@ -271,6 +271,7 @@ def run(
     z_max: float = 5.0,
     reject_shells: float | None = None,
     shells: int = 12,
+    annotate_only: bool = False,
     **options,
 ) -> Result:
     g = geometry(expt_path)
@@ -300,8 +301,8 @@ def run(
     lines = [
         f"{t.nrows} reflections, {int(f.used.sum())} with a background the fit could use; intrinsic "
         f"spread {100 * f.tau:.1f} per cent",
-        f"flagged beyond |z| {z_max:g}: {int(low.sum())} low, the backstop shadow's kind, "
-        f"{int(high.sum())} high, the flare's",
+        f"beyond |z| {z_max:g}: {int(low.sum())} with a background too low, {int(high.sum())} too high"
+        " -- the backstop shadow among the low and its flare among the high, but not only",
         "",
         f"  {'d (A)':>15} {'n':>8} {'obs/model':>9} {'z spread':>8} {'low %':>7} {'high %':>7}",
     ]
@@ -336,24 +337,46 @@ def run(
         "  beyond 1 is one whose backgrounds cannot be trusted.",
     ]
     flagged = low | high | whole
-    flags = np.asarray(c["flags"]).astype(np.int64).copy()
-    flags[flagged] = (
-        flags[flagged] & ~(INTEGRATED_SUM | INTEGRATED_PRF)
-    ) | EXCLUDED_FOR_SCALING
-    c["flags"] = flags.astype(np.asarray(c["flags"]).dtype)
+    if not annotate_only:
+        flags = np.asarray(c["flags"]).astype(np.int64).copy()
+        flags[flagged] = (
+            flags[flagged] & ~(INTEGRATED_SUM | INTEGRATED_PRF)
+        ) | EXCLUDED_FOR_SCALING
+        c["flags"] = flags.astype(np.asarray(c["flags"]).dtype)
     c["background.expected"] = np.nan_to_num(f.expected, nan=-1.0)
     t.types["background.expected"] = "double"
     c["background.z"] = np.where(np.isneginf(f.z), -1e30, np.nan_to_num(f.z, nan=0.0))
     t.types["background.z"] = "double"
     f.flagged_low, f.flagged_high = low, high
     f.flagged_shell = whole & ~(low | high)
+    # Where the too-high cluster in resolution, in fine bins: a ring too narrow
+    # for R's spline -- ice, at 3.90, 3.67, 3.44, 2.67, 2.25 A and so on -- piles up.
+    lines += [
+        "",
+        "  where the too-high cluster in resolution, the fine bins richest in them:",
+    ]
+    fine = np.linspace(np.nanmin(s[have]), np.nanmax(s[have]), 201)
+    total, _ = np.histogram(s[have], fine)
+    hits, _ = np.histogram(s[high], fine)
+    share = np.where(total >= 20, hits / np.maximum(total, 1), 0.0)
+    for k in np.argsort(-share)[:8]:
+        if hits[k] == 0:
+            break
+        lines.append(
+            f"    d {1 / fine[k + 1]:6.3f} - {1 / fine[k]:6.3f} A: {hits[k]:6d} of {total[k]:7d}, "
+            f"{100 * share[k]:5.1f}%"
+        )
+    shells_note = (
+        f", {int((whole & ~(low | high)).sum())} of them by whole shells"
+        if whole.any()
+        else ""
+    )
     lines.insert(
         2,
-        f"{int(flagged.sum())} reflections' integrated flags cleared in the filtered table"
-        + (
-            f", {int((whole & ~(low | high)).sum())} of them by whole shells"
-            if whole.any()
-            else ""
+        (
+            f"{int(flagged.sum())} flagged{shells_note}; --annotate-only, so the table's flags are as they were"
+            if annotate_only
+            else f"{int(flagged.sum())} reflections' integrated flags cleared in the filtered table{shells_note}"
         ),
     )
     return Result(t, f, "\n".join(lines))

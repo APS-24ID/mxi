@@ -202,8 +202,9 @@ phase of every program is reported by `--timing`.
 For one sweep the chain is complete; beyond it (`docs/outstanding.md` has the
 numbered list):
 
-* **More than one sweep**, in symmetry and scaling, and so the indexing
-  ambiguity between sweeps.
+* **More than one sweep** in scaling (`docs/multi-sweep.md`: import to
+  symmetry take several), and the indexing ambiguity between sweeps indexed
+  apart.
 * Free-set validation of scaling; overlapping
   reflections and overloads in integration; e.s.d.s for the cell, and the cell
   constrained to the lattice's symmetry, in refinement.

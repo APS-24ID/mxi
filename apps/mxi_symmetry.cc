@@ -3,6 +3,7 @@
 // metric symmetry by Le Page's method; each element and each subgroup scored
 // as Evans (2011); screw axes from the absences.
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <set>
@@ -69,9 +70,36 @@ int run_program(int argc, char **argv) {
     ExperimentList experiments = read_experiments(args.positional[0]);
     Table reflections = read_reflections(args.positional[1]);
     phase("reading");
-    if (experiments.size() != 1 || !experiments[0].crystal)
-      throw std::runtime_error("one sweep with a crystal, for now");
+    // Several sweeps of one crystal pooled, as dials.symmetry takes them: the
+    // lattice is the first's, so every sweep must have a crystal and the same
+    // cell -- sweeps indexed apart may not, and may not even share a setting,
+    // which joint indexing gives them. Pooled as they are, unscaled: sweeps on
+    // much different scales would want each normalised first, not yet done.
+    if (experiments.size() == 0)
+      throw std::runtime_error("no experiments");
+    for (std::size_t i = 0; i < experiments.size(); ++i)
+      if (!experiments[i].crystal)
+        throw std::runtime_error("experiment " + std::to_string(i) +
+                                 " has no crystal: index it first");
     const UnitCell cell = experiments[0].crystal->cell();
+    for (std::size_t i = 1; i < experiments.size(); ++i) {
+      const UnitCell other = experiments[i].crystal->cell();
+      const double worst = std::max(
+          {std::fabs(other.a / cell.a - 1.0), std::fabs(other.b / cell.b - 1.0),
+           std::fabs(other.c / cell.c - 1.0),
+           std::fabs(other.alpha - cell.alpha) / 90.0,
+           std::fabs(other.beta - cell.beta) / 90.0,
+           std::fabs(other.gamma - cell.gamma) / 90.0});
+      if (worst > 0.02)
+        throw std::runtime_error(
+            "experiment " + std::to_string(i) +
+            "'s cell differs from the first's by " +
+            std::to_string(static_cast<int>(std::round(100.0 * worst))) +
+            " per cent: index the sweeps together, so that they share one "
+            "cell and one setting");
+    }
+    if (experiments.size() > 1)
+      std::printf("%zu sweeps, pooled\n", experiments.size());
     std::printf("Cell %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n", cell.a, cell.b,
                 cell.c, cell.alpha, cell.beta, cell.gamma);
 

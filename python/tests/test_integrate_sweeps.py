@@ -24,6 +24,7 @@ import pytest
 from mxeq import refl
 
 BINARY = os.environ.get("MXI_INTEGRATE")
+SYMMETRY = os.environ.get("MXI_SYMMETRY")
 EXPT = os.environ.get("MXI_POSTREFINE_EXPT")
 REFL = os.environ.get("MXI_POSTREFINE_REFL")
 needs = pytest.mark.skipif(
@@ -135,3 +136,29 @@ def test_two_sweeps_integrate_as_the_sweep_whole_does(tmp_path):
     x = np.array([a[k] for k in common])
     y = np.array([b[k] for k in common])
     assert np.allclose(x, y, rtol=1e-9, atol=1e-9), np.max(np.abs(x - y))
+
+    # Symmetry from the two pooled: the same space group as from the whole.
+    if SYMMETRY:
+        groups = []
+        for name in ("whole", "two"):
+            run = subprocess.run(
+                [
+                    SYMMETRY,
+                    name + ".expt",
+                    name + ".refl",
+                    "--output-refl",
+                    name + "_sym.refl",
+                    "--output-expt",
+                    name + "_sym.expt",
+                ],
+                capture_output=True,
+                text=True,
+                cwd=tmp_path,
+            )
+            assert run.returncode == 0, run.stderr
+            e = json.load(open(tmp_path / (name + "_sym.expt")))
+            groups.append({c["space_group_hall_symbol"] for c in e["crystal"]})
+            if name == "two":
+                assert "2 sweeps, pooled" in run.stdout
+                assert len(e["experiment"]) == 2
+        assert groups[0] == groups[1] and len(groups[1]) == 1

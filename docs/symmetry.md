@@ -1,7 +1,17 @@
 # Symmetry
 
-STATUS: `mxi_symmetry` works on one sweep. Not yet: more than one sweep, and so
-the indexing ambiguity between them. `docs/outstanding.md` has the whole list.
+STATUS: `mxi_symmetry` works on one sweep, and on several of one crystal
+indexed together (5 October 2026). Not yet: sweeps indexed apart, and so the
+indexing ambiguity between them; sweeps on much different scales, which would
+want each normalised before they are pooled. `docs/outstanding.md` has the
+whole list.
+
+**Several sweeps** are pooled, as dials.symmetry takes them: every sweep's
+observations, each placed in the rotation by its own sweep's scan, merged in P1
+together, and every experiment reindexed alike. Each must have a crystal, and
+their cells must agree to 2 per cent -- the lattice is the first's -- which
+joint indexing gives them; otherwise refused, with the reason
+(`docs/multi-sweep.md`).
 
 `mxi_symmetry` finds the Laue group and space group of one sweep's integrated
 data and writes the data reindexed into them, as dials.symmetry does.

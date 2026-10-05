@@ -82,6 +82,21 @@ what merging uses, `intensity.scale.value` over `inverse_scale_factor`; the
 second data set is reindexed by whichever lattice operator makes the two agree
 best. `--csv` writes every matched reflection.
 
+## The background against resolution
+
+`mxeq background integrated.expt integrated.refl -o background.png` takes each
+reflection's `background.mean` -- every mxi or DIALS integrated table has it --
+and the beam centre from the experiments, and prints the background by
+resolution shell: its median, its spread about the median, and the share of
+reflections below half or above twice it. The figure has four panels: the
+background against 1/d^2, as a density, with its running median and 5th and
+95th percentiles; each reflection's background over that median against the
+azimuth around the beam, and against the image; and that ratio on the detector
+near the beam. The background from air and the sample's surroundings should be
+a smooth function of resolution and polarisation, so this is for looking at
+before modelling it (`docs/backstop.md`). `--range DMAX DMIN` limits the
+azimuth and image panels, `--zoom` the map, `--no-plot` the table alone.
+
 ## Every observation of a reflection
 
 `mxeq observations scaled.expt scaled.refl 1,1,1 2,2,2` lists every observation

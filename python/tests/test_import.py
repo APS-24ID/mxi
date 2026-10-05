@@ -44,7 +44,7 @@ CHI = 20.0
 PIVOT_M = np.array([0.0, 0.005, 0.002])  # the two-theta arm's offset: not at the sample
 
 
-def plant(path):
+def plant(path, chi=CHI, module_offset_offset=None):
     with h5py.File(path, "w") as f:
         e = f.create_group("entry")
         e.attrs["NX_class"] = "NXentry"
@@ -90,6 +90,9 @@ def plant(path):
                 "depends_on": "/entry/instrument/transformations/det_z",
             }
         )
+        if module_offset_offset is not None:
+            # In metres, with no offset_units: as Diamond's Eiger masters write it.
+            mo.attrs["offset"] = np.asarray(module_offset_offset, float)
         for name, vec in (
             ("fast_pixel_direction", [-1.0, 0, 0]),
             ("slow_pixel_direction", [0, -1.0, 0]),
@@ -115,7 +118,7 @@ def plant(path):
                 "depends_on": ".",
             }
         )
-        chi = g.create_dataset("chi", data=[CHI])
+        chi = g.create_dataset("chi", data=[chi])
         chi.attrs.update(
             {
                 "transformation_type": "rotation",
@@ -268,3 +271,102 @@ def test_the_insulin_master_against_dials_import(tmp_path):
         ours["scan"][0]["properties"]["oscillation"],
         theirs["scan"][0]["properties"]["oscillation"],
     )
+
+
+@needs_import
+def test_several_masters_make_one_experiment_each_with_models_of_their_own(tmp_path):
+    # As dials.import writes several sweeps: each experiment its own beam,
+    # detector, goniometer, scan and image set, numbered past the ones before.
+    plant(tmp_path / "a.nxs", chi=20.0)
+    plant(tmp_path / "b.nxs", chi=45.0)
+    result = subprocess.run(
+        [
+            IMPORT,
+            str(tmp_path / "a.nxs"),
+            str(tmp_path / "b.nxs"),
+            "-o",
+            str(tmp_path / "two.expt"),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    e = json.load(open(tmp_path / "two.expt"))
+    assert len(e["experiment"]) == 2
+    for i, x in enumerate(e["experiment"]):
+        assert all(
+            x[k] == i for k in ("beam", "detector", "goniometer", "scan", "imageset")
+        )
+    assert all(
+        len(e[k]) == 2 for k in ("beam", "detector", "goniometer", "scan", "imageset")
+    )
+    assert e["goniometer"][0]["angles"] == [0.0, 20.0, 0.0]
+    assert e["goniometer"][1]["angles"] == [0.0, 45.0, 0.0]
+    assert e["experiment"][0]["identifier"] != e["experiment"][1]["identifier"]
+    assert "2 sweeps, one experiment each" in result.stdout
+
+
+@needs_import
+def test_an_offset_without_offset_units_is_in_its_transformations_units(tmp_path):
+    # nxmx's reading: Diamond's Eiger masters give offsets in metres with no
+    # offset_units, and taking them as millimetres put the detector a
+    # thousandth of the way out.
+    off = np.array([0.01, 0.02, 0.0])
+    plant(tmp_path / "master.nxs", module_offset_offset=off)
+    result = subprocess.run(
+        [IMPORT, str(tmp_path / "master.nxs"), "-o", str(tmp_path / "imported.expt")],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    p = json.load(open(tmp_path / "imported.expt"))["detector"][0]["panels"][0]
+    r = rotation([-1, 0, 0], TWO_THETA)
+    inner = (
+        np.array([0, 0, DISTANCE_M * 1000])
+        + OFFSET_VEC / np.linalg.norm(OFFSET_VEC) * OFFSET_M * 1000
+        + off * 1000
+    )
+    assert np.allclose(p["origin"], imgcif(r @ inner + PIVOT_M * 1000), atol=1e-9)
+    assert "taken in its units, m" in result.stdout
+
+
+@needs_import
+def test_compare_expt_compares_experiment_by_experiment(tmp_path):
+    # Each experiment against its counterpart, through its own model indices:
+    # a change to the second sweep's goniometer alone is found, and found there.
+    from mxeq import compare_expt
+
+    plant(tmp_path / "a.nxs", chi=20.0)
+    plant(tmp_path / "b.nxs", chi=45.0)
+    subprocess.run(
+        [
+            IMPORT,
+            str(tmp_path / "a.nxs"),
+            str(tmp_path / "b.nxs"),
+            "-o",
+            str(tmp_path / "two.expt"),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    same = compare_expt.compare_files(
+        str(tmp_path / "two.expt"), str(tmp_path / "two.expt")
+    )
+    assert same.differences == 0
+    e = json.load(open(tmp_path / "two.expt"))
+    e["goniometer"][1]["angles"] = [0.0, 50.0, 0.0]
+    json.dump(e, open(tmp_path / "changed.expt", "w"))
+    changed = compare_expt.compare_files(
+        str(tmp_path / "two.expt"), str(tmp_path / "changed.expt")
+    )
+    assert changed.differences == 1
+    text = "\n".join(changed.lines)
+    second = text.index("experiment 1 against")
+    differing = [
+        k
+        for k, line in enumerate(text.splitlines())
+        if line.strip().startswith("angles") and not line.endswith("same")
+    ]
+    starts = [len(line) + 1 for line in text.splitlines()]
+    offsets = np.cumsum([0] + starts)[:-1]
+    assert len(differing) == 1 and offsets[differing[0]] > second

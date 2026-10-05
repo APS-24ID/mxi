@@ -11,6 +11,7 @@ its conclusions sometimes overturned later, with an index of those.
 | `docs/review.md` | guide | for reviewers: what this is, how it differs from DIALS, where things are |
 | `docs/outstanding.md` | list | every open task, with its evidence |
 | `docs/backstop.md` | plan | the backstop shadow, its flare, and scaling's outlier rejection: what was found and what is to be done |
+| `docs/multi-sweep.md` | plan | more than one sweep, from import to scaling: where each program stands, the steps, how each is tested |
 | `docs/import.md` | reference | `mxi_import`, and checking it against dials.import |
 | `docs/integration.md` | reference | `mxi_integrate` |
 | `docs/symmetry.md` | reference | `mxi_symmetry` |

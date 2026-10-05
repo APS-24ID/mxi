@@ -255,7 +255,7 @@ The pipeline:
 
 | | |
 | --- | --- |
-| `mxi_import` | an experiment list from an NXmx master, as dials.import writes it; see `docs/import.md` |
+| `mxi_import` | an experiment list from NXmx masters, one experiment a sweep, as dials.import writes it; see `docs/import.md` |
 | `mxi_find` | spot finding on the CPU, CUDA or Metal, from NXmx HDF5 |
 | `mxi_index` | FFT indexing with assign, refine and reassign macrocycles |
 | `mxi_refine` | scan-static and scan-varying refinement, analytical derivatives |

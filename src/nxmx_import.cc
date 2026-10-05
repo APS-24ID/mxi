@@ -9,6 +9,7 @@
 #include <ctime>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <random>
 #include <stdexcept>
 #include <utility>
@@ -242,8 +243,21 @@ Step read_step(hid_t file, const std::string &path,
     s.vector = s.vector / s.vector.norm();
   const auto off = attr_doubles(d.get(), "offset");
   if (off && off->size() == 3) {
-    const double k =
-        to_mm(attr_string(d.get(), "offset_units"), path + "'s offset", notes);
+    // An offset without offset_units is in the transformation's own units, as
+    // nxmx reads it: Diamond's Eiger masters write offsets so, in metres, and
+    // taking them as millimetres put the detector a thousandth of the way out
+    // from the beam. A rotation's units are an angle, which no offset can be
+    // in, so there the length is still taken as millimetres, with a note.
+    auto offset_units = attr_string(d.get(), "offset_units");
+    if ((!offset_units || offset_units->empty()) && s.type == "translation") {
+      const auto own = attr_string(d.get(), "units");
+      if (own && !own->empty()) {
+        notes->push_back(path + "'s offset has no offset_units: taken in its " +
+                         "units, " + *own + ", as nxmx does");
+        offset_units = own;
+      }
+    }
+    const double k = to_mm(offset_units, path + "'s offset", notes);
     s.offset = Vec3{(*off)[0] * k, (*off)[1] * k, (*off)[2] * k};
   }
   s.depends_on = attr_string(d.get(), "depends_on").value_or(".");
@@ -748,6 +762,44 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
       {"crystal", json::Array{}},
       {"profile", json::Array{}},
       {"scaling_model", json::Array{}}};
+}
+
+json::Value join_experiment_lists(const std::vector<json::Value> &lists) {
+  if (lists.empty())
+    throw std::runtime_error("no experiment lists to join");
+  if (lists.size() == 1)
+    return lists[0];
+  static const char *const kModels[] = {"beam",    "detector",     "goniometer",
+                                        "scan",    "imageset",     "crystal",
+                                        "profile", "scaling_model"};
+  json::Value out = lists[0];
+  json::Object &o = out.as_object();
+  for (std::size_t l = 1; l < lists.size(); ++l) {
+    const json::Object &in = lists[l].as_object();
+    // How many of each model there are already: this list's indices start
+    // there.
+    std::map<std::string, long long> base;
+    for (const char *m : kModels)
+      base[m] =
+          o.count(m) ? static_cast<long long>(o.at(m).as_array().size()) : 0;
+    for (const char *m : kModels) {
+      if (!in.count(m))
+        continue;
+      json::Array &to = o[m].as_array();
+      for (const json::Value &v : in.at(m).as_array())
+        to.push_back(v);
+    }
+    json::Array &experiments = o["experiment"].as_array();
+    for (const json::Value &ev : in.at("experiment").as_array()) {
+      json::Value e = ev;
+      for (auto &[key, value] : e.as_object())
+        if (base.count(key) && value.is_number())
+          value = json::Value(static_cast<long long>(value.as_number()) +
+                              base[key]);
+      experiments.push_back(e);
+    }
+  }
+  return out;
 }
 
 } // namespace mxi

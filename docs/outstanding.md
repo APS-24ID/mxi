@@ -224,7 +224,11 @@ where something is missing.
   or polarisation from the file, materials but silicon.
 
 ## Infrastructure
-
+  Threonine, two sweeps from Diamond's I03 (5 October): an offset without
+  offset_units, in metres, had been taken as millimetres -- fixed, as nxmx
+  reads it. Then every model of both experiments as dials.import's but the
+  exposure time and the trusted range's top, 65534 against 133201 -- from the
+  detector's meta file, most likely; open until it is seen.
 * **31.** **The C++ suite takes about two minutes**, most of it a handful of older
     refinement and indexing tests at 10 to 13 seconds each.
 * **32.** **The device port is designed but not written.** `docs/gpu.md`.

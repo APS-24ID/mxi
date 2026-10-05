@@ -174,3 +174,26 @@ def test_annotate_only_adds_the_columns_and_changes_no_flag(tmp_path):
         "background.z" in r.table.columns and "background.expected" in r.table.columns
     )
     assert "annotate-only" in r.report
+
+
+def test_reject_inner_leaves_out_the_innermost_whole_and_stops_at_its_edge(tmp_path):
+    # Beside a backstop, half the backgrounds a tenth, half three times: no
+    # background there is normal, z cannot tell good from bad, and one
+    # attenuated to the model's level would pass. --reject-inner takes the
+    # region whole, outward until a shell's z spread is normal.
+    write(tmp_path)
+    t = refl.load(str(tmp_path / "a.refl"))
+    px = np.asarray(t.columns["xyzcal.px"]).reshape(-1, 3)
+    radius = np.hypot(px[:, 0] - CENTRE[0], px[:, 1] - CENTRE[1])
+    rng = np.random.default_rng(3)
+    inside = radius < 60.0
+    bg = np.asarray(t.columns["background.mean"], float).copy()
+    bg[inside] *= np.where(rng.uniform(size=inside.sum()) < 0.5, 0.1, 3.0)
+    t.columns["background.mean"] = bg
+    refl.write(str(tmp_path / "a.refl"), t)
+    r = bm.run(str(tmp_path / "a.expt"), str(tmp_path / "a.refl"), reject_inner=3.0)
+    gone = r.fit.flagged_shell | r.fit.flagged_low | r.fit.flagged_high
+    assert gone[inside].all()
+    beyond = radius > 90.0
+    assert r.fit.flagged_shell[beyond].mean() < 0.01
+    assert "the innermost left out to d" in r.report

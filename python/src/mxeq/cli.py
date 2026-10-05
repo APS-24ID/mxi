@@ -293,6 +293,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="also leave out whole resolution shells whose z spread exceeds this",
     )
     bm.add_argument(
+        "--reject-inner",
+        type=float,
+        default=None,
+        metavar="SPREAD",
+        help="leave out the innermost resolutions whole, outward while each fine shell's z "
+        "spread exceeds SPREAD -- beside the backstop no background is normal, and z there "
+        "cannot tell the unharmed from the attenuated",
+    )
+    bm.add_argument(
+        "--inner-width",
+        type=float,
+        default=0.005,
+        help="the fine shells' width in 1/d (0.005)",
+    )
+    bm.add_argument(
         "--reject-high",
         action="store_true",
         help="take out the reflections whose background is too high as well as too low: "
@@ -482,6 +497,8 @@ def main(argv: list[str] | None = None) -> int:
             args.reject_shells,
             annotate_only=args.annotate_only,
             reject_high=args.reject_high,
+            reject_inner=args.reject_inner,
+            inner_width=args.inner_width,
             knots_s=args.knots,
             phi_spacing=args.phi_spacing,
             smoothness=args.smoothness,

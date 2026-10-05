@@ -274,6 +274,9 @@ def run(
     shells: int = 12,
     annotate_only: bool = False,
     reject_high: bool = False,
+    reject_inner: float | None = None,
+    inner_width: float = 0.005,
+    inner_min: int = 20,
     **options,
 ) -> Result:
     g = geometry(expt_path)
@@ -305,7 +308,11 @@ def run(
         f"spread {100 * f.tau:.1f} per cent",
         f"beyond |z| {z_max:g}: {int(low.sum())} with a background too low, {int(high.sum())} too high"
         " -- the backstop shadow among the low and its flare among the high, but not only;"
-        + (" both taken out" if reject_high else " the too-low taken out, the too-high kept (--reject-high)"),
+        + (
+            " both taken out"
+            if reject_high
+            else " the too-low taken out, the too-high kept (--reject-high)"
+        ),
         "",
         f"  {'d (A)':>15} {'n':>8} {'obs/model':>9} {'z spread':>8} {'low %':>7} {'high %':>7}",
     ]
@@ -343,6 +350,34 @@ def run(
     # below z -5 were 7 to 16 per cent low -- attenuated -- where those above 5,
     # the flare, the module edges, the rings, were 1 to 1.5 per cent: unusual in
     # background, nearly right in intensity. --reject-high takes them too.
+    # The innermost, judged whole: beside the backstop every background is the
+    # flare's or the shadow's, the model's normal there their average, and z
+    # cannot tell the unharmed from the attenuated -- one attenuated to the
+    # model's level passes. So, outward from the lowest resolution in fine
+    # shells of equal width in 1/d (merged until each holds inner_min), each
+    # shell goes whole while its z spread exceeds reject_inner; the first that
+    # does not stops it. The data choose --d-max.
+    inner = np.zeros(len(d), bool)
+    inner_limit = None
+    if reject_inner is not None:
+        finite_s = s[np.isfinite(s)]
+        lo = float(np.min(finite_s))
+        zz = np.where(np.isneginf(f.z), -100.0, f.z)
+        start = lo
+        while start < float(np.max(finite_s)):
+            stop = start + inner_width
+            sel = (s >= start) & (s < stop) & np.isfinite(zz)
+            while sel.sum() < inner_min and stop < float(np.max(finite_s)):
+                stop += inner_width
+                sel = (s >= start) & (s < stop) & np.isfinite(zz)
+            zs = zz[sel]
+            spread = 1.4826 * np.median(np.abs(zs - np.median(zs))) if len(zs) else 0.0
+            if spread <= reject_inner:
+                break
+            inner |= np.isfinite(s) & (s >= start) & (s < stop)
+            inner_limit = (1.0 / stop, spread)
+            start = stop
+    whole = whole | inner
     flagged = low | (high if reject_high else np.zeros_like(high)) | whole
     if not annotate_only:
         flags = np.asarray(c["flags"]).astype(np.int64).copy()
@@ -357,6 +392,16 @@ def run(
     f.flagged_low, f.flagged_high = low, high
     f.flagged_shell = whole & ~(low | high)
     f.high_removed = reject_high
+    if reject_inner is not None:
+        lines += [
+            "",
+            (
+                f"  the innermost left out to d {inner_limit[0]:.2f} A, {int(inner.sum())} reflections, "
+                f"where the background's z spread exceeded {reject_inner:g}"
+                if inner_limit
+                else f"  the innermost kept: its first shell's z spread is within {reject_inner:g}"
+            ),
+        ]
     # Where the too-high cluster in resolution, in fine bins: a ring too narrow
     # for R's spline -- ice, at 3.90, 3.67, 3.44, 2.67, 2.25 A and so on -- piles up.
     lines += [

@@ -119,8 +119,9 @@ its integrated flags are cleared and excluded-for-scaling set, so that neither
 shell, the median of observed over model, the z spread -- 1 where model and
 counting explain the backgrounds -- and how many were flagged low and high;
 `--reject-shells SPREAD` leaves out whole shells beyond it. `--plot` draws R
-and G through the data, z against resolution, and z on the detector by the
-beam. `--knots`, `--phi-spacing` and `--smoothness` shape the splines.
+and G through the data, z against resolution, z on the detector by the beam,
+and where reflections were removed -- low, high, by whole shells -- and kept,
+over the whole detector and by the beam. `--knots`, `--phi-spacing` and `--smoothness` shape the splines.
 
 ## Every observation of a reflection
 

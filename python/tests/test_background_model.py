@@ -142,3 +142,17 @@ def test_the_polarisation_is_one_along_the_beam_and_cos_squared_in_the_plane():
     p, _, _ = bm.known_factors(g, np.array([100.0, 1100.0]), np.array([100.0, 100.0]))
     assert abs(p[0] - 1.0) < 1e-9
     assert abs(p[1] - np.cos(np.radians(45.0)) ** 2) < 1e-9
+
+
+def test_the_figure_maps_the_removed_and_the_kept(tmp_path):
+    pytest = __import__("pytest")
+    pytest.importorskip("matplotlib")
+    from mxeq.plots import background as plot
+
+    shadow, flare, _, _ = write(tmp_path)
+    r = bm.run(str(tmp_path / "a.expt"), str(tmp_path / "a.refl"))
+    px = np.asarray(r.table.columns["xyzcal.px"]).reshape(-1, 3)
+    bg = np.asarray(r.table.columns["background.mean"], float).ravel()
+    plot.draw_model(r.fit, bg, px[:, 0], px[:, 1], CENTRE, str(tmp_path / "m.png"))
+    assert (tmp_path / "m.png").stat().st_size > 20000
+    assert len(r.fit.flagged_shell) == len(bg) and not r.fit.flagged_shell.any()

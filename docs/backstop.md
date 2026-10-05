@@ -423,6 +423,25 @@ still takes the too-low -- the arm's shadow, the corner module.
 `mxeq observations` now lists `background.z` and `background.expected` where the
 table has them, so that what flagged an observation can be seen.
 
+### `--reject-inner`: the region judged whole
+
+With `--reject-high` (Graeme's choice: merging statistics had been worse, and
+untrustworthy reflections are better lost), ferritin's (3,1,1) showed why the
+per-reflection test fails beside the backstop: the model expects some 4 to 6
+there, between the shadow's 0.5 to 2.6 and the flare's 22 to 30; the 13
+unharmed, at z +29 to +35, went as too high; the attenuated, at -11 to -42, as
+too low; and one, attenuated to the model's level by chance -- background 4.14,
+z -4.7 -- passed, and was (3,1,1)'s whole merged value. A test of each
+reflection cannot catch that one: it looks normal by construction.
+
+So `--reject-inner SPREAD`: outward from the lowest resolution, in fine shells
+of equal width in 1/d (0.005, merged until each holds 20), each shell goes whole
+while its z spread exceeds SPREAD, and the first that does not stops it. On a
+planted backstop -- half the backgrounds a tenth, half three times, within 60
+pixels -- every reflection inside goes and under 1 per cent beyond. On insulin,
+whose backstop has no flare, the innermost shell's spread is within 3 and
+nothing goes; its few shadowed are taken one by one as too low.
+
 ## Order, and how each is judged
 
 1. **The background dispersion, measured**: the column, and on ferritin where

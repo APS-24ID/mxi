@@ -120,7 +120,12 @@ integrated flags cleared and excluded-for-scaling set, so that neither
 `background.expected` and `background.z`. The report gives, by resolution
 shell, the median of observed over model, the z spread -- 1 where model and
 counting explain the backgrounds -- and how many were flagged low and high;
-`--reject-shells SPREAD` leaves out whole shells beyond it. `--annotate-only`
+`--reject-shells SPREAD` leaves out whole shells beyond it, and
+`--reject-inner SPREAD` the innermost resolutions whole -- outward from the
+lowest, in fine shells of equal width in 1/d (`--inner-width`, 0.005), while
+each shell's z spread exceeds SPREAD -- for beside a backstop, where no
+background is normal and z cannot tell the unharmed from the attenuated; the
+report gives the limit, a `--d-max` the data chose. `--annotate-only`
 adds the columns and changes no flag, so that the flagged can be judged
 against their equivalents first: `mxeq equivalents` bins by `background.z`
 where the table has it. The report says the background is too low or too high,

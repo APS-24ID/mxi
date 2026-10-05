@@ -354,6 +354,12 @@ mxi_integrate and mxi_scale, leaves the reflections out to test it: on insulin,
   unharmed one, and nothing inside it can tell. What can: a user's mask of the
   backstop, `--d-max`, or in scaling the physics that attenuation only lowers
   an intensity (`docs/backstop.md`, "What can, then").
+  **Paused, 5 October 2026** (`docs/backstop.md`, "Where it stands"): the cause
+  found and tools built to find and filter it, but on ferritin the filters
+  raised Rmerge slightly and DIALS's and mxi's data refined about the same
+  before any of it (mxi very slightly better, not significantly). No absolute
+  measure of processing quality yet decides it; none of the filters is a
+  default.
 * **53.** **correctness -- Scaling's outlier rejection outvoted by small
   sigmas.** Each observation is compared with its group's mean weighted by
   1/sigma^2, so a few observations with tiny sigmas -- shadowed by a backstop,
@@ -363,6 +369,8 @@ mxi_integrate and mxi_scale, leaves the reflections out to test it: on insulin,
   observations triggers it. Wanted: a test the many consistent cannot lose to
   the few -- a median's, or a weight that a near-zero observation's tiny
   variance cannot make overwhelming. The plan is `docs/backstop.md`, part 2.
+  Prototyped in `mxeq attenuation`, attenuation judged from the equivalents and
+  the background together; paused with item 52.
 * **23.** A resolution estimate: dials.estimate_resolution's tanh fit through
   CC half, at 0.3, and its significance limit, with the "Suggested" column.
   `docs/scaling.md`.

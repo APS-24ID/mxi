@@ -72,17 +72,18 @@ reflection at a time, and `mxeq observations`, every observation of one;
 `--d-max` in integration and scaling; and the background's dispersion, under
 `mxi_integrate --save-background-parameters`.
 
-**Under investigation: the backstop** (`docs/backstop.md`, items 52, 53).
-Against DIALS on ferritin the inner shell's merged intensities correlated at
-0.971: observations attenuated by the backstop shadow integrate low, and
-scaling's outlier rejection, a 1/sigma^2-weighted mean of the others, keeps
-them over the unharmed. Graeme's metric, the background's dispersion, was
-measured and does not find them -- the shadow's edge is wider than a box, so an
-attenuated box is a dimmed copy of an unharmed one. Proposed next, awaiting
-Graeme: a user's mask of the backstop, as dials.generate_mask gives, and an
-outlier test the few cannot win. Graeme is judging `--d-max` by refining a
-structure against each data set. Terms: the backstop shadow is the low-count
-region, the flare the high-background region around it.
+**Paused: the backstop** (`docs/backstop.md`, "Where it stands"; items 52, 53).
+Against DIALS on ferritin the innermost shell agreed worst; the cause, the
+reflections beside the backstop -- its shadow attenuating signal and background
+together, its flare raising the background -- and scaling's outlier rejection
+keeping the attenuated over the unharmed. Tools built to see, model and filter
+it (`mxeq unique`, `observations`, `background`, `background-model`,
+`attenuation`; `--d-max`), none a default. On ferritin the filters raised Rmerge
+slightly, and DIALS's and mxi's data refined about the same before any of it.
+Paused for want of an absolute measure of processing quality -- simulated data
+with the truth known, anomalous peak heights at known scatterers, or agreement
+with an independent reference model are the candidates. Terms: the backstop
+shadow is the low-count region, the flare the high-background region around it.
 
 **Waiting on Graeme's data or hardware:**
 

@@ -312,8 +312,10 @@ profile fitting; and on insulin partials high, with a sigma_m wider than DIALS's
 one fault found by comparing with DIALS reflection by reflection
 (`docs/backstop.md`): beside the backstop, observations its shadow attenuates
 integrate low, and scaling's outlier rejection, weighting by 1/sigma^2, keeps
-them over the unharmed -- the lowest-resolution reflections merge far too low.
-`--d-max` leaves them out until it is fixed.
+them over the unharmed -- some of the lowest-resolution reflections merge far
+too low. `--d-max` leaves them out, and `mxeq` has prototypes that filter them;
+none is a default, as on ferritin they did not measurably improve a refined
+structure, and no absolute measure of processing quality yet decides it.
 
 **Symmetry and scaling are written for one sweep.** `mxi_symmetry`
 (`docs/symmetry.md`) chooses the Laue group as dials.symmetry does and the space

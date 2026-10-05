@@ -1,12 +1,76 @@
 # The backstop: its shadow, its flare, and the outliers they make
 
-STATUS: a plan, 4 October 2026; revised the same day to Graeme's metric, the
-background's own dispersion, in place of a model of the images. Step 1, the
-measurement, is built, and on ferritin it says the dispersion cannot find the
-attenuation; the model Graeme proposed in its place is prototyped as
-`mxeq background-model`: see "The prototype". Items 52 and 53 in
-`docs/outstanding.md` are the findings; this is what is to be done about them,
-in what order, and how it will be judged.
+STATUS: paused, 5 October 2026, for want of an absolute measure of processing
+quality -- see "Where it stands". Nothing here has changed a default: every
+filter is an option or an `mxeq` prototype. The sections after it are the
+record, in the order it happened.
+
+## Where it stands
+
+**What was found.** Against DIALS on ferritin, mxi's innermost shell agreed
+worst -- its merged intensities correlated with DIALS's at 0.971, against 0.99
+and above in every other shell. The cause: the reflections beside the backstop.
+Its shadow attenuates an observation, signal and background together, by any
+factor from nothing to all; its flare raises the background around it, leaving
+the intensity nearly right. And scaling's outlier rejection, a mean weighted by
+1/sigma^2, kept the attenuated -- small, with small sigmas -- over the unharmed
+(item 53): (3,1,1) merged from two shadowed observations at 10.6 where its
+unharmed ones read some 950.
+
+**What was built**, each opt-in:
+
+* to see it: `mxeq unique` (two scaled data sets, one unique reflection at a
+  time), `mxeq observations` (every observation of a reflection),
+  `mxeq background` (the background against resolution, azimuth, image and
+  detector);
+* to model it: `mxeq background-model`, R(s) G(phi) with polarisation, solid
+  angle and efficiency computed -- the backgrounds explained to a z spread of
+  about 1 everywhere but beside the backstop;
+* to filter it: `mxeq background-model` taking out the too-low (and with
+  `--reject-high` the too-high, with `--reject-inner` the innermost whole), and
+  `mxeq attenuation`, each observation good or attenuated from its equivalents
+  and its background together, attenuation only lowering;
+* and `--d-max` in integration and scaling, `--save-background-parameters` and
+  `mxi_find --subtract-background`.
+
+**What was learned.** A background too low means an intensity too low (z below
+-5: 8 to 18 per cent); too high barely matters (1 to 1.5 per cent). Nothing
+inside one box can see its own attenuation -- the dispersion does not. Beside the
+backstop no background is normal, so the model has no anchor there. On planted
+data the attenuation judgement does what it should, each part tested.
+
+**What it came to, on ferritin** (Graeme): the filters raised Rmerge slightly;
+and refined against, DIALS's data and mxi's were about the same before any of
+it -- mxi's very slightly better, not significantly. The reflections beside the
+backstop are few, and their effect on a refined structure is below what
+refinement shows.
+
+**The open problem: no absolute measure of processing quality.** Every measure
+used here is internal or relative. Rmerge and CC1/2 measure agreement among
+observations, and leaving observations out moves them for reasons that are not
+accuracy -- a slightly higher Rmerge after filtering neither shows the filtering
+wrong nor would a lower one show it right. Comparison with DIALS shows where two
+programs differ, not which is right. Refinement's R factors are absolute but do
+not resolve differences this small. So the investigation explained a real
+difference from DIALS, and built tools that find it, without being able to show
+on an absolute scale that removing it improves the data. Until something can,
+none of these filters should become a default.
+
+**Absolute measures that could decide such questions** -- candidates, not
+chosen:
+
+* **Simulated data, the truth known**: images made from known intensities, with
+  a backstop's shadow and flare in them, processed by each program and compared
+  with the truth reflection by reflection.
+* **Anomalous difference peaks at known scatterers**: ferritin's iron, a
+  structure's sulphur -- peak heights in an anomalous difference map, sensitive
+  to small systematic errors in exactly the strong low-resolution reflections,
+  and independent of R factors.
+* **Agreement with a reference model neither program refined**: intensities
+  calculated from an independently determined structure, compared with each
+  program's by shell and by category -- the reflections beside the backstop
+  apart from the rest.
+
 
 ## Terms
 

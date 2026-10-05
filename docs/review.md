@@ -1,6 +1,6 @@
 # Reviewing this code: a guide for DIALS developers
 
-STATUS: written 30 September 2026 for external review, brought up to date 4
+STATUS: written 30 September 2026 for external review, brought up to date 5
 October 2026. It says what this is,
 how to build and run it on your own data, where the code for each step lives,
 what follows DIALS and where it departs from it, and how correctness has been
@@ -40,7 +40,7 @@ Its size, excluding third-party code: the library 15350 lines in `src/` and the
 spot finder 6339 in `src/spots/`; eleven programs in 4273 lines in `apps/`, and
 `mxi_find` in `src/spots/find_spots.cc`; C++ tests 14465 lines; a Python package
 of comparison tools, `mxeq`, 5950 lines, with 2852 of tests; 5400 lines of
-documents. Some 325 commits over three weeks.
+documents. Some 336 commits over three weeks.
 
 ## Building it and running it on your data
 
@@ -217,8 +217,9 @@ numbered list):
 * **The backstop** (`docs/backstop.md`, items 52 and 53): observations its
   shadow attenuates integrate low, and scaling's outlier rejection keeps them
   over the unharmed, so the lowest-resolution reflections merge too low.
-  `--d-max` leaves them out for now; a user's mask of the backstop and an
-  outlier test the few cannot win are the plan.
+  `--d-max` leaves them out, and `mxeq` prototypes filter them; paused, none
+  a default, for on ferritin they did not measurably improve a refined
+  structure, and no absolute measure of processing quality yet decides it.
 
 ## What this work found in DIALS
 

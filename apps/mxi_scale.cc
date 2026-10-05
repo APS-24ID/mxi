@@ -126,8 +126,15 @@ int run_program(int argc, char **argv) {
     ExperimentList experiments = read_experiments(args.positional[0]);
     Table reflections = read_reflections(args.positional[1]);
     phase("reading");
-    if (experiments.size() != 1 || !experiments[0].crystal)
-      throw std::runtime_error("one sweep with a crystal, for now");
+    // One sweep or several of one crystal, each scaled by a model of its own
+    // sharing the merged intensities; each must have a crystal, and they
+    // share the first's cell and space group, as symmetry left them.
+    if (experiments.size() == 0)
+      throw std::runtime_error("no experiments");
+    for (std::size_t i = 0; i < experiments.size(); ++i)
+      if (!experiments[i].crystal)
+        throw std::runtime_error("experiment " + std::to_string(i) +
+                                 " has no crystal: index it first");
     const SpaceGroup group =
         args.has("--space-group")
             ? SpaceGroup::from_name(args.value("--space-group", ""))
@@ -137,7 +144,8 @@ int run_program(int argc, char **argv) {
       reindex(experiments, reflections, ChangeOfBasis::parse(cb), group);
       std::printf("Reindexed by %s\n", cb.c_str());
     } else {
-      experiments[0].crystal->space_group_hall = group.hall();
+      for (Experiment &e : experiments)
+        e.crystal->space_group_hall = group.hall();
     }
     const UnitCell cell = experiments[0].crystal->cell();
     std::printf("Space group %s, Laue class %s; cell %.3f %.3f %.3f A, %.3f "
@@ -198,11 +206,16 @@ int run_program(int argc, char **argv) {
     const ScaleModelShape &shape = run.model.shape();
     std::printf("\n%zu observations of %zu reflections, of %zu rows\n",
                 data.size(), data.unique.size(), reflections.nrows);
-    std::printf("Scaling model: %zu scale, %zu decay and %zu absorption "
-                "parameters, %zu in "
-                "all; fitted on %zu observations\n",
-                shape.scale_points, shape.decay_points,
-                harmonic_count(shape.lmax), run.model.size(), run.fitted_on);
+    if (run.model.sweeps() == 1)
+      std::printf("Scaling model: %zu scale, %zu decay and %zu absorption "
+                  "parameters, %zu in "
+                  "all; fitted on %zu observations\n",
+                  shape.scale_points, shape.decay_points,
+                  harmonic_count(shape.lmax), run.model.size(), run.fitted_on);
+    else
+      std::printf("Scaling model: %zu sweeps, a model each, %zu parameters in "
+                  "all; fitted on %zu observations\n",
+                  run.model.sweeps(), run.model.size(), run.fitted_on);
     if (!data.pair.empty())
       std::printf(
           "Friedel mates kept apart (--anomalous): %zu groups scaled, from %zu "
@@ -213,19 +226,31 @@ int run_program(int argc, char **argv) {
                   run.fits[k].iterations, run.fits[k].target_start,
                   run.fits[k].target_end,
                   run.fits[k].converged ? "" : ", not converged");
-    double cmin = HUGE_VAL, cmax = 0.0, bmin = HUGE_VAL, bmax = -HUGE_VAL;
-    for (std::size_t i = 0; i < shape.scale_points; ++i) {
-      cmin = std::fmin(cmin, run.model.parameters[i]);
-      cmax = std::fmax(cmax, run.model.parameters[i]);
+    // Each sweep's scale and relative B: for several, side by side, which is
+    // where their relative scales show.
+    for (std::size_t w = 0; w < run.model.sweeps(); ++w) {
+      const ScaleModelShape &own = run.model.shape(w);
+      double cmin = HUGE_VAL, cmax = 0.0, bmin = HUGE_VAL, bmax = -HUGE_VAL;
+      for (std::size_t i = 0; i < own.scale_points; ++i) {
+        const double c = run.model.parameters[run.model.first_scale(w) + i];
+        cmin = std::fmin(cmin, c);
+        cmax = std::fmax(cmax, c);
+      }
+      for (std::size_t i = 0; i < own.decay_points; ++i) {
+        const double b = run.model.parameters[run.model.first_decay(w) + i];
+        bmin = std::fmin(bmin, b);
+        bmax = std::fmax(bmax, b);
+      }
+      if (run.model.sweeps() > 1)
+        std::printf("  sweep %zu: %zu scale, %zu decay, %zu absorption "
+                    "parameters;",
+                    w, own.scale_points, own.decay_points,
+                    harmonic_count(own.lmax));
+      std::printf("  scale %.4f to %.4f", cmin, cmax);
+      if (own.decay_points > 0)
+        std::printf("; relative B %.3f to %.3f A^2", bmin, bmax);
+      std::printf("\n");
     }
-    for (std::size_t i = 0; i < shape.decay_points; ++i) {
-      bmin = std::fmin(bmin, run.model.parameters[run.model.first_decay() + i]);
-      bmax = std::fmax(bmax, run.model.parameters[run.model.first_decay() + i]);
-    }
-    std::printf("  scale %.4f to %.4f", cmin, cmax);
-    if (shape.decay_points > 0)
-      std::printf("; relative B %.3f to %.3f A^2", bmin, bmax);
-    std::printf("\n");
     if (run.i_mid == 0.0)
       std::printf("Intensities: profile fitted\n");
     else if (std::isinf(run.i_mid))

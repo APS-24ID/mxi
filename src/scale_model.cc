@@ -74,67 +74,86 @@ ScaleModelShape default_shape(double degrees) {
   return shape;
 }
 
-ScaleModel::ScaleModel(const ScaleModelShape &shape) : shape_(shape) {
-  shape_.scale_points = std::max<std::size_t>(1, shape_.scale_points);
-  parameters.assign(shape_.scale_points + shape_.decay_points +
-                        harmonic_count(shape_.lmax),
-                    0.0);
-  for (std::size_t i = 0; i < shape_.scale_points; ++i)
-    parameters[i] = 1.0;
+ScaleModel::ScaleModel(const ScaleModelShape &shape)
+    : ScaleModel(std::vector<ScaleModelShape>{shape}) {}
+
+ScaleModel::ScaleModel(const std::vector<ScaleModelShape> &shapes)
+    : shapes_(shapes) {
+  if (shapes_.empty())
+    shapes_.push_back(ScaleModelShape{});
+  std::size_t n = 0;
+  for (ScaleModelShape &s : shapes_) {
+    s.scale_points = std::max<std::size_t>(1, s.scale_points);
+    offsets_.push_back(n);
+    n += s.scale_points + s.decay_points + harmonic_count(s.lmax);
+  }
+  parameters.assign(n, 0.0);
+  for (std::size_t w = 0; w < shapes_.size(); ++w)
+    for (std::size_t i = 0; i < shapes_[w].scale_points; ++i)
+      parameters[first_scale(w) + i] = 1.0;
 }
 
 double ScaleModel::inverse_scale(
     const ScaleObservation &o,
     std::vector<std::pair<std::size_t, double>> *gradient) const {
-  const SplineWeights cw = spline_weights(shape_.scale_points, o.rotation);
+  const std::size_t w = o.sweep < shapes_.size() ? o.sweep : 0;
+  const ScaleModelShape &shape = shapes_[w];
+  const std::size_t c0 = first_scale(w), b0 = first_decay(w),
+                    a0 = first_absorption(w);
+  const SplineWeights cw = spline_weights(shape.scale_points, o.rotation);
   double c = 0.0;
   for (std::size_t k = 0; k < cw.count; ++k)
-    c += cw.weight[k] * parameters[cw.index[k]];
+    c += cw.weight[k] * parameters[c0 + cw.index[k]];
 
   double b = 0.0;
   SplineWeights bw;
-  if (shape_.decay_points > 0) {
-    bw = spline_weights(shape_.decay_points, o.time);
+  if (shape.decay_points > 0) {
+    bw = spline_weights(shape.decay_points, o.time);
     for (std::size_t k = 0; k < bw.count; ++k)
-      b += bw.weight[k] * parameters[first_decay() + bw.index[k]];
+      b += bw.weight[k] * parameters[b0 + bw.index[k]];
   }
   const double t = std::exp(b * o.inv_2d2);
 
   double sa = 1.0;
-  const std::size_t na = harmonic_count(shape_.lmax);
+  const std::size_t na = harmonic_count(shape.lmax);
   for (std::size_t k = 0; k < na && k < o.absorption.size(); ++k)
-    sa += parameters[first_absorption() + k] * o.absorption[k];
+    sa += parameters[a0 + k] * o.absorption[k];
 
   const double g = c * t * sa;
   if (gradient) {
     gradient->clear();
     for (std::size_t k = 0; k < cw.count; ++k)
-      gradient->emplace_back(cw.index[k], cw.weight[k] * t * sa);
-    if (shape_.decay_points > 0)
+      gradient->emplace_back(c0 + cw.index[k], cw.weight[k] * t * sa);
+    if (shape.decay_points > 0)
       for (std::size_t k = 0; k < bw.count; ++k)
-        gradient->emplace_back(first_decay() + bw.index[k],
-                               g * o.inv_2d2 * bw.weight[k]);
+        gradient->emplace_back(b0 + bw.index[k], g * o.inv_2d2 * bw.weight[k]);
     for (std::size_t k = 0; k < na && k < o.absorption.size(); ++k)
-      gradient->emplace_back(first_absorption() + k, c * t * o.absorption[k]);
+      gradient->emplace_back(a0 + k, c * t * o.absorption[k]);
   }
   return g;
 }
 
 void ScaleModel::normalise() {
   double mean = 0.0;
-  for (std::size_t i = 0; i < shape_.scale_points; ++i)
-    mean += parameters[i];
-  mean /= static_cast<double>(shape_.scale_points);
+  std::size_t count = 0;
+  for (std::size_t w = 0; w < shapes_.size(); ++w)
+    for (std::size_t i = 0; i < shapes_[w].scale_points; ++i, ++count)
+      mean += parameters[first_scale(w) + i];
+  mean /= static_cast<double>(count);
   if (mean > 0.0)
-    for (std::size_t i = 0; i < shape_.scale_points; ++i)
-      parameters[i] /= mean;
-  if (shape_.decay_points > 0) {
-    double b = 0.0;
-    for (std::size_t i = 0; i < shape_.decay_points; ++i)
-      b += parameters[first_decay() + i];
-    b /= static_cast<double>(shape_.decay_points);
-    for (std::size_t i = 0; i < shape_.decay_points; ++i)
-      parameters[first_decay() + i] -= b;
+    for (std::size_t w = 0; w < shapes_.size(); ++w)
+      for (std::size_t i = 0; i < shapes_[w].scale_points; ++i)
+        parameters[first_scale(w) + i] /= mean;
+  double b = 0.0;
+  std::size_t decays = 0;
+  for (std::size_t w = 0; w < shapes_.size(); ++w)
+    for (std::size_t i = 0; i < shapes_[w].decay_points; ++i, ++decays)
+      b += parameters[first_decay(w) + i];
+  if (decays > 0) {
+    b /= static_cast<double>(decays);
+    for (std::size_t w = 0; w < shapes_.size(); ++w)
+      for (std::size_t i = 0; i < shapes_[w].decay_points; ++i)
+        parameters[first_decay(w) + i] -= b;
   }
 }
 

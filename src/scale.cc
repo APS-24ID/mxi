@@ -273,6 +273,25 @@ namespace {
 
 //: The target over `use`, with <I_h> from the same observations, plus the
 //: restraints.
+// The restraints' share of the target: every sweep's decay and harmonic terms,
+// each pulled towards zero -- added to `r` one by one, in the order they always
+// were, so that one sweep's target is the same to the last bit.
+double restraint_of(const ScaleModel &model, const ScaleFitOptions &options,
+                    double r = 0.0) {
+  for (std::size_t w = 0; w < model.sweeps(); ++w) {
+    const ScaleModelShape &s = model.shape(w);
+    for (std::size_t k = 0; k < s.decay_points; ++k)
+      r += options.decay_restraint *
+           model.parameters[model.first_decay(w) + k] *
+           model.parameters[model.first_decay(w) + k];
+    for (std::size_t k = 0; k < harmonic_count(s.lmax); ++k)
+      r += options.absorption_restraint *
+           model.parameters[model.first_absorption(w) + k] *
+           model.parameters[model.first_absorption(w) + k];
+  }
+  return r;
+}
+
 double target(const ScaleModel &model, const ScaleData &data,
               const std::vector<std::vector<std::size_t>> &members,
               const std::vector<std::size_t> &use,
@@ -310,14 +329,7 @@ double target(const ScaleModel &model, const ScaleData &data,
   double phi = 0.0;
   for (std::size_t i : use)
     phi += term[i];
-  const ScaleModelShape &s = model.shape();
-  for (std::size_t k = 0; k < s.decay_points; ++k)
-    phi += options.decay_restraint * model.parameters[model.first_decay() + k] *
-           model.parameters[model.first_decay() + k];
-  for (std::size_t k = 0; k < harmonic_count(s.lmax); ++k)
-    phi += options.absorption_restraint *
-           model.parameters[model.first_absorption() + k] *
-           model.parameters[model.first_absorption() + k];
+  phi = restraint_of(model, options, phi);
   if (g_out)
     *g_out = std::move(g);
   if (merged_out)
@@ -419,16 +431,18 @@ void normal_equations(const ScaleModel &model, const ScaleData &data,
       b[k] += bb[blk][k];
   }
 
-  const ScaleModelShape &s = model.shape();
-  for (std::size_t k = 0; k < s.decay_points; ++k) {
-    const std::size_t a = model.first_decay() + k;
-    N[a * n + a] += options.decay_restraint;
-    b[a] -= options.decay_restraint * model.parameters[a];
-  }
-  for (std::size_t k = 0; k < harmonic_count(s.lmax); ++k) {
-    const std::size_t a = model.first_absorption() + k;
-    N[a * n + a] += options.absorption_restraint;
-    b[a] -= options.absorption_restraint * model.parameters[a];
+  for (std::size_t w = 0; w < model.sweeps(); ++w) {
+    const ScaleModelShape &s = model.shape(w);
+    for (std::size_t k = 0; k < s.decay_points; ++k) {
+      const std::size_t a = model.first_decay(w) + k;
+      N[a * n + a] += options.decay_restraint;
+      b[a] -= options.decay_restraint * model.parameters[a];
+    }
+    for (std::size_t k = 0; k < harmonic_count(s.lmax); ++k) {
+      const std::size_t a = model.first_absorption(w) + k;
+      N[a * n + a] += options.absorption_restraint;
+      b[a] -= options.absorption_restraint * model.parameters[a];
+    }
   }
 }
 
@@ -1199,13 +1213,23 @@ ScaleRun scale_sweep(const ExperimentList &experiments,
     run.timing.emplace_back(name, t - mark);
     mark = t;
   };
-  const Experiment &e = experiments[0];
-  const double degrees = std::abs(e.scan.osc_width) * e.scan.num_images();
-  ScaleModelShape shape = default_shape(degrees);
-  if (options.lmax >= 0)
-    shape.lmax = options.lmax; // asked for, whatever the sweep's width
-  if (!options.absorption)
-    shape.lmax = 0;
+  // A shape a sweep, from its own width of rotation; the harmonics gathered
+  // to the largest any sweep has, each sweep reading as many as its own.
+  std::vector<ScaleModelShape> shapes;
+  ScaleModelShape shape;
+  for (const Experiment &e : experiments) {
+    const double degrees = std::abs(e.scan.osc_width) * e.scan.num_images();
+    ScaleModelShape own = default_shape(degrees);
+    if (options.lmax >= 0)
+      own.lmax = options.lmax; // asked for, whatever the sweep's width
+    if (!options.absorption)
+      own.lmax = 0;
+    shapes.push_back(own);
+    if (shapes.size() == 1 || own.lmax > shape.lmax)
+      shape.lmax = own.lmax;
+  }
+  shape.scale_points = shapes[0].scale_points;
+  shape.decay_points = shapes[0].decay_points;
   ScaleDataOptions data_options;
   data_options.d_min = options.d_min;
   data_options.d_max = options.d_max;
@@ -1214,9 +1238,19 @@ ScaleRun scale_sweep(const ExperimentList &experiments,
       build_scale_data(experiments, reflections, group, shape, data_options);
   step("gathering the observations");
   ScaleData &data = run.data;
-  run.model = ScaleModel(shape);
+  run.model = ScaleModel(shapes);
   if (data.size() == 0)
     return run;
+  // A sweep with nothing to scale has parameters nothing determines.
+  {
+    std::vector<std::size_t> per(experiments.size(), 0);
+    for (const ScaleObservation &o : data.observation)
+      ++per[o.sweep];
+    for (std::size_t w = 0; w < per.size(); ++w)
+      if (per[w] == 0)
+        throw std::runtime_error("sweep " + std::to_string(w) +
+                                 " has no observations to scale");
+  }
 
   const auto fit = [&]() {
     const std::vector<std::size_t> use = select_for_fitting(data);
@@ -1323,24 +1357,33 @@ parameter_covariance(const ScaleModel &model, const ScaleData &data,
   normal_equations(model, data, members, g, merged, options, N, b);
 
   // Z: the directions keeping the scale's sum and the relative B's sum fixed,
-  // e_i - e_last within each block; the absorption terms are free.
-  const ScaleModelShape &s = model.shape();
+  // e_i - e_last over the indices of each -- every sweep's scale points
+  // together, and every sweep's decay points: one overall scale and one
+  // overall B, not one a sweep; the absorption terms are free.
   std::vector<std::vector<double>> Z;
-  const auto block = [&](std::size_t first, std::size_t count) {
-    for (std::size_t i = 0; i + 1 < count; ++i) {
+  const auto block = [&](const std::vector<std::size_t> &indices) {
+    for (std::size_t i = 0; i + 1 < indices.size(); ++i) {
       std::vector<double> z(n, 0.0);
-      z[first + i] = 1.0;
-      z[first + count - 1] = -1.0;
+      z[indices[i]] = 1.0;
+      z[indices.back()] = -1.0;
       Z.push_back(std::move(z));
     }
   };
-  block(0, s.scale_points);
-  block(model.first_decay(), s.decay_points);
-  for (std::size_t k = 0; k < harmonic_count(s.lmax); ++k) {
-    std::vector<double> z(n, 0.0);
-    z[model.first_absorption() + k] = 1.0;
-    Z.push_back(std::move(z));
+  std::vector<std::size_t> scales, decays;
+  for (std::size_t w = 0; w < model.sweeps(); ++w) {
+    for (std::size_t i = 0; i < model.shape(w).scale_points; ++i)
+      scales.push_back(model.first_scale(w) + i);
+    for (std::size_t i = 0; i < model.shape(w).decay_points; ++i)
+      decays.push_back(model.first_decay(w) + i);
   }
+  block(scales);
+  block(decays);
+  for (std::size_t w = 0; w < model.sweeps(); ++w)
+    for (std::size_t k = 0; k < harmonic_count(model.shape(w).lmax); ++k) {
+      std::vector<double> z(n, 0.0);
+      z[model.first_absorption(w) + k] = 1.0;
+      Z.push_back(std::move(z));
+    }
   const std::size_t m = Z.size();
   if (m == 0)
     return out;
@@ -1370,15 +1413,7 @@ parameter_covariance(const ScaleModel &model, const ScaleData &data,
       ++groups;
   const std::size_t fitted = groups + m;
   out.degrees_of_freedom = use.size() > fitted ? use.size() - fitted : 1;
-  double restraint = 0.0;
-  for (std::size_t k = 0; k < s.decay_points; ++k)
-    restraint += options.decay_restraint *
-                 model.parameters[model.first_decay() + k] *
-                 model.parameters[model.first_decay() + k];
-  for (std::size_t k = 0; k < harmonic_count(s.lmax); ++k)
-    restraint += options.absorption_restraint *
-                 model.parameters[model.first_absorption() + k] *
-                 model.parameters[model.first_absorption() + k];
+  const double restraint = restraint_of(model, options);
   out.goodness_of_fit =
       (phi - restraint) / static_cast<double>(out.degrees_of_freedom);
   out.matrix.assign(n * n, 0.0);

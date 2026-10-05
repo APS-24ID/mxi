@@ -261,7 +261,7 @@ The pipeline:
 | `mxi_refine` | scan-static and scan-varying refinement, analytical derivatives |
 | `mxi_integrate` | summation and profile fitting; see `docs/integration.md` |
 | `mxi_symmetry` | the Laue group and space group, and the data reindexed into them; see `docs/symmetry.md` |
-| `mxi_scale` | scaling one sweep, the error model, merging statistics; see `docs/scaling.md` |
+| `mxi_scale` | scaling, one sweep or several, the error model, merging statistics; see `docs/scaling.md` |
 
 For looking inside it:
 
@@ -317,7 +317,9 @@ too low. `--d-max` leaves them out, and `mxeq` has prototypes that filter them;
 none is a default, as on ferritin they did not measurably improve a refined
 structure, and no absolute measure of processing quality yet decides it.
 
-**Symmetry and scaling are written for one sweep.** `mxi_symmetry`
+**Symmetry and scaling take one sweep or several** of one crystal, indexed
+together (`docs/multi-sweep.md`: every program from import to scaling takes
+several, as DIALS does). `mxi_symmetry`
 (`docs/symmetry.md`) chooses the Laue group as dials.symmetry does and the space
 group from the absences, and reindexes; `mxi_scale` (`docs/scaling.md`) scales
 after Beilsten-Edmands et al. (2020), with cubic B-splines for the scale and

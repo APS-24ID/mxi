@@ -10,8 +10,8 @@ of open work.
 
 ## What this is
 
-A C++20 implementation of rotation-data processing for **one sweep**, step for
-step as DIALS divides it, with the spot finder's threshold also on the GPU
+A C++20 implementation of rotation-data processing for **one sweep or several
+of one crystal** (`docs/multi-sweep.md`), step for step as DIALS divides it, with the spot finder's threshold also on the GPU
 (Metal and CUDA):
 
     mxi_find -> mxi_index -> mxi_refine -> mxi_integrate -> mxi_symmetry -> mxi_scale
@@ -199,12 +199,12 @@ phase of every program is reported by `--timing`.
 
 ## What is not here yet
 
-For one sweep the chain is complete; beyond it (`docs/outstanding.md` has the
-numbered list):
+The chain is complete for one sweep and for several of one crystal indexed
+together; beyond it (`docs/outstanding.md` has the numbered list):
 
-* **More than one sweep** in scaling (`docs/multi-sweep.md`: import to
-  symmetry take several), and the indexing ambiguity between sweeps indexed
-  apart.
+* **Sweeps indexed apart**, and so the indexing ambiguity between them; and
+  multi-sweep processing tried only on one sweep split in two, not yet on real
+  sweeps at different settings (`docs/multi-sweep.md`).
 * Free-set validation of scaling; overlapping
   reflections and overloads in integration; e.s.d.s for the cell, and the cell
   constrained to the lattice's symmetry, in refinement.

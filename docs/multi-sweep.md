@@ -1,6 +1,7 @@
 # More than one sweep
 
-STATUS: a plan, 5 October 2026; steps 1 to 5 built. DIALS processes several sweeps of
+STATUS: 5 October 2026; all six steps built, tried on one sweep split in two;
+the threonine sweeps, at their own settings, still to come. DIALS processes several sweeps of
 one crystal together -- imported as one experiment each, indexed jointly to one
 crystal, refined, integrated sweep by sweep, and symmetry and scaling over all
 of them -- and mxi should, from `mxi_import` to `mxi_scale`. The data: Graeme's
@@ -17,7 +18,7 @@ reproduce; small-molecule data, whose intermediate files can be shared.
 | `mxi_refine` | several experiments, the crystal shared, built |
 | `mxi_integrate` | built: each sweep alone, its own profile model, one table with `id`s (step 4) |
 | `mxi_symmetry` | built: the sweeps pooled, every experiment reindexed alike (step 5) |
-| `mxi_scale` | refuses more than one experiment |
+| `mxi_scale` | built: a model a sweep, sharing the merged intensities (step 6) |
 
 ## The steps
 
@@ -66,8 +67,40 @@ reproduce; small-molecule data, whose intermediate files can be shared.
    same space group, the crystal still shared. `mxi_scale` still refuses
    several: its model has one set of parameters, and two sweeps each running
    0 to 1 in rotation would share them -- step 6.
-6. **`mxi_scale`**: a scale, decay and absorption model for each sweep, sharing
-   the merged intensities -- the largest step.
+6. **`mxi_scale`** -- built. The model holds a block of parameters for each
+   sweep -- scale, decay and absorption, from that sweep's own width of rotation
+   -- one after another, an observation's sweep choosing its block; the fit sees
+   only indices and gradients and needed no change. The one overall scale and
+   the one overall B are fixed over every sweep's points together, in the
+   normalisation and in the covariance's constraints, not each sweep's apart:
+   that would erase the relative scale between sweeps. The restraints sum over
+   every sweep, in the order they always were. A sweep with nothing to scale
+   is refused. One sweep's scaling and report byte-identical to before.
+   The whole sweep's intensities, split in two at scaling alone: I/sigma 19.0
+   against 18.9, Rmerge 0.034 and CC1/2 0.987 either way -- the same, as it
+   should be -- the two sweeps' scales meeting at the split (1.01, 1.00). The
+   halves processed as two from their spots come out a little lower, I/sigma
+   18.2 against 18.9: from integration, each 15 degree half's reference
+   profiles drawn from fewer spots, as integrating sweeps apart does in DIALS
+   too.
+
+## Running it
+
+As for one sweep, each program given the list of several; every reflection
+carries its sweep's index as `id` from spot finding on:
+
+```sh
+mxi_import    a.nxs b.nxs                          # one experiment a master
+mxi_find      imported.expt -o strong.refl         # each sweep from its own images
+mxi_index     imported.expt strong.refl            # jointly: one crystal
+mxi_refine    indexed.expt indexed.refl
+mxi_integrate refined.expt refined.refl            # each sweep alone, then joined
+mxi_symmetry  integrated.expt integrated.refl      # pooled
+mxi_scale     symmetrized.expt symmetrized.refl    # a model a sweep
+```
+
+Integration wants the refined reflections, as for one sweep: its profile model
+is estimated from the spots refinement used.
 
 ## How each is tested
 

@@ -161,6 +161,7 @@ class Fit:
     flagged_shell: np.ndarray = field(
         default_factory=lambda: np.zeros(0, bool)
     )  # by --reject-shells
+    high_removed: bool = False  # whether the too-high were taken out, --reject-high
 
 
 def fit(
@@ -272,6 +273,7 @@ def run(
     reject_shells: float | None = None,
     shells: int = 12,
     annotate_only: bool = False,
+    reject_high: bool = False,
     **options,
 ) -> Result:
     g = geometry(expt_path)
@@ -302,7 +304,8 @@ def run(
         f"{t.nrows} reflections, {int(f.used.sum())} with a background the fit could use; intrinsic "
         f"spread {100 * f.tau:.1f} per cent",
         f"beyond |z| {z_max:g}: {int(low.sum())} with a background too low, {int(high.sum())} too high"
-        " -- the backstop shadow among the low and its flare among the high, but not only",
+        " -- the backstop shadow among the low and its flare among the high, but not only;"
+        + (" both taken out" if reject_high else " the too-low taken out, the too-high kept (--reject-high)"),
         "",
         f"  {'d (A)':>15} {'n':>8} {'obs/model':>9} {'z spread':>8} {'low %':>7} {'high %':>7}",
     ]
@@ -336,7 +339,11 @@ def run(
         "  and counting explain the backgrounds, more where they do not -- a shell far",
         "  beyond 1 is one whose backgrounds cannot be trusted.",
     ]
-    flagged = low | high | whole
+    # Only the too-low by default: on ferritin, against their equivalents, those
+    # below z -5 were 7 to 16 per cent low -- attenuated -- where those above 5,
+    # the flare, the module edges, the rings, were 1 to 1.5 per cent: unusual in
+    # background, nearly right in intensity. --reject-high takes them too.
+    flagged = low | (high if reject_high else np.zeros_like(high)) | whole
     if not annotate_only:
         flags = np.asarray(c["flags"]).astype(np.int64).copy()
         flags[flagged] = (
@@ -349,6 +356,7 @@ def run(
     t.types["background.z"] = "double"
     f.flagged_low, f.flagged_high = low, high
     f.flagged_shell = whole & ~(low | high)
+    f.high_removed = reject_high
     # Where the too-high cluster in resolution, in fine bins: a ring too narrow
     # for R's spline -- ice, at 3.90, 3.67, 3.44, 2.67, 2.25 A and so on -- piles up.
     lines += [

@@ -1,5 +1,6 @@
 // The reflection table reader and writer, at the level of bytes.
 
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
 #include <string>
@@ -183,6 +184,53 @@ TEST(the_msgpack_size_rule_holds_at_its_exact_boundary) {
   check::is_true(over_refused, "one byte more is refused");
   check::is_true(said.find("4 GB") != std::string::npos, "and it says why");
   check::is_true(said.find("slice") != std::string::npos, "and what to do");
+}
+
+} // namespace mxi
+
+namespace mxi {
+
+TEST(tables_are_joined_in_order_and_mismatched_columns_refused) {
+  // Several sweeps' integrated tables one after another, identifiers merged;
+  // tables whose columns differ, or with columns kept as bytes, refused.
+  const auto table = [](std::vector<double> values, std::size_t id,
+                        const std::string &identifier) {
+    Table t;
+    t.nrows = values.size();
+    t.real_column("intensity.sum.value", "double", 1).reals = values;
+    Column &ids = t.int_column("id", "int", 1);
+    std::fill(ids.ints.begin(), ids.ints.end(), static_cast<std::int64_t>(id));
+    t.identifiers[id] = identifier;
+    return t;
+  };
+  const auto refused = [](const std::vector<Table> &tables) {
+    try {
+      concat_rows(tables);
+    } catch (const ReflError &) {
+      return true;
+    }
+    return false;
+  };
+  const Table joined =
+      concat_rows({table({1.0, 2.0}, 0, "a"), table({3.0}, 1, "b")});
+  check::equal(static_cast<long long>(joined.nrows), 3LL, "three rows");
+  check::close(joined.at("intensity.sum.value").real(2), 3.0, 0.0, "in order");
+  check::equal(static_cast<long long>(joined.at("id").integer(2)), 1LL,
+               "ids kept");
+  check::is_true(joined.identifiers.at(0) == "a" &&
+                     joined.identifiers.at(1) == "b",
+                 "identifiers merged");
+  Table other = table({4.0}, 2, "c");
+  other.real_column("d", "double", 1);
+  check::is_true(refused({table({1.0}, 0, "a"), other}),
+                 "different columns refused");
+  Table bytes = table({5.0}, 3, "e");
+  Table::Opaque blob;
+  blob.type = "Shoebox<>";
+  blob.rows = 1;
+  bytes.set_opaque("shoebox", blob);
+  check::is_true(refused({table({1.0}, 0, "a"), bytes}),
+                 "columns kept as bytes refused");
 }
 
 } // namespace mxi

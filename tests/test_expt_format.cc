@@ -682,3 +682,61 @@ TEST(writing_a_scan_varying_model_keeps_the_experiment) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+namespace {
+
+// Two sweeps sharing one crystal, each with its own other models, as joint
+// refinement writes them: small stand-ins for the models, enough to tell
+// apart.
+json::Value two_sweeps(bool share) {
+  return json::parse(R"({"__id__": "ExperimentList",
+    "experiment": [
+      {"identifier": "a", "beam": 0, "detector": 0, "goniometer": 0,
+       "scan": 0, "imageset": 0, "crystal": 0},
+      {"identifier": "b", "beam": 1, "detector": 1, "goniometer": 1,
+       "scan": 1, "imageset": 1, "crystal": )" +
+                     std::string(share ? "0" : "1") + R"(}],
+    "beam": [{"w": 1.0}, {"w": 2.0}], "detector": [{"d": 1}, {"d": 2}],
+    "goniometer": [{"g": 1}, {"g": 2}], "scan": [{"s": 1}, {"s": 2}],
+    "imageset": [{"i": 1}, {"i": 2}],
+    "crystal": [{"c": 1})" +
+                     std::string(share ? "" : R"(, {"c": 2})") + R"(],
+    "profile": [], "scaling_model": []})");
+}
+
+} // namespace
+
+TEST(sweeps_sliced_apart_and_joined_again_are_what_they_were) {
+  // As mxi_integrate integrates several sweeps: each alone, a list of one
+  // with its models renumbered from zero; then joined, the copies of the one
+  // crystal made one again.
+  const json::Value whole = two_sweeps(true);
+  const json::Value second = slice_experiment_list(whole, 1);
+  const auto &e = second["experiment"].as_array();
+  check::equal(static_cast<long long>(e.size()), 1LL, "one experiment");
+  check::is_true(e[0]["identifier"].as_string() == "b", "the second's");
+  check::equal(static_cast<long long>(e[0]["beam"].as_number()), 0LL,
+               "its beam renumbered to the first");
+  check::close(second["beam"].as_array()[0]["w"].as_number(), 2.0, 0.0,
+               "and its own beam kept");
+  check::equal(static_cast<long long>(second["beam"].as_array().size()), 1LL,
+               "and only its own");
+  json::Value joined = join_experiment_lists(
+      {slice_experiment_list(whole, 0), slice_experiment_list(whole, 1)});
+  check::equal(static_cast<long long>(joined["crystal"].as_array().size()), 2LL,
+               "joined, each sweep's copy of the crystal");
+  share_identical(&joined, "crystal");
+  check::is_true(json::dump(joined) == json::dump(whole),
+                 "shared again, the list as it was");
+}
+
+TEST(different_crystals_are_not_made_one) {
+  json::Value two = two_sweeps(false);
+  const std::string before = json::dump(two);
+  share_identical(&two, "crystal");
+  check::is_true(json::dump(two) == before, "two crystals stay two");
+}
+
+} // namespace mxi

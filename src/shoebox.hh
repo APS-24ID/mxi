@@ -71,6 +71,14 @@ struct Shoebox {
 //: boxes it managed to read would be worse than refusing.
 std::vector<Shoebox> decode_shoeboxes(const Table &table);
 
+//: select_rows, keeping the shoeboxes: the rows given, in the order given, and
+//: their shoeboxes decoded, taken and encoded again -- the one column kept as
+//: bytes that can be split by row, being one record a row. As several sweeps'
+//: strong spots are divided among them, each sweep's profile model wanting its
+//: own spots' shoeboxes.
+Table select_rows_with_shoeboxes(const Table &table,
+                                 const std::vector<std::size_t> &rows);
+
 //: Encode, for tests and for writing a table with shoeboxes built here.
 //: Put a shoebox's mask into DIALS' convention: a voxel with no measurement
 //: in it is zero, with no region bit.

@@ -364,6 +364,141 @@ int integrate_with_postrefinement(const Arguments &args, const char *program,
   return run(command(out_expt, out_refl, false));
 }
 
+// Several sweeps, as DIALS integrates them: each experiment alone -- a list of
+// one, and the reflections indexed to it -- in a whole run of this program,
+// --postrefine and all, then the tables joined, each row with its
+// experiment's index as its id, and the experiments, each with its own profile
+// model. A list of one never comes here, so one sweep is integrated as it
+// always was.
+int integrate_several(const Arguments &args, const char *program,
+                      const std::set<std::string> &takes_value,
+                      const json::Value &document) {
+  for (const char *refused : {"--save-shoeboxes", "--save-profiles"}) {
+    if (args.has(refused)) {
+      std::fprintf(stderr,
+                   "mxi_integrate: %s is for one sweep: several sweeps' are "
+                   "not joined yet\n",
+                   refused);
+      return 2;
+    }
+  }
+  const std::string out_refl = args.value("-o", "integrated.refl");
+  const std::string out_expt = args.value("--output-expt", "integrated.expt");
+  const json::Array &experiments =
+      document.as_object().at("experiment").as_array();
+  const std::size_t n = experiments.size();
+  const bool has_refl = args.positional.size() == 2;
+
+  std::vector<std::string> made; // the temporary files, removed at the end
+  const auto tidy = [&] {
+    for (const std::string &f : made)
+      std::remove(f.c_str());
+  };
+  const auto run = [](std::vector<std::string> words) {
+    std::vector<char *> argv;
+    for (std::string &w : words)
+      argv.push_back(w.data());
+    argv.push_back(nullptr);
+    return run_program(static_cast<int>(words.size()), argv.data());
+  };
+
+  try {
+    Table indexed;
+    if (has_refl) {
+      indexed = read_reflections(args.positional[1]);
+      if (!indexed.has("id")) {
+        std::fprintf(stderr,
+                     "mxi_integrate: %s has no id column, so which of the %zu "
+                     "sweeps each reflection belongs to is not known\n",
+                     args.positional[1].c_str(), n);
+        return 1;
+      }
+    }
+    std::printf("Integrating %zu sweeps, each alone, into one table\n", n);
+    std::vector<Table> tables;
+    std::vector<json::Value> lists;
+    for (std::size_t i = 0; i < n; ++i) {
+      const std::string stem = out_refl + ".sweep" + std::to_string(i);
+      const std::string in_expt = stem + ".in.expt";
+      const std::string in_refl = stem + ".in.refl";
+      const std::string got_refl = stem + ".refl";
+      const std::string got_expt = stem + ".expt";
+      made.insert(made.end(), {in_expt, in_refl, got_refl, got_expt});
+      json::dump_file(in_expt, slice_experiment_list(document, i));
+      const json::Value &ident = experiments[i]["identifier"];
+      const std::string identifier =
+          ident.is_string() ? ident.as_string() : std::string();
+      if (has_refl) {
+        const Column &id = indexed.at("id");
+        std::vector<std::size_t> rows;
+        for (std::size_t r = 0; r < indexed.nrows; ++r)
+          if (id.integer(r) == static_cast<std::int64_t>(i))
+            rows.push_back(r);
+        Table part = select_rows_with_shoeboxes(indexed, rows);
+        Column &own = part.modify_int_column("id", "int", 1);
+        std::fill(own.ints.begin(), own.ints.end(), 0);
+        part.identifiers.clear();
+        if (!identifier.empty())
+          part.identifiers[0] = identifier;
+        write_reflections(in_refl, part);
+      }
+      std::vector<std::string> words = {program, in_expt};
+      if (has_refl)
+        words.push_back(in_refl);
+      for (const auto &[flag, value] : args.options) {
+        if (flag == "-o" || flag == "--output-expt")
+          continue;
+        words.push_back(flag);
+        if (takes_value.count(flag))
+          words.push_back(value);
+      }
+      words.insert(words.end(), {"-o", got_refl, "--output-expt", got_expt});
+      std::printf("\n=== Sweep %zu of %zu ===\n", i + 1, n);
+      std::fflush(stdout);
+      const int status = run(words);
+      if (status != 0) {
+        tidy();
+        return status;
+      }
+      Table got = read_reflections(got_refl);
+      Column &id = got.modify_int_column("id", "int", 1);
+      std::fill(id.ints.begin(), id.ints.end(), static_cast<std::int64_t>(i));
+      got.identifiers.clear();
+      if (!identifier.empty())
+        got.identifiers[i] = identifier;
+      tables.push_back(std::move(got));
+      lists.push_back(json::parse_file(got_expt));
+    }
+    const Table joined = concat_rows(tables);
+    write_reflections(out_refl, joined);
+    // One crystal, shared, if the sweeps came in sharing one and none changed
+    // it -- as without --postrefine none does: each sweep's list carried a
+    // copy, and DIALS writes it once. Postrefined, they may differ, and stay
+    // apart.
+    json::Value joined_expt = join_experiment_lists(lists);
+    bool shared = true;
+    for (const json::Value &x : experiments)
+      shared =
+          shared && x["crystal"].is_number() &&
+          x["crystal"].as_number() == experiments[0]["crystal"].as_number();
+    if (shared)
+      share_identical(&joined_expt, "crystal");
+    json::dump_file(out_expt, joined_expt);
+    tidy();
+    std::printf("\n");
+    for (std::size_t i = 0; i < n; ++i)
+      std::printf("  sweep %zu: %zu reflections\n", i, tables[i].nrows);
+    std::printf("Wrote %zu reflections of %zu sweeps to %s, and the models to "
+                "%s\n",
+                joined.nrows, n, out_refl.c_str(), out_expt.c_str());
+    return 0;
+  } catch (const std::exception &error) {
+    std::fprintf(stderr, "mxi_integrate: %s\n", error.what());
+    tidy();
+    return 1;
+  }
+}
+
 int run_program(int argc, char **argv) {
   const std::set<std::string> known = {"-o",
                                        "--sigma-b",
@@ -427,6 +562,18 @@ int run_program(int argc, char **argv) {
   const std::string strong_path =
       args.positional.size() == 2 ? args.positional[1] : std::string();
 
+  // Several sweeps: each integrated alone, then joined.
+  {
+    json::Value document;
+    try {
+      document = json::parse_file(args.positional[0]);
+    } catch (const std::exception &) {
+      // Read again below, where a bad file is reported as it always was.
+    }
+    if (document.is_object() && document["experiment"].is_array() &&
+        document["experiment"].as_array().size() > 1)
+      return integrate_several(args, argv[0], takes_value, document);
+  }
   if (args.has("--postrefine"))
     return integrate_with_postrefinement(args, argv[0], takes_value);
   // Refused rather than ignored: a run that silently drops an option has used

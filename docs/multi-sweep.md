@@ -1,6 +1,6 @@
 # More than one sweep
 
-STATUS: a plan, 5 October 2026; steps 1 to 3 built. DIALS processes several sweeps of
+STATUS: a plan, 5 October 2026; steps 1 to 4 built. DIALS processes several sweeps of
 one crystal together -- imported as one experiment each, indexed jointly to one
 crystal, refined, integrated sweep by sweep, and symmetry and scaling over all
 of them -- and mxi should, from `mxi_import` to `mxi_scale`. The data: Graeme's
@@ -15,7 +15,7 @@ reproduce; small-molecule data, whose intermediate files can be shared.
 | `mxi_find` | built: each experiment from its own images, one table with `id`s (step 2) |
 | `mxi_index` | joint indexing to one crystal: right, once a scan's frames were (step 3) |
 | `mxi_refine` | several experiments, the crystal shared, built |
-| `mxi_integrate` | uses only the first experiment -- silently |
+| `mxi_integrate` | built: each sweep alone, its own profile model, one table with `id`s (step 4) |
 | `mxi_symmetry`, `mxi_scale` | refuse more than one experiment |
 
 ## The steps
@@ -40,9 +40,20 @@ reproduce; small-molecule data, whose intermediate files can be shared.
    image's index, a scan's frames, its fraction and its start and end measured
    from there. Then the halves together index 98.1 per cent, as either alone;
    a scan from image one byte-identical through integration.
-4. **`mxi_integrate`**: each sweep from its own images, with its own reference
-   profiles and profile model, into one table with `id`s. Silently using only
-   the first experiment ends here whatever else does.
+4. **`mxi_integrate`** -- built. Each sweep integrated alone, by a whole run of
+   the program on a list of that one sweep -- its reflections, by `id`, with
+   their shoeboxes for its profile model -- `--postrefine` and all; then the
+   tables joined, each row its sweep's `id`, and the lists joined, each sweep
+   with its own profile model. A crystal the sweeps came in sharing, and none
+   changed, is written once, shared, as DIALS writes it. One sweep never takes
+   this path, and is byte-identical to before. `--save-shoeboxes` and
+   `--save-profiles` are refused for several, not yet joined. On the insulin
+   sweep split at image 150, integrated as two with the profile model given:
+   every reflection well inside either half sums to exactly what the sweep
+   integrated whole gives it -- summation depends on the box and the background,
+   not the reference profiles, so a sweep's angles wrong would show there.
+   Indexed, refined and integrated as two from their spots: 21029 reflections
+   against the whole sweep's 21031, sigma_m 0.126 and 0.130 against 0.129.
 5. **`mxi_symmetry`**: the sweeps' reflections pooled for the Laue group, and
    every experiment reindexed alike.
 6. **`mxi_scale`**: a scale, decay and absorption model for each sweep, sharing

@@ -26,6 +26,7 @@ struct ScaleObservation {
   double rotation = 0.0; //: position in the scan's rotation, 0 to 1, for C
   double time = 0.0;     //: position in the scan's time, 0 to 1, for B
   double inv_2d2 = 0.0;  //: 1 / (2 d^2)
+  std::size_t sweep = 0; //: which experiment it was measured in, its id
   //: [Y(s1) + Y(s0)] / 2 in the crystal frame, harmonic_count(lmax) of them;
   //: empty without absorption.
   std::vector<double> absorption;

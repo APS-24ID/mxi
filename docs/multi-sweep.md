@@ -1,6 +1,6 @@
 # More than one sweep
 
-STATUS: a plan, 5 October 2026; steps 1 to 4 built. DIALS processes several sweeps of
+STATUS: a plan, 5 October 2026; steps 1 to 5 built. DIALS processes several sweeps of
 one crystal together -- imported as one experiment each, indexed jointly to one
 crystal, refined, integrated sweep by sweep, and symmetry and scaling over all
 of them -- and mxi should, from `mxi_import` to `mxi_scale`. The data: Graeme's
@@ -16,7 +16,8 @@ reproduce; small-molecule data, whose intermediate files can be shared.
 | `mxi_index` | joint indexing to one crystal: right, once a scan's frames were (step 3) |
 | `mxi_refine` | several experiments, the crystal shared, built |
 | `mxi_integrate` | built: each sweep alone, its own profile model, one table with `id`s (step 4) |
-| `mxi_symmetry`, `mxi_scale` | refuse more than one experiment |
+| `mxi_symmetry` | built: the sweeps pooled, every experiment reindexed alike (step 5) |
+| `mxi_scale` | refuses more than one experiment |
 
 ## The steps
 
@@ -54,8 +55,17 @@ reproduce; small-molecule data, whose intermediate files can be shared.
    not the reference profiles, so a sweep's angles wrong would show there.
    Indexed, refined and integrated as two from their spots: 21029 reflections
    against the whole sweep's 21031, sigma_m 0.126 and 0.130 against 0.129.
-5. **`mxi_symmetry`**: the sweeps' reflections pooled for the Laue group, and
-   every experiment reindexed alike.
+5. **`mxi_symmetry`** -- built. Scaling's data gathering, which merging in P1
+   uses, took only id 0, "one sweep, for now": now every sweep's observations,
+   each with its sweep and its place in the rotation from its own sweep's scan
+   -- and absorption's crystal frame from its own goniometer and beam -- and an
+   id naming no experiment refused. Pooled, unscaled; each sweep must have a
+   crystal and the cells agree to 2 per cent, the lattice being the first's.
+   One sweep's symmetry and scaling byte-identical to before. On insulin as two
+   sweeps: the same 20020 observations, I m -3 at NetZcc 8.41 against 8.42, the
+   same space group, the crystal still shared. `mxi_scale` still refuses
+   several: its model has one set of parameters, and two sweeps each running
+   0 to 1 in rotation would share them -- step 6.
 6. **`mxi_scale`**: a scale, decay and absorption model for each sweep, sharing
    the merged intensities -- the largest step.
 

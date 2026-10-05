@@ -577,3 +577,73 @@ TEST(with_anomalous_acentric_mates_are_apart_and_centric_ones_together) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(several_sweeps_observations_each_take_their_own_sweeps_scan) {
+  // Two sweeps of one crystal, the second's scan beginning at image 101: each
+  // observation is its id's sweep's, its place in the rotation from that
+  // sweep's own scan -- the second's frames 100 to 200 its fraction 0 to 1,
+  // not 1 to 2 of the first's. And an id naming no experiment is refused, the
+  // table and the list not belonging together.
+  const SpaceGroup group = SpaceGroup::from_name("P 1");
+  const std::vector<std::pair<int, double>> rows = {
+      {0, 25.0}, {0, 75.0}, {1, 125.0}, {1, 175.0}};
+  Table t;
+  t.nrows = rows.size();
+  Column &hkl = t.int_column("miller_index", "cctbx::miller::index<>", 3);
+  Column &flags = t.int_column("flags", "std::size_t", 1);
+  Column &id = t.int_column("id", "int", 1);
+  Column &d = t.real_column("d", "double", 1);
+  Column &cal = t.real_column("xyzcal.px", "vec3<double>", 3);
+  Column &pv = t.real_column("intensity.prf.value", "double", 1);
+  Column &pvar = t.real_column("intensity.prf.variance", "double", 1);
+  Column &sv = t.real_column("intensity.sum.value", "double", 1);
+  Column &svar = t.real_column("intensity.sum.variance", "double", 1);
+  for (std::size_t r = 0; r < rows.size(); ++r) {
+    hkl.ints[r * 3] = 1 + static_cast<int>(r);
+    hkl.ints[r * 3 + 1] = 2;
+    hkl.ints[r * 3 + 2] = 3;
+    flags.ints[r] = flag::kIntegratedPrf | flag::kIntegratedSum;
+    id.ints[r] = rows[r].first;
+    d.reals[r] = 2.0;
+    cal.reals[r * 3 + 2] = rows[r].second;
+    pv.reals[r] = sv.reals[r] = 100.0;
+    pvar.reals[r] = svar.reals[r] = 100.0;
+  }
+  ExperimentList experiments;
+  for (int s = 0; s < 2; ++s) {
+    experiments.experiments.emplace_back();
+    Scan &scan = experiments.experiments.back().scan;
+    scan.first_image = 1 + 100 * s;
+    scan.last_image = 100 + 100 * s;
+    scan.z_offset = static_cast<double>(scan.first_image - 1);
+    scan.osc_width = 0.1;
+  }
+  const ScaleData data =
+      build_scale_data(experiments, t, group, ScaleModelShape{3, 0, 0});
+  check::equal(static_cast<long long>(data.size()), 4,
+               "every sweep's observations");
+  for (std::size_t k = 0; k < data.size(); ++k) {
+    const std::size_t r = data.row[k];
+    check::equal(static_cast<long long>(data.observation[k].sweep),
+                 static_cast<long long>(rows[r].first), "each its id's sweep");
+  }
+  check::close(data.observation[0].rotation, 0.25, 1e-12,
+               "the first's frame 25: a quarter");
+  check::close(
+      data.observation[2].rotation, 0.25, 1e-12,
+      "the second's frame 125: a quarter of its own, not of the first's");
+  check::close(data.observation[3].rotation, 0.75, 1e-12,
+               "the second's frame 175");
+  id.ints[3] = 2;
+  bool refused = false;
+  try {
+    build_scale_data(experiments, t, group, ScaleModelShape{3, 0, 0});
+  } catch (const std::runtime_error &) {
+    refused = true;
+  }
+  check::is_true(refused, "an id naming no experiment is refused");
+}
+
+} // namespace mxi

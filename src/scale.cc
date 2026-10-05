@@ -19,7 +19,10 @@ ScaleData build_scale_data(const ExperimentList &experiments,
                            const ScaleDataOptions &options) {
   if (experiments.size() == 0)
     throw std::runtime_error("scaling needs an experiment");
-  const Experiment &e = experiments[0];
+  // Each observation from its own sweep: its id names the experiment whose
+  // scan gives its place in the rotation and whose goniometer and beam give
+  // its crystal frame. With one sweep every id is 0 and all is as it was.
+  const std::size_t sweeps = experiments.size();
   const bool profile = options.use == IntensityChoice::profile;
   const Column &miller = reflections.at("miller_index");
   const Column &flags = reflections.at("flags");
@@ -34,8 +37,6 @@ ScaleData build_scale_data(const ExperimentList &experiments,
              has_s1 = reflections.has("s1"), has_id = reflections.has("id");
   const std::int64_t wanted =
       profile ? flag::kIntegratedPrf : flag::kIntegratedSum;
-  const double images = static_cast<double>(e.scan.num_images());
-
   // The columns looked up once, not once a row: eight lookups by name a
   // reflection were most of gathering, which was serial.
   const Column *id_col = has_id ? &reflections.at("id") : nullptr;
@@ -56,11 +57,26 @@ ScaleData build_scale_data(const ExperimentList &experiments,
   std::vector<std::uint8_t> taken(rows, 0), plus_of(rows, 0);
   std::vector<Miller> unique_of(rows);
   std::vector<double> factor_of(rows, 0.0);
+  std::vector<std::size_t> sweep_of(rows, 0);
+  // An id naming no experiment is not a reflection to drop quietly: the
+  // table and the list do not belong together.
+  if (id_col) {
+    for (std::size_t i = 0; i < rows; ++i) {
+      const std::int64_t id = id_col->ints[i];
+      if ((flags.ints[i] & wanted) != 0 &&
+          (id < 0 || static_cast<std::size_t>(id) >= sweeps))
+        throw std::runtime_error(
+            "a reflection's id is " + std::to_string(id) + " and there " +
+            (sweeps == 1 ? std::string("is one experiment")
+                         : "are " + std::to_string(sweeps) + " experiments") +
+            ": the reflections are not these experiments'");
+    }
+  }
   for_each_index(rows, [&](std::size_t i) {
     if ((flags.ints[i] & wanted) == 0)
       return;
-    if (id_col && id_col->ints[i] != 0)
-      return; // one sweep, for now
+    if (id_col)
+      sweep_of[i] = static_cast<std::size_t>(id_col->ints[i]);
     const double v = var.reals[i];
     const double d = dcol.reals[i];
     if (!(v > 0.0) || !std::isfinite(value.reals[i]) || !(d > 0.0) ||
@@ -151,7 +167,9 @@ ScaleData build_scale_data(const ExperimentList &experiments,
     const double d = dcol.reals[i];
     ScaleObservation o;
     const double z = cal.reals[i * 3 + 2];
-    o.rotation = images > 0.0 ? e.scan.fraction(z) : 0.0;
+    const Experiment &e = experiments[sweep_of[i]];
+    o.rotation = e.scan.num_images() > 0 ? e.scan.fraction(z) : 0.0;
+    o.sweep = sweep_of[i];
     o.time = o.rotation;
     o.inv_2d2 = 1.0 / (2.0 * d * d);
     data.intensity.push_back(value.reals[i] * factor);
@@ -177,6 +195,7 @@ ScaleData build_scale_data(const ExperimentList &experiments,
     for_each_index(data.size(), [&](std::size_t k) {
       const std::size_t i = data.row[k];
       const double z = cal.reals[i * 3 + 2];
+      const Experiment &e = experiments[data.observation[k].sweep];
       // The crystal frame: undo the goniometer's rotation at this angle.
       const Mat3 r = e.goniometer.setting *
                      rotation(e.goniometer.axis, e.scan.phi_from_z(z)) *

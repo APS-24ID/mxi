@@ -325,8 +325,9 @@ On the 300 image insulin sweep:
   the feature near 2.1 A; G is flat over the 30 degrees.
 * **It flags what it should**: 21 low, 14 of them in the innermost shell -- the
   shadowed (1,1,0) at z = -37, its background 0.08 against 0.87 -- and three far
-  below at 160 to 365 pixels from the beam, deep shadows not noise, likely the
-  backstop's arm; and some ten with |z| 5 to 7 spread over every shell, the
+  below at 160 to 365 pixels from the beam, deep shadows not noise: on the map
+  of the removed, the low lie along a line across the detector from the beam --
+  the backstop's arm; and some ten with |z| 5 to 7 spread over every shell, the
   tails heavier than Gaussian, as real data's are.
 * **Through scaling**: the 24 observations flagged leave it; the innermost
   shell's I/sigma 46.5 to 48.0, Rmerge 0.026 to 0.025, its lowest resolution 55.1

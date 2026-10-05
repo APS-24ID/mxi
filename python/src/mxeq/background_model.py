@@ -158,6 +158,9 @@ class Fit:
     g_row: np.ndarray = field(default_factory=lambda: np.zeros(0))
     flagged_low: np.ndarray = field(default_factory=lambda: np.zeros(0, bool))
     flagged_high: np.ndarray = field(default_factory=lambda: np.zeros(0, bool))
+    flagged_shell: np.ndarray = field(
+        default_factory=lambda: np.zeros(0, bool)
+    )  # by --reject-shells
 
 
 def fit(
@@ -343,6 +346,7 @@ def run(
     c["background.z"] = np.where(np.isneginf(f.z), -1e30, np.nan_to_num(f.z, nan=0.0))
     t.types["background.z"] = "double"
     f.flagged_low, f.flagged_high = low, high
+    f.flagged_shell = whole & ~(low | high)
     lines.insert(
         2,
         f"{int(flagged.sum())} reflections' integrated flags cleared in the filtered table"

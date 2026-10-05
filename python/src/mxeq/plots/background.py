@@ -134,8 +134,10 @@ def draw_model(
 ) -> None:
     """The background model against the data: R(s) through the backgrounds
     with G, P, Omega and Q divided out; G(phi) through them with R, P, Omega
-    and Q divided out; z against resolution; and z on the detector by the beam."""
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    and Q divided out; z against resolution; z on the detector by the beam; and
+    where the reflections were removed and kept, over the whole detector and by
+    the beam."""
+    fig, axes = plt.subplots(3, 2, figsize=(14, 15))
     if title:
         fig.suptitle(title)
     ok = fit.used & (bg > 0)
@@ -219,6 +221,61 @@ def draw_model(
     ax.set_xlabel("fast from the beam centre (pixels)")
     ax.set_ylabel("slow from the beam centre (pixels)")
     ax.set_title(f"z on the detector, within {zoom:g} pixels of the beam")
+
+    # Where reflections were removed and kept: the kept as a grey density --
+    # too many to draw one by one -- and the removed over them, by reason.
+    low = fit.flagged_low
+    high = fit.flagged_high
+    shell = fit.flagged_shell if len(fit.flagged_shell) else np.zeros(len(x_px), bool)
+    removed = low | high | shell
+    have = np.isfinite(x_px) & np.isfinite(y_px)
+    kept = have & ~removed
+    for ax, window, name in (
+        (axes[2, 0], None, "over the detector"),
+        (axes[2, 1], zoom, f"within {zoom:g} pixels of the beam"),
+    ):
+        sel = (
+            kept
+            if window is None
+            else kept & (np.hypot(x_px - centre[0], y_px - centre[1]) <= window)
+        )
+        if sel.any():
+            ax.hexbin(
+                x_px[sel] - centre[0],
+                y_px[sel] - centre[1],
+                gridsize=150 if window is None else 80,
+                bins="log",
+                cmap="Greys",
+                mincnt=1,
+                alpha=0.6,
+            )
+        for mask, colour, label in (
+            (shell, "tab:orange", "a whole shell left out"),
+            (high, "tab:red", "high: the flare's kind"),
+            (low, "tab:blue", "low: the shadow's kind"),
+        ):
+            m = mask & have
+            if window is not None:
+                m &= np.hypot(x_px - centre[0], y_px - centre[1]) <= window
+            ax.scatter(
+                x_px[m] - centre[0],
+                y_px[m] - centre[1],
+                s=4 if window is None else 10,
+                c=colour,
+                label=f"{label}, {int(m.sum())}",
+                linewidths=0,
+            )
+        ax.plot([0], [0], "+", color="k", ms=12)
+        if window is not None:
+            ax.set_xlim(-window, window)
+            ax.set_ylim(window, -window)
+        else:
+            ax.invert_yaxis()
+        ax.set_aspect("equal")
+        ax.set_xlabel("fast from the beam centre (pixels)")
+        ax.set_ylabel("slow from the beam centre (pixels)")
+        ax.set_title(f"removed and kept, {name}: {int(sel.sum())} kept shown in grey")
+        ax.legend(fontsize=8, loc="upper right", markerscale=2)
 
     fig.tight_layout()
     fig.savefig(path, dpi=110)

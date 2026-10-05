@@ -29,6 +29,13 @@ json::Value import_nxmx(const std::string &master,
                         const ImportOverrides &overrides,
                         std::vector<std::string> *notes);
 
+//: Several imported experiment lists as one, as dials.import writes several
+//: sweeps: every model of each kept as its own -- a beam, a detector, a
+//: goniometer, a scan and an image set an experiment -- and each experiment's
+//: indices renumbered past those of the lists before it. The history is the
+//: first's.
+json::Value join_experiment_lists(const std::vector<json::Value> &lists);
+
 //: A sensor's linear attenuation coefficient, 1/mm, at a wavelength in A: the
 //: NIST (Hubbell and Seltzer) mass attenuation coefficients, interpolated
 //: log-log in energy, times the material's density. 0 for a material not

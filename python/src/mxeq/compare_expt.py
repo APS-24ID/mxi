@@ -94,12 +94,20 @@ class Comparison:
         self.lines.append(line)
 
 
+def _model(doc: dict, kind: str, i: int):
+    """Experiment i's model of a kind, through its own index -- several sweeps
+    each have their own."""
+    experiments = doc.get("experiment", [])
+    index = experiments[i].get(kind, 0) if i < len(experiments) else 0
+    return doc[kind][index]
+
+
 def compare(
-    a: dict, b: dict, label_a: str = "first", label_b: str = "second"
+    a: dict, b: dict, label_a: str = "first", label_b: str = "second", i: int = 0
 ) -> Comparison:
     c = Comparison()
     c.say(f"{label_a} against {label_b}")
-    ba, bb = a["beam"][0], b["beam"][0]
+    ba, bb = _model(a, "beam", i), _model(b, "beam", i)
     c.say("beam")
     c.same("wavelength", ba["wavelength"], bb["wavelength"], "relative", "A")
     c.same("direction", ba["direction"], bb["direction"], "angle-between")
@@ -109,7 +117,7 @@ def compare(
         bb.get("polarization_fraction"),
         "relative",
     )
-    pa, pb = a["detector"][0]["panels"], b["detector"][0]["panels"]
+    pa, pb = _model(a, "detector", i)["panels"], _model(b, "detector", i)["panels"]
     c.say("detector")
     c.same("panels", len(pa), len(pb), "exact")
     for k, (x, y) in enumerate(zip(pa, pb)):
@@ -135,7 +143,7 @@ def compare(
             y.get("px_mm_strategy", {}).get("type"),
             "exact",
         )
-    ga, gb = a["goniometer"][0], b["goniometer"][0]
+    ga, gb = _model(a, "goniometer", i), _model(b, "goniometer", i)
     c.say("goniometer")
     axes_a = ga.get("axes") or [ga.get("rotation_axis")]
     axes_b = gb.get("axes") or [gb.get("rotation_axis")]
@@ -146,7 +154,7 @@ def compare(
     c.same("names", ga.get("names"), gb.get("names"), "exact")
     c.same("scan axis", ga.get("scan_axis"), gb.get("scan_axis"), "exact")
     c.same("angles", ga.get("angles", []), gb.get("angles", []), "angle")
-    sa, sb = a["scan"][0], b["scan"][0]
+    sa, sb = _model(a, "scan", i), _model(b, "scan", i)
     c.say("scan")
     c.same("image range", list(sa["image_range"]), list(sb["image_range"]), "exact")
     oa = np.asarray(sa["properties"]["oscillation"], float)
@@ -160,7 +168,7 @@ def compare(
     eb = sb["properties"].get("exposure_time", [])
     if len(ea) == len(eb) and len(ea):
         c.same("exposure time", ea, eb, "relative", "s")
-    ia, ib = a["imageset"][0], b["imageset"][0]
+    ia, ib = _model(a, "imageset", i), _model(b, "imageset", i)
     c.say("image set")
     import os
 
@@ -175,5 +183,25 @@ def compare(
 
 
 def compare_files(path_a: str, path_b: str) -> Comparison:
+    """Experiment by experiment when both lists hold the same number -- several
+    sweeps, each compared with its counterpart -- otherwise the first of each."""
     with open(path_a) as fa, open(path_b) as fb:
-        return compare(json.load(fa), json.load(fb), path_a, path_b)
+        a, b = json.load(fa), json.load(fb)
+    na, nb = len(a.get("experiment", [])), len(b.get("experiment", []))
+    if na != nb or na <= 1:
+        c = compare(a, b, path_a, path_b)
+        if na != nb:
+            c.lines.insert(
+                1, f"  {na} experiments against {nb}: the first of each compared"
+            )
+            c.differences += 1
+        return c
+    total = Comparison()
+    for i in range(na):
+        part = compare(a, b, f"{path_a} experiment {i}", f"{path_b} experiment {i}", i)
+        total.lines += part.lines + [""]
+        total.differences += part.differences
+    total.say(
+        f"{total.differences} difference{'s' if total.differences != 1 else ''} over {na} experiments"
+    )
+    return total

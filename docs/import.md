@@ -1,13 +1,19 @@
 # mxi_import
 
-STATUS: first version, 2 October 2026. Right on two masters from two writers --
-DECTRIS's for insulin (the 4M cut of ins10_1), redhorn-archive's for thaumatin
-(thau_1_3) -- and its goniometer, axes, sensor, mu, trusted range and scan
-identical to dials.import's on insulin. To be made right on the population of
+STATUS: first version, 2 October 2026; several masters, 5 October. Right on
+masters from three writers -- DECTRIS's for insulin (the 4M cut of ins10_1),
+redhorn-archive's for thaumatin (thau_1_3), Diamond I03's for threonine
+(thr_7_1, thr_7_3, two sweeps) -- its goniometer, axes, sensor, mu, trusted
+range and scan identical to dials.import's on insulin, and on threonine every
+model of both experiments but the trusted range and the exposure time. To be made right on the population of
 data sets one at a time, `mxeq compare-expt` saying what differs.
 
 `mxi_import master.nxs` writes `imported.expt`, as `dials.import master.nxs`
-does, so that nothing of DIALS is needed for the chain.
+does, so that nothing of DIALS is needed for the chain. `mxi_import a.nxs
+b.nxs` writes one experiment a master, as dials.import writes several sweeps:
+each with a beam, detector, goniometer, scan and image set of its own, the
+experiments' indices numbered past those before, each its own identifier. The
+overrides apply to every master alike.
 
 ## What it reads
 
@@ -22,7 +28,11 @@ does, so that nothing of DIALS is needed for the chain.
   module. A chain is followed from its dataset through each `depends_on`, a
   relative path resolved from the dataset's group, to `"."`; each step is
   `R p + offset` for a rotation and `p + offset + value vector` for a
-  translation, innermost first, at the first image's value. Then from NeXus's
+  translation, innermost first, at the first image's value. An offset without
+  `offset_units` is in the transformation's own `units`, as nxmx reads it:
+  Diamond's Eiger masters write offsets so, in metres -- taken as millimetres
+  they put the detector a thousandth of the way out. A rotation's offset with
+  none is taken as millimetres, said so. Then from NeXus's
   McStas frame to DIALS's imgCIF, a half turn about y: x and z negated.
   `data_size` and `data_origin`, slow then fast, are the image size and raw
   offset, fast then slow.
@@ -66,8 +76,17 @@ master, the differences were the origin and image size -- a different file --
 and the exposure time, 0.0026 s here where dials.import wrote 0; to settle on a
 matched pair.
 
+On threonine, two sweeps from Diamond's I03, against dials.import of both
+masters, `mxeq compare-expt` comparing experiment by experiment: every model
+the same in each but two. The exposure time again, 0.01 s against 0. And the
+trusted range's top, 65534 here against dials.import's 133201: the master has no
+saturation value, from which dxtbx's NeXus reader would take 0x7FFFFFFF, so the
+133201 came from elsewhere -- most likely the detector's `_meta.h5` beside the
+master, which dxtbx's Diamond format finds. Open until that file is seen; give
+`--trusted-max` meanwhile, as data of 32 bits are wrongly distrusted at 65534.
+
 ## Untested
 
 A detector of several modules (each becomes a panel; nothing downstream has
 been run on one); a moving detector; a beam direction or polarisation from the
-file; multi-axis scans; materials other than silicon.
+file; scans about any axis but the outermost's; materials other than silicon.

@@ -223,11 +223,24 @@ void check_platform() {
 void write(const std::string &path, const std::vector<dials_spots::Spot> &spots,
            const std::vector<dials_spots::Pixel> &pixels, std::size_t width,
            const Options &options) {
-  check_platform();
-  if (width == 0)
-    throw std::runtime_error("refl: a frame width of zero");
+  Part part;
+  part.spots = &spots;
+  part.pixels = &pixels;
+  part.width = width;
+  part.id = options.id;
+  part.identifier = options.identifier;
+  write_parts(path, {part}, options);
+}
 
-  const std::size_t rows = spots.size();
+void write_parts(const std::string &path, const std::vector<Part> &parts,
+                 const Options &options) {
+  check_platform();
+  std::size_t rows = 0;
+  for (const Part &part : parts) {
+    if (part.width == 0)
+      throw std::runtime_error("refl: a frame width of zero");
+    rows += part.spots->size();
+  }
   Out out(path);
 
   put_array(out, 3);
@@ -240,12 +253,15 @@ void write(const std::string &path, const std::vector<dials_spots::Spot> &spots,
   // list tied together by these strings, so an identifier from the .expt is
   // carried through rather than invented.
   put_str(out, "identifiers");
-  if (options.identifier.empty()) {
-    put_map(out, 0);
-  } else {
-    put_map(out, 1);
-    put_uint(out, static_cast<std::uint64_t>(options.id));
-    put_str(out, options.identifier);
+  std::size_t named = 0;
+  for (const Part &part : parts)
+    named += part.identifier.empty() ? 0 : 1;
+  put_map(out, named);
+  for (const Part &part : parts) {
+    if (part.identifier.empty())
+      continue;
+    put_uint(out, static_cast<std::uint64_t>(part.id));
+    put_str(out, part.identifier);
   }
 
   put_str(out, "nrows");
@@ -254,13 +270,21 @@ void write(const std::string &path, const std::vector<dials_spots::Spot> &spots,
   put_str(out, "data");
   put_map(out, options.shoeboxes ? 10 : 9);
 
+  // Each column over every part in turn, then every spot of the part: the
+  // rows are the parts' spots in order, an experiment's together.
+  const auto each = [&](auto &&f) {
+    for (const Part &part : parts)
+      for (const dials_spots::Spot &spot : *part.spots)
+        f(part, spot);
+  };
+
   // Alphabetical, which is the order DIALS' own std::map gives it. Nothing
   // reads them positionally; it just makes two files easy to compare.
   open_column(out, "bbox", "int6", rows, static_cast<std::uint64_t>(rows) * 24);
-  for (const dials_spots::Spot &spot : spots) {
+  each([&](const Part &, const dials_spots::Spot &spot) {
     for (int i = 0; i < 6; i++)
       raw<std::int32_t>(out, spot.bbox[i]);
-  }
+  });
 
   open_column(out, "flags", "std::size_t", rows,
               static_cast<std::uint64_t>(rows) * 8);
@@ -268,23 +292,27 @@ void write(const std::string &path, const std::vector<dials_spots::Spot> &spots,
     raw<std::uint64_t>(out, kStrong);
 
   open_column(out, "id", "int", rows, static_cast<std::uint64_t>(rows) * 4);
-  for (std::size_t i = 0; i < rows; i++)
-    raw<std::int32_t>(out, options.id);
+  each([&](const Part &part, const dials_spots::Spot &) {
+    raw<std::int32_t>(out, part.id);
+  });
 
   open_column(out, "intensity.sum.value", "double", rows,
               static_cast<std::uint64_t>(rows) * 8);
-  for (const dials_spots::Spot &spot : spots)
+  each([&](const Part &, const dials_spots::Spot &spot) {
     raw<double>(out, spot.intensity);
+  });
 
   open_column(out, "intensity.sum.variance", "double", rows,
               static_cast<std::uint64_t>(rows) * 8);
-  for (const dials_spots::Spot &spot : spots)
+  each([&](const Part &, const dials_spots::Spot &spot) {
     raw<double>(out, spot.intensity_variance);
+  });
 
   open_column(out, "n_signal", "int", rows,
               static_cast<std::uint64_t>(rows) * 4);
-  for (const dials_spots::Spot &spot : spots)
+  each([&](const Part &, const dials_spots::Spot &spot) {
     raw<std::int32_t>(out, static_cast<std::int32_t>(spot.n_signal));
+  });
 
   open_column(out, "panel", "std::size_t", rows,
               static_cast<std::uint64_t>(rows) * 8);
@@ -292,10 +320,14 @@ void write(const std::string &path, const std::vector<dials_spots::Spot> &spots,
     raw<std::uint64_t>(out, static_cast<std::uint64_t>(options.panel));
 
   if (options.shoeboxes) {
-    open_column(out, "shoebox", "Shoebox<>", rows, shoebox_column_bytes(spots));
+    std::uint64_t bytes = 0;
+    for (const Part &part : parts)
+      bytes += shoebox_column_bytes(*part.spots);
+    open_column(out, "shoebox", "Shoebox<>", rows, bytes);
     std::vector<float> data, background;
     std::vector<std::uint8_t> mask;
-    for (const dials_spots::Spot &spot : spots) {
+    each([&](const Part &part, const dials_spots::Spot &spot) {
+      const std::size_t width = part.width;
       const std::size_t xsize =
           static_cast<std::size_t>(spot.bbox[1] - spot.bbox[0]);
       const std::size_t ysize =
@@ -308,7 +340,7 @@ void write(const std::string &path, const std::vector<dials_spots::Spot> &spots,
       background.assign(n, 0.0f);
       mask.assign(n, 0);
       for (std::uint32_t k = 0; k < spot.n_signal; k++) {
-        const dials_spots::Pixel &pixel = pixels[spot.first + k];
+        const dials_spots::Pixel &pixel = (*part.pixels)[spot.first + k];
         const std::size_t x = static_cast<std::size_t>(pixel.index % width) -
                               static_cast<std::size_t>(spot.bbox[0]);
         const std::size_t y = static_cast<std::size_t>(pixel.index / width) -
@@ -332,22 +364,22 @@ void write(const std::string &path, const std::vector<dials_spots::Spot> &spots,
       // mxi_find --subtract-background, zero otherwise, as DIALS' spot finder
       // writes it.
       out.bytes(background.data(), n * sizeof(float));
-    }
+    });
   }
 
   open_column(out, "xyzobs.px.value", "vec3<double>", rows,
               static_cast<std::uint64_t>(rows) * 24);
-  for (const dials_spots::Spot &spot : spots) {
+  each([&](const Part &, const dials_spots::Spot &spot) {
     for (int axis = 0; axis < 3; axis++)
       raw<double>(out, spot.position[axis]);
-  }
+  });
 
   open_column(out, "xyzobs.px.variance", "vec3<double>", rows,
               static_cast<std::uint64_t>(rows) * 24);
-  for (const dials_spots::Spot &spot : spots) {
+  each([&](const Part &, const dials_spots::Spot &spot) {
     for (int axis = 0; axis < 3; axis++)
       raw<double>(out, spot.variance[axis]);
-  }
+  });
 
   out.close();
 }

@@ -27,9 +27,10 @@ namespace expt {
 
 struct Info {
   std::size_t experiments = 0;
+  std::size_t index = 0; // which of them this describes
 
-  // The identifier of the first experiment. Empty if dials.import did not set
-  // one, which is not an error.
+  // The identifier of the experiment described. Empty if dials.import did not
+  // set one, which is not an error.
   std::string identifier;
 
   // The scan, as image numbers, inclusive and counting from one, exactly as
@@ -87,7 +88,9 @@ struct Info {
 
 // Throws std::runtime_error if the file cannot be read or is not an experiment
 // list. A missing scan or detector is not an error: a still has no scan.
-Info read(const std::string &path);
+// Experiment `index` of the list: its identifier, scan, detector and image
+// set, through its own model indices. `experiments` is how many the list has.
+Info read(const std::string &path, std::size_t index = 0);
 
 // One line for the startup banner.
 std::string describe(const Info &info);

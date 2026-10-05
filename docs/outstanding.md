@@ -229,6 +229,9 @@ where something is missing.
   reads it. Then every model of both experiments as dials.import's but the
   exposure time and the trusted range's top, 65534 against 133201 -- from the
   detector's meta file, most likely; open until it is seen.
+  And a scan not beginning at image one had every angle wrong by its start --
+  z anchored to image one where dxtbx anchors it to the scan's first image --
+  fixed with several sweeps (`docs/multi-sweep.md`, step 3).
 * **31.** **The C++ suite takes about two minutes**, most of it a handful of older
     refinement and indexing tests at 10 to 13 seconds each.
 * **32.** **The device port is designed but not written.** `docs/gpu.md`.

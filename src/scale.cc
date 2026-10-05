@@ -151,7 +151,7 @@ ScaleData build_scale_data(const ExperimentList &experiments,
     const double d = dcol.reals[i];
     ScaleObservation o;
     const double z = cal.reals[i * 3 + 2];
-    o.rotation = images > 0.0 ? z / images : 0.0;
+    o.rotation = images > 0.0 ? e.scan.fraction(z) : 0.0;
     o.time = o.rotation;
     o.inv_2d2 = 1.0 / (2.0 * d * d);
     data.intensity.push_back(value.reals[i] * factor);

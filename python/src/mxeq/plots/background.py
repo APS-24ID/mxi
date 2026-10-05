@@ -251,7 +251,12 @@ def draw_model(
             )
         for mask, colour, label in (
             (shell, "tab:orange", "a whole shell left out"),
-            (high, "tab:red", "background too high" + (", removed" if getattr(fit, "high_removed", True) else ", kept")),
+            (
+                high,
+                "tab:red",
+                "background too high"
+                + (", removed" if getattr(fit, "high_removed", True) else ", kept"),
+            ),
             (low, "tab:blue", "background too low"),
         ):
             m = mask & have

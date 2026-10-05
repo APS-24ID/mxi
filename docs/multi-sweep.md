@@ -1,6 +1,6 @@
 # More than one sweep
 
-STATUS: a plan, 5 October 2026; step 1 built. DIALS processes several sweeps of
+STATUS: a plan, 5 October 2026; steps 1 to 3 built. DIALS processes several sweeps of
 one crystal together -- imported as one experiment each, indexed jointly to one
 crystal, refined, integrated sweep by sweep, and symmetry and scaling over all
 of them -- and mxi should, from `mxi_import` to `mxi_scale`. The data: Graeme's
@@ -12,8 +12,8 @@ reproduce; small-molecule data, whose intermediate files can be shared.
 | program | more than one sweep |
 | --- | --- |
 | `mxi_import` | built: several masters, one experiment each (step 1) |
-| `mxi_find` | refuses more than one experiment |
-| `mxi_index` | joint indexing to one crystal built, tried once on two sweeps of insulin |
+| `mxi_find` | built: each experiment from its own images, one table with `id`s (step 2) |
+| `mxi_index` | joint indexing to one crystal: right, once a scan's frames were (step 3) |
 | `mxi_refine` | several experiments, the crystal shared, built |
 | `mxi_integrate` | uses only the first experiment -- silently |
 | `mxi_symmetry`, `mxi_scale` | refuse more than one experiment |
@@ -25,11 +25,21 @@ reproduce; small-molecule data, whose intermediate files can be shared.
    of both as dials.import's but two fields (`docs/import.md`). With it, an
    offset without `offset_units` read in its transformation's units, and
    `mxeq compare-expt` comparing experiment by experiment.
-2. **`mxi_find`**: the spots of every experiment, from its own images, in one
-   table with each spot's `id` -- the experiment's index, as dials.find_spots
-   writes it.
-3. **`mxi_index` and `mxi_refine`**: built; to be checked with the `id`s from
-   step 2, and on the two sweeps.
+2. **`mxi_find`** -- built: the spots of every experiment, from its own images,
+   in one table with each spot's `id` and each identifier in the map. One sweep
+   byte-identical to before; the insulin sweep split at image 150, found as two
+   experiments, exactly the two halves found apart, every column.
+3. **`mxi_index` and `mxi_refine`** -- built, and a bug found under them. The two
+   halves indexed together gave 67.9 per cent where each alone gave 98.1: the
+   second half's angles were 30 to 45 degrees where its images are 15 to 30.
+   mxi took z, a frame's array index, from image one, where dxtbx takes it from
+   the scan's first image -- `osc[0] + (z + 1 - image_range[0]) * width` -- so
+   every scan not beginning at image one had its angles wrong by its start, in
+   prediction, refinement, integration and the scan-varying models. Unseen while
+   every scan began at image one; fixed, the frame offset the scan's first
+   image's index, a scan's frames, its fraction and its start and end measured
+   from there. Then the halves together index 98.1 per cent, as either alone;
+   a scan from image one byte-identical through integration.
 4. **`mxi_integrate`**: each sweep from its own images, with its own reference
    profiles and profile model, into one table with `id`s. Silently using only
    the first experiment ends here whatever else does.

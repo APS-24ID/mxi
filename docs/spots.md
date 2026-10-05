@@ -216,9 +216,15 @@ and float background per spot, against a few bytes a row for everything else.
 They carry nothing the pixel list does not. Worth having for
 `dials.image_viewer`; `--no-shoeboxes` for indexing.
 
-One panel, one experiment. A segmented detector would need a panel number per
-spot, and several experiments would need the `id` column to mean something; each
-is refused rather than guessed at.
+One panel. A segmented detector would need a panel number per spot, and is
+refused rather than guessed at.
+
+Several experiments -- several sweeps, as `mxi_import a.nxs b.nxs` writes them --
+are found one after another, each from the images its own image set names, into
+one table: every spot with its experiment's index as its `id`, and each
+experiment's identifier in the table's map, as dials.find_spots writes them. The
+rows of each are exactly what that experiment alone gives, in order. A master
+file named as well is refused, as it cannot belong to them all.
 
 ## Where this will not match dials.find_spots
 

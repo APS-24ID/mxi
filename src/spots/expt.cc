@@ -27,7 +27,8 @@ namespace {
 // The imageset block, which the shared reader keeps verbatim in `source` but
 // does not interpret: nothing else in this repository needs to know where the
 // images are, and the spot finder needs nothing else from it.
-void read_imageset(const mxi::json::Value &document, Info *info) {
+void read_imageset(const mxi::json::Value &document,
+                   const mxi::json::Value &experiment, Info *info) {
   if (!document.is_object())
     return;
   const mxi::json::Value &imagesets = document["imageset"];
@@ -35,7 +36,14 @@ void read_imageset(const mxi::json::Value &document, Info *info) {
     return;
   info->imagesets = imagesets.as_array().size();
 
-  const mxi::json::Value &first = imagesets.as_array()[0];
+  // The experiment's own image set, by its index; the first where it names
+  // none, as a list of one sweep may not.
+  std::size_t at = 0;
+  if (experiment.is_object() && experiment["imageset"].is_number())
+    at = static_cast<std::size_t>(experiment["imageset"].as_number());
+  if (at >= imagesets.as_array().size())
+    return;
+  const mxi::json::Value &first = imagesets.as_array()[at];
   if (!first.is_object())
     return;
   const mxi::json::Value &tmpl = first["template"];
@@ -86,7 +94,7 @@ const mxi::json::Value *model_of(const mxi::json::Value &document,
 
 } // namespace
 
-Info read(const std::string &path) {
+Info read(const std::string &path, std::size_t index) {
   Info info;
   mxi::json::Value document;
   try {
@@ -101,7 +109,12 @@ Info read(const std::string &path) {
   info.experiments = experiments.size();
   if (experiments.empty())
     return info;
-  const mxi::json::Value &first = experiments[0];
+  if (index >= experiments.size())
+    throw std::runtime_error(
+        path + " has " + std::to_string(experiments.size()) +
+        " experiments, and no experiment " + std::to_string(index));
+  info.index = index;
+  const mxi::json::Value &first = experiments[index];
 
   if (first["identifier"].is_string()) {
     info.identifier = first["identifier"].as_string();
@@ -135,14 +148,20 @@ Info read(const std::string &path) {
     }
   }
 
-  read_imageset(document, &info);
+  read_imageset(document, first, &info);
   return info;
 }
 
 std::string describe(const Info &info) {
-  std::string result = std::to_string(info.experiments) + " experiment";
-  if (info.experiments != 1)
-    result += "s";
+  std::string result;
+  if (info.experiments > 1) {
+    result = "experiment " + std::to_string(info.index + 1) + " of " +
+             std::to_string(info.experiments);
+  } else {
+    result = std::to_string(info.experiments) + " experiment";
+    if (info.experiments != 1)
+      result += "s";
+  }
   if (info.has_scan) {
     result += ", images " + std::to_string(info.first_image) + " to " +
               std::to_string(info.last_image);

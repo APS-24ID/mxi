@@ -127,6 +127,7 @@ Scan read_scan(const json::Value &v) {
   Scan s;
   s.first_image = first;
   s.last_image = last;
+  s.z_offset = static_cast<double>(first - 1);
   s.osc_start = pair[0];
   s.osc_width = pair[1];
   s.batch_offset = static_cast<std::int64_t>(v["batch_offset"].as_number());

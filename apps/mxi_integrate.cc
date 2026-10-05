@@ -618,9 +618,10 @@ int run_program(int argc, char **argv) {
     const double t_predict_start = now_wall();
     const std::vector<Prediction> predictions = predict(e, predict_options);
     t_predict = now_wall() - t_predict_start;
-    const double first_image = args.number("--first-image", 0.0);
-    const double last_image =
-        args.number("--last-image", static_cast<double>(e.scan.num_images()));
+    // As frames' array indices, the scan's own by default: a scan from image
+    // 151 begins at frame 150.
+    const double first_image = args.number("--first-image", e.scan.z_first());
+    const double last_image = args.number("--last-image", e.scan.z_last());
     std::printf("Predicted %zu reflections\n", predictions.size());
 
     // TWO PASSES, AND WHY

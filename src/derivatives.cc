@@ -240,9 +240,7 @@ SplineWeights spline_weights(std::size_t points, double t) {
 SplineWeights spline_weights(const Experiment &e, double z) {
   if (!e.crystal || !e.crystal->scan_varying())
     return spline_weights(std::size_t{1}, 0.0);
-  const double images = static_cast<double>(e.scan.num_images());
-  return spline_weights(e.crystal->A_points.size(),
-                        images > 0.0 ? z / images : 0.0);
+  return spline_weights(e.crystal->A_points.size(), e.scan.fraction(z));
 }
 
 } // namespace mxi

@@ -37,6 +37,7 @@
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -74,6 +75,8 @@ struct Options {
   int timeout_seconds = 60;
   int poll_milliseconds = 200;
   std::string master;                 // the NXmx HDF5 master file
+  bool master_given = false;          // named on the command line
+  std::size_t sweeps = 1;             // experiments in the list
   std::string experiments;            // -e: what dials.import wrote
   std::string output = "strong.refl"; // -o
   bool gpu = false;
@@ -294,7 +297,8 @@ bool parse_options(int argc, char **argv, Options *options) {
   //
   // An explicit -x still wins, because the .expt records an absolute path and a
   // dataset that has moved since import would otherwise be unusable.
-  if (options->master.empty() && !options->experiments.empty()) {
+  options->master_given = !options->master.empty();
+  if (!options->experiments.empty()) {
     expt::Info info;
     try {
       info = expt::read(options->experiments);
@@ -302,14 +306,20 @@ bool parse_options(int argc, char **argv, Options *options) {
       std::fprintf(stderr, "%s\n", error.what());
       return false;
     }
-    if (!info.has_imageset) {
+    // Several sweeps each read their own images, named by their own image
+    // sets, one at a time: main() takes each in turn -- counted whether or not
+    // a master was named, or one named with several would read the first
+    // experiment alone, silently.
+    options->sweeps = std::max<std::size_t>(info.experiments, 1);
+    if (!options->master.empty() || info.experiments > 1) {
+      // Nothing to infer.
+    } else if (!info.has_imageset) {
       std::fprintf(stderr,
                    "%s has no imageset, so it does not say where the images "
                    "are; name the master file, or pass -x\n",
                    options->experiments.c_str());
       return false;
-    }
-    if (info.templated) {
+    } else if (info.templated) {
       // Hashes stand for a numbered sequence of files, which this reads none
       // of. Saying so beats handing the path to HDF5 and reporting whatever it
       // makes of it.
@@ -318,12 +328,13 @@ bool parse_options(int argc, char **argv, Options *options) {
                    "sequence rather than one NXmx file; this reads NXmx only\n",
                    options->experiments.c_str(), info.image_file.c_str());
       return false;
+    } else {
+      options->master = info.image_file;
+      std::fprintf(stdout, "Images: %s, from %s\n", options->master.c_str(),
+                   options->experiments.c_str());
     }
-    options->master = info.image_file;
-    std::fprintf(stdout, "Images: %s, from %s\n", options->master.c_str(),
-                 options->experiments.c_str());
   }
-  if (options->master.empty()) {
+  if (options->master.empty() && options->sweeps <= 1) {
     usage(argv[0]);
     return false;
   }
@@ -515,12 +526,7 @@ void reconcile(const expt::Info &experiments, const series::Info &series,
                Options *options) {
   std::fprintf(stdout, "Experiments: %s\n", describe(experiments).c_str());
 
-  if (experiments.experiments != 1) {
-    throw std::runtime_error("this writes one experiment's spots, and " +
-                             options->experiments + " holds " +
-                             std::to_string(experiments.experiments) +
-                             "; slice it with dials.split_experiments first");
-  }
+  // One experiment's, always: several sweeps are taken one at a time.
   if (experiments.panels > 1) {
     throw std::runtime_error(
         "the detector in " + options->experiments + " has " +
@@ -603,20 +609,33 @@ void reconcile(const expt::Info &experiments, const series::Info &series,
 
 } // namespace
 
-int main(int argc, char **argv) {
-  // Mirrored to mxi_find.log in the working directory, as DIALS writes
-  // dials.find_spots.log; not for a run that only asks for help.
-  if (!mxi::only_asks_for_help(argc, argv))
-    mxi::mirror_to_log("mxi_find.log");
-  Options options;
-  if (!parse_options(argc, argv, &options))
-    return 2;
-  // The whole run's clock, from here, for --timing.
-  mxi::Timing timing(options.timing);
+// What was written, or that nothing was.
+void report_written(const Options &options, std::size_t rows) {
+  if (rows == 0) {
+    std::fprintf(stderr,
+                 "No reflections found; %s is a well formed table with no rows "
+                 "in it, which dials.index will refuse\n",
+                 options.output.c_str());
+    return;
+  }
+  std::error_code ignored;
+  const std::uintmax_t bytes =
+      std::filesystem::file_size(options.output, ignored);
+  std::fprintf(stdout, "Wrote %zu reflections to %s (%.1f MB%s)\n", rows,
+               options.output.c_str(), static_cast<double>(bytes) / 1e6,
+               options.shoeboxes ? ", most of it shoeboxes" : "");
+}
 
-  std::signal(SIGINT, on_signal);
-  std::signal(SIGTERM, on_signal);
+// What becomes of one experiment's spots: written as the table, for one sweep,
+// or kept to be written with the others', for several.
+using Emit = std::function<int(const dials_spots::Labeller &,
+                               const series::Info &, const expt::Info &)>;
 
+// One experiment's spots, from its own images: experiment `index` of the list,
+// or the master file alone without one. Handed to `emit` where they would be
+// written, then the timing reported.
+int find_one(Options options, std::size_t index, mxi::Timing &timing,
+             const Emit &emit) {
   std::unique_ptr<series::Series> source;
   series::Info info;
   // How many frames will be offered, when fewer than the file holds.
@@ -624,7 +643,7 @@ int main(int argc, char **argv) {
   expt::Info experiments;
   try {
     if (!options.experiments.empty())
-      experiments = expt::read(options.experiments);
+      experiments = expt::read(options.experiments, index);
 
     source = series::nxmx(options.master);
 
@@ -1026,31 +1045,8 @@ int main(int argc, char **argv) {
   }
 
   const double t_written_from = mxi::Timing::now();
-  refl::Options writing;
-  writing.identifier = experiments.identifier;
-  writing.shoeboxes = options.shoeboxes;
-  try {
-    refl::write(options.output, labeller.spots(), labeller.pixels(),
-                static_cast<std::size_t>(info.width), writing);
-  } catch (const std::exception &error) {
-    std::fprintf(stderr, "%s\n", error.what());
+  if (emit(labeller, info, experiments) != 0)
     return 1;
-  }
-
-  if (labeller.spots().empty()) {
-    std::fprintf(stderr,
-                 "No reflections found; %s is a well formed table with no rows "
-                 "in it, which dials.index will refuse\n",
-                 options.output.c_str());
-  } else {
-    std::error_code ignored;
-    const std::uintmax_t bytes =
-        std::filesystem::file_size(options.output, ignored);
-    std::fprintf(stdout, "Wrote %zu reflections to %s (%.1f MB%s)\n",
-                 labeller.spots().size(), options.output.c_str(),
-                 static_cast<double>(bytes) / 1e6,
-                 options.shoeboxes ? ", most of it shoeboxes" : "");
-  }
 
   if (options.timing) {
     const double wall = t_streamed - t_began;
@@ -1120,4 +1116,126 @@ int main(int argc, char **argv) {
   }
 
   return failed.load() == 0 ? 0 : 1;
+}
+
+namespace {
+
+// The table one sweep's spots make, written as it always was.
+int write_one(const Options &options, const dials_spots::Labeller &labeller,
+              const series::Info &info, const expt::Info &experiments) {
+  refl::Options writing;
+  writing.identifier = experiments.identifier;
+  writing.shoeboxes = options.shoeboxes;
+  try {
+    refl::write(options.output, labeller.spots(), labeller.pixels(),
+                static_cast<std::size_t>(info.width), writing);
+  } catch (const std::exception &error) {
+    std::fprintf(stderr, "%s\n", error.what());
+    return 1;
+  }
+  report_written(options, labeller.spots().size());
+  return 0;
+}
+
+} // namespace
+
+int main(int argc, char **argv) {
+  // Mirrored to mxi_find.log in the working directory, as DIALS writes
+  // dials.find_spots.log; not for a run that only asks for help.
+  if (!mxi::only_asks_for_help(argc, argv))
+    mxi::mirror_to_log("mxi_find.log");
+  Options options;
+  if (!parse_options(argc, argv, &options))
+    return 2;
+  // The whole run's clock, from here, for --timing.
+  mxi::Timing timing(options.timing);
+
+  std::signal(SIGINT, on_signal);
+  std::signal(SIGTERM, on_signal);
+
+  if (options.sweeps <= 1) {
+    return find_one(options, 0, timing,
+                    [&](const dials_spots::Labeller &labeller,
+                        const series::Info &info, const expt::Info &e) {
+                      return write_one(options, labeller, info, e);
+                    });
+  }
+
+  // Several sweeps, as dials.find_spots finds them: each experiment's spots
+  // from its own images, one experiment after another, into one table, every
+  // spot with its experiment's index as its id and each identifier in the
+  // table's map.
+  if (options.master_given) {
+    std::fprintf(stderr,
+                 "%s holds %zu experiments, each reading its own images; a "
+                 "master file named as well cannot belong to them all -- leave "
+                 "it out\n",
+                 options.experiments.c_str(), options.sweeps);
+    return 2;
+  }
+  struct Kept {
+    std::vector<dials_spots::Spot> spots;
+    std::vector<dials_spots::Pixel> pixels;
+    std::size_t width = 0;
+    std::string identifier;
+  };
+  std::vector<Kept> kept(options.sweeps);
+  int status = 0;
+  for (std::size_t i = 0; i < options.sweeps; ++i) {
+    expt::Info e;
+    try {
+      e = expt::read(options.experiments, i);
+    } catch (const std::exception &error) {
+      std::fprintf(stderr, "%s\n", error.what());
+      return 1;
+    }
+    if (!e.has_imageset || e.templated) {
+      std::fprintf(stderr,
+                   "experiment %zu of %s does not name one NXmx file for its "
+                   "images\n",
+                   i, options.experiments.c_str());
+      return 1;
+    }
+    Options one = options;
+    one.master = e.image_file;
+    std::fprintf(stdout, "\nExperiment %zu of %zu: images %s\n", i + 1,
+                 options.sweeps, one.master.c_str());
+    status |= find_one(one, i, timing,
+                       [&](const dials_spots::Labeller &labeller,
+                           const series::Info &info, const expt::Info &x) {
+                         kept[i].spots = labeller.spots();
+                         kept[i].pixels = labeller.pixels();
+                         kept[i].width = static_cast<std::size_t>(info.width);
+                         kept[i].identifier = x.identifier;
+                         return 0;
+                       });
+    if (status != 0)
+      return status;
+  }
+  std::vector<refl::Part> parts;
+  std::size_t total = 0;
+  for (std::size_t i = 0; i < kept.size(); ++i) {
+    refl::Part part;
+    part.spots = &kept[i].spots;
+    part.pixels = &kept[i].pixels;
+    part.width = kept[i].width;
+    part.id = static_cast<int>(i);
+    part.identifier = kept[i].identifier;
+    parts.push_back(part);
+    total += kept[i].spots.size();
+  }
+  refl::Options writing;
+  writing.shoeboxes = options.shoeboxes;
+  try {
+    refl::write_parts(options.output, parts, writing);
+  } catch (const std::exception &error) {
+    std::fprintf(stderr, "%s\n", error.what());
+    return 1;
+  }
+  std::fprintf(stdout, "\n");
+  for (std::size_t i = 0; i < kept.size(); ++i)
+    std::fprintf(stdout, "  experiment %zu: %zu reflections\n", i,
+                 kept[i].spots.size());
+  report_written(options, total);
+  return 0;
 }

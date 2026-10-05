@@ -258,6 +258,38 @@ def build_parser() -> argparse.ArgumentParser:
         "--limit", type=int, default=0, help="keep only the N worst; 0 for all"
     )
 
+    bk = sub.add_parser(
+        "background",
+        help="each reflection's background against resolution, azimuth, image and "
+        "place on the detector, against its running median: for looking at before "
+        "modelling it",
+    )
+    bk.add_argument("expt", help="the integrated experiments, for the beam centre")
+    bk.add_argument("refl", help="the integrated reflections, mxi's or DIALS's")
+    bk.add_argument(
+        "-o", "--output", default="background.png", help="the figure (background.png)"
+    )
+    bk.add_argument(
+        "--shells", type=int, default=20, help="resolution shells in the table (20)"
+    )
+    bk.add_argument(
+        "--range",
+        nargs=2,
+        type=float,
+        default=None,
+        metavar=("DMAX", "DMIN"),
+        help="limit the azimuth and image panels to this resolution range",
+    )
+    bk.add_argument(
+        "--zoom",
+        type=float,
+        default=250.0,
+        help="pixels about the beam in the map (250)",
+    )
+    bk.add_argument(
+        "--no-plot", action="store_true", help="the table only, without matplotlib"
+    )
+
     ob = sub.add_parser(
         "observations",
         help="every observation of given reflections, all their symmetry "
@@ -382,6 +414,24 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "background":
+        from . import background
+
+        b = background.load(args.expt, args.refl)
+        print(background.table(b, args.shells))
+        if not args.no_plot:
+            from .plots import background as background_plot
+
+            background_plot.draw(
+                b,
+                args.output,
+                tuple(args.range) if args.range else None,
+                args.zoom,
+                args.refl,
+            )
+            print(f"\nWrote {args.output}")
+        return 0
 
     if args.command == "observations":
         from . import observations

@@ -213,6 +213,31 @@ A box cannot see its own attenuation, so the answer must come from outside it:
 Part 2, the outlier rejection, still stands: a wholly shadowed observation,
 masked or not, must not outvote unharmed ones.
 
+### A smooth model of the background, Graeme's proposal
+
+The background comes from air and what holds the sample -- water, nylon --
+scattering smoothly with angle, so it should be a smooth function, and a
+reflection whose background does not match it is suspect: low in the backstop
+shadow, high in its flare. Not a heuristic -- the physics of the scatter -- and
+fitted to the integration's own measured backgrounds, not to images. To look
+at first, `mxeq background` (`python/README.md`).
+
+On the 300 image insulin sweep, which has no flare:
+
+* **Against resolution, smooth**: 0.69 counts a pixel at the lowest resolution
+  to 0.135 at 1.7 A, with the water ring's bump at 3.2 to 3.7 A, and a spread
+  about the median of some 5 per cent in every shell.
+* **Against azimuth, a wave**: the background over its resolution's median some
+  1.05 at plus and minus 90 degrees and 0.9 at 0 and 180 -- polarisation. A
+  model of resolution alone would leave that 10 per cent; it needs the
+  polarisation term. No reflections near 0 and 180 degrees, along the rotation
+  axis, the zeta cut's.
+* **Against the image, flat** over its 30 degrees.
+* **Below half its resolution's median, 0.58 per cent of the innermost shell
+  and none elsewhere**: some six reflections, beside the beam, in the shadow.
+
+Ferritin, with its flare, is the measurement still to make.
+
 ## Order, and how each is judged
 
 1. **The background dispersion, measured**: the column, and on ferritin where

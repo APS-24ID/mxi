@@ -44,36 +44,48 @@ struct ScaleModelShape {
 //: degrees, as dials.scale's automatic choice.
 ScaleModelShape default_shape(double degrees);
 
+//: The physical model, for one sweep or several. Several sweeps' parameters
+//: lie one sweep's block after another in `parameters`, each block a sweep's
+//: scale points, decay points and harmonics; an observation's `sweep` chooses
+//: its block. The accessors without a sweep are the first's, which is all of
+//: it for one sweep.
 class ScaleModel {
 public:
   explicit ScaleModel(const ScaleModelShape &shape);
+  //: One block a sweep, each its own shape -- its own width of rotation.
+  explicit ScaleModel(const std::vector<ScaleModelShape> &shapes);
 
-  const ScaleModelShape &shape() const { return shape_; }
+  std::size_t sweeps() const { return shapes_.size(); }
+  const ScaleModelShape &shape(std::size_t sweep = 0) const {
+    return shapes_[sweep];
+  }
   std::size_t size() const { return parameters.size(); }
-  //: C control points, then B, then P_lm; C starts at 1, the rest at 0.
   std::vector<double> parameters;
-  std::size_t first_decay() const { return shape_.scale_points; }
-  std::size_t first_absorption() const {
-    return shape_.scale_points + shape_.decay_points;
+  //: Where a sweep's block, its decay points and its harmonics begin.
+  std::size_t first_scale(std::size_t sweep = 0) const {
+    return offsets_[sweep];
+  }
+  std::size_t first_decay(std::size_t sweep = 0) const {
+    return offsets_[sweep] + shapes_[sweep].scale_points;
+  }
+  std::size_t first_absorption(std::size_t sweep = 0) const {
+    return first_decay(sweep) + shapes_[sweep].decay_points;
   }
 
-  //: g for an observation, and if asked its derivatives: pairs of parameter
-  //: index and dg/dp, repeated indices to be summed.
   double inverse_scale(
       const ScaleObservation &o,
       std::vector<std::pair<std::size_t, double>> *gradient = nullptr) const;
 
-  //: The scale's control points divided by their mean, and the relative B
-  //: less its mean. g and the merged intensities trade a common factor freely,
-  //: so the first changes no fit. A constant B offset they trade almost as
-  //: freely -- exactly, if every observation of a reflection had the same d --
-  //: and with the curvature of the fit right, it wandered: to a mean of -2 A^2
-  //: on a 300 image sweep, the weak restraint toward zero all that held it.
-  //: Both are reported relative to their means, as B always is.
+  //: The scale's mean over every sweep's points made one, and the decay's
+  //: mean over every sweep's taken away: the one overall scale and the one
+  //: overall B the merged intensities can absorb. Not each sweep's apart --
+  //: that would erase the sweeps' relative scale, which is what scaling them
+  //: together is for.
   void normalise();
 
 private:
-  ScaleModelShape shape_;
+  std::vector<ScaleModelShape> shapes_;
+  std::vector<std::size_t> offsets_;
 };
 
 } // namespace mxi

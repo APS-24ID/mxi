@@ -194,3 +194,39 @@ TEST(the_harmonics_to_degrees_six_and_eight_are_orthonormal) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(several_sweeps_each_have_a_block_and_keep_their_relative_scale) {
+  // Two sweeps, a block each: an observation's inverse scale and its gradient
+  // are its own sweep's; and normalising keeps the sweeps' relative scale --
+  // the scale's mean over every point made one, not each sweep's.
+  ScaleModel model(std::vector<ScaleModelShape>{{3, 2, 0}, {4, 0, 0}});
+  check::equal(static_cast<long long>(model.sweeps()), 2, "two sweeps");
+  check::equal(static_cast<long long>(model.size()), 3 + 2 + 4,
+               "nine parameters");
+  check::equal(static_cast<long long>(model.first_scale(1)), 5,
+               "the second's block after the first's");
+  check::equal(static_cast<long long>(model.first_decay(0)), 3,
+               "the first's decay after its scale");
+  for (std::size_t i = 0; i < 4; ++i)
+    model.parameters[model.first_scale(1) + i] = 2.0;
+  ScaleObservation first, second;
+  first.rotation = second.rotation = 0.5;
+  second.sweep = 1;
+  std::vector<std::pair<std::size_t, double>> gradient;
+  check::close(model.inverse_scale(first), 1.0, 1e-12,
+               "the first sweep's scale");
+  check::close(model.inverse_scale(second, &gradient), 2.0, 1e-12,
+               "the second's");
+  for (const auto &[index, value] : gradient)
+    check::is_true(index >= model.first_scale(1) && index < model.size(),
+                   "the second's gradient in its own block");
+  model.normalise();
+  const double a = model.inverse_scale(first), b = model.inverse_scale(second);
+  check::close(b / a, 2.0, 1e-12, "the relative scale kept");
+  check::close((3 * a + 4 * b) / 7.0, 1.0, 1e-12,
+               "the mean over every point one");
+}
+
+} // namespace mxi

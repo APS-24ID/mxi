@@ -1,7 +1,17 @@
 # Scaling
 
-STATUS: `mxi_scale` scales one sweep. Not yet: more than one sweep, free-set
-validation. `docs/outstanding.md` has the whole list.
+STATUS: `mxi_scale` scales one sweep, and several of one crystal together
+(5 October 2026). Not yet: free-set validation. `docs/outstanding.md` has the
+whole list.
+
+**Several sweeps** each have a model of their own -- scale, decay and
+absorption from each sweep's own width of rotation, as dials.scale's physical
+model has one a dataset -- sharing the merged intensities; an observation's id
+chooses its sweep's parameters. The one overall scale and the one overall B the
+merged intensities can absorb are fixed over every sweep's points together, not
+each sweep's apart, so the sweeps' relative scale is kept: it is what scaling
+them together is for. The report gives each sweep's scale and relative B. A
+sweep with no observations is refused (`docs/multi-sweep.md`).
 
 `mxi_scale` puts every observation of a sweep on one scale, refines an error
 model, and reports merging statistics -- the physical model of Beilsten-Edmands

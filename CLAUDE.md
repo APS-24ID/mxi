@@ -55,7 +55,8 @@ README, `docs/review.md` and this handover true as things change.
 
 **The project is mxi.** It began as dials-metal, and its history was rewritten
 with git filter-repo to the name every program already had; the old history is
-kept apart. The chain is complete for one sweep and needs nothing of DIALS:
+kept apart. The chain is complete for one sweep, and for several of one
+crystal indexed together (`docs/multi-sweep.md`), and needs nothing of DIALS:
 `mxi_import`, `mxi_find`, `mxi_index`, `mxi_refine`, `mxi_integrate`,
 `mxi_symmetry`, `mxi_scale`, each interchangeable with DIALS at its boundary,
 every core by default.
@@ -86,6 +87,12 @@ with an independent reference model are the candidates. Terms: the backstop
 shadow is the low-count region, the flare the high-background region around it.
 
 **Waiting on Graeme's data or hardware:**
+
+* **Several sweeps, on threonine** (`docs/multi-sweep.md`): every program takes
+  several, built and tried on insulin split in two. Graeme's threonine -- two
+  sweeps from Diamond's I03, dials.import's list reproduced but for the trusted
+  range -- needs its images or intermediate files, and its `_meta.h5` for the
+  trusted range's top (133201 in dials.import, 65534 here).
 
 * **8BXT, a third not profile fitted** (item 51): `mxeq failures` on its table,
   integrated without `--gpu`, says which reason and where.

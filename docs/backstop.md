@@ -3,7 +3,8 @@
 STATUS: a plan, 4 October 2026; revised the same day to Graeme's metric, the
 background's own dispersion, in place of a model of the images. Step 1, the
 measurement, is built, and on ferritin it says the dispersion cannot find the
-attenuation: see "Measured so far" and "What can, then". Items 52 and 53 in
+attenuation; the model Graeme proposed in its place is prototyped as
+`mxeq background-model`: see "The prototype". Items 52 and 53 in
 `docs/outstanding.md` are the findings; this is what is to be done about them,
 in what order, and how it will be judged.
 
@@ -308,6 +309,31 @@ background and each reflection's z beside the table, so that on insulin and
 ferritin its flags can be compared with (3,1,1)'s observations, with `--d-max`,
 and with DIALS through `mxeq unique` -- and Graeme's refinement. Then, if it
 holds, in C++, between integration and scaling.
+
+### The prototype, `mxeq background-model`
+
+Built as designed, with Graeme's two choices: a spline for R, general, with no
+priors yet; and G modelled, as it is smooth but can vary a lot. The design
+matrix is sparse -- four non-zeros a spline a row -- so ferritin's 6.2 million
+reflections make a small system.
+
+On the 300 image insulin sweep:
+
+* **The model explains the backgrounds**: an intrinsic spread of 4.0 per cent,
+  and a z spread of 0.85 to 1.20 in every shell -- polarisation, solid angle and
+  efficiency computed, not fitted, hold. R follows the water ring at 3.6 A and
+  the feature near 2.1 A; G is flat over the 30 degrees.
+* **It flags what it should**: 21 low, 14 of them in the innermost shell -- the
+  shadowed (1,1,0) at z = -37, its background 0.08 against 0.87 -- and three far
+  below at 160 to 365 pixels from the beam, deep shadows not noise, likely the
+  backstop's arm; and some ten with |z| 5 to 7 spread over every shell, the
+  tails heavier than Gaussian, as real data's are.
+* **Through scaling**: the 24 observations flagged leave it; the innermost
+  shell's I/sigma 46.5 to 48.0, Rmerge 0.026 to 0.025, its lowest resolution 55.1
+  to 39.0 A.
+* **A residual to watch**: on the map by the beam, z faintly negative above and
+  positive below -- something the model does not hold, the air's path or the
+  backstop's asymmetry. Ferritin will say whether it matters.
 
 ## Order, and how each is judged
 

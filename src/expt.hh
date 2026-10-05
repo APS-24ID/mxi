@@ -98,6 +98,22 @@ ExperimentList experiments_from_json(const json::Value &document);
 // Serialise. Models are shared where they are identical, as DIALS does, so
 // four sweeps on one crystal write one crystal and four goniometers.
 json::Value experiments_to_json(const ExperimentList &list);
+
+//: Several experiment lists as one, as dials.import writes several sweeps:
+//: every model of each kept as its own, and each experiment's indices
+//: renumbered past those of the lists before it. The history is the first's.
+json::Value join_experiment_lists(const std::vector<json::Value> &lists);
+
+//: Experiment `index` of a list alone: the experiment, and of each kind of
+//: model only the one it names, renumbered to the first -- a list of one sweep,
+//: as mxi_integrate integrates each of several.
+json::Value slice_experiment_list(const json::Value &list, std::size_t index);
+
+//: Models of one kind that are identical in content made one: every experiment
+//: naming a copy names the first instead, and the copies are gone. As several
+//: sweeps integrated apart carry copies of the one crystal they were refined
+//: with, and DIALS writes it once, shared.
+void share_identical(json::Value *list, const std::string &kind);
 void write_experiments(const std::string &path, const ExperimentList &list);
 
 } // namespace mxi

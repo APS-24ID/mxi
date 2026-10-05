@@ -67,6 +67,28 @@ std::vector<Shoebox> decode_shoeboxes(const Table &table) {
   return out;
 }
 
+Table select_rows_with_shoeboxes(const Table &table,
+                                 const std::vector<std::size_t> &rows) {
+  Table out = select_rows(table, rows);
+  const auto it = table.opaque().find("shoebox");
+  if (it == table.opaque().end())
+    return out;
+  const std::vector<Shoebox> boxes = decode_shoeboxes(table);
+  std::vector<Shoebox> kept;
+  kept.reserve(rows.size());
+  for (std::size_t r : rows) {
+    if (r >= boxes.size())
+      throw ReflError("a row past the shoeboxes' end was selected");
+    kept.push_back(boxes[r]);
+  }
+  Table::Opaque column;
+  column.type = it->second.type;
+  column.rows = kept.size();
+  column.bytes = encode_shoeboxes(kept);
+  out.set_opaque("shoebox", std::move(column));
+  return out;
+}
+
 void to_dials_convention(Shoebox *box) {
   if (box == nullptr)
     return;

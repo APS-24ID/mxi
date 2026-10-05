@@ -764,42 +764,4 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
       {"scaling_model", json::Array{}}};
 }
 
-json::Value join_experiment_lists(const std::vector<json::Value> &lists) {
-  if (lists.empty())
-    throw std::runtime_error("no experiment lists to join");
-  if (lists.size() == 1)
-    return lists[0];
-  static const char *const kModels[] = {"beam",    "detector",     "goniometer",
-                                        "scan",    "imageset",     "crystal",
-                                        "profile", "scaling_model"};
-  json::Value out = lists[0];
-  json::Object &o = out.as_object();
-  for (std::size_t l = 1; l < lists.size(); ++l) {
-    const json::Object &in = lists[l].as_object();
-    // How many of each model there are already: this list's indices start
-    // there.
-    std::map<std::string, long long> base;
-    for (const char *m : kModels)
-      base[m] =
-          o.count(m) ? static_cast<long long>(o.at(m).as_array().size()) : 0;
-    for (const char *m : kModels) {
-      if (!in.count(m))
-        continue;
-      json::Array &to = o[m].as_array();
-      for (const json::Value &v : in.at(m).as_array())
-        to.push_back(v);
-    }
-    json::Array &experiments = o["experiment"].as_array();
-    for (const json::Value &ev : in.at("experiment").as_array()) {
-      json::Value e = ev;
-      for (auto &[key, value] : e.as_object())
-        if (base.count(key) && value.is_number())
-          value = json::Value(static_cast<long long>(value.as_number()) +
-                              base[key]);
-      experiments.push_back(e);
-    }
-  }
-  return out;
-}
-
 } // namespace mxi

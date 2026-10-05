@@ -1,6 +1,7 @@
 #include "expt.hh"
 
 #include <cmath>
+#include <map>
 
 namespace mxi {
 
@@ -492,6 +493,113 @@ json::Value experiments_to_json(const ExperimentList &list) {
 
 void write_experiments(const std::string &path, const ExperimentList &list) {
   json::dump_file(path, experiments_to_json(list));
+}
+
+json::Value join_experiment_lists(const std::vector<json::Value> &lists) {
+  if (lists.empty())
+    throw std::runtime_error("no experiment lists to join");
+  if (lists.size() == 1)
+    return lists[0];
+  static const char *const kModels[] = {"beam",    "detector",     "goniometer",
+                                        "scan",    "imageset",     "crystal",
+                                        "profile", "scaling_model"};
+  json::Value out = lists[0];
+  json::Object &o = out.as_object();
+  for (std::size_t l = 1; l < lists.size(); ++l) {
+    const json::Object &in = lists[l].as_object();
+    // How many of each model there are already: this list's indices start
+    // there.
+    std::map<std::string, long long> base;
+    for (const char *m : kModels)
+      base[m] =
+          o.count(m) ? static_cast<long long>(o.at(m).as_array().size()) : 0;
+    for (const char *m : kModels) {
+      if (!in.count(m))
+        continue;
+      json::Array &to = o[m].as_array();
+      for (const json::Value &v : in.at(m).as_array())
+        to.push_back(v);
+    }
+    json::Array &experiments = o["experiment"].as_array();
+    for (const json::Value &ev : in.at("experiment").as_array()) {
+      json::Value e = ev;
+      for (auto &[key, value] : e.as_object())
+        if (base.count(key) && value.is_number())
+          value = json::Value(static_cast<long long>(value.as_number()) +
+                              base[key]);
+      experiments.push_back(e);
+    }
+  }
+  return out;
+}
+
+json::Value slice_experiment_list(const json::Value &list, std::size_t index) {
+  static const char *const kModels[] = {"beam",    "detector",     "goniometer",
+                                        "scan",    "imageset",     "crystal",
+                                        "profile", "scaling_model"};
+  const json::Object &in = list.as_object();
+  const json::Array &experiments = in.at("experiment").as_array();
+  if (index >= experiments.size())
+    throw ExptError("an experiment list of " +
+                    std::to_string(experiments.size()) + " has no experiment " +
+                    std::to_string(index));
+  json::Value out = list;
+  json::Object &o = out.as_object();
+  json::Value e = experiments[index];
+  for (const char *m : kModels) {
+    if (!o.count(m))
+      continue;
+    json::Array kept;
+    auto &fields = e.as_object();
+    if (fields.count(m) && fields.at(m).is_number()) {
+      const auto at = static_cast<std::size_t>(fields.at(m).as_number());
+      const json::Array &all = in.at(m).as_array();
+      if (at >= all.size())
+        throw ExptError(std::string("experiment ") + std::to_string(index) +
+                        " names " + m + " " + std::to_string(at) +
+                        ", which the list does not have");
+      kept.push_back(all[at]);
+      fields[m] = json::Value(0);
+    }
+    o[m] = json::Value(kept);
+  }
+  o["experiment"] = json::Value(json::Array{e});
+  return out;
+}
+
+void share_identical(json::Value *list, const std::string &kind) {
+  json::Object &o = list->as_object();
+  if (!o.count(kind) || !o.count("experiment"))
+    return;
+  const json::Array &models = o.at(kind).as_array();
+  // Each model's content, and the first model with the same content: the one
+  // every experiment naming a copy of it will name instead.
+  std::vector<std::size_t> first(models.size());
+  std::vector<std::size_t> kept;
+  std::map<std::string, std::size_t> seen;
+  json::Array unique;
+  for (std::size_t i = 0; i < models.size(); ++i) {
+    const std::string text = json::dump(models[i], 0);
+    const auto it = seen.find(text);
+    if (it == seen.end()) {
+      seen[text] = unique.size();
+      first[i] = unique.size();
+      unique.push_back(models[i]);
+    } else {
+      first[i] = it->second;
+    }
+  }
+  if (unique.size() == models.size())
+    return;
+  for (json::Value &e : o.at("experiment").as_array()) {
+    json::Value &index = e.as_object()[kind];
+    if (index.is_number()) {
+      const auto at = static_cast<std::size_t>(index.as_number());
+      if (at < first.size())
+        index = json::Value(static_cast<long long>(first[at]));
+    }
+  }
+  o[kind] = json::Value(unique);
 }
 
 } // namespace mxi

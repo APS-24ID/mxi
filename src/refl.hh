@@ -163,6 +163,12 @@ Table read_reflections(const std::string &path);
 //: and the identifiers. Undecoded columns -- shoeboxes, and anything else kept
 //: verbatim as bytes -- are left out, since bytes cannot be split by row.
 Table select_rows(const Table &table, const std::vector<std::size_t> &rows);
+//: Tables of the same columns one after another, as several sweeps' are
+//: joined: every decoded column concatenated, the identifier maps merged.
+//: Refused -- not guessed at -- for tables whose columns differ in name, type
+//: or width, and for any column kept as undecoded bytes, which cannot be split
+//: into rows to be checked.
+Table concat_rows(const std::vector<Table> &tables);
 //: Throws ReflError when a binary column of `size` bytes cannot be written:
 //: msgpack's bin32 describes at most 2^32 - 1, and a larger one used to be
 //: written with its length wrapped, leaving everything after it unreadable.

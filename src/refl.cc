@@ -754,4 +754,42 @@ Table select_rows(const Table &table, const std::vector<std::size_t> &rows) {
   return out;
 }
 
+Table concat_rows(const std::vector<Table> &tables) {
+  Table out;
+  if (tables.empty())
+    return out;
+  const std::vector<std::string> names = tables.front().names();
+  out.version = tables.front().version;
+  for (const Table &t : tables) {
+    if (!t.opaque().empty())
+      throw ReflError("concat_rows: the column " + t.opaque().begin()->first +
+                      " is kept as bytes, and cannot be joined row by row");
+    if (t.names() != names)
+      throw ReflError("concat_rows: the tables do not have the same columns");
+    for (const auto &[id, identifier] : t.identifiers)
+      out.identifiers[id] = identifier;
+    out.nrows += t.nrows;
+  }
+  for (const std::string &name : names) {
+    const Column &first = tables.front().at(name);
+    Column to;
+    to.type = first.type;
+    to.width = first.width;
+    to.integral = first.integral;
+    for (const Table &t : tables) {
+      const Column &from = t.at(name);
+      if (from.type != first.type || from.width != first.width ||
+          from.integral != first.integral)
+        throw ReflError("concat_rows: the column " + name +
+                        " differs in type between the tables");
+      if (from.integral)
+        to.ints.insert(to.ints.end(), from.ints.begin(), from.ints.end());
+      else
+        to.reals.insert(to.reals.end(), from.reals.begin(), from.reals.end());
+    }
+    out.set(name, std::move(to));
+  }
+  return out;
+}
+
 } // namespace mxi

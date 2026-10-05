@@ -125,3 +125,26 @@ TEST(a_table_without_shoeboxes_decodes_to_nothing) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(selecting_rows_keeps_each_rows_own_shoebox) {
+  // Several sweeps' strong spots divided among them: rows 2 and 0, in that
+  // order, with their own shoeboxes -- told apart by width and position.
+  Table t =
+      table_with({made(10, 3, 2, 1), made(20, 4, 2, 2), made(30, 5, 3, 1)});
+  Column &x = t.real_column("intensity.sum.value", "double", 1);
+  x.reals = {1.0, 2.0, 3.0};
+  const Table s = select_rows_with_shoeboxes(t, {2, 0});
+  check::equal(static_cast<long long>(s.nrows), 2LL, "two rows");
+  check::close(s.at("intensity.sum.value").real(0), 3.0, 0.0, "row 2 first");
+  check::close(s.at("intensity.sum.value").real(1), 1.0, 0.0, "row 0 second");
+  const std::vector<Shoebox> boxes = decode_shoeboxes(s);
+  check::equal(static_cast<long long>(boxes.size()), 2LL, "two shoeboxes");
+  check::equal(static_cast<long long>(boxes[0].bbox[0]), 30LL, "row 2's box");
+  check::equal(static_cast<long long>(boxes[0].nx()), 5LL, "row 2's width");
+  check::equal(static_cast<long long>(boxes[1].bbox[0]), 10LL, "row 0's box");
+  check::equal(static_cast<long long>(boxes[1].nx()), 3LL, "row 0's width");
+}
+
+} // namespace mxi

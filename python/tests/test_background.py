@@ -68,11 +68,9 @@ def test_a_shadow_shows_in_the_innermost_shell_and_nowhere_else(tmp_path):
     assert abs(b.centre[0] - 1000.0) < 1e-6 and abs(b.centre[1] - 1000.0) < 1e-6
     r = background.ratios(b, background.curve(b))
     assert abs(np.median(r) - 1.0) < 0.02
-    rows = [
-        line.split()
-        for line in background.table(b, shells=10).splitlines()
-        if "%" in line
-    ]
+    text = background.table(b, shells=10)
+    block = text.split("by resolution")[1].split("by azimuth")[0]
+    rows = [line.split() for line in block.splitlines() if "%" in line]
     below = [float(row[-2].rstrip("%")) for row in rows]
     assert below[0] > 0.0 and all(v == 0.0 for v in below[1:]), below
 
@@ -85,3 +83,14 @@ def test_the_figure_is_drawn(tmp_path):
     b = background.load(str(tmp_path / "a.expt"), str(tmp_path / "a.refl"))
     plot.draw(b, str(tmp_path / "b.png"), (50.0, 3.0), 200.0)
     assert (tmp_path / "b.png").stat().st_size > 10000
+
+
+def test_a_range_limits_the_table_and_gives_azimuth_and_image(tmp_path):
+    planted(tmp_path)
+    b = background.load(str(tmp_path / "a.expt"), str(tmp_path / "a.refl"))
+    text = background.table(b, shells=4, d_range=(100.0, 3.0))
+    assert "in 100 to 3 A" in text and "by azimuth around the beam, 100 to 3 A" in text
+    assert "by image, 100 to 3 A" in text
+    block = text.split("by resolution")[1].split("by azimuth")[0]
+    ds = [float(line.split()[0]) for line in block.splitlines() if "%" in line]
+    assert max(ds) <= 100.0

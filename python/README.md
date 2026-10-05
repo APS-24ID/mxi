@@ -95,7 +95,10 @@ azimuth around the beam, and against the image; and that ratio on the detector
 near the beam. The background from air and the sample's surroundings should be
 a smooth function of resolution and polarisation, so this is for looking at
 before modelling it (`docs/backstop.md`). `--range DMAX DMIN` limits the
-azimuth and image panels, `--zoom` the map, `--no-plot` the table alone.
+table to that range and adds tables of the ratio against the azimuth and the
+image there -- the ratio still against the median over all, so a range does
+not move its own reference -- and limits the azimuth and image panels;
+`--zoom` sets the map, `--no-plot` gives the tables alone.
 
 ## Every observation of a reflection
 

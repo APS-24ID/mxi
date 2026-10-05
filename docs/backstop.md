@@ -238,6 +238,77 @@ On the 300 image insulin sweep, which has no flare:
 
 Ferritin, with its flare, is the measurement still to make.
 
+### What ferritin's background shows
+
+`mxeq background` on ferritin, 3600 images:
+
+* **Against resolution, smooth -- except at the lowest**: from 1.8 counts a
+  pixel near 3 A to 0.15 at 1.1 A, the water ring's bump and a spread of a few
+  per cent; but in the lowest-resolution column backgrounds run from 0.2 to 60.
+  There the median means nothing: the innermost reflections cannot be their own
+  reference.
+* **On the detector, the backstop plain**: a blue band left of the beam along
+  the horizontal -- the shadow of the backstop's arm -- and a red ring about the
+  beam, the flare; against azimuth, the arm's shadow as a narrow dip to 0.1 near
+  180 degrees.
+* **Against the image, a wave of some 15 per cent with a period of 1800 images,
+  half a turn**: the sample's surroundings, loop and solvent, changing their
+  path as they rotate. The model needs the rotation as well as resolution and
+  polarisation.
+
+## A model of the background: the design, to be agreed before it is built
+
+**What it is.** The background a reflection should have, from the physics of
+the scatter, fitted to the backgrounds integration measured -- every
+reflection's `background.mean` and its pixel count, no images:
+
+    B(pixel, image) = R(s^2) . P(2theta, azimuth) . Omega(pixel) . Q(pixel) . G(phi)
+
+* **R(s^2), the radial scatter**: air, water, nylon, amorphous ice -- smooth in
+  s^2 = 1/d^2. A cubic B-spline with some 30 knots, and as priors the shapes the
+  physics gives: air's scatter falling smoothly from the beam, water's broad
+  ring near 3.2 A and its second near 2.1. Whether the priors are needed, or a
+  spline with a smoothness penalty suffices, is the first thing to learn from
+  insulin and ferritin.
+* **P, the polarisation**: computed, not fitted, from the beam's polarisation
+  fraction and plane in the experiment list -- the wave insulin shows, 0.8 to
+  1.06 against azimuth.
+* **Omega and Q, the pixel's solid angle and the sensor's efficiency**:
+  computed from the detector's geometry, the obliquity and mu, so that R is in
+  physical units and not bent by the flat detector.
+* **G(phi), the rotation**: a smooth periodic function of the rotation angle, a
+  B-spline as scaling's scale is, for the sample's surroundings' changing path.
+
+**How it is fitted.** In log space, so that the factors add. Each reflection's
+weight from its background's counting variance -- its mean over its pixel
+count -- with an intrinsic spread to be measured (a few per cent on insulin).
+Robustly: a loss that gives an observation far from the model little pull
+(Tukey's or a Huber), iterated, so that the shadow and the flare do not drag the
+curve; and the smoothness of R carries it through the innermost resolutions,
+where nearly every reflection is the backstop's, from those outside.
+
+**What it gives.** For each reflection, its expected background and how many
+standard deviations its own lies from it, combining the counting error and the
+intrinsic spread. A reflection beyond a stated significance is flagged -- low,
+the shadow; high, the flare -- and kept out of profile fitting and scaling. And
+for each resolution shell, how far its residuals' spread exceeds what counting
+and the intrinsic spread allow: a shell that is all over the place, as
+ferritin's innermost is, says so, and can be left out whole.
+
+**What it assumes, to be checked.** That the background is the product of
+those factors -- a ring the sample's surroundings cast unevenly with azimuth
+would break it, and show as structure in the residuals against azimuth. That G
+is the same at every resolution -- a loop's path matters more at some angles
+than others, and would show as structure in the residuals against image by
+shell. Each check is a table `mxeq background` can already print of the
+residuals.
+
+**Where it is built.** First in `mxeq`, as a prototype that writes the expected
+background and each reflection's z beside the table, so that on insulin and
+ferritin its flags can be compared with (3,1,1)'s observations, with `--d-max`,
+and with DIALS through `mxeq unique` -- and Graeme's refinement. Then, if it
+holds, in C++, between integration and scaling.
+
 ## Order, and how each is judged
 
 1. **The background dispersion, measured**: the column, and on ferritin where

@@ -293,6 +293,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="also leave out whole resolution shells whose z spread exceeds this",
     )
     bm.add_argument(
+        "--reject-high",
+        action="store_true",
+        help="take out the reflections whose background is too high as well as too low: "
+        "by default only the too-low go, being the biased",
+    )
+    bm.add_argument(
         "--annotate-only",
         action="store_true",
         help="add background.expected and background.z but change no flags: to judge the "
@@ -475,6 +481,7 @@ def main(argv: list[str] | None = None) -> int:
             args.z_max,
             args.reject_shells,
             annotate_only=args.annotate_only,
+            reject_high=args.reject_high,
             knots_s=args.knots,
             phi_spacing=args.phi_spacing,
             smoothness=args.smoothness,

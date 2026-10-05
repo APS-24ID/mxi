@@ -112,8 +112,10 @@ full turn, penalised for roughness; P the polarisation, Omega the pixel's solid
 angle and Q the sensor's efficiency, computed from the experiment list -- in log
 space, robustly (Tukey's biweight, iterated), each reflection weighted by its
 background's counting variance and an intrinsic spread from the residuals. A
-reflection whose z lies beyond `--z-max` (5) is flagged: in the filtered table
-its integrated flags are cleared and excluded-for-scaling set, so that neither
+reflection whose z lies beyond `--z-max` (5) is flagged, and one whose
+background is too low -- by default only those, being the biased;
+`--reject-high` takes the too-high too -- has, in the filtered table, its
+integrated flags cleared and excluded-for-scaling set, so that neither
 `mxi_scale` nor `dials.scale` takes it. Every reflection gains
 `background.expected` and `background.z`. The report gives, by resolution
 shell, the median of observed over model, the z spread -- 1 where model and

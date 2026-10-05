@@ -110,13 +110,19 @@ def test_the_rotation_is_recovered(tmp_path):
 
 
 def test_the_filtered_table_has_its_flags_right(tmp_path):
+    # By default only the too-low go; with reject_high, the too-high too.
     write(tmp_path)
-    r = bm.run(str(tmp_path / "a.expt"), str(tmp_path / "a.refl"))
-    flags = np.asarray(r.table.columns["flags"]).astype(np.int64)
-    flagged = r.fit.flagged_low | r.fit.flagged_high
-    assert np.all((flags[flagged] & ((1 << 8) | (1 << 9))) == 0)
-    assert np.all(flags[flagged] & (1 << 24))
-    assert np.all(flags[~flagged] == ((1 << 8) | (1 << 9) | 1))
+    base = (1 << 8) | (1 << 9) | 1
+    for reject_high in (False, True):
+        r = bm.run(
+            str(tmp_path / "a.expt"), str(tmp_path / "a.refl"), reject_high=reject_high
+        )
+        flags = np.asarray(r.table.columns["flags"]).astype(np.int64)
+        gone = r.fit.flagged_low | (r.fit.flagged_high if reject_high else False)
+        assert r.fit.flagged_high.any()
+        assert np.all((flags[gone] & ((1 << 8) | (1 << 9))) == 0)
+        assert np.all(flags[gone] & (1 << 24))
+        assert np.all(flags[~gone] == base)
     assert (
         "background.expected" in r.table.columns and "background.z" in r.table.columns
     )

@@ -363,6 +363,38 @@ table measures the moderately affected, and the map the deep. The report also
 lists the fine resolution bins richest in the too-high, which on ferritin should
 show whether the rings fall at ice's spacings.
 
+### On ferritin: which kinds are biased
+
+Annotated (`--annotate-only`), scaled, and `mxeq equivalents` by
+`background.z`, profile fitted, I/sigma 5 and above -- each bin's median against
+the middle bin's, +0.76 per cent, the method's own offset there:
+
+| background z | observations | median, against the middle |
+| --- | --- | --- |
+| below -20 | 4 | -0.75 per cent, too few to say |
+| -20 to -10 | 11 | -18.5 per cent |
+| -10 to -5 | 90 | -8.1 per cent |
+| -5 to -3 | 1430 | -0.55 per cent |
+| 3 to 5 | 8198 | -1.35 per cent |
+| 5 to 10 | 1445 | -1.5 per cent |
+| 10 to 20 | 92 | -1.05 per cent |
+| above 20 | 10 | -0.3 per cent |
+
+**A background too low means an intensity too low**: below z -5, 8 to 18 per
+cent, as attenuation would make them; just inside, -5 to -3, nothing. **A
+background too high barely matters**: the flare, the module edges and the rings
+read 1 to 1.5 per cent low whatever their z -- unusual in background, nearly
+right in intensity, and taking them out would give up some 10000 observations
+for that. So `mxeq background-model` takes out only the too-low by default,
+with `--reject-high` for both.
+
+Not yet measured: the module-sized rectangle at the detector's corner, which
+had most of the 11606 flagged low. Lowering the I/sigma cut to 2 did not bring
+it into the table, so it is most likely beyond the resolution the data were
+scaled to -- the corner is the detector's highest resolution -- and out of
+reach of a comparison with equivalents; it is taken out with the other
+too-low.
+
 ## Order, and how each is judged
 
 1. **The background dispersion, measured**: the column, and on ferritin where

@@ -100,6 +100,28 @@ image there -- the ratio still against the median over all, so a range does
 not move its own reference -- and limits the azimuth and image panels;
 `--zoom` sets the map, `--no-plot` gives the tables alone.
 
+## A model of the background, and the table filtered by it
+
+`mxeq background-model integrated.expt integrated.refl -o filtered.refl`, a
+prototype (`docs/backstop.md`), fits each reflection's background to
+
+    B = R(s) . G(phi) . P . Omega . Q
+
+-- R and G cubic B-splines in s = 1/d and in the rotation, G periodic over a
+full turn, penalised for roughness; P the polarisation, Omega the pixel's solid
+angle and Q the sensor's efficiency, computed from the experiment list -- in log
+space, robustly (Tukey's biweight, iterated), each reflection weighted by its
+background's counting variance and an intrinsic spread from the residuals. A
+reflection whose z lies beyond `--z-max` (5) is flagged: in the filtered table
+its integrated flags are cleared and excluded-for-scaling set, so that neither
+`mxi_scale` nor `dials.scale` takes it. Every reflection gains
+`background.expected` and `background.z`. The report gives, by resolution
+shell, the median of observed over model, the z spread -- 1 where model and
+counting explain the backgrounds -- and how many were flagged low and high;
+`--reject-shells SPREAD` leaves out whole shells beyond it. `--plot` draws R
+and G through the data, z against resolution, and z on the detector by the
+beam. `--knots`, `--phi-spacing` and `--smoothness` shape the splines.
+
 ## Every observation of a reflection
 
 `mxeq observations scaled.expt scaled.refl 1,1,1 2,2,2` lists every observation

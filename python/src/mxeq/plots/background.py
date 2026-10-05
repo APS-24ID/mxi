@@ -119,3 +119,107 @@ def draw(
     fig.tight_layout()
     fig.savefig(path, dpi=110)
     plt.close(fig)
+
+
+def draw_model(
+    fit,
+    bg,
+    x_px,
+    y_px,
+    centre,
+    path: str,
+    z_max: float = 5.0,
+    zoom: float = 250.0,
+    title: str = "",
+) -> None:
+    """The background model against the data: R(s) through the backgrounds
+    with G, P, Omega and Q divided out; G(phi) through them with R, P, Omega
+    and Q divided out; z against resolution; and z on the detector by the beam."""
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    if title:
+        fig.suptitle(title)
+    ok = fit.used & (bg > 0)
+
+    ax = axes[0, 0]
+    y = bg[ok] / (fit.g_row[ok] * fit.known[ok])
+    hb = ax.hexbin(
+        fit.s[ok], y, gridsize=120, yscale="log", bins="log", cmap="Greys", mincnt=1
+    )
+    fig.colorbar(hb, ax=ax, label="reflections (log)")
+    ax.plot(
+        fit.s_curve[0], fit.s_curve[1], color="tab:red", lw=1.5, label="R(s), fitted"
+    )
+    ax.set_yscale("log")
+    ax.set_xlabel("s = 1/d (1/A)")
+    ax.set_ylabel("background over G . P . Omega . Q")
+    ax.legend(fontsize=8)
+    ax.set_title("the radial scatter, R")
+
+    ax = axes[0, 1]
+    y = bg[ok] / (fit.r_row[ok] * fit.known[ok])
+    hb = ax.hexbin(
+        fit.phi[ok],
+        y,
+        gridsize=(120, 60),
+        yscale="log",
+        bins="log",
+        cmap="Greys",
+        mincnt=1,
+    )
+    fig.colorbar(hb, ax=ax, label="reflections (log)")
+    ax.plot(
+        fit.phi_curve[0],
+        fit.phi_curve[1],
+        color="tab:red",
+        lw=1.5,
+        label="G(phi), fitted",
+    )
+    ax.set_yscale("log")
+    ax.set_ylim(0.3, 3.0)
+    ax.set_xlabel("rotation (degrees)")
+    ax.set_ylabel("background over R . P . Omega . Q")
+    ax.legend(fontsize=8)
+    ax.set_title("the rotation, G")
+
+    ax = axes[1, 0]
+    finite = np.isfinite(fit.z)
+    hb = ax.hexbin(
+        fit.s[finite],
+        np.clip(fit.z[finite], -50, 50),
+        gridsize=(120, 80),
+        bins="log",
+        cmap="Greys",
+        mincnt=1,
+    )
+    fig.colorbar(hb, ax=ax, label="reflections (log)")
+    for v in (-z_max, z_max):
+        ax.axhline(v, color="tab:red", lw=0.8, ls="--")
+    ax.set_xlabel("s = 1/d (1/A)")
+    ax.set_ylabel("z, clipped at 50")
+    ax.set_title(f"z against resolution, |z| beyond {z_max:g} flagged")
+
+    ax = axes[1, 1]
+    radius = np.hypot(x_px - centre[0], y_px - centre[1])
+    near = (radius <= zoom) & (np.isfinite(fit.z) | np.isneginf(fit.z))
+    zn = np.clip(np.where(np.isneginf(fit.z[near]), -50, fit.z[near]), -20, 20)
+    sc = ax.scatter(
+        x_px[near] - centre[0],
+        y_px[near] - centre[1],
+        c=zn,
+        s=6,
+        cmap="coolwarm",
+        vmin=-20,
+        vmax=20,
+    )
+    fig.colorbar(sc, ax=ax, label="z, clipped at 20")
+    ax.plot([0], [0], "+", color="k", ms=12)
+    ax.set_xlim(-zoom, zoom)
+    ax.set_ylim(zoom, -zoom)
+    ax.set_aspect("equal")
+    ax.set_xlabel("fast from the beam centre (pixels)")
+    ax.set_ylabel("slow from the beam centre (pixels)")
+    ax.set_title(f"z on the detector, within {zoom:g} pixels of the beam")
+
+    fig.tight_layout()
+    fig.savefig(path, dpi=110)
+    plt.close(fig)

@@ -258,6 +258,50 @@ def build_parser() -> argparse.ArgumentParser:
         "--limit", type=int, default=0, help="keep only the N worst; 0 for all"
     )
 
+    bm = sub.add_parser(
+        "background-model",
+        help="fit a model of the background -- R(s) . G(phi), smooth, times the "
+        "polarisation, solid angle and sensor efficiency -- and write the table with "
+        "the reflections whose background does not fit it flagged out of scaling",
+    )
+    bm.add_argument("expt", help="the integrated experiments")
+    bm.add_argument("refl", help="the integrated reflections")
+    bm.add_argument(
+        "-o",
+        "--output",
+        default="filtered.refl",
+        help="the filtered table (filtered.refl)",
+    )
+    bm.add_argument("--z-max", type=float, default=5.0, help="flag beyond this |z| (5)")
+    bm.add_argument(
+        "--knots", type=int, default=30, help="intervals of R's spline in 1/d (30)"
+    )
+    bm.add_argument(
+        "--phi-spacing", type=float, default=10.0, help="degrees between G's knots (10)"
+    )
+    bm.add_argument(
+        "--smoothness",
+        type=float,
+        default=100.0,
+        help="the roughness penalty, in observations (100)",
+    )
+    bm.add_argument(
+        "--reject-shells",
+        type=float,
+        default=None,
+        metavar="SPREAD",
+        help="also leave out whole resolution shells whose z spread exceeds this",
+    )
+    bm.add_argument(
+        "--plot", default=None, help="draw the model against the data to this file"
+    )
+    bm.add_argument(
+        "--zoom",
+        type=float,
+        default=250.0,
+        help="pixels about the beam in the map (250)",
+    )
+
     bk = sub.add_parser(
         "background",
         help="each reflection's background against resolution, azimuth, image and "
@@ -414,6 +458,41 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "background-model":
+        from . import background as bg_tables
+        from . import background_model
+
+        result = background_model.run(
+            args.expt,
+            args.refl,
+            args.z_max,
+            args.reject_shells,
+            knots_s=args.knots,
+            phi_spacing=args.phi_spacing,
+            smoothness=args.smoothness,
+        )
+        print(result.report)
+        refl.write(args.output, result.table)
+        print(f"\nWrote {args.output}")
+        if args.plot:
+            from .plots import background as background_plot
+
+            centre = bg_tables.load(args.expt, args.refl).centre
+            px = np.asarray(result.table.columns["xyzcal.px"]).reshape(-1, 3)
+            background_plot.draw_model(
+                result.fit,
+                np.asarray(result.table.columns["background.mean"], float).ravel(),
+                px[:, 0],
+                px[:, 1],
+                centre,
+                args.plot,
+                args.z_max,
+                args.zoom,
+                args.refl,
+            )
+            print(f"Wrote {args.plot}")
+        return 0
 
     if args.command == "background":
         from . import background

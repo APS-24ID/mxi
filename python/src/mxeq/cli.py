@@ -258,6 +258,53 @@ def build_parser() -> argparse.ArgumentParser:
         "--limit", type=int, default=0, help="keep only the N worst; 0 for all"
     )
 
+    at = sub.add_parser(
+        "attenuation",
+        help="each scaled observation good or attenuated, from its equivalents and its "
+        "background together, attenuation only lowering: the flags for mxi_scale's next round",
+    )
+    at.add_argument("expt", help="the scaled experiments")
+    at.add_argument("refl", help="the scaled reflections")
+    at.add_argument(
+        "-o", "--output", default=None, help="the scaled table with the judgement added"
+    )
+    at.add_argument(
+        "--apply-to",
+        default=None,
+        help="mxi_scale's input, to write with the flags applied",
+    )
+    at.add_argument(
+        "--next", default="next.refl", help="where --apply-to writes (next.refl)"
+    )
+    at.add_argument(
+        "--show",
+        nargs="*",
+        default=[],
+        metavar="H,K,L",
+        help="list these reflections' judgement",
+    )
+    at.add_argument(
+        "--threshold", type=float, default=0.5, help="flag above this probability (0.5)"
+    )
+    at.add_argument(
+        "--prior-mid",
+        type=float,
+        default=0.6,
+        help="background ratio where the prior is a half (0.6)",
+    )
+    at.add_argument(
+        "--prior-width",
+        type=float,
+        default=0.1,
+        help="the prior's step width in ratio (0.1)",
+    )
+    at.add_argument(
+        "--min-i-sigma",
+        type=float,
+        default=3.0,
+        help="judge reflections at least this strong (3)",
+    )
+
     bm = sub.add_parser(
         "background-model",
         help="fit a model of the background -- R(s) . G(phi), smooth, times the "
@@ -485,6 +532,34 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "attenuation":
+        from . import attenuation, observations
+
+        j = attenuation.load_and_judge(
+            args.expt,
+            args.refl,
+            prior_mid=args.prior_mid,
+            prior_width=args.prior_width,
+            min_i_sigma=args.min_i_sigma,
+            threshold=args.threshold,
+        )
+        print(attenuation.report(j))
+        table = refl.load(args.refl)
+        hall = expt.load(args.expt)[0].crystal.hall
+        for h in args.show:
+            print()
+            print(attenuation.show(j, table, hall, observations.parse_index(h)))
+        if args.output:
+            refl.write(args.output, attenuation.annotate(table, j))
+            print(f"\nWrote {args.output}")
+        if args.apply_to:
+            nxt, n = attenuation.apply_to(args.apply_to, table, j)
+            refl.write(args.next, nxt)
+            print(
+                f"\nWrote {args.next}: {args.apply_to} with {n} observations flagged out"
+            )
+        return 0
 
     if args.command == "background-model":
         from . import background as bg_tables

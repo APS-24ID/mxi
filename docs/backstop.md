@@ -491,6 +491,39 @@ and Graeme's refinement; then, if it holds, inside `mxi_scale`'s outlier
 rejection, where it also mends item 53 -- a few small sigmas outvoting many good
 observations. `--reject-inner` stays, an option.
 
+### The prototype, `mxeq attenuation`
+
+Built as designed, with Graeme's three answers: the background compared locally,
+knowing the flare can bias it; rejected, not corrected; iterated outside
+`mxi_scale` for now. Two additions found in building it. A reflection observed
+fewer than three times has no group to compare with, and one too weak for its
+equivalents is perhaps weak because attenuated: both are judged by the
+background alone, against the background model's expectation where the table
+has it. And flags accumulate -- an observation flagged is left out of the next
+scaling and not judged again.
+
+Tested on planted reflections, each part failing without it: a (3,1,1) of 13
+unharmed and 14 attenuated, the 14 gone and Ibar near 950; 3000 ordinary
+reflections under half a per cent flagged, and the flare none -- a neutral prior
+in place of the background's flags too many; 6 at 950 against 12 at 475 on
+normal backgrounds, the upper winning -- attenuation either way takes the
+lower; a weak reflection's dimmed observations flagged by background alone; one
+observed once judged against the model.
+
+On the 300 image insulin sweep: 32 flagged, among them the shadowed (1,1,0),
+judged by its background alone (0.46 of the model's, prior 0.80); one round of
+scaling and judging again flags nothing more; the innermost shell's CC1/2 0.977
+to 0.978, I/sigma 46.5 to 46.8.
+
+**An open question for Graeme.** Most of insulin's 32 are not the backstop's:
+backgrounds 0.83 to 0.95 of their reflection's, intensities 0.65 to 0.83 of its
+mean, at every resolution. A strong reflection's observation that far low is so
+improbable as good that a prior of 0.06 does not hold it. Mild attenuation would
+look so, but with backgrounds varying some 15 per cent between equivalents in
+any case, the background cannot tell; these may be ordinary low outliers, which
+the design meant to leave to the standard test. Whether to require clearer
+background evidence before calling an observation attenuated is the question.
+
 ## Order, and how each is judged
 
 1. **The background dispersion, measured**: the column, and on ferritin where

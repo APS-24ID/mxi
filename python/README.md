@@ -136,6 +136,23 @@ and where reflections were removed -- background too low, too high, by whole
 shells -- and kept,
 over the whole detector and by the beam. `--knots`, `--phi-spacing` and `--smoothness` shape the splines.
 
+## Attenuation, judged from the equivalents and the background together
+
+`mxeq attenuation scaled.expt scaled.refl` -- a prototype (`docs/backstop.md`)
+-- judges each observation scaling considered, its own outliers among them,
+good or attenuated: good, I ~ N(Ibar, sigma^2) with sigma at Ibar; attenuated,
+I ~ N(T Ibar, sigma^2) with T uniform on (0, 1), so that attenuation only
+lowers. The prior is from its background against its reflection's 75th
+percentile -- each divided first by the background model's expectation where
+`mxeq background-model --annotate-only` has added one -- and expectation-
+maximisation finds Ibar. A reflection too weak for its equivalents to judge, or
+observed fewer than three times, is judged by its background alone, against the
+model's expectation; without one it is kept. Observations more likely
+attenuated than good are flagged: `--apply-to symmetrized.refl --next
+next.refl` writes `mxi_scale`'s next input with them left out, to iterate until
+nothing more is flagged, and `--show H,K,L` lists one reflection's judgement.
+Flags accumulate: one flagged is not judged again.
+
 ## Every observation of a reflection
 
 `mxeq observations scaled.expt scaled.refl 1,1,1 2,2,2` lists every observation

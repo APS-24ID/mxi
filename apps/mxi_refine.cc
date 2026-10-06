@@ -31,7 +31,8 @@ void usage() {
       "  --no-detector     hold the detector fixed\n"
       "  --beam            refine the beam direction too (off: correlated\n"
       "                    with the detector on a single sweep)\n"
-      "  --separate        one crystal per experiment instead of one shared\n"
+      "  --shared-crystal  several sweeps: one crystal for them all, where by\n"
+      "                    default each refines its own (--separate, as was)\n"
       "  --conditional-depth  mean depth given absorption, not eqn (6)\n"
       "  --scan-varying [N]  control points in A across the scan. "
       "Scan-varying\n"
@@ -155,6 +156,7 @@ int run_program(int argc, char **argv) {
                                        "--no-detector",
                                        "--beam",
                                        "--separate",
+                                       "--shared-crystal",
                                        "--macrocycles",
                                        "--outlier-sigma",
                                        "--output-expt",
@@ -209,7 +211,11 @@ int run_program(int argc, char **argv) {
   options.crystal = !args.has("--no-crystal");
   options.detector = !args.has("--no-detector");
   options.beam = args.has("--beam");
-  options.shared_crystal = !args.has("--separate");
+  // Several sweeps refine a crystal each by default, as DIALS refines them:
+  // indexing put them in one basis, and one matrix cannot fit sweeps no
+  // goniometer quite returns between. --separate was the way to ask for this
+  // and is still taken.
+  options.shared_crystal = args.has("--shared-crystal");
   options.unit_weights = args.has("--unit-weights");
   options.strong_only = args.has("--strong-only");
   options.analytic = args.has("--analytic");

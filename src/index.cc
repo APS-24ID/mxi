@@ -695,14 +695,30 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
   for (Experiment &e : experiments)
     e.crystal = result.crystal;
 
+  // Each reflection's experiment, for indices assigned through its own sweep's
+  // crystal once the sweeps have been refined apart.
+  std::vector<std::size_t> experiment_of(reflections.nrows, 0);
+  if (reflections.has("id"))
+    for (std::size_t i = 0; i < reflections.nrows; ++i) {
+      const std::int64_t id = reflections.at("id").integer(i);
+      if (id > 0 && static_cast<std::size_t>(id) < experiments.size())
+        experiment_of[i] = static_cast<std::size_t>(id);
+    }
+  bool split = false;
+
   // Assign indices under the current model. Returns how many took.
   const auto assign = [&](const std::vector<Vec3> &rlp) {
     Column &miller =
         reflections.int_column("miller_index", "cctbx::miller::index<>", 3);
-    const Mat3 rows = result.crystal.A.inverse();
+    const Mat3 shared_rows = result.crystal.A.inverse();
+    std::vector<Mat3> rows_of;
+    if (split)
+      for (const Experiment &e : experiments)
+        rows_of.push_back(e.crystal ? e.crystal->A.inverse() : shared_rows);
     double sum_squared = 0.0;
     std::size_t count = 0;
     for (std::size_t i = 0; i < rlp.size(); ++i) {
+      const Mat3 &rows = split ? rows_of[experiment_of[i]] : shared_rows;
       const Vec3 h = rows * rlp[i];
       double worst = 0.0;
       double miss = 0.0;
@@ -786,6 +802,11 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
     // pass, and which no amount of threading the analytical path could help
     // because the analytical path was never called.
     refinement.analytic = true;
+    // With several sweeps the last cycle refines each sweep's crystal apart,
+    // from the one matrix the cycles before refined together.
+    const bool per_sweep = options.split_sweeps && experiments.size() > 1 &&
+                           cycle + 1 == options.macrocycles;
+    refinement.shared_crystal = !per_sweep;
     const RefineResult r = refine(experiments, subset, refinement);
     result.timing.refine += now_seconds() - t_refine;
     if (r.n_used == 0)
@@ -794,6 +815,7 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
     result.cycles_run = cycle + 1;
     if (experiments[0].crystal)
       result.crystal = *experiments[0].crystal;
+    split = per_sweep;
 
     const double t_reassign = now_seconds();
     assign(reciprocal_lattice_points(experiments, reflections));
@@ -806,11 +828,14 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
     record.rmsd_y = r.rmsd_y;
     record.rmsd_z = r.rmsd_z;
     record.rmsd_index = result.rmsd_index;
+    record.per_sweep = per_sweep;
     result.cycles.push_back(record);
   }
 
-  for (Experiment &e : experiments)
-    e.crystal = result.crystal;
+  // One crystal for every sweep, unless the last cycle gave each its own.
+  if (!split)
+    for (Experiment &e : experiments)
+      e.crystal = result.crystal;
   result.timing.macrocycles = now_seconds() - t_cycles;
   result.timing.total = now_seconds() - t_total;
   return result;

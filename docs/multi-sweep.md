@@ -62,7 +62,10 @@ of them -- and mxi should, from `mxi_import` to `mxi_scale`.
    the program on a list of that one sweep -- its reflections, by `id`, with
    their shoeboxes for its profile model -- `--postrefine` and all; then the
    tables joined, each row its sweep's `id`, and the lists joined, each sweep
-   with its own profile model. A crystal the sweeps came in sharing, and none
+   with its own profile model, and its `imageset_id` its image set's in the
+   joined list -- each sweep's run writes 0, and left so every sweep's spots fell
+   on the first image set in dials.image_viewer (Graeme, on four sweeps; the
+   programs go by `id` and never noticed). A crystal the sweeps came in sharing, and none
    changed, is written once, shared, as DIALS writes it. One sweep never takes
    this path, and is byte-identical to before. `--save-shoeboxes` and
    `--save-profiles` are refused for several, not yet joined. On the insulin

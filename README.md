@@ -120,8 +120,11 @@ takes each sweep from its own images; symmetry pools them; scaling gives each
 sweep a model of its own (`docs/multi-sweep.md`).
 
 ```sh
-mxi_import a.nxs b.nxs c.nxs d.nxs                          # one experiment a sweep
+mxi_import ins10_1.nxs ins10_2.nxs ins10_3.nxs ins10_4.nxs  # one experiment a sweep
 ```
+
+-- the four sweeps of cubic insulin, each at its own orientation, of
+https://zenodo.org/records/8376818, on which the chain works well.
 `dials.merge` takes `scaled.refl` to make a merged MTZ file.
 
 On the 3600 images of an EIGER2 XE 16M sweep -- `ins10_1.nxs` of

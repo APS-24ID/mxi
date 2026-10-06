@@ -63,7 +63,10 @@ crystal indexed together (`docs/multi-sweep.md`), and needs nothing of DIALS:
 every core by default.
 
 **Several sweeps** (5 and 6 October, `docs/multi-sweep.md`): every program from
-`mxi_import` to `mxi_scale` takes several sweeps of one crystal, as DIALS does.
+`mxi_import` to `mxi_scale` takes several sweeps of one crystal, as DIALS does,
+and works well -- Graeme -- on the four cubic insulin sweeps at their own
+orientations of https://zenodo.org/records/8376818 (ins10_1 to ins10_4; ins10_1 is
+the insulin sweep used throughout).
 The protocol, Graeme's from DIALS: index with one matrix, which puts the sweeps
 in one basis; the last indexing cycle and `mxi_refine` then refine a crystal for
 each sweep apart (`--shared-crystal` keeps one); integration takes each sweep
@@ -101,13 +104,6 @@ with an independent reference model are the candidates. Terms: the backstop
 shadow is the low-count region, the flare the high-background region around it.
 
 **Waiting on Graeme's data or hardware:**
-
-* **Several sweeps, on threonine** (`docs/multi-sweep.md`): every program takes
-  several -- tried on insulin split in two, and by Graeme on a four-sweep data
-  set, where it worked well once each sweep had its own crystal. Graeme's
-  threonine -- two sweeps from Diamond's I03, dials.import's list reproduced;
-  the trusted range's 133201 needs its `_meta.h5` beside the master -- needs its
-  images or intermediate files.
 
 * **8BXT, a third not profile fitted** (item 51): `mxeq failures` on its table,
   integrated without `--gpu`, says which reason and where.

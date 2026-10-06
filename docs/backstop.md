@@ -84,7 +84,7 @@ chosen:
 
 ## What was found
 
-On ferritin (zenodo 8376818), DIALS's inner shell had the better CC1/2 (0.9998
+On ferritin, DIALS's inner shell had the better CC1/2 (0.9998
 against mxi's 0.9992), and the two data sets' merged intensities correlated
 there at only 0.971 against 0.99 and above everywhere else (`mxeq unique`). The
 reflections responsible are the lowest-resolution ones, beside the beam

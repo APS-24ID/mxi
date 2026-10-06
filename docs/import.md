@@ -1,12 +1,9 @@
 # mxi_import
 
 STATUS: first version, 2 October 2026; several masters, 5 October. Right on
-masters from three writers -- DECTRIS's for insulin (the 4M cut of ins10_1),
-redhorn-archive's for thaumatin (thau_1_3), Diamond I03's for threonine
-(thr_7_1, thr_7_3, two sweeps) -- its goniometer, axes, sensor, mu, trusted
-range and scan identical to dials.import's on insulin, and on threonine every
-model of both experiments but the exposure time, and the trusted range where
-the detector's meta file is not at hand. To be made right on the population of
+masters from two writers -- DECTRIS's for insulin (the 4M cut of ins10_1),
+redhorn-archive's for thaumatin (thau_1_3) -- its goniometer, axes, sensor, mu,
+trusted range and scan identical to dials.import's on insulin. To be made right on the population of
 data sets one at a time, `mxeq compare-expt` saying what differs.
 
 `mxi_import master.nxs` writes `imported.expt`, as `dials.import master.nxs`
@@ -88,18 +85,15 @@ master, the differences were the origin and image size -- a different file --
 and the exposure time, 0.0026 s here where dials.import wrote 0; to settle on a
 matched pair.
 
-On threonine, two sweeps from Diamond's I03, against dials.import of both
-masters, `mxeq compare-expt` comparing experiment by experiment: every model
-the same in each but two. The exposure time again, 0.01 s against 0. And the
-trusted range's top: dials.import's 133201 is the detector's count limit at
-this exposure, which the master names -- `saturation_value` is a link to
-`/_dectris/countrate_correction_count_cutoff` in `thr_7_1_meta.h5`, and the bit
-depth another into it. Without that file here, the link cannot be followed.
-mxi_import had taken it for absent and fallen back to 65534 -- itself the
+Two things learned from Diamond's Eiger masters. Their offsets come without
+`offset_units`, in metres, and had been taken as millimetres -- the detector a
+thousandth of the way out; now read in the transformation's units, as nxmx
+reads them. And their count limit and bit depth are links into the `_meta.h5`
+beside the master: without that file the links cannot be followed, and
+mxi_import had taken them for absent and fallen back to 65534 -- itself the
 bad-pixel marker, and a 16-bit limit wrongly applied to 32-bit data. Now it
-says where the link leads, and with neither limit to be had takes 2147483647,
-as dxtbx does; with the meta file beside the master it reads 133201, the lower
-of that and the 32-bit type's limit, as dials.import does.
+says where a link leads, takes the lower of the two limits when they can be
+read, and 2147483647 when neither can, as dxtbx does.
 
 ## Untested
 

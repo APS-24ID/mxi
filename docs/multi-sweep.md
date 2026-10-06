@@ -1,15 +1,14 @@
 # More than one sweep
 
-STATUS: 6 October 2026; all six steps built. Tried on one sweep split in two,
-and run by Graeme on a data set of four sweeps, where the crystal shared through
-refinement left the RMSDs high -- now a crystal a sweep, refined apart after
-indexing with one matrix, as DIALS does, and with that it worked well. The
-threonine sweeps, at their own settings, still to come. DIALS processes several sweeps of
+STATUS: 6 October 2026; all six steps built, and working well on a genuine
+four-sweep data set at different orientations: cubic insulin from Diamond's
+i04, four full turns of 3600 images each (https://zenodo.org/records/8376818 --
+ins10_1 is the first of them). There the crystal shared through refinement had
+left the RMSDs high; with a crystal a sweep, refined apart after indexing with
+one matrix, as DIALS does, it works well (Graeme). DIALS processes several sweeps of
 one crystal together -- imported as one experiment each, indexed jointly to one
 crystal, refined, integrated sweep by sweep, and symmetry and scaling over all
-of them -- and mxi should, from `mxi_import` to `mxi_scale`. The data: Graeme's
-threonine, two sweeps from Diamond's I03, with dials.import's experiment list to
-reproduce; small-molecule data, whose intermediate files can be shared.
+of them -- and mxi should, from `mxi_import` to `mxi_scale`.
 
 ## Where each program stands
 
@@ -26,8 +25,7 @@ reproduce; small-molecule data, whose intermediate files can be shared.
 ## The steps
 
 1. **`mxi_import`, several masters** -- built: one experiment a master, each
-   with its own models, as dials.import writes them; on threonine every model
-   of both as dials.import's but two fields (`docs/import.md`). With it, an
+   with its own models, as dials.import writes them (`docs/import.md`). With it, an
    offset without `offset_units` read in its transformation's units, and
    `mxeq compare-expt` comparing experiment by experiment.
 2. **`mxi_find`** -- built: the spots of every experiment, from its own images,
@@ -45,7 +43,7 @@ reproduce; small-molecule data, whose intermediate files can be shared.
    image's index, a scan's frames, its fraction and its start and end measured
    from there. Then the halves together index 98.1 per cent, as either alone;
    a scan from image one byte-identical through integration.
-   **A crystal a sweep** (Graeme, on four sweeps: the cell held identical
+   **A crystal a sweep** (Graeme, on the four insulin sweeps: the cell held identical
    across them in refinement, and the RMSDs high). DIALS's protocol: index with
    one matrix, which puts the sweeps in one basis, then in refinement a crystal
    for each scan, refined apart. So now `mxi_index`'s macrocycles refine the one
@@ -122,9 +120,9 @@ is estimated from the spots refinement used.
 
 ## How each is tested
 
-Here, without the threonine images: the insulin sweep, whose images are at
-hand, split in two -- imported twice, `--image-range 1,150` and `151,300`, and the
-two lists joined into two experiments of one crystal -- which runs every program's path for several
-sweeps and has a single-sweep answer to agree with. Then on threonine, from
-Graeme's intermediate files: `strong.refl` onwards, against DIALS's at each
-boundary.
+Here: the insulin sweep, whose images are at hand, split in two -- imported
+twice, `--image-range 1,150` and `151,300`, and the two lists joined into two
+experiments of one crystal -- which runs every program's path for several sweeps
+and has a single-sweep answer to agree with; and the tests built on it. Then the
+real test, by Graeme: the four insulin sweeps of https://zenodo.org/records/8376818,
+each at its own orientation, the whole chain from their masters.

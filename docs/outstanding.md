@@ -224,15 +224,13 @@ where something is missing.
   or polarisation from the file, materials but silicon.
 
 ## Infrastructure
-  Threonine, two sweeps from Diamond's I03 (5 October): an offset without
-  offset_units, in metres, had been taken as millimetres -- fixed, as nxmx
-  reads it. Then every model of both experiments as dials.import's but the
-  exposure time and the trusted range's top, 65534 against 133201. The 133201 is
-  the detector's count limit, which the master names by a link into its
-  _meta.h5, not uploaded; 65534 was a fallback that was itself a marker and a
-  16-bit limit on 32-bit data. Now the lower of the detector's limit and
-  2^bits - 3, a broken link said so, and 2147483647 with neither (Graeme's
-  correction, 5 October).
+  Diamond's Eiger masters (5 October): an offset without offset_units, in
+  metres, had been taken as millimetres -- fixed, as nxmx reads it. And their
+  count limit and bit depth are links into the _meta.h5 beside the master; a
+  link that cannot be followed had been taken for absent, and the fallback,
+  65534, was itself a marker and a 16-bit limit on 32-bit data. Now the lower of
+  the detector's limit and 2^bits - 3, a broken link said so, and 2147483647 with
+  neither (Graeme's correction).
   And a scan not beginning at image one had every angle wrong by its start --
   z anchored to image one where dxtbx anchors it to the scan's first image --
   fixed with several sweeps (`docs/multi-sweep.md`, step 3).

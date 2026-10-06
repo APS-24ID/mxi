@@ -204,8 +204,9 @@ together; beyond it (`docs/outstanding.md` has the numbered list):
 
 * **Sweeps indexed apart**, and so the indexing ambiguity between them --
   sweeps indexed together are in one basis, each then refining a crystal of its
-  own. Multi-sweep processing has been tried on one sweep split in two and on a
-  four-sweep data set of Graeme's (`docs/multi-sweep.md`).
+  own. Multi-sweep processing works on one sweep split in two and, by Graeme,
+  on the four sweeps of cubic insulin at their own orientations
+  (https://zenodo.org/records/8376818; `docs/multi-sweep.md`).
 * Free-set validation of scaling; overlapping
   reflections and overloads in integration; e.s.d.s for the cell, and the cell
   constrained to the lattice's symmetry, in refinement.

@@ -107,6 +107,7 @@ mxi_refine    indexed.expt indexed.refl --analytic          # -> refined.expt, .
 mxi_integrate refined.expt refined.refl                     # -> integrated.expt, .refl
 mxi_symmetry  integrated.expt integrated.refl               # -> symmetrized.expt, .refl
 mxi_scale     symmetrized.expt symmetrized.refl --d-min-auto  # -> scaled.expt, .refl
+mxi_export    scaled.expt scaled.refl                       # -> scaled.mtz, unmerged
 ```
 
 Each step reads the previous one's pair of files and writes its own, under the
@@ -141,6 +142,7 @@ wall time and 3m42 of CPU (30 September 2026).
 | `mxi_refine` | refines beam, detector and crystal; scan-varying by default, one control point per 10 degrees; several sweeps a crystal each | `--analytic` analytical derivatives (recommended), `--shared-crystal` one crystal for several sweeps, `--beam` the beam direction too, `--static` one crystal setting for the scan, `--scan-varying N` N control points |
 | `mxi_integrate` | predicts, integrates by summation and profile fitting, in one pass over the images | `-g`/`--gpu` profile fitting on the GPU, `--threads N` (default every core), `--d-min D`, `--d-max D` a low resolution limit, `--postrefine` refine against integration's own centres and integrate again, `--summation-only`, `--save-shoeboxes`, `--save-background-parameters` the background's dispersion, under investigation |
 | `mxi_symmetry` | determines the Laue group, reindexes, and makes the cell the group's (a = b = c and 90 degrees for cubic) | `--max-delta D` the lattice's obliquity tolerance, `--threads N` |
+| `mxi_export` | an unmerged MTZ with a batch header an image, as dials.export writes it | `-o PATH`, `--partiality-threshold P` (0.4), `--min-isigi S` (-5), `--d-min D` |
 | `mxi_scale` | scales, with an error model, and reports merging statistics | `--d-min-auto` cut where CC half falls to 0.3, `--d-min D`, `--d-max D` a low resolution limit, `--space-group NAME`, `--l-max L` absorption surface degree, `--anomalous` Friedel mates apart for a strong anomalous signal, `--threads N` |
 
 Every program takes `--help` for the rest, and `--version`.
@@ -276,6 +278,7 @@ The pipeline:
 | `mxi_integrate` | summation and profile fitting; see `docs/integration.md` |
 | `mxi_symmetry` | the Laue group and space group, and the data reindexed into them; see `docs/symmetry.md` |
 | `mxi_scale` | scaling, one sweep or several, the error model, merging statistics; see `docs/scaling.md` |
+| `mxi_export` | an unmerged MTZ for CCP4, as dials.export writes it; see `docs/export.md` |
 
 For looking inside it:
 

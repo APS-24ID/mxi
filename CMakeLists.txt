@@ -165,6 +165,23 @@ add_executable(mxi_scale apps/mxi_scale.cc)
 target_link_libraries(mxi_scale PRIVATE mxi)
 target_compile_options(mxi_scale PRIVATE -Wall -Wextra)
 
+# gemmi's MTZ writer, for mxi_export: a library of its own, as it wants zlib
+# and nothing else here does.
+find_package(ZLIB REQUIRED)
+add_library(mxi_gemmi_mtz STATIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/gemmi/src/mtz.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/gemmi/src/gz.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/gemmi/src/sprintf.cpp)
+target_include_directories(mxi_gemmi_mtz SYSTEM PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/gemmi/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/gemmi/third_party)
+target_link_libraries(mxi_gemmi_mtz PUBLIC ZLIB::ZLIB mxi_gemmi)
+target_compile_options(mxi_gemmi_mtz PRIVATE -w)
+
+add_executable(mxi_export apps/mxi_export.cc)
+target_link_libraries(mxi_export PRIVATE mxi mxi_gemmi_mtz)
+target_compile_options(mxi_export PRIVATE -Wall -Wextra)
+
 add_executable(mxi_symmetry apps/mxi_symmetry.cc)
 target_link_libraries(mxi_symmetry PRIVATE mxi)
 target_compile_options(mxi_symmetry PRIVATE -Wall -Wextra)

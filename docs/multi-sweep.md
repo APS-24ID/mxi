@@ -14,8 +14,8 @@ reproduce; small-molecule data, whose intermediate files can be shared.
 | --- | --- |
 | `mxi_import` | built: several masters, one experiment each (step 1) |
 | `mxi_find` | built: each experiment from its own images, one table with `id`s (step 2) |
-| `mxi_index` | joint indexing to one crystal: right, once a scan's frames were (step 3) |
-| `mxi_refine` | several experiments, the crystal shared, built |
+| `mxi_index` | joint indexing with one matrix, then each sweep's crystal refined apart (step 3) |
+| `mxi_refine` | several experiments, a crystal each by default |
 | `mxi_integrate` | built: each sweep alone, its own profile model, one table with `id`s (step 4) |
 | `mxi_symmetry` | built: the sweeps pooled, every experiment reindexed alike (step 5) |
 | `mxi_scale` | built: a model a sweep, sharing the merged intensities (step 6) |
@@ -42,6 +42,21 @@ reproduce; small-molecule data, whose intermediate files can be shared.
    image's index, a scan's frames, its fraction and its start and end measured
    from there. Then the halves together index 98.1 per cent, as either alone;
    a scan from image one byte-identical through integration.
+   **A crystal a sweep** (Graeme, on four sweeps: the cell held identical
+   across them in refinement, and the RMSDs high). DIALS's protocol: index with
+   one matrix, which puts the sweeps in one basis, then in refinement a crystal
+   for each scan, refined apart. So now `mxi_index`'s macrocycles refine the one
+   matrix together, and with several sweeps the last refines each sweep's
+   crystal apart from it, indices then assigned through each reflection's own
+   sweep's crystal; `mxi_refine` refines several sweeps a crystal each by
+   default (it had `--separate`, never the default). `--shared-crystal` keeps
+   one in either. One sweep byte-identical to before through both. Insulin's
+   halves: refined apart, RMSD 0.297, 0.228 px, 0.244 images, as each half alone
+   (0.288 to 0.302, 0.225 to 0.231, 0.236 to 0.246), where shared gave 0.296,
+   0.242, 0.248; the two crystals' orientations within a thousandth of a degree
+   -- one basis -- their cells within 0.03 per cent; symmetry and scaling as
+   with one crystal. Small on one sweep cut in two, as it must be; four real
+   sweeps are where it counts.
 4. **`mxi_integrate`** -- built. Each sweep integrated alone, by a whole run of
    the program on a list of that one sweep -- its reflections, by `id`, with
    their shoeboxes for its profile model -- `--postrefine` and all; then the
@@ -92,7 +107,7 @@ carries its sweep's index as `id` from spot finding on:
 ```sh
 mxi_import    a.nxs b.nxs                          # one experiment a master
 mxi_find      imported.expt -o strong.refl         # each sweep from its own images
-mxi_index     imported.expt strong.refl            # jointly: one crystal
+mxi_index     imported.expt strong.refl            # one matrix, then a crystal a sweep
 mxi_refine    indexed.expt indexed.refl
 mxi_integrate refined.expt refined.refl            # each sweep alone, then joined
 mxi_symmetry  integrated.expt integrated.refl      # pooled

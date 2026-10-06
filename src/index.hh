@@ -95,6 +95,12 @@ struct IndexOptions {
   //: than DIALS and the cell 0.15 per cent large; refining on reflections with
   //: at least ten signal pixels reproduces DIALS to ten microns.
   bool refine_on_strong = true;
+  //: Several sweeps: indexed with one matrix, which puts them in one basis,
+  //: then the last macrocycle refining each sweep's crystal on its own,
+  //: starting from that matrix, as DIALS's protocol has it -- no goniometer
+  //: returns to quite the same place, and one matrix across four sweeps left
+  //: the RMSDs high. False keeps one crystal throughout.
+  bool split_sweeps = true;
   bool verbose = false;
 };
 
@@ -113,6 +119,8 @@ struct IndexCycle {
   //: which has no unit: a measure of how well the lattice fits, not of where
   //: spots are predicted.
   double rmsd_index = 0.0;
+  //: Whether the cycle refined each sweep's crystal apart.
+  bool per_sweep = false;
 };
 
 struct IndexResult {

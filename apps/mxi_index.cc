@@ -41,6 +41,8 @@ void usage() {
       "  --output-expt P  (default indexed.expt)\n"
       "  --output-refl P  (default indexed.refl)\n"
       "  --macrocycles N  assign/refine/re-assign cycles (3)\n"
+      "  --shared-crystal  several sweeps: one crystal throughout, where by\n"
+      "                   default the last cycle refines each sweep's apart\n"
       "  --all-reflections  refine on everything, not the stronger half\n"
       "  --verbose         also print the search: candidate vectors, the fit\n"
       "                    at each tolerance, and the cell before reduction\n"
@@ -64,7 +66,8 @@ int run_program(int argc, char **argv) {
                                        "--all-reflections",
                                        "--timing",
                                        "--jacobian-threads",
-                                       "--fft-threads"};
+                                       "--fft-threads",
+                                       "--shared-crystal"};
   const std::set<std::string> takes_value = {
       "--d-min",       "--max-cell",    "--grid",
       "--tolerance",   "--candidates",  "--output-expt",
@@ -105,6 +108,7 @@ int run_program(int argc, char **argv) {
   options.n_candidates =
       static_cast<std::size_t>(args.number("--candidates", 30));
   options.macrocycles = static_cast<int>(args.number("--macrocycles", 3));
+  options.split_sweeps = !args.has("--shared-crystal");
   options.refine_on_strong = !args.has("--all-reflections");
   const std::string out_expt = args.value("--output-expt", "indexed.expt");
   const std::string out_refl = args.value("--output-refl", "indexed.refl");
@@ -152,9 +156,10 @@ int run_program(int argc, char **argv) {
                   "(px)", "(px)", "(images)", "RMSD");
       for (std::size_t c = 0; c < result.cycles.size(); ++c) {
         const IndexCycle &k = result.cycles[c];
-        std::printf("  %5zu %10zu %8zu %8zu %8.3f %8.3f %8.3f %8.4f\n", c + 1,
+        std::printf("  %5zu %10zu %8zu %8zu %8.3f %8.3f %8.3f %8.4f%s\n", c + 1,
                     k.refined_on, k.rejected, k.indexed, k.rmsd_x, k.rmsd_y,
-                    k.rmsd_z, k.rmsd_index);
+                    k.rmsd_z, k.rmsd_index,
+                    k.per_sweep ? "  each sweep's crystal apart" : "");
       }
       std::printf("\n");
     }
@@ -165,6 +170,13 @@ int run_program(int argc, char **argv) {
         "Unit cell: %.3f %.3f %.3f A, %.3f %.3f %.3f deg; volume %.0f A^3\n",
         cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma,
         cell.volume());
+    // Each sweep's, when the last cycle refined them apart.
+    if (!result.cycles.empty() && result.cycles.back().per_sweep)
+      for (std::size_t i = 0; i < experiments.size(); ++i) {
+        const UnitCell c = experiments[i].crystal->cell();
+        std::printf("  sweep %zu: %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n", i,
+                    c.a, c.b, c.c, c.alpha, c.beta, c.gamma);
+      }
 
     set_indexed_flags(reflections);
     add_reciprocal_columns(experiments, reflections);

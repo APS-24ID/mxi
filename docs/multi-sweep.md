@@ -1,7 +1,10 @@
 # More than one sweep
 
-STATUS: 5 October 2026; all six steps built, tried on one sweep split in two;
-the threonine sweeps, at their own settings, still to come. DIALS processes several sweeps of
+STATUS: 6 October 2026; all six steps built. Tried on one sweep split in two,
+and run by Graeme on a data set of four sweeps, where the crystal shared through
+refinement left the RMSDs high -- now a crystal a sweep, refined apart after
+indexing with one matrix, as DIALS does, and with that it worked well. The
+threonine sweeps, at their own settings, still to come. DIALS processes several sweeps of
 one crystal together -- imported as one experiment each, indexed jointly to one
 crystal, refined, integrated sweep by sweep, and symmetry and scaling over all
 of them -- and mxi should, from `mxi_import` to `mxi_scale`. The data: Graeme's
@@ -56,7 +59,7 @@ reproduce; small-molecule data, whose intermediate files can be shared.
    0.242, 0.248; the two crystals' orientations within a thousandth of a degree
    -- one basis -- their cells within 0.03 per cent; symmetry and scaling as
    with one crystal. Small on one sweep cut in two, as it must be; four real
-   sweeps are where it counts.
+   sweeps are where it counts -- and on Graeme's four, it worked well.
 4. **`mxi_integrate`** -- built. Each sweep integrated alone, by a whole run of
    the program on a list of that one sweep -- its reflections, by `id`, with
    their shoeboxes for its profile model -- `--postrefine` and all; then the

@@ -3,8 +3,8 @@
 **Reviewing this code?** Start with `docs/review.md`: what this is, how it differs
 from DIALS and why, and where to find things.
 
-An independent implementation of the MX data-reduction chain for one rotation
-sweep, from the images to scaled intensities: spot finding -- on the CPU, or the
+An independent implementation of the MX data-reduction chain for rotation data
+-- one sweep, or several of one crystal -- from the images to scaled intensities: spot finding -- on the CPU, or the
 GPU through Metal or CUDA -- indexing, refinement, integration, symmetry
 determination and scaling, in C++; plus `mxeq`, a checker that compares its
 output against DIALS' and explains the differences. It reads and writes DIALS'
@@ -111,6 +111,17 @@ mxi_scale     symmetrized.expt symmetrized.refl --d-min-auto  # -> scaled.expt, 
 
 Each step reads the previous one's pair of files and writes its own, under the
 names shown unless `--output-expt` and `--output-refl` (or `-o`) say otherwise.
+
+**Several sweeps of one crystal** go through the same chain: name every master
+to `mxi_import`, and each program takes them all. Indexing finds one matrix for
+every sweep, which puts them in one basis, then refines a crystal for each
+sweep apart from it; refinement refines the sweeps a crystal each; integration
+takes each sweep from its own images; symmetry pools them; scaling gives each
+sweep a model of its own (`docs/multi-sweep.md`).
+
+```sh
+mxi_import a.nxs b.nxs c.nxs d.nxs                          # one experiment a sweep
+```
 `dials.merge` takes `scaled.refl` to make a merged MTZ file.
 
 On the 3600 images of an EIGER2 XE 16M sweep -- `ins10_1.nxs` of

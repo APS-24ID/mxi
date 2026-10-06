@@ -48,7 +48,8 @@ was found.
 
 ## Handover: where the work stands
 
-STATUS: written 4 October 2026, 325 commits, for a new session to pick up
+STATUS: written 4 October 2026, 325 commits; several sweeps added 6 October,
+344 commits. For a new session to pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in
 flight and how the work is done here. People follow this project: keep the
 README, `docs/review.md` and this handover true as things change.
@@ -60,6 +61,19 @@ crystal indexed together (`docs/multi-sweep.md`), and needs nothing of DIALS:
 `mxi_import`, `mxi_find`, `mxi_index`, `mxi_refine`, `mxi_integrate`,
 `mxi_symmetry`, `mxi_scale`, each interchangeable with DIALS at its boundary,
 every core by default.
+
+**Several sweeps** (5 and 6 October, `docs/multi-sweep.md`): every program from
+`mxi_import` to `mxi_scale` takes several sweeps of one crystal, as DIALS does.
+The protocol, Graeme's from DIALS: index with one matrix, which puts the sweeps
+in one basis; the last indexing cycle and `mxi_refine` then refine a crystal for
+each sweep apart (`--shared-crystal` keeps one); integration takes each sweep
+alone and joins them; symmetry pools them; scaling gives each a model of its
+own, the overall scale and B fixed over all of them together. On the way: a
+scan not starting at image one had every angle wrong by its start (z anchored
+at image one, where dxtbx anchors it at the scan's first image); the trusted
+range is the lower of the detector's count limit and 2^bits - 3, a broken link
+into a `_meta.h5` said so; and two sessions once ran at once on this
+repository -- check `git log` and `git status` before starting work.
 
 **Done since the last handover (308):** `mxi_max` and `mxi_find --gpu-force`,
 32-bit frames thresholded on a GPU of 16 bits; both of the detector's markers --
@@ -89,10 +103,11 @@ shadow is the low-count region, the flare the high-background region around it.
 **Waiting on Graeme's data or hardware:**
 
 * **Several sweeps, on threonine** (`docs/multi-sweep.md`): every program takes
-  several, built and tried on insulin split in two. Graeme's threonine -- two
-  sweeps from Diamond's I03, dials.import's list reproduced; the trusted range's
-  133201 needs its `_meta.h5` beside the master -- needs its images or
-  intermediate files.
+  several -- tried on insulin split in two, and by Graeme on a four-sweep data
+  set, where it worked well once each sweep had its own crystal. Graeme's
+  threonine -- two sweeps from Diamond's I03, dials.import's list reproduced;
+  the trusted range's 133201 needs its `_meta.h5` beside the master -- needs its
+  images or intermediate files.
 
 * **8BXT, a third not profile fitted** (item 51): `mxeq failures` on its table,
   integrated without `--gpu`, says which reason and where.

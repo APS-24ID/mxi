@@ -1,6 +1,6 @@
 # Reviewing this code: a guide for DIALS developers
 
-STATUS: written 30 September 2026 for external review, brought up to date 5
+STATUS: written 30 September 2026 for external review, brought up to date 6
 October 2026. It says what this is,
 how to build and run it on your own data, where the code for each step lives,
 what follows DIALS and where it departs from it, and how correctness has been
@@ -40,7 +40,7 @@ Its size, excluding third-party code: the library 15350 lines in `src/` and the
 spot finder 6339 in `src/spots/`; eleven programs in 4273 lines in `apps/`, and
 `mxi_find` in `src/spots/find_spots.cc`; C++ tests 14465 lines; a Python package
 of comparison tools, `mxeq`, 5950 lines, with 2852 of tests; 5400 lines of
-documents. Some 336 commits over three weeks.
+documents. Some 344 commits over three weeks.
 
 ## Building it and running it on your data
 
@@ -48,7 +48,7 @@ documents. Some 336 commits over three weeks.
 git clone --recursive <this repository> && cd mxi
 cmake -S . -B build && cmake --build build -j
 (cd build && ctest)              # the ctest suites, the spot finder's among them
-build/mxi_tests                  # 284 unit tests
+build/mxi_tests                  # 291 unit tests
 ```
 
 Add `-DSPOTFINDER_METAL=ON` or `-DSPOTFINDER_CUDA=ON` for the GPU threshold and profile fitting,
@@ -202,9 +202,10 @@ phase of every program is reported by `--timing`.
 The chain is complete for one sweep and for several of one crystal indexed
 together; beyond it (`docs/outstanding.md` has the numbered list):
 
-* **Sweeps indexed apart**, and so the indexing ambiguity between them; and
-  multi-sweep processing tried only on one sweep split in two, not yet on real
-  sweeps at different settings (`docs/multi-sweep.md`).
+* **Sweeps indexed apart**, and so the indexing ambiguity between them --
+  sweeps indexed together are in one basis, each then refining a crystal of its
+  own. Multi-sweep processing has been tried on one sweep split in two and on a
+  four-sweep data set of Graeme's (`docs/multi-sweep.md`).
 * Free-set validation of scaling; overlapping
   reflections and overloads in integration; e.s.d.s for the cell, and the cell
   constrained to the lattice's symmetry, in refinement.
@@ -243,7 +244,7 @@ that depends on strength and orientation.
   answer depends on the thread count (`src/parallel.hh`).
 * **Tests that are shown to fail.** A new test is run against the bug it guards
   -- the fix taken out, or the bug put back -- before it is trusted; the commit
-  messages record it. 272 C++ unit tests, 10 ctest suites, 170-odd Python tests,
+  messages record it. 291 C++ unit tests, 10 ctest suites, 230-odd Python tests,
   and end-to-end tests on real images that run when the data are named.
 * **The documents are tested too**: `python/tests/test_documents.py` fails on any
   path or program a document names that does not exist.

@@ -36,10 +36,15 @@ overrides apply to every master alike.
   offset, fast then slow.
 * **The sensor:** `sensor_material` (Silicon, CdTe, GaAs, Ge to their symbols),
   `sensor_thickness`, and mu -- not in the file -- from Hubbell and Seltzer's NIST
-  mass attenuation coefficients, interpolated log-log in energy, times the
-  density: on insulin's 0.953738 A, 3.663092965478474 per mm, dials.import's to
-  the last digit. Only silicon is tabulated; another material has mu 0, no
-  parallax correction, and says so -- `--mu`.
+  mass attenuation coefficients as cctbx's eltbx tabulates them and dials.import
+  reads them, for the materials dxtbx knows: silicon, CdTe and GaAs. Log-log in
+  energy, the interval found by cctbx's own rule -- the first point above the
+  energy and the one before it -- which matters at CdTe's and GaAs's absorption
+  edges, in the MX range and given twice in the tables: Cd's K edge at 26.711
+  keV takes mu/rho from 9.834 to 29.43 cm^2/g. Times cctbx's density -- 2.33,
+  6.2 and 5.32 g/cm^3 -- on insulin's 0.953738 A, 3.663092965478474 per mm for
+  silicon, dials.import's to the last digit. Another material, or an energy
+  outside its table, has mu 0, no parallax correction, and says so -- `--mu`.
 * **The trusted range:** 0 to the lower of two limits. The detector's: the
   count a photon counter can still correct for, set mainly by the exposure
   time -- as low as 31881 at 2 ms, far higher for longer -- which the master
@@ -99,4 +104,5 @@ read, and 2147483647 when neither can, as dxtbx does.
 
 A detector of several modules (each becomes a panel; nothing downstream has
 been run on one); a moving detector; a beam direction or polarisation from the
-file; scans about any axis but the outermost's; materials other than silicon.
+file; scans about any axis but the outermost's; a real CdTe or GaAs master (mu
+checked against cctbx's values on planted ones).

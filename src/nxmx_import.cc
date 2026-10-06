@@ -449,7 +449,10 @@ first_existing(hid_t file, std::initializer_list<std::string> paths) {
 
 double attenuation_coefficient(const std::string &material, double wavelength) {
   // Hubbell and Seltzer, NIST mass attenuation coefficients with coherent
-  // scattering: energy keV, mu/rho cm^2/g, above the K edge for the MX range.
+  // scattering, energy keV and mu/rho cm^2/g, as cctbx's eltbx tabulates them
+  // and dials.import reads them -- the materials dxtbx knows: Si, CdTe, GaAs.
+  // Silicon from 2 keV, above its K edge; CdTe and GaAs whole, their edges in
+  // the MX range given twice, below and above.
   struct Table {
     const char *name;
     double density; // g/cm^3
@@ -472,24 +475,66 @@ double attenuation_coefficient(const std::string &material, double wavelength) {
                               {60.0, 0.3207},
                               {80.0, 0.2228},
                               {100.0, 0.1835}}};
-  if (material != "Si" || !(wavelength > 0.0))
+  // cctbx's eltbx table, entry 93: 59 points.
+  static const Table cadmium_telluride{
+      "CdTe",
+      6.2,
+      {{1, 7927},        {1.003, 7875},    {1.006, 7824},   {1.006, 8014},
+       {1.5, 3291},      {2, 1664},        {3, 614.6},      {3.537, 406.4},
+       {3.537, 778.7},   {3.631, 730},     {3.727, 684},    {3.727, 860.1},
+       {4, 723},         {4.018, 715.1},   {4.018, 793.4},  {4.177, 722.1},
+       {4.341, 656.2},   {4.341, 932.8},   {4.475, 873.9},  {4.612, 813.5},
+       {4.612, 943.8},   {4.773, 870.2},   {4.939, 799.9},  {4.939, 865.3},
+       {5, 839.2},       {6, 528.6},       {8, 249.2},      {10, 138.1},
+       {15, 46.57},      {20, 21.44},      {26.711, 9.834}, {26.711, 29.43},
+       {30, 21.82},      {31.814, 18.73},  {31.814, 34.92}, {40, 19.3},
+       {50, 10.67},      {60, 6.542},      {80, 3.019},     {100, 1.671},
+       {150, 0.6071},    {200, 0.3246},    {300, 0.1628},   {400, 0.1147},
+       {500, 0.09291},   {600, 0.08042},   {800, 0.066},    {1000, 0.05742},
+       {1250, 0.05043},  {1500, 0.04591},  {2000, 0.0407},  {3000, 0.03649},
+       {4000, 0.03525},  {5000, 0.03513},  {6000, 0.03548}, {8000, 0.03687},
+       {10000, 0.03857}, {15000, 0.04273}, {20000, 0.04616}}};
+  // cctbx's eltbx table, entry 94: 58 points.
+  static const Table gallium_arsenide{
+      "GaAs",
+      5.32,
+      {{1, 1917},        {1.05613, 1685},  {1.1154, 1481},   {1.1154, 2772},
+       {1.12877, 3180},  {1.1423, 3532},   {1.1423, 4372},   {1.21752, 4130},
+       {1.2977, 3657},   {1.2977, 4066},   {1.31034, 3971},  {1.3231, 3879},
+       {1.3231, 5652},   {1.34073, 5525},  {1.3586, 5415},   {1.3586, 6266},
+       {1.5, 5159},      {1.5265, 4939},   {1.5265, 5278},   {2, 2731},
+       {3, 970.2},       {4, 453.9},       {5, 249.5},       {6, 152.4},
+       {8, 69.6},        {10, 37.8},       {10.3671, 34.25}, {10.3671, 126},
+       {11.0916, 105.9}, {11.8667, 88.99}, {11.8667, 168.5}, {15, 92.2},
+       {20, 42.58},      {30, 13.97},      {40, 6.262},      {50, 3.365},
+       {60, 2.042},      {80, 0.9587},     {100, 0.5598},    {150, 0.2509},
+       {200, 0.1671},    {300, 0.1137},    {400, 0.09371},   {500, 0.08248},
+       {600, 0.07484},   {800, 0.06452},   {1000, 0.05751},  {1250, 0.05122},
+       {1500, 0.04676},  {2000, 0.04102},  {3000, 0.03538},  {4000, 0.03288},
+       {5000, 0.03172},  {6000, 0.03121},  {8000, 0.03117},  {10000, 0.0317},
+       {15000, 0.03354}, {20000, 0.03543}}};
+  const Table *t = material == "Si"     ? &silicon
+                   : material == "CdTe" ? &cadmium_telluride
+                   : material == "GaAs" ? &gallium_arsenide
+                                        : nullptr;
+  if (!t || !(wavelength > 0.0))
     return 0.0;
-  const Table &t = silicon;
   const double energy = kHcKeVA / wavelength;
-  if (energy < t.points.front().first || energy > t.points.back().first)
+  // cctbx's find_energy_index: the first point above the energy, and the
+  // interval before it -- at an edge, given twice, the interval above it; log
+  // log between its ends, as mu_rho_at_ev. Outside the table, nothing.
+  std::size_t above = 0;
+  while (above < t->points.size() && !(energy < t->points[above].first))
+    ++above;
+  if (above == 0 || above == t->points.size())
     return 0.0;
-  for (std::size_t i = 0; i + 1 < t.points.size(); ++i) {
-    const auto [e0, m0] = t.points[i];
-    const auto [e1, m1] = t.points[i + 1];
-    if (energy >= e0 && energy <= e1) {
-      const double f =
-          (std::log(energy) - std::log(e0)) / (std::log(e1) - std::log(e0));
-      const double mu_rho =
-          std::exp(std::log(m0) + f * (std::log(m1) - std::log(m0)));
-      return mu_rho * t.density / 10.0; // 1/cm to 1/mm
-    }
-  }
-  return 0.0;
+  const auto [e0, m0] = t->points[above - 1];
+  const auto [e1, m1] = t->points[above];
+  const double mu_rho =
+      std::exp(std::log(m0) + (std::log(m1) - std::log(m0)) *
+                                  (std::log(energy) - std::log(e0)) /
+                                  (std::log(e1) - std::log(e0)));
+  return mu_rho * t->density / 10.0; // 1/cm to 1/mm
 }
 
 json::Value import_nxmx(const std::string &master, const ImportOverrides &o,

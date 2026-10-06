@@ -44,15 +44,25 @@ CHI = 20.0
 PIVOT_M = np.array([0.0, 0.005, 0.002])  # the two-theta arm's offset: not at the sample
 
 
-def plant(path, chi=CHI, module_offset_offset=None, saturation=20000, meta=None):
+def plant(
+    path,
+    chi=CHI,
+    module_offset_offset=None,
+    saturation=20000,
+    meta=None,
+    material=b"Silicon",
+    wavelength=1.0,
+):
     with h5py.File(path, "w") as f:
         e = f.create_group("entry")
         e.attrs["NX_class"] = "NXentry"
         beam = e.create_group("instrument/beam")
-        beam.create_dataset("incident_wavelength", data=1.0).attrs["units"] = "angstrom"
+        beam.create_dataset("incident_wavelength", data=wavelength).attrs["units"] = (
+            "angstrom"
+        )
         det = e.create_group("instrument/detector")
         det.attrs["NX_class"] = "NXdetector"
-        det.create_dataset("sensor_material", data=b"Silicon")
+        det.create_dataset("sensor_material", data=material)
         det.create_dataset("sensor_thickness", data=0.00045).attrs["units"] = "m"
         if meta is not None:
             # As DECTRIS masters give them: links into the _meta.h5 beside it,
@@ -430,3 +440,33 @@ def test_a_link_into_a_missing_meta_file_is_said_so(tmp_path):
         in out
     )
     assert "which cannot be opened" in out
+
+
+# mu in 1/mm, from cctbx's eltbx tables -- parsed from its
+# attenuation_coefficient.cpp and looked up by its own rule (the first point
+# above the energy, the interval before it, log-log), independently of
+# mxi_import's code -- as dials.import computes it. Either side of the Cd K
+# edge at 26.711 keV, and past the table's end.
+MU_FROM_CCTBX = [
+    ("Silicon", 1.0, 4.207985875566818),
+    ("CdTe", 1.0, 48.11463840098675),
+    ("GaAs", 1.0, 80.07998629661657),
+    ("CdTe", 0.46463323212022556, 6.113517802096811),  # 0.1 per cent below the edge
+    ("CdTe", 0.46370489399411124, 18.199624769356834),  # 0.1 per cent above it
+    ("CdTe", 0.3, 10.97168695998142),
+]
+
+
+@needs_import
+@pytest.mark.parametrize("material, wavelength, mu", MU_FROM_CCTBX)
+def test_mu_is_cctbx_s_for_each_sensor_material(tmp_path, material, wavelength, mu):
+    plant(tmp_path / "master.nxs", material=material.encode(), wavelength=wavelength)
+    result = subprocess.run(
+        [IMPORT, str(tmp_path / "master.nxs"), "-o", str(tmp_path / "imported.expt")],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    p = json.load(open(tmp_path / "imported.expt"))["detector"][0]["panels"][0]
+    assert p["mu"] == pytest.approx(mu, rel=1e-9)
+    assert "no attenuation coefficient tabulated" not in result.stdout

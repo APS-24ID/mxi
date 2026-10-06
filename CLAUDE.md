@@ -90,9 +90,9 @@ shadow is the low-count region, the flare the high-background region around it.
 
 * **Several sweeps, on threonine** (`docs/multi-sweep.md`): every program takes
   several, built and tried on insulin split in two. Graeme's threonine -- two
-  sweeps from Diamond's I03, dials.import's list reproduced but for the trusted
-  range -- needs its images or intermediate files, and its `_meta.h5` for the
-  trusted range's top (133201 in dials.import, 65534 here).
+  sweeps from Diamond's I03, dials.import's list reproduced; the trusted range's
+  133201 needs its `_meta.h5` beside the master -- needs its images or
+  intermediate files.
 
 * **8BXT, a third not profile fitted** (item 51): `mxeq failures` on its table,
   integrated without `--gpu`, says which reason and where.

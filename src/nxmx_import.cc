@@ -393,6 +393,50 @@ std::vector<std::string> groups_of_class(hid_t file, const std::string &root,
   return out;
 }
 
+//: A path that is named but does not open: every link to it there, the object
+//: not -- an external link into a file that is not beside the master, as a
+//: DECTRIS master's saturation_value is into its _meta.h5. Said so, where it
+//: leads, rather than taken for absent.
+std::optional<std::string> unreachable(hid_t file, const std::string &path) {
+  if (path.empty() || path == "/")
+    return std::nullopt;
+  std::string so_far;
+  std::size_t at = path[0] == '/' ? 1 : 0;
+  while (at <= path.size()) {
+    const std::size_t next = path.find('/', at);
+    so_far +=
+        "/" + path.substr(at, next == std::string::npos ? std::string::npos
+                                                        : next - at);
+    if (H5Lexists(file, so_far.c_str(), H5P_DEFAULT) <= 0)
+      return std::nullopt; // not named at all
+    if (next == std::string::npos)
+      break;
+    at = next + 1;
+  }
+  if (H5Oexists_by_name(file, path.c_str(), H5P_DEFAULT) > 0)
+    return std::nullopt; // there
+#if H5_VERSION_GE(1, 12, 0)
+  H5L_info2_t info;
+  const herr_t got = H5Lget_info2(file, path.c_str(), &info, H5P_DEFAULT);
+#else
+  H5L_info_t info;
+  const herr_t got = H5Lget_info(file, path.c_str(), &info, H5P_DEFAULT);
+#endif
+  if (got >= 0 && info.type == H5L_TYPE_EXTERNAL && info.u.val_size > 0) {
+    std::vector<char> value(info.u.val_size);
+    const char *target_file = nullptr, *target = nullptr;
+    unsigned flags = 0;
+    if (H5Lget_val(file, path.c_str(), value.data(), value.size(),
+                   H5P_DEFAULT) >= 0 &&
+        H5Lunpack_elink_val(value.data(), value.size(), &flags, &target_file,
+                            &target) >= 0 &&
+        target_file && target)
+      return path + " links to " + target + " in " + target_file +
+             ", which cannot be opened";
+  }
+  return path + " is named but cannot be opened";
+}
+
 std::optional<std::string>
 first_existing(hid_t file, std::initializer_list<std::string> paths) {
   for (const std::string &p : paths)
@@ -525,28 +569,91 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
     notes->push_back(
         "no attenuation coefficient tabulated for " + material +
         " at this wavelength: mu 0, so no parallax correction; give --mu");
+  // The trusted range's top: the lower of two limits. The detector's own --
+  // the count a photon counter can still correct for, set by the exposure
+  // time, as low as 31881 at 2 ms and higher for longer -- which the master
+  // gives as saturation_value or the count cutoff. And the data type's: the
+  // two largest values of the image's type are markers, a bad pixel and a
+  // tile join, so the largest count is 2^bits - 3. The bit depth from the
+  // master, or the first data file's own type; not the virtual dataset's,
+  // which a writer may widen (int64 over 32-bit counts).
   double trusted_max = 0.0;
   if (o.trusted_max) {
     trusted_max = *o.trusted_max;
-  } else if (auto s = first_existing(
-                 f,
-                 {detector + "/saturation_value",
-                  detector +
-                      "/detectorSpecific/countrate_correction_count_cutoff"})) {
-    trusted_max = read_doubles(f, *s).at(0);
   } else {
-    int bits = 16;
-    if (exists(f, detector + "/bit_depth_readout"))
-      bits = static_cast<int>(
-          read_doubles(f, detector + "/bit_depth_readout").at(0));
-    else if (exists(f, detector + "/bit_depth_image"))
-      bits = static_cast<int>(
-          read_doubles(f, detector + "/bit_depth_image").at(0));
-    trusted_max = std::ldexp(1.0, bits) - 2.0;
-    notes->push_back("no saturation_value or count cutoff: the trusted range's "
-                     "top taken as " +
-                     std::to_string(static_cast<long long>(trusted_max)) +
-                     ", just below the bad-pixel marker; give --trusted-max");
+    std::optional<double> detector_limit;
+    std::optional<int> bits;
+    std::string bits_from;
+    const std::vector<std::string> limits = {
+        detector + "/saturation_value",
+        detector + "/detectorSpecific/countrate_correction_count_cutoff"};
+    for (const std::string &p : limits) {
+      if (exists(f, p)) {
+        detector_limit = read_doubles(f, p).at(0);
+        break;
+      }
+      if (auto why = unreachable(f, p))
+        notes->push_back(*why);
+    }
+    for (const char *name : {"/bit_depth_image", "/bit_depth_readout"}) {
+      const std::string p = detector + name;
+      if (exists(f, p)) {
+        bits = static_cast<int>(read_doubles(f, p).at(0));
+        bits_from = p;
+        break;
+      }
+      if (auto why = unreachable(f, p))
+        notes->push_back(*why);
+    }
+    if (!bits) {
+      // The data files' own type: the first linked one there.
+      for (int k = 1; k <= 9 && !bits; ++k) {
+        char name[32];
+        std::snprintf(name, sizeof name, "/entry/data/data_%06d", k);
+        if (!exists(f, name))
+          continue;
+        H5 d(H5Dopen2(f, name, H5P_DEFAULT), H5Dclose);
+        if (!d.ok())
+          continue;
+        H5 t(H5Dget_type(d.get()), H5Tclose);
+        if (t.ok() && H5Tget_class(t.get()) == H5T_INTEGER) {
+          bits = static_cast<int>(8 * H5Tget_size(t.get()));
+          bits_from = std::string(name) + "'s type";
+        }
+      }
+    }
+    const std::optional<double> type_limit =
+        bits ? std::optional<double>(std::ldexp(1.0, *bits) - 3.0)
+             : std::nullopt;
+    if (detector_limit && type_limit) {
+      trusted_max = std::min(*detector_limit, *type_limit);
+      if (*type_limit < *detector_limit)
+        notes->push_back(
+            "the detector's count limit, " +
+            std::to_string(static_cast<long long>(*detector_limit)) +
+            ", is above what " + std::to_string(*bits) +
+            "-bit data can hold below its markers: the trusted "
+            "range's top is " +
+            std::to_string(static_cast<long long>(*type_limit)));
+    } else if (detector_limit) {
+      trusted_max = *detector_limit;
+    } else if (type_limit) {
+      trusted_max = *type_limit;
+      notes->push_back("no count limit could be read: the trusted range's top "
+                       "is " +
+                       std::to_string(static_cast<long long>(*type_limit)) +
+                       ", the largest " + std::to_string(*bits) +
+                       "-bit count below the markers (" + bits_from +
+                       "); give --trusted-max for the detector's own");
+    } else {
+      trusted_max = 2147483647.0;
+      notes->push_back(
+          "neither the detector's count limit nor the data's bit depth could "
+          "be read: the trusted range's top is 2147483647, as dxtbx takes a "
+          "file without one, so no count is distrusted for its size -- the "
+          "markers are recognised either way. Give --trusted-max, or put the "
+          "files the master links to beside it");
+    }
   }
 
   json::Array panels;

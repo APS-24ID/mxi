@@ -5,7 +5,8 @@ masters from three writers -- DECTRIS's for insulin (the 4M cut of ins10_1),
 redhorn-archive's for thaumatin (thau_1_3), Diamond I03's for threonine
 (thr_7_1, thr_7_3, two sweeps) -- its goniometer, axes, sensor, mu, trusted
 range and scan identical to dials.import's on insulin, and on threonine every
-model of both experiments but the trusted range and the exposure time. To be made right on the population of
+model of both experiments but the exposure time, and the trusted range where
+the detector's meta file is not at hand. To be made right on the population of
 data sets one at a time, `mxeq compare-expt` saying what differs.
 
 `mxi_import master.nxs` writes `imported.expt`, as `dials.import master.nxs`
@@ -42,9 +43,20 @@ overrides apply to every master alike.
   density: on insulin's 0.953738 A, 3.663092965478474 per mm, dials.import's to
   the last digit. Only silicon is tabulated; another material has mu 0, no
   parallax correction, and says so -- `--mu`.
-* **The trusted range:** 0 to `saturation_value`, or the DECTRIS
-  `countrate_correction_count_cutoff`, or failing both just below the bad-pixel
-  marker, said so -- `--trusted-max`.
+* **The trusted range:** 0 to the lower of two limits. The detector's: the
+  count a photon counter can still correct for, set mainly by the exposure
+  time -- as low as 31881 at 2 ms, far higher for longer -- which the master
+  gives as `saturation_value` or the DECTRIS `countrate_correction_count_cutoff`.
+  And the data type's: the two largest values of the image's type are markers,
+  a bad pixel and a tile join, so the largest count is 2^bits - 3, 65533 for 16
+  bits. The bit depth from `bit_depth_image` or `bit_depth_readout`, or the
+  first data file's own type -- not the virtual dataset's, which a writer may
+  widen (Diamond's is int64 over its counts). A DECTRIS master gives both
+  limits as links into the `_meta.h5` beside it: a link into a file that is not
+  there is said so, where it leads, not taken for absent. With neither limit
+  to be had the top is 2147483647, as dxtbx takes a file without one -- no
+  count distrusted for its size, the markers recognised either way -- said so.
+  `--trusted-max` overrides it all.
 * **The goniometer:** the rotations of `/entry/sample/depends_on`'s chain,
   innermost first, written as the file gives their vectors (not normalised, as
   dials.import writes them); the one whose values change the scan axis at angle
@@ -79,11 +91,15 @@ matched pair.
 On threonine, two sweeps from Diamond's I03, against dials.import of both
 masters, `mxeq compare-expt` comparing experiment by experiment: every model
 the same in each but two. The exposure time again, 0.01 s against 0. And the
-trusted range's top, 65534 here against dials.import's 133201: the master has no
-saturation value, from which dxtbx's NeXus reader would take 0x7FFFFFFF, so the
-133201 came from elsewhere -- most likely the detector's `_meta.h5` beside the
-master, which dxtbx's Diamond format finds. Open until that file is seen; give
-`--trusted-max` meanwhile, as data of 32 bits are wrongly distrusted at 65534.
+trusted range's top: dials.import's 133201 is the detector's count limit at
+this exposure, which the master names -- `saturation_value` is a link to
+`/_dectris/countrate_correction_count_cutoff` in `thr_7_1_meta.h5`, and the bit
+depth another into it. Without that file here, the link cannot be followed.
+mxi_import had taken it for absent and fallen back to 65534 -- itself the
+bad-pixel marker, and a 16-bit limit wrongly applied to 32-bit data. Now it
+says where the link leads, and with neither limit to be had takes 2147483647,
+as dxtbx does; with the meta file beside the master it reads 133201, the lower
+of that and the 32-bit type's limit, as dials.import does.
 
 ## Untested
 

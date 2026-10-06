@@ -155,6 +155,23 @@ std::vector<Vec3> reciprocal_lattice_points(const ExperimentList &experiments,
 // reciprocal lattice points.
 double estimate_max_cell(const std::vector<Vec3> &points);
 
+//: DIALS's histogram rule for the largest cell from nearest-neighbour
+//: distances, in direct space (A): those above 1 A, the longest 1 per cent
+//: left out, binned about five to a bin; the far edge of the last bin above a
+//: quarter of the tallest, times `multiplier` (1.3). 0 for too few.
+double max_cell_from_neighbours(std::vector<double> direct,
+                                double multiplier = 1.3);
+
+//: The largest cell as dials.index's find_max_cell estimates it: spots in an
+//: ice ring (hexagonal ice, DIALS's powder-ring filter, width 0.004 in d*^2)
+//: and spots whose boxes overlap left out; each spot's nearest neighbour in
+//: reciprocal space within its sweep, its 45 degree block and its entering or
+//: exiting set; then max_cell_from_neighbours. `points` are the reflections'
+//: reciprocal lattice points, in order.
+double estimate_max_cell_as_dials(const ExperimentList &experiments,
+                                  const Table &reflections,
+                                  const std::vector<Vec3> &points);
+
 //: The same, comparing each point only with others in its own group.
 //:
 //: A reflection measured on turn n and again on turn n+1 is at the same place

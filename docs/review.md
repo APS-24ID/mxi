@@ -124,7 +124,12 @@ detector's pixel mask not read -- only the sentinel values in the data -- which
 is the one real omission.
 
 **Indexing** is the three-dimensional FFT (Bricogne 1986), as DIALS' `fft3d`,
-with a macrocycle of assignment and refinement: assigning once admitted 380
+its largest cell estimated as `find_max_cell` does -- ice rings and
+overlapping boxes left out, nearest neighbours by sweep, 45 degree block and
+entering or not, the edge of their histogram's peak times 1.3. The margin
+matters: the median times 1.5, as it was, let a small molecule with a second
+lattice in it index in a supercell twice the true one's volume. And it has a
+macrocycle of assignment and refinement: assigning once admitted 380
 weak misindexed reflections that moved the refined distance by 0.27 mm without
 producing a single outlier (`CLAUDE.md`, "Where the cell and distance difference
 from DIALS actually came from"). Given DIALS' own indexed reflections, this

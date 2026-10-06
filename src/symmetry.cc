@@ -167,6 +167,7 @@ void reindex(ExperimentList &experiments, Table &reflections,
       continue;
     cb.apply(*e.crystal);
     e.crystal->space_group_hall = group.hall();
+    regularise_cell(*e.crystal, group);
   }
   if (!reflections.has("miller_index"))
     return;
@@ -203,6 +204,39 @@ Rotation from_gemmi(const gemmi::Op::Rot &r) {
     for (int j = 0; j < 3; ++j)
       out[static_cast<std::size_t>(i * 3 + j)] = r[i][j] / gemmi::Op::DEN;
   return out;
+}
+
+// The upper-triangular B with B^T B = G, by Cholesky.
+Mat3 cholesky_upper(const Mat3 &g) {
+  const auto at = [&](int i, int j) {
+    return g.m[static_cast<std::size_t>(i * 3 + j)];
+  };
+  const double r00 = std::sqrt(at(0, 0));
+  const double r01 = at(0, 1) / r00, r02 = at(0, 2) / r00;
+  const double r11 = std::sqrt(at(1, 1) - r01 * r01);
+  const double r12 = (at(1, 2) - r01 * r02) / r11;
+  const double r22 = std::sqrt(at(2, 2) - r02 * r02 - r12 * r12);
+  return {r00, r01, r02, 0.0, r11, r12, 0.0, 0.0, r22};
+}
+
+// A, its cell averaged over the rotations, its orientation kept.
+Mat3 regularised(const Mat3 &A, const std::vector<Rotation> &rotations) {
+  const Mat3 real = A.inverse(); // rows: a, b, c
+  const Mat3 g = real * real.transpose();
+  Mat3 sum{0, 0, 0, 0, 0, 0, 0, 0, 0};
+  for (const Rotation &r : rotations) {
+    Mat3 R;
+    for (std::size_t k = 0; k < 9; ++k)
+      R.m[k] = static_cast<double>(r[k]);
+    const Mat3 term = R.transpose() * g * R;
+    for (std::size_t k = 0; k < 9; ++k)
+      sum.m[k] += term.m[k];
+  }
+  for (std::size_t k = 0; k < 9; ++k)
+    sum.m[k] /= static_cast<double>(rotations.size());
+  const Mat3 b_old = cholesky_upper(A.transpose() * A);
+  const Mat3 U = A * b_old.inverse();
+  return U * cholesky_upper(sum.inverse());
 }
 
 Rotation multiply(const Rotation &a, const Rotation &b) {
@@ -522,6 +556,22 @@ space_groups_with_patterson(const SpaceGroup &patterson) {
                      return a.number() < b.number();
                    });
   return out;
+}
+
+std::vector<std::array<int, 9>> SpaceGroup::rotations() const {
+  std::vector<std::array<int, 9>> out;
+  for (const gemmi::Op &op : impl_->ops.sym_ops)
+    out.push_back(from_gemmi(op.rot));
+  return out;
+}
+
+void regularise_cell(Crystal &crystal, const SpaceGroup &group) {
+  const std::vector<Rotation> rotations = group.rotations();
+  if (rotations.size() <= 1)
+    return; // P 1: nothing to impose
+  crystal.A = regularised(crystal.A, rotations);
+  for (Mat3 &a : crystal.A_points)
+    a = regularised(a, rotations);
 }
 
 } // namespace mxi

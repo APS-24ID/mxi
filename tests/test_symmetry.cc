@@ -106,3 +106,76 @@ TEST(a_change_of_basis_is_refused_when_it_cannot_be_one) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+namespace {
+
+UnitCell cell_of(const Mat3 &A) {
+  Crystal c;
+  c.A = A;
+  return c.cell();
+}
+
+// U of A = U B, B upper triangular: what regularising must keep.
+Mat3 orientation(const Mat3 &A) {
+  const Mat3 g = A.transpose() * A;
+  const auto at = [&](int i, int j) {
+    return g.m[static_cast<std::size_t>(i * 3 + j)];
+  };
+  const double r00 = std::sqrt(at(0, 0)), r01 = at(0, 1) / r00,
+               r02 = at(0, 2) / r00;
+  const double r11 = std::sqrt(at(1, 1) - r01 * r01),
+               r12 = (at(1, 2) - r01 * r02) / r11;
+  const double r22 = std::sqrt(at(2, 2) - r02 * r02 - r12 * r12);
+  const Mat3 B{r00, r01, r02, 0.0, r11, r12, 0.0, 0.0, r22};
+  return A * B.inverse();
+}
+
+} // namespace
+
+TEST(a_cubic_cell_is_made_cubic_and_its_orientation_kept) {
+  // A cell near cubic, as refinement leaves one: after the group I 2 3, a = b
+  // = c and every angle 90 -- at every scan point too -- and U as it was.
+  const Mat3 real{77.90, 0.02, -0.01, 0.03, 77.95, 0.02, -0.02, 0.01, 77.86};
+  const Mat3 U = rotation(Vec3{0.3, -0.5, 0.8}.normalized(), 0.7);
+  Crystal crystal;
+  crystal.A = U * real.inverse();
+  crystal.A_points = {crystal.A, crystal.A};
+  const Mat3 before = orientation(crystal.A);
+  regularise_cell(crystal, SpaceGroup::from_name("I 2 3"));
+  for (const Mat3 &A : {crystal.A, crystal.A_points[0], crystal.A_points[1]}) {
+    const UnitCell c = cell_of(A);
+    check::close(c.b, c.a, 1e-9, "b = a");
+    check::close(c.c, c.a, 1e-9, "c = a");
+    check::close(c.alpha, 90.0, 1e-9, "alpha 90");
+    check::close(c.beta, 90.0, 1e-9, "beta 90");
+    check::close(c.gamma, 90.0, 1e-9, "gamma 90");
+  }
+  const Mat3 after = orientation(crystal.A);
+  for (std::size_t k = 0; k < 9; ++k)
+    check::close(after.m[k], before.m[k], 1e-9, "the orientation kept");
+}
+
+TEST(a_monoclinic_cell_loses_only_what_its_two_fold_forbids) {
+  // P 1 2 1, the two-fold along b: alpha and gamma made 90, a, b, c and beta
+  // exactly as they were. And P 1 changes nothing.
+  const Mat3 real{50.0, 0.3, 0.0, 0.0, 60.0, 0.4, -10.0, 0.2, 70.0};
+  Crystal crystal;
+  crystal.A = real.inverse();
+  const UnitCell before = crystal.cell();
+  Crystal p1 = crystal;
+  regularise_cell(crystal, SpaceGroup::from_name("P 1 2 1"));
+  const UnitCell after = crystal.cell();
+  check::close(after.alpha, 90.0, 1e-9, "alpha 90");
+  check::close(after.gamma, 90.0, 1e-9, "gamma 90");
+  check::close(after.beta, before.beta, 1e-9, "beta kept");
+  check::close(after.a, before.a, 1e-9, "a kept");
+  check::close(after.b, before.b, 1e-9, "b kept");
+  check::close(after.c, before.c, 1e-9, "c kept");
+  regularise_cell(p1, SpaceGroup::from_name("P 1"));
+  for (std::size_t k = 0; k < 9; ++k)
+    check::close(p1.A.m[k], real.inverse().m[k], 0.0, "P 1 as it was");
+}
+
+} // namespace mxi

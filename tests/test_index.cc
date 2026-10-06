@@ -881,3 +881,35 @@ TEST(every_prediction_is_on_the_sphere_under_the_crystal_at_its_own_position) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(the_max_cell_is_the_histograms_peak_edge_times_1_3_as_dials_takes_it) {
+  // dials' NeighborAnalysis: direct-space nearest-neighbour distances above 1
+  // A, the longest 1 per cent dropped, about five to a bin; the far edge of
+  // the last bin above a quarter of the tallest, times 1.3.
+  std::vector<double> direct;
+  for (int i = 0; i < 200; ++i)
+    direct.push_back(6.90 +
+                     0.001 * (i % 100)); // the lattice's spacing, 6.90 to 6.999
+  const double peak = max_cell_from_neighbours(direct);
+  check::close(peak, 1.3 * 6.999, 0.002, "1.3 times the peak's far edge");
+
+  // A second lattice's spots and stragglers: a tail of longer distances, and
+  // a few below 1 A. The tail widens the bins -- about five distances each,
+  // over the whole range, as DIALS bins them -- so the edge may move by one
+  // bin, here some 0.43 A; but it stays at the peak, not with the tail.
+  std::vector<double> tailed = direct;
+  for (int i = 0; i < 40; ++i)
+    tailed.push_back(9.0 + 0.5 * i);
+  for (int i = 0; i < 10; ++i)
+    tailed.push_back(0.5);
+  const double with_tail = max_cell_from_neighbours(tailed);
+  check::is_true(with_tail >= peak - 1e-9 && with_tail < 1.3 * 7.5,
+                 "at the peak, within a bin, not with the tail");
+
+  check::close(max_cell_from_neighbours({5.0, 6.0, 7.0}), 0.0, 0.0,
+               "too few: none");
+}
+
+} // namespace mxi

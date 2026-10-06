@@ -1,11 +1,15 @@
 #include "index.hh"
 
+#include <gemmi/symmetry.hpp>
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <complex>
 #include <cstdio>
+#include <map>
 #include <numeric>
+#include <tuple>
 
 #include "fft.hh"
 #include "refine.hh"
@@ -173,6 +177,235 @@ double estimate_max_cell(const std::vector<Vec3> &points) {
   // seen at less than full sampling gives neighbours further apart than the
   // true cell spacing, never closer.
   return 1.5 / median;
+}
+
+double max_cell_from_neighbours(std::vector<double> direct, double multiplier) {
+  // dials/algorithms/indexing/nearest_neighbor.py, NeighborAnalysis.
+  direct.erase(std::remove_if(direct.begin(), direct.end(),
+                              [](double d) { return !(d > 1.0); }),
+               direct.end());
+  std::sort(direct.begin(), direct.end());
+  direct.resize(static_cast<std::size_t>(
+      std::floor(0.99 * static_cast<double>(direct.size()))));
+  const std::size_t slots = direct.size() / 5;
+  if (slots < 1 || direct.size() <= 10)
+    return 0.0;
+  // flex.histogram: slots of equal width from the least value to the greatest,
+  // the greatest in the last.
+  const double lo = direct.front(), hi = direct.back();
+  const double width = (hi - lo) / static_cast<double>(slots);
+  if (!(width > 0.0))
+    return multiplier * hi;
+  std::vector<double> count(slots, 0.0);
+  for (double d : direct) {
+    std::size_t k = static_cast<std::size_t>((d - lo) / width);
+    count[std::min(k, slots - 1)] += 1.0;
+  }
+  const double tallest = *std::max_element(count.begin(), count.end());
+  std::size_t last = 0;
+  for (std::size_t k = 0; k < slots; ++k)
+    if (count[k] > 0.25 * tallest)
+      last = k;
+  return multiplier * (lo + static_cast<double>(last + 1) * width);
+}
+
+namespace {
+
+// d*^2 of every reflection of hexagonal ice not absent in P 63/m m c, to
+// d_min, as DIALS's PowderRingFilter makes its rings.
+std::vector<double> ice_rings(double d_min) {
+  const double a = 4.498, c = 7.338;
+  const double half = 0.002; // DIALS's width 0.004, halved
+  const double limit = 1.0 / (d_min * d_min) + half;
+  const gemmi::GroupOps ops =
+      gemmi::find_spacegroup_by_number(194)->operations();
+  const int hmax = static_cast<int>(std::ceil(a * std::sqrt(limit))) + 1;
+  const int lmax = static_cast<int>(std::ceil(c * std::sqrt(limit))) + 1;
+  std::vector<double> rings;
+  for (int h = -hmax; h <= hmax; ++h)
+    for (int k = -hmax; k <= hmax; ++k)
+      for (int l = 0; l <= lmax; ++l) {
+        if (h == 0 && k == 0 && l == 0)
+          continue;
+        const double ds2 = 4.0 / 3.0 * (h * h + h * k + k * k) / (a * a) +
+                           static_cast<double>(l * l) / (c * c);
+        if (ds2 > limit || ops.is_systematically_absent({h, k, l}))
+          continue;
+        rings.push_back(ds2);
+      }
+  std::sort(rings.begin(), rings.end());
+  rings.erase(
+      std::unique(rings.begin(), rings.end(),
+                  [](double x, double y) { return std::fabs(x - y) < 1e-12; }),
+      rings.end());
+  return rings;
+}
+
+// Each point's nearest neighbour among `members`, by a grid of cells: every
+// cell within Chebyshev distance k searched before any beyond, and the search
+// stopped once the best found is within k cells -- nothing unsearched can be
+// nearer. Coincident points (a reflection seen twice) are not neighbours.
+void nearest_within(const std::vector<Vec3> &points,
+                    const std::vector<std::size_t> &members,
+                    std::vector<double> *direct) {
+  if (members.size() < 2)
+    return;
+  Vec3 lo = points[members[0]], hi = lo;
+  for (std::size_t m : members) {
+    const Vec3 &p = points[m];
+    lo = Vec3{std::min(lo.x, p.x), std::min(lo.y, p.y), std::min(lo.z, p.z)};
+    hi = Vec3{std::max(hi.x, p.x), std::max(hi.y, p.y), std::max(hi.z, p.z)};
+  }
+  const Vec3 span = hi - lo;
+  const double volume =
+      std::max(span.x, 1e-9) * std::max(span.y, 1e-9) * std::max(span.z, 1e-9);
+  const double h =
+      std::cbrt(volume / static_cast<double>(members.size())) + 1e-12;
+  const auto index = [&](double v, double origin) {
+    return static_cast<long>(std::floor((v - origin) / h));
+  };
+  const long nx = index(hi.x, lo.x) + 1, ny = index(hi.y, lo.y) + 1,
+             nz = index(hi.z, lo.z) + 1;
+  std::map<long, std::vector<std::size_t>> cells;
+  const auto key = [&](long x, long y, long z) {
+    return (x * ny + y) * nz + z;
+  };
+  for (std::size_t m : members) {
+    const Vec3 &p = points[m];
+    cells[key(index(p.x, lo.x), index(p.y, lo.y), index(p.z, lo.z))].push_back(
+        m);
+  }
+  constexpr double kCoincident = 1e-4;
+  for (std::size_t m : members) {
+    const Vec3 &p = points[m];
+    const long cx = index(p.x, lo.x), cy = index(p.y, lo.y),
+               cz = index(p.z, lo.z);
+    double best = 1e300;
+    const long reach = std::max({nx, ny, nz});
+    for (long k = 0; k <= reach; ++k) {
+      for (long x = cx - k; x <= cx + k; ++x)
+        for (long y = cy - k; y <= cy + k; ++y)
+          for (long z = cz - k; z <= cz + k; ++z) {
+            if (std::max({std::labs(x - cx), std::labs(y - cy),
+                          std::labs(z - cz)}) != k)
+              continue; // only the shell at distance k
+            if (x < 0 || y < 0 || z < 0 || x >= nx || y >= ny || z >= nz)
+              continue;
+            const auto it = cells.find(key(x, y, z));
+            if (it == cells.end())
+              continue;
+            for (std::size_t o : it->second) {
+              if (o == m)
+                continue;
+              const double d = (points[o] - p).norm();
+              if (d > kCoincident && d < best)
+                best = d;
+            }
+          }
+      if (best <= static_cast<double>(k) * h)
+        break;
+    }
+    if (best < 1e299)
+      direct->push_back(1.0 / best);
+  }
+}
+
+} // namespace
+
+double estimate_max_cell_as_dials(const ExperimentList &experiments,
+                                  const Table &reflections,
+                                  const std::vector<Vec3> &points) {
+  const std::size_t n = points.size();
+  if (n < 4 || !reflections.has("xyzobs.px.value"))
+    return 0.0;
+  std::vector<char> keep(n, 1);
+
+  // Ice rings, as DIALS's ice_rings_selection.
+  double d_min = 1e300;
+  for (const Vec3 &p : points)
+    if (p.norm() > 0.0)
+      d_min = std::min(d_min, 1.0 / p.norm());
+  if (d_min < 1e299) {
+    const std::vector<double> rings = ice_rings(d_min);
+    for (std::size_t i = 0; i < n; ++i) {
+      const double ds2 = points[i].norm_squared();
+      const auto at = std::lower_bound(rings.begin(), rings.end(), ds2 - 0.002);
+      if (at != rings.end() && std::fabs(*at - ds2) < 0.002)
+        keep[i] = 0;
+    }
+  }
+
+  // Overlapping boxes, as find_overlaps with no border: two boxes of one
+  // experiment and panel whose pixel and frame ranges intersect.
+  const bool has_id = reflections.has("id");
+  const bool has_panel = reflections.has("panel");
+  const auto id_of = [&](std::size_t i) -> std::size_t {
+    if (!has_id)
+      return 0;
+    const std::int64_t id = reflections.at("id").integer(i);
+    return id > 0 && static_cast<std::size_t>(id) < experiments.size()
+               ? static_cast<std::size_t>(id)
+               : 0;
+  };
+  const auto panel_of = [&](std::size_t i) -> std::size_t {
+    return has_panel
+               ? static_cast<std::size_t>(reflections.at("panel").integer(i))
+               : 0;
+  };
+  if (reflections.has("bbox")) {
+    const Column &b = reflections.at("bbox");
+    std::vector<std::size_t> order(n);
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(), [&](std::size_t x, std::size_t y) {
+      return b.ints[x * 6 + 4] < b.ints[y * 6 + 4];
+    });
+    std::vector<std::size_t> active;
+    for (std::size_t i : order) {
+      const std::int64_t *bi = &b.ints[i * 6];
+      active.erase(std::remove_if(active.begin(), active.end(),
+                                  [&](std::size_t j) {
+                                    return b.ints[j * 6 + 5] <= bi[4];
+                                  }),
+                   active.end());
+      for (std::size_t j : active) {
+        const std::int64_t *bj = &b.ints[j * 6];
+        if (id_of(i) == id_of(j) && panel_of(i) == panel_of(j) &&
+            bi[0] < bj[1] && bj[0] < bi[1] && bi[2] < bj[3] && bj[2] < bi[3]) {
+          keep[i] = 0;
+          keep[j] = 0;
+        }
+      }
+      active.push_back(i);
+    }
+  }
+
+  // Groups: experiment, 45 degree block from its first spot, entering or not.
+  const Column &obs = reflections.at("xyzobs.px.value");
+  std::vector<double> phi(n, 0.0);
+  std::vector<double> first(experiments.size(), 1e300);
+  std::vector<int> entering(n, 0);
+  for (std::size_t i = 0; i < n; ++i) {
+    if (!keep[i])
+      continue;
+    const Experiment &e = experiments[id_of(i)];
+    phi[i] = Scan::degrees(e.scan.phi_from_z(obs.real(i, 2)));
+    first[id_of(i)] = std::min(first[id_of(i)], phi[i]);
+    const Vec3 s1 =
+        e.detector[panel_of(i)].lab_coord_px(obs.real(i, 0), obs.real(i, 1));
+    const Vec3 s0 = e.beam.direction * -1.0;
+    entering[i] = s1.dot(e.goniometer.lab_axis().cross(s0)) < 0.0 ? 1 : 0;
+  }
+  std::map<std::tuple<std::size_t, long, int>, std::vector<std::size_t>> groups;
+  for (std::size_t i = 0; i < n; ++i)
+    if (keep[i])
+      groups[{id_of(i),
+              static_cast<long>(std::floor((phi[i] - first[id_of(i)]) / 45.0)),
+              entering[i]}]
+          .push_back(i);
+  std::vector<double> direct;
+  for (const auto &[g, members] : groups)
+    nearest_within(points, members, &direct);
+  return max_cell_from_neighbours(std::move(direct));
 }
 
 namespace {
@@ -587,8 +820,12 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
   if (max_cell <= 0.0) {
     // Grouped by sweep and turn, so that a reflection measured again on the
     // next rotation is not mistaken for a neighbour of itself.
-    max_cell =
-        estimate_max_cell(points, observation_groups(experiments, reflections));
+    // As dials.index's find_max_cell: the margin above the nearest-neighbour
+    // spacing is what lets the search consider a cell larger than the true
+    // one, and DIALS's -- the edge of the histogram's peak, times 1.3 --
+    // where the median times 1.5 here let a supercell in, with a second
+    // lattice in the data adding near neighbours.
+    max_cell = estimate_max_cell_as_dials(experiments, reflections, points);
   }
   if (!(max_cell > 0.0))
     return result;

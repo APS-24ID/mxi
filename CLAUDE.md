@@ -62,6 +62,11 @@ crystal indexed together (`docs/multi-sweep.md`), and needs nothing of DIALS:
 `mxi_symmetry`, `mxi_scale`, each interchangeable with DIALS at its boundary,
 every core by default.
 
+**mxi_export** (6 October, `docs/export.md`): an unmerged MTZ as dials.export
+writes it -- the same intensities and corrections, columns, batch numbering
+and headers in the Cambridge frame -- through gemmi's MTZ writer. To be compared
+with dials.export on the same data.
+
 **Several sweeps** (5 and 6 October, `docs/multi-sweep.md`): every program from
 `mxi_import` to `mxi_scale` takes several sweeps of one crystal, as DIALS does,
 and works well -- Graeme -- on the four cubic insulin sweeps at their own

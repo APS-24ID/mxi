@@ -14,7 +14,7 @@ A C++20 implementation of rotation-data processing for **one sweep or several
 of one crystal** (`docs/multi-sweep.md`), step for step as DIALS divides it, with the spot finder's threshold also on the GPU
 (Metal and CUDA):
 
-    mxi_find -> mxi_index -> mxi_refine -> mxi_integrate -> mxi_symmetry -> mxi_scale
+    mxi_find -> mxi_index -> mxi_refine -> mxi_integrate -> mxi_symmetry -> mxi_scale -> mxi_export
 
 It reads and writes DIALS' own `.expt` and `.refl`, so any step can be replaced
 by its `dials.*` counterpart and the rest carries on: `dials.scale` has scaled
@@ -68,6 +68,7 @@ mxi_refine    indexed.expt indexed.refl --analytic   # scan-varying, one point p
 mxi_integrate refined.expt refined.refl                  # --gpu: fitting on the GPU, in float
 mxi_symmetry  integrated.expt integrated.refl            # symmetrized.expt, .refl
 mxi_scale     symmetrized.expt symmetrized.refl          # scaled.expt, .refl
+mxi_export    scaled.expt scaled.refl                    # scaled.mtz, unmerged
 ```
 
 Beside a DIALS run of the same data, `mxeq` (in `python/`) compares the two at

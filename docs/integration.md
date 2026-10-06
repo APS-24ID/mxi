@@ -12,10 +12,13 @@ the measurements behind each choice and the mistakes made on the way -- is in
 **Several sweeps.** Given an experiment list of several, `mxi_integrate`
 integrates each sweep alone -- a whole run on a list of that one, its
 reflections chosen by `id` with their shoeboxes -- and joins the tables, each row
-its sweep's `id`, and the experiment lists, each sweep with its own profile
-model; a crystal they shared is written once. Every option applies to each
-sweep, `--postrefine` included; `--save-shoeboxes` and `--save-profiles` are for
-one sweep (`docs/multi-sweep.md`).
+its sweep's `id` and its image set's `imageset_id` in the joined list, as
+dials.integrate writes them and dials.image_viewer reads them, and the
+experiment lists, each sweep with its own profile model; a crystal they shared is
+written once. Every option applies to each sweep, `--postrefine` included;
+`--save-shoeboxes` and `--save-profiles` are for one sweep
+(`docs/multi-sweep.md`).
+
 ## How well it works
 
 Measured, each against the thing that can actually judge it:

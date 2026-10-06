@@ -32,6 +32,9 @@ public:
   int number() const;
   //: Operations of the point group, without centring: 12 for I 2 3.
   std::size_t order() const;
+  //: Those operations' rotations, integer matrices on fractional
+  //: coordinates, row major: x' = R x.
+  std::vector<std::array<int, 9>> rotations() const;
 
   //: The symmetry-unique index of hkl, Friedel mates merged: the index that
   //: groups every observation of one reflection for scaling.
@@ -72,6 +75,14 @@ void reindex(ExperimentList &experiments, Table &reflections,
 //: coordinates, row major: x' = R x. On Miller indices it acts as its
 //: transpose, h' = R^T h.
 using Rotation = std::array<int, 9>;
+
+//: The crystal's cell made to satisfy the group, as dials.symmetry leaves it:
+//: a = b = c and every angle 90 for cubic, and so on -- the real-space metric
+//: averaged over the group's rotations, (1/n) sum R^T G R, as cctbx's
+//: average_unit_cell does, which needs no table of crystal systems and holds
+//: in any setting. The orientation is kept: A = U B, U kept and B made anew
+//: from the averaged cell. Every scan point too. A triclinic cell is as it was.
+void regularise_cell(Crystal &crystal, const SpaceGroup &group);
 Miller apply(const Rotation &r, const Miller &hkl);
 
 //: The rotations the lattice's metric allows, within max_delta degrees of

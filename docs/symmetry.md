@@ -16,6 +16,16 @@ joint indexing gives them; otherwise refused, with the reason
 `mxi_symmetry` finds the Laue group and space group of one sweep's integrated
 data and writes the data reindexed into them, as dials.symmetry does.
 
+**The cell is made the group's**, as dials.symmetry leaves it: a = b = c and
+every angle 90 degrees for cubic, a = b for tetragonal, alpha = gamma = 90 for
+monoclinic, and so on. The real-space metric is averaged over the group's
+rotations, (1/n) sum R^T G R, as cctbx's `average_unit_cell` does -- which needs
+no table of crystal systems and holds in any setting -- and the crystal's
+orientation kept: A = U B, U kept and B made anew from the averaged cell, at
+every scan point too. On insulin, 77.905 A on every edge and 90 degrees, to
+1e-13 at all 301 points. `reindex` does it, so `mxi_scale --change-of-basis`
+does too.
+
 ## Running it
 
     mxi_symmetry integrated.expt integrated.refl     # symmetrized.expt, symmetrized.refl

@@ -44,7 +44,7 @@ CHI = 20.0
 PIVOT_M = np.array([0.0, 0.005, 0.002])  # the two-theta arm's offset: not at the sample
 
 
-def plant(path, chi=CHI, module_offset_offset=None):
+def plant(path, chi=CHI, module_offset_offset=None, saturation=20000, meta=None):
     with h5py.File(path, "w") as f:
         e = f.create_group("entry")
         e.attrs["NX_class"] = "NXentry"
@@ -54,7 +54,29 @@ def plant(path, chi=CHI, module_offset_offset=None):
         det.attrs["NX_class"] = "NXdetector"
         det.create_dataset("sensor_material", data=b"Silicon")
         det.create_dataset("sensor_thickness", data=0.00045).attrs["units"] = "m"
-        det.create_dataset("saturation_value", data=20000)
+        if meta is not None:
+            # As DECTRIS masters give them: links into the _meta.h5 beside it,
+            # which may be there or not.
+            name = path.with_name(path.stem + "_meta.h5")
+            if meta.get("write", True):
+                with h5py.File(name, "w") as m:
+                    g = m.create_group("_dectris")
+                    if "cutoff" in meta:
+                        g.create_dataset(
+                            "countrate_correction_count_cutoff", data=meta["cutoff"]
+                        )
+                    if "bits" in meta:
+                        g.create_dataset("bit_depth_image", data=meta["bits"])
+            if "cutoff" in meta:
+                det["saturation_value"] = h5py.ExternalLink(
+                    name.name, "/_dectris/countrate_correction_count_cutoff"
+                )
+            if "bits" in meta:
+                det["bit_depth_readout"] = h5py.ExternalLink(
+                    name.name, "/_dectris/bit_depth_image"
+                )
+        elif saturation is not None:
+            det.create_dataset("saturation_value", data=saturation)
         det.create_dataset("count_time", data=0.01)
         t = e.create_group("instrument/transformations")
         tt = t.create_dataset("two_theta", data=TWO_THETA)
@@ -370,3 +392,41 @@ def test_compare_expt_compares_experiment_by_experiment(tmp_path):
     starts = [len(line) + 1 for line in text.splitlines()]
     offsets = np.cumsum([0] + starts)[:-1]
     assert len(differing) == 1 and offsets[differing[0]] > second
+
+
+def trusted(tmp_path, **planted):
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    plant(tmp_path / "master.nxs", **planted)
+    result = subprocess.run(
+        [IMPORT, str(tmp_path / "master.nxs"), "-o", str(tmp_path / "imported.expt")],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    p = json.load(open(tmp_path / "imported.expt"))["detector"][0]["panels"][0]
+    return p["trusted_range"][1], result.stdout
+
+
+@needs_import
+def test_the_trusted_range_is_the_lower_of_the_detectors_limit_and_the_types(tmp_path):
+    # The detector's count limit, set by its exposure time, and the data type's:
+    # 2^bits - 3, the two largest values being markers.
+    top, _ = trusted(tmp_path / "a", meta={"cutoff": 133201, "bits": 32})
+    assert top == 133201.0
+    top, out = trusted(tmp_path / "b", meta={"cutoff": 100000, "bits": 16})
+    assert top == 65533.0 and "is above what 16-bit data can hold" in out
+    top, out = trusted(tmp_path / "c", meta={"bits": 16})
+    assert top == 65533.0 and "no count limit could be read" in out
+
+
+@needs_import
+def test_a_link_into_a_missing_meta_file_is_said_so(tmp_path):
+    # Not taken for absent: where it leads, and a fallback that distrusts no
+    # count for its size, as dxtbx takes a file without one.
+    top, out = trusted(tmp_path, meta={"cutoff": 133201, "bits": 32, "write": False})
+    assert top == 2147483647.0
+    assert (
+        "saturation_value links to /_dectris/countrate_correction_count_cutoff in master_meta.h5"
+        in out
+    )
+    assert "which cannot be opened" in out

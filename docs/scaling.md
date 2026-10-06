@@ -43,8 +43,16 @@ Inverse scale g = C(r) . T(t, d) . S(s0, s1), as the paper's physical model.
   use of the fitted B(t).
 * **Absorption S = 1 + sum P_lm [Y_lm(s1) + Y_lm(s0)] / 2** in the crystal frame,
   as the paper's equation 7: l_max = 4 by default, 24 parameters, odd terms
-  included since they absorb miscentring, with a restraint of sum P_lm^2 toward
-  zero. Off for narrow sweeps -- below 60 degrees -- as DIALS turns it off,
+  included since they absorb miscentring, with a restraint of w sum P_lm^2 toward
+  zero. `--absorption-level` chooses the degree and w as dials.scale's does: low,
+  the default, for about 1 per cent relative absorption -- degree 4, w 5e5;
+  medium, about 5 per cent -- 6, 5e4; high, over 25 per cent, long wavelengths or
+  heavy absorbers -- 6, 5e3. (w was 1000 until 7 October 2026, 500 times weaker
+  than dials.scale's default, for no recorded reason. Forced on the 30 degree
+  sweep with `--l-max 4`, the weaker the restraint the better the internal
+  statistics -- I/sigma 20.2 at 1000, 19.8 at 5e3, 19.1 at 5e5 -- as more freedom
+  always gives; which is right is a question for a wide sweep and an absolute
+  measure.) Off for narrow sweeps -- below 60 degrees -- as DIALS turns it off,
   since there is not the angular coverage to determine it. `--l-max L` sets the
   degree, dials.scale's `lmax`: L (L + 2) terms, 48 at 6; 0 for none; asked
   for, it is used whatever the sweep's width, and it contradicts

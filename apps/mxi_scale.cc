@@ -49,6 +49,14 @@ void usage() {
       "is\n"
       "                    the same groups either way\n"
       "  --no-absorption   no absorption surface, whatever the sweep\n"
+      "  --absorption-level LEVEL\n"
+      "                    as dials.scale's: low (the default) for ~1%% "
+      "relative\n"
+      "                    absorption -- degree 4, restraint 5e5; medium for "
+      "~5%%\n"
+      "                    -- 6, 5e4; high for >25%%, long wavelengths or "
+      "heavy\n"
+      "                    absorbers -- 6, 5e3\n"
       "  --l-max L         the absorption surface to degree L, lmax (lmax + "
       "2)\n"
       "                    terms: 4 by default from 60 degrees (24), 6 for 48\n"
@@ -67,14 +75,25 @@ void usage() {
 
 int run_program(int argc, char **argv) {
   const std::set<std::string> known = {
-      "--anomalous", "--l-max",         "--d-min-auto",   "--cc-half-limit",
-      "--threads",   "--timing",        "--space-group",  "--change-of-basis",
-      "--d-min",     "--no-absorption", "--profile-only", "--shells",
-      "-o",          "--output-expt",   "--d-max"};
-  const std::set<std::string> takes_value = {
-      "--l-max",           "--cc-half-limit", "--threads", "--space-group",
-      "--change-of-basis", "--d-min",         "--shells",  "-o",
+      "--anomalous",       "--absorption-level",
+      "--l-max",           "--d-min-auto",
+      "--cc-half-limit",   "--threads",
+      "--timing",          "--space-group",
+      "--change-of-basis", "--d-min",
+      "--no-absorption",   "--profile-only",
+      "--shells",          "-o",
       "--output-expt",     "--d-max"};
+  const std::set<std::string> takes_value = {"--l-max",
+                                             "--absorption-level",
+                                             "--cc-half-limit",
+                                             "--threads",
+                                             "--space-group",
+                                             "--change-of-basis",
+                                             "--d-min",
+                                             "--shells",
+                                             "-o",
+                                             "--output-expt",
+                                             "--d-max"};
   const Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (args.help) {
     usage();
@@ -82,6 +101,19 @@ int run_program(int argc, char **argv) {
   }
   if (!args.ok) {
     std::fprintf(stderr, "mxi_scale: %s\n", args.error.c_str());
+    return 2;
+  }
+  const std::string level = args.value("--absorption-level", "low");
+  if (level != "low" && level != "medium" && level != "high") {
+    std::fprintf(stderr,
+                 "mxi_scale: --absorption-level is low, medium or high, not "
+                 "'%s'\n",
+                 level.c_str());
+    return 2;
+  }
+  if (args.has("--absorption-level") && args.has("--no-absorption")) {
+    std::fprintf(stderr, "mxi_scale: --absorption-level and --no-absorption "
+                         "contradict each other\n");
     return 2;
   }
   if (args.has("--l-max")) {
@@ -157,6 +189,11 @@ int run_program(int argc, char **argv) {
     options.combine = !args.has("--profile-only");
     options.absorption = !args.has("--no-absorption");
     options.lmax = static_cast<int>(args.number("--l-max", -1.0));
+    // dials.scale's absorption levels: the degree a wide sweep takes and the
+    // restraint on its harmonics, sum P_lm^2.
+    options.level_lmax = level == "low" ? 4 : 6;
+    options.fit.absorption_restraint =
+        level == "low" ? 5e5 : (level == "medium" ? 5e4 : 5e3);
     options.anomalous = args.has("--anomalous");
     options.d_min = args.number("--d-min", 0.0);
     options.d_max = args.number("--d-max", 0.0);
@@ -216,6 +253,16 @@ int run_program(int argc, char **argv) {
       std::printf("Scaling model: %zu sweeps, a model each, %zu parameters in "
                   "all; fitted on %zu observations\n",
                   run.model.sweeps(), run.model.size(), run.fitted_on);
+    {
+      std::size_t harmonics = 0;
+      for (std::size_t w = 0; w < run.model.sweeps(); ++w)
+        harmonics += harmonic_count(run.model.shape(w).lmax);
+      if (harmonics > 0)
+        std::printf("  absorption level %s: degree %d, each harmonic "
+                    "restrained by %g\n",
+                    level.c_str(), run.model.shape(0).lmax,
+                    options.fit.absorption_restraint);
+    }
     if (!data.pair.empty())
       std::printf(
           "Friedel mates kept apart (--anomalous): %zu groups scaled, from %zu "

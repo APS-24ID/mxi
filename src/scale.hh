@@ -115,9 +115,12 @@ select_for_fitting(const ScaleData &data, std::size_t min_groups = 2000,
 
 struct ScaleFitOptions {
   int max_iterations = 50;
-  //: Weights of the restraints toward zero, sum B_i^2 and sum P_lm^2.
+  //: Weights of the restraints toward zero, sum B_i^2 and sum P_lm^2:
+  //: dials.scale's decay_restraint and, for the absorption surface, its
+  //: surface_weight at the default absorption level, low -- 5e5. It was 1000,
+  //: 500 times weaker, for no recorded reason.
   double decay_restraint = 0.1;
-  double absorption_restraint = 1000.0;
+  double absorption_restraint = 5e5;
 };
 
 struct ScaleFitResult {
@@ -244,6 +247,9 @@ struct ScaleRunOptions {
   //: degrees, none below -- or 0 for none; lmax (lmax + 2) terms, 24 at 4 and
   //: 48 at 6.
   int lmax = -1;
+  //: The degree a sweep wide enough for absorption takes when lmax is not
+  //: given: 4 at dials.scale's absorption level low, 6 at medium and high.
+  int level_lmax = 4;
   double d_min = 0.0;
   double d_max = 0.0; //: low resolution limit; 0, none
   ScaleFitOptions fit;

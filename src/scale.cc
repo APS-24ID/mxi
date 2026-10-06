@@ -1222,6 +1222,8 @@ ScaleRun scale_sweep(const ExperimentList &experiments,
     ScaleModelShape own = default_shape(degrees);
     if (options.lmax >= 0)
       own.lmax = options.lmax; // asked for, whatever the sweep's width
+    else if (own.lmax > 0)
+      own.lmax = options.level_lmax; // the absorption level's, wide sweeps only
     if (!options.absorption)
       own.lmax = 0;
     shapes.push_back(own);

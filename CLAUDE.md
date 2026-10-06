@@ -48,8 +48,9 @@ was found.
 
 ## Handover: where the work stands
 
-STATUS: written 4 October 2026, 325 commits; several sweeps added 6 October,
-344 commits. For a new session to pick up
+STATUS: written 4 October 2026, 325 commits; several sweeps, the cell
+regularised and mxi_export added 6 October, 349 commits. For a new session to
+pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in
 flight and how the work is done here. People follow this project: keep the
 README, `docs/review.md` and this handover true as things change.
@@ -64,8 +65,9 @@ every core by default.
 
 **mxi_export** (6 October, `docs/export.md`): an unmerged MTZ as dials.export
 writes it -- the same intensities and corrections, columns, batch numbering
-and headers in the Cambridge frame -- through gemmi's MTZ writer. To be compared
-with dials.export on the same data.
+and headers in the Cambridge frame -- through gemmi's MTZ writer. AIMLESS reads
+its output and understands it (Graeme); no column-by-column comparison with
+dials.export has been made.
 
 **Several sweeps** (5 and 6 October, `docs/multi-sweep.md`): every program from
 `mxi_import` to `mxi_scale` takes several sweeps of one crystal, as DIALS does,

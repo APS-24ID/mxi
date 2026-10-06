@@ -1,7 +1,7 @@
 # Export: an unmerged MTZ
 
-STATUS: built, 6 October 2026; to be compared with dials.export on the same
-data. Modelled on
+STATUS: built, 6 October 2026, and its output understood by AIMLESS (Graeme).
+Modelled on
 dials.export's MTZ writer (`dials/util/export_mtz.py`, with
 `filter_reflections.py`, `batch_handling.py` and the C++ `ub_to_mosflm_u`),
 read for this; each rule below is that code's.
@@ -96,8 +96,10 @@ row's I and SIGI the scaled intensity and sigma over the inverse scale, its
 SCALEUSED, XDET, YDET and FRACTIONCALC the table's, every row's batch a header,
 each header's U orthonormal and the scan axis on +Z; integrated: IPR and SIGIPR
 by LP / QE, I and SIGI by LP / QE / partiality; and two sweeps overlapping in
-their image numbers, the second's batches moved to 201. Still to do: against
-dials.export on the same data. As designed: the columns and their values against the table,
+their image numbers, the second's batches moved to 201. And the test that
+counts: AIMLESS reads mxi_export's output and understands it (Graeme). A
+comparison with dials.export column by column and header by header has not
+been made, and is there if a difference ever needs explaining. As designed: the columns and their values against the table,
 corrections and all; the batch numbering across sweeps against dials' rules;
 each header's U and cell against the experiment's models, by the same
 construction independently; the frame -- axis on Z, beam on X. And with DIALS

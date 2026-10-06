@@ -278,7 +278,7 @@ The pipeline:
 | `mxi_integrate` | summation and profile fitting; see `docs/integration.md` |
 | `mxi_symmetry` | the Laue group and space group, and the data reindexed into them; see `docs/symmetry.md` |
 | `mxi_scale` | scaling, one sweep or several, the error model, merging statistics; see `docs/scaling.md` |
-| `mxi_export` | an unmerged MTZ for CCP4, as dials.export writes it; see `docs/export.md` |
+| `mxi_export` | an unmerged MTZ for CCP4, as dials.export writes it, which AIMLESS reads; see `docs/export.md` |
 
 For looking inside it:
 

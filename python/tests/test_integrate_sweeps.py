@@ -105,6 +105,11 @@ def test_two_sweeps_integrate_as_the_sweep_whole_does(tmp_path):
     assert [x["scan"] for x in models["experiment"]] == [0, 1]
     assert two.identifiers == {0: "half-0", 1: "half-1"}
     ids = np.asarray(two.columns["id"]).ravel()
+    # Each row's image set is its experiment's in the joined list, as
+    # dials.image_viewer reads it -- not every sweep's spots on the first.
+    imageset_ids = np.asarray(two.columns["imageset_id"]).ravel()
+    for i, x in enumerate(models["experiment"]):
+        assert set(imageset_ids[ids == i].tolist()) == {x["imageset"]}
     zc = np.asarray(two.columns["xyzcal.px"], float).reshape(-1, 3)[:, 2]
     assert np.all(zc[ids == 0] <= SPLIT + 1e-6) and np.all(zc[ids == 1] >= SPLIT - 1e-6)
     assert not os.path.exists(

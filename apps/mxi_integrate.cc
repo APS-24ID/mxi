@@ -466,8 +466,24 @@ int integrate_several(const Arguments &args, const char *program,
       got.identifiers.clear();
       if (!identifier.empty())
         got.identifiers[i] = identifier;
+      // The image set's index in the joined list, as join_experiment_lists
+      // renumbers it: the image sets of the sweeps before, plus its own in
+      // its list of one. The sweep's run wrote 0, its list's; left so, every
+      // sweep's spots fall on the first image set in dials.image_viewer.
+      json::Value list = json::parse_file(got_expt);
+      std::int64_t imageset = 0;
+      for (const json::Value &earlier : lists)
+        imageset +=
+            static_cast<std::int64_t>(earlier["imageset"].as_array().size());
+      const json::Value &own = list["experiment"].as_array().at(0)["imageset"];
+      if (own.is_number())
+        imageset += static_cast<std::int64_t>(own.as_number());
+      if (got.has("imageset_id")) {
+        Column &imagesets = got.modify_int_column("imageset_id", "int", 1);
+        std::fill(imagesets.ints.begin(), imagesets.ints.end(), imageset);
+      }
       tables.push_back(std::move(got));
-      lists.push_back(json::parse_file(got_expt));
+      lists.push_back(std::move(list));
     }
     const Table joined = concat_rows(tables);
     write_reflections(out_refl, joined);

@@ -11,6 +11,7 @@
 
 #include "args.hh"
 #include "json.hh"
+#include "log_mirror.hh"
 #include "nxmx_import.hh"
 
 namespace {
@@ -113,6 +114,10 @@ void describe(const std::string &master, const mxi::json::Value &expt,
 
 int main(int argc, char **argv) {
   using namespace mxi;
+  // Mirrored to mxi_import.log in the working directory, as every mxi program
+  // and DIALS's own do; not for a run that only asks for help.
+  if (!only_asks_for_help(argc, argv))
+    mirror_to_log("mxi_import.log");
   const std::set<std::string> known = {
       "-o",   "--output",      "--wavelength",  "--distance", "--beam-centre",
       "--mu", "--trusted-max", "--image-range", "--help"};

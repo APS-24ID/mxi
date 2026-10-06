@@ -470,3 +470,19 @@ def test_mu_is_cctbx_s_for_each_sensor_material(tmp_path, material, wavelength, 
     p = json.load(open(tmp_path / "imported.expt"))["detector"][0]["panels"][0]
     assert p["mu"] == pytest.approx(mu, rel=1e-9)
     assert "no attenuation coefficient tabulated" not in result.stdout
+
+
+@needs_import
+def test_it_writes_what_it_prints_to_mxi_import_log(tmp_path):
+    # As every mxi program does, and dials.import writes dials.import.log.
+    plant(tmp_path / "master.nxs")
+    result = subprocess.run(
+        [IMPORT, str(tmp_path / "master.nxs"), "-o", "imported.expt"],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert result.returncode == 0, result.stderr
+    log = tmp_path / "mxi_import.log"
+    assert log.exists()
+    assert log.read_text() == result.stdout

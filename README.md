@@ -111,7 +111,9 @@ mxi_export    scaled.expt scaled.refl                       # -> scaled.mtz, unm
 ```
 
 Each step reads the previous one's pair of files and writes its own, under the
-names shown unless `--output-expt` and `--output-refl` (or `-o`) say otherwise.
+names shown unless `--output-expt` and `--output-refl` (or `-o`) say otherwise. Each
+also writes what it prints to `mxi_<name>.log` in the working directory, as
+DIALS writes `dials.<name>.log`.
 
 **Several sweeps of one crystal** go through the same chain: name every master
 to `mxi_import`, and each program takes them all. Indexing finds one matrix for

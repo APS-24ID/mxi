@@ -29,6 +29,7 @@
 #include "args.hh"
 #include "decompress.hh"
 #include "expt.hh"
+#include "log_mirror.hh"
 #include "series.hh"
 
 namespace {
@@ -94,6 +95,10 @@ const char *kUsage =
 
 int main(int argc, char **argv) {
   using namespace mxi;
+  // Mirrored to mxi_max.log in the working directory, as every mxi program and
+  // DIALS's own do; not for a run that only asks for help.
+  if (!only_asks_for_help(argc, argv))
+    mirror_to_log("mxi_max.log");
   const std::set<std::string> known = {"-j", "--threads", "--help"};
   const std::set<std::string> takes_value = {"-j", "--threads"};
   const Arguments args = parse_arguments(argc, argv, known, takes_value);

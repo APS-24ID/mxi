@@ -68,8 +68,10 @@ of them -- and mxi should, from `mxi_import` to `mxi_scale`.
    programs go by `id` and never noticed). Fixed, and each sweep's spots now on
    its own image set in the viewer (Graeme). A crystal the sweeps came in sharing, and none
    changed, is written once, shared, as DIALS writes it. One sweep never takes
-   this path, and is byte-identical to before. `--save-shoeboxes` and
-   `--save-profiles` are refused for several, not yet joined. On the insulin
+   this path, and is byte-identical to before. `--save-shoeboxes` keeps every
+   sweep's shoeboxes, joined by decoding and encoding them again as one column
+   (`concat_rows_with_shoeboxes`); `--save-profiles F` writes a file a sweep,
+   F_0, F_1 before F's extension. On the insulin
    sweep split at image 150, integrated as two with the profile model given:
    every reflection well inside either half sums to exactly what the sweep
    integrated whole gives it -- summation depends on the box and the background,

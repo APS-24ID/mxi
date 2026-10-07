@@ -127,6 +127,7 @@ public:
   void set_opaque(const std::string &name, Opaque value) {
     opaque_[name] = std::move(value);
   }
+  void remove_opaque(const std::string &name) { opaque_.erase(name); }
 
   Column &real_column(const std::string &name, const std::string &type,
                       std::size_t width);

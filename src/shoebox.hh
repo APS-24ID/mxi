@@ -79,6 +79,13 @@ std::vector<Shoebox> decode_shoeboxes(const Table &table);
 Table select_rows_with_shoeboxes(const Table &table,
                                  const std::vector<std::size_t> &rows);
 
+//: concat_rows, keeping the shoeboxes: every other column joined as
+//: concat_rows joins it, and the shoeboxes of every table that has them
+//: decoded, in order, and encoded as one column -- several sweeps' integrated
+//: tables under --save-shoeboxes. A table with shoeboxes joined to one
+//: without is refused, as columns that differ are.
+Table concat_rows_with_shoeboxes(const std::vector<Table> &tables);
+
 //: Encode, for tests and for writing a table with shoeboxes built here.
 //: Put a shoebox's mask into DIALS' convention: a voxel with no measurement
 //: in it is zero, with no region bit.

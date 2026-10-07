@@ -239,7 +239,8 @@ void usage(const char *program) {
       "                    have been recorded (0.6); below it the intensity "
       "is\n"
       "                    written but not flagged as fitted\n"
-      "  --save-profiles F the learned reference profiles, as text\n"
+      "  --save-profiles F the learned reference profiles, as text; several\n"
+      "                    sweeps a file each, F_0, F_1 before F's extension\n"
       "  --timing          where the time went, by phase\n",
       program);
 }
@@ -373,15 +374,18 @@ int integrate_with_postrefinement(const Arguments &args, const char *program,
 int integrate_several(const Arguments &args, const char *program,
                       const std::set<std::string> &takes_value,
                       const json::Value &document) {
-  for (const char *refused : {"--save-shoeboxes", "--save-profiles"}) {
-    if (args.has(refused)) {
-      std::fprintf(stderr,
-                   "mxi_integrate: %s is for one sweep: several sweeps' are "
-                   "not joined yet\n",
-                   refused);
-      return 2;
-    }
-  }
+  // --save-profiles: each sweep learns its own reference profiles, so each
+  // writes its own file, its index before the extension -- profiles.txt as
+  // profiles_0.txt, profiles_1.txt.
+  const auto profiles_of = [](const std::string &path, std::size_t sweep) {
+    const std::size_t slash = path.find_last_of('/');
+    const std::size_t dot = path.find_last_of('.');
+    const bool has_ext =
+        dot != std::string::npos && (slash == std::string::npos || dot > slash);
+    return has_ext ? path.substr(0, dot) + "_" + std::to_string(sweep) +
+                         path.substr(dot)
+                   : path + "_" + std::to_string(sweep);
+  };
   const std::string out_refl = args.value("-o", "integrated.refl");
   const std::string out_expt = args.value("--output-expt", "integrated.expt");
   const json::Array &experiments =
@@ -449,7 +453,9 @@ int integrate_several(const Arguments &args, const char *program,
         if (flag == "-o" || flag == "--output-expt")
           continue;
         words.push_back(flag);
-        if (takes_value.count(flag))
+        if (flag == "--save-profiles")
+          words.push_back(profiles_of(value, i));
+        else if (takes_value.count(flag))
           words.push_back(value);
       }
       words.insert(words.end(), {"-o", got_refl, "--output-expt", got_expt});
@@ -485,7 +491,7 @@ int integrate_several(const Arguments &args, const char *program,
       tables.push_back(std::move(got));
       lists.push_back(std::move(list));
     }
-    const Table joined = concat_rows(tables);
+    const Table joined = concat_rows_with_shoeboxes(tables);
     write_reflections(out_refl, joined);
     // One crystal, shared, if the sweeps came in sharing one and none changed
     // it -- as without --postrefine none does: each sweep's list carried a

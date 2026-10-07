@@ -68,13 +68,14 @@ def split(tmp_path):
     refl.write(str(tmp_path / "two.refl"), t)
 
 
-def integrate(tmp_path, expt, reflections, name):
+def integrate(tmp_path, expt, reflections, name, *extra):
     run = subprocess.run(
         [
             BINARY,
             expt,
             reflections,
             *PROFILE,
+            *extra,
             "-o",
             name + ".refl",
             "--output-expt",
@@ -97,8 +98,18 @@ def test_two_sweeps_integrate_as_the_sweep_whole_does(tmp_path):
     split(tmp_path)
     whole, _, _ = integrate(tmp_path, EXPT, REFL, "whole")
     two, models, out = integrate(
-        tmp_path, str(tmp_path / "two.expt"), str(tmp_path / "two.refl"), "two"
+        tmp_path,
+        str(tmp_path / "two.expt"),
+        str(tmp_path / "two.refl"),
+        "two",
+        "--save-profiles",
+        "p.txt",
     )
+    # A profile file a sweep, its index before the extension.
+    assert (tmp_path / "p_0.txt").stat().st_size > 0 and (
+        tmp_path / "p_1.txt"
+    ).stat().st_size > 0
+    assert not (tmp_path / "p.txt").exists()
     assert "Integrating 2 sweeps" in out
     assert len(models["experiment"]) == 2 and len(models["crystal"]) == 2
     assert [x["profile"] for x in models["experiment"]] == [0, 1]

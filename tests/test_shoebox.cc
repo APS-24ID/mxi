@@ -148,3 +148,39 @@ TEST(selecting_rows_keeps_each_rows_own_shoebox) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(tables_join_with_their_shoeboxes_each_rows_own) {
+  // Several sweeps' integrated tables under --save-shoeboxes: rows and
+  // shoeboxes in order, each row its own; a table without joined to one with,
+  // refused.
+  Table a = table_with({made(10, 3, 2, 1), made(20, 4, 2, 2)});
+  a.real_column("intensity.sum.value", "double", 1).reals = {1.0, 2.0};
+  Table b = table_with({made(30, 5, 3, 1)});
+  b.real_column("intensity.sum.value", "double", 1).reals = {3.0};
+  const Table joined = concat_rows_with_shoeboxes({a, b});
+  check::equal(static_cast<long long>(joined.nrows), 3LL, "three rows");
+  const std::vector<Shoebox> boxes = decode_shoeboxes(joined);
+  check::equal(static_cast<long long>(boxes.size()), 3LL, "three shoeboxes");
+  const long long first[3] = {10, 20, 30}, width[3] = {3, 4, 5};
+  for (std::size_t i = 0; i < 3; ++i) {
+    check::equal(static_cast<long long>(boxes[i].bbox[0]), first[i],
+                 "each its own box");
+    check::equal(static_cast<long long>(boxes[i].nx()), width[i],
+                 "each its own width");
+    check::close(joined.at("intensity.sum.value").real(i),
+                 static_cast<double>(i + 1), 0.0, "and its own row");
+  }
+  Table bare = b;
+  bare.remove_opaque("shoebox");
+  bool refused = false;
+  try {
+    concat_rows_with_shoeboxes({a, bare});
+  } catch (const ReflError &) {
+    refused = true;
+  }
+  check::is_true(refused, "with and without, refused");
+}
+
+} // namespace mxi

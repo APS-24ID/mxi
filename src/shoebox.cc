@@ -89,6 +89,39 @@ Table select_rows_with_shoeboxes(const Table &table,
   return out;
 }
 
+Table concat_rows_with_shoeboxes(const std::vector<Table> &tables) {
+  std::size_t with = 0;
+  for (const Table &t : tables)
+    with += t.opaque().count("shoebox");
+  if (with == 0)
+    return concat_rows(tables);
+  if (with != tables.size())
+    throw ReflError("some tables have shoeboxes and some do not");
+  std::vector<Table> bare;
+  bare.reserve(tables.size());
+  for (const Table &t : tables) {
+    Table copy = t;
+    copy.remove_opaque("shoebox");
+    bare.push_back(std::move(copy));
+  }
+  Table out = concat_rows(bare);
+  std::vector<Shoebox> all;
+  all.reserve(out.nrows);
+  for (const Table &t : tables) {
+    std::vector<Shoebox> boxes = decode_shoeboxes(t);
+    for (Shoebox &b : boxes)
+      all.push_back(std::move(b));
+  }
+  if (all.size() != out.nrows)
+    throw ReflError("the shoeboxes and the rows do not agree in number");
+  Table::Opaque column;
+  column.type = tables.front().opaque().at("shoebox").type;
+  column.rows = all.size();
+  column.bytes = encode_shoeboxes(all);
+  out.set_opaque("shoebox", std::move(column));
+  return out;
+}
+
 void to_dials_convention(Shoebox *box) {
   if (box == nullptr)
     return;

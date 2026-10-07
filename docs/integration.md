@@ -15,9 +15,11 @@ reflections chosen by `id` with their shoeboxes -- and joins the tables, each ro
 its sweep's `id` and its image set's `imageset_id` in the joined list, as
 dials.integrate writes them and dials.image_viewer reads them, and the
 experiment lists, each sweep with its own profile model; a crystal they shared is
-written once. Every option applies to each sweep, `--postrefine` included;
-`--save-shoeboxes` and `--save-profiles` are for one sweep
-(`docs/multi-sweep.md`).
+written once. Every option applies to each sweep, `--postrefine` included:
+`--save-shoeboxes` keeps every sweep's shoeboxes, decoded and encoded again as
+one column in the joined table, and `--save-profiles F` writes each sweep's
+reference profiles to a file of its own, its index before F's extension --
+profiles.txt as profiles_0.txt, profiles_1.txt (`docs/multi-sweep.md`).
 
 ## How well it works
 

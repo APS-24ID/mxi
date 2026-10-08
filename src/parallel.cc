@@ -62,7 +62,19 @@ public:
       ++generation_;
     }
     wake_.notify_all();
-    take_blocks(); // the caller works too
+    {
+      // The caller works too, and is in the pool while it does, as a worker
+      // is: parallel work started from a block it takes then runs serially.
+      // Unmarked, such work called run() again and waited on job_mutex_,
+      // which this thread holds -- for ever, and only when the scheduler
+      // gave the caller a block with nested work, so only sometimes.
+      struct Mark {
+        bool was = t_in_pool;
+        Mark() { t_in_pool = true; }
+        ~Mark() { t_in_pool = was; }
+      } mark;
+      take_blocks();
+    }
     std::unique_lock<std::mutex> lock(mutex_);
     done_.wait(lock, [this] { return busy_ == 0; });
     body_ = nullptr;

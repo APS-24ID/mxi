@@ -1,6 +1,8 @@
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <stdexcept>
+#include <thread>
 #include <vector>
 
 #include "../src/parallel.hh"
@@ -76,6 +78,43 @@ TEST(an_exception_in_a_block_reaches_the_caller_and_the_pool_carries_on) {
   check::is_true(caught, "the caller gets the exception");
   check::equal(static_cast<long long>(after.load()), 64,
                "and the pool works after it");
+}
+
+} // namespace mxi
+
+namespace mxi {
+
+TEST(parallel_work_started_inside_a_block_finishes_whichever_thread_runs_it) {
+  // A block may start parallel work of its own: it runs serially, rather than
+  // waiting on the pool it is itself running in. Worker threads were marked
+  // so; the calling thread, which takes blocks too, was not -- a nested loop
+  // in a block it took locked the pool's one-job mutex it already held, and
+  // waited on itself for ever. Only sometimes, as which thread takes which
+  // block is the scheduler's; here every block takes 2 ms, so that the caller
+  // surely takes some, and the test says it did.
+  set_parallel_threads(4);
+  const std::thread::id caller = std::this_thread::get_id();
+  std::atomic<int> by_caller{0};
+  std::vector<long long> sums(16, 0);
+  for_each_index(16, [&](std::size_t i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    if (std::this_thread::get_id() == caller)
+      by_caller.fetch_add(1);
+    std::vector<long long> inner(8, 0);
+    for_each_index(8, [&](std::size_t j) {
+      inner[j] = static_cast<long long>(i * 8 + j);
+    });
+    long long s = 0;
+    for (long long v : inner)
+      s += v;
+    sums[i] = s;
+  });
+  set_parallel_threads(0);
+  check::is_true(by_caller.load() > 0,
+                 "the caller took a block with nested work");
+  for (std::size_t i = 0; i < 16; ++i)
+    check::equal(sums[i], static_cast<long long>(64 * i + 28),
+                 "each block's own sum");
 }
 
 } // namespace mxi

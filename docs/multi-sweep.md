@@ -43,6 +43,27 @@ of them -- and mxi should, from `mxi_import` to `mxi_scale`.
    image's index, a scan's frames, its fraction and its start and end measured
    from there. Then the halves together index 98.1 per cent, as either alone;
    a scan from image one byte-identical through integration.
+   **Sweeps unlike each other** (Graeme's small molecule, four sweeps: three
+   of 350 degrees and one of 120 at another goniometer setting, kappa 45).
+   Chains mixing mxi and DIALS step by step found the fault only where mxi's
+   refinement met mxi's scaling: mxi's refined model of the short sweep was
+   wrong, its distance 0.4 mm short and its cell 0.5 per cent small, so its
+   integration was poor over half the sweep -- which DIALS's scaling, its own
+   model of that sweep collapsing, happened to throw away, and mxi's kept.
+   Two causes in refinement. Outliers were rejected against one spread pooled
+   over every sweep, which the three long sweeps set: the short one, starting
+   worse, kept 474 of some 3400 spots, and on so few its cell and distance
+   slid together. And every sweep took the first one's control points, 35,
+   where the 120 degree sweep's own are 12: so free at its ends that the one
+   minimiser could not settle it, and the long sweeps stopped early with it.
+   Now each experiment's outliers are judged by its own spread, as
+   dials.refine's are, and each sweep takes its own control points, one per 10
+   degrees of its own scan, at least five (`--scan-varying N` still sets one
+   number for all). Each sweep then refines together as it does alone: the
+   short sweep 6.846, 6.844, 6.905 A at 85.106 mm, where DIALS has 6.850,
+   6.849, 6.914 at 85.155; the long ones 0.10 images in z, as without it. One
+   sweep is byte-identical. tests/test_refine_sweeps.py, failing before.
+
    **A crystal a sweep** (Graeme, on the four insulin sweeps: the cell held identical
    across them in refinement, and the RMSDs high). DIALS's protocol: index with
    one matrix, which puts the sweeps in one basis, then in refinement a crystal

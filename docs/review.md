@@ -48,7 +48,8 @@ documents. Some 349 commits over three weeks.
 git clone --recursive <this repository> && cd mxi
 cmake -S . -B build && cmake --build build -j
 (cd build && ctest)              # the ctest suites, the spot finder's among them
-build/mxi_tests                  # 293 unit tests
+build/mxi_tests                  # 297 unit tests
+build/mxi_tests parallel         # only those whose name contains 'parallel'
 ```
 
 Add `-DSPOTFINDER_METAL=ON` or `-DSPOTFINDER_CUDA=ON` for the GPU threshold and profile fitting,
@@ -252,7 +253,7 @@ that depends on strength and orientation.
   answer depends on the thread count (`src/parallel.hh`).
 * **Tests that are shown to fail.** A new test is run against the bug it guards
   -- the fix taken out, or the bug put back -- before it is trusted; the commit
-  messages record it. 293 C++ unit tests, 10 ctest suites, 230-odd Python tests,
+  messages record it. 297 C++ unit tests, 10 ctest suites, 230-odd Python tests,
   and end-to-end tests on real images that run when the data are named.
 * **The documents are tested too**: `python/tests/test_documents.py` fails on any
   path or program a document names that does not exist.

@@ -77,13 +77,21 @@ struct Register {
   }
 };
 
-inline int run_all() {
+//: Every test, or with `only` those whose name contains it -- to run one
+//: alone, as when chasing a test that hangs. Each is reported as it finishes,
+//: flushed, so that a run stopped part way shows how far it got.
+inline int run_all(const std::string &only = "") {
   int failed = 0;
   int skipped = 0;
+  std::size_t ran = 0;
   for (const Case &c : registry()) {
+    if (!only.empty() && c.name.find(only) == std::string::npos)
+      continue;
+    ++ran;
     try {
       c.body();
       std::printf("  ok    %s\n", c.name.c_str());
+      std::fflush(stdout);
     } catch (const Skip &k) {
       std::printf("  skip  %s\n        %s\n", c.name.c_str(), k.why.c_str());
       ++skipped;
@@ -96,10 +104,9 @@ inline int run_all() {
     }
   }
   if (skipped > 0) {
-    std::printf("%zu tests, %d failed, %d skipped\n", registry().size(), failed,
-                skipped);
+    std::printf("%zu tests, %d failed, %d skipped\n", ran, failed, skipped);
   } else {
-    std::printf("%zu tests, %d failed\n", registry().size(), failed);
+    std::printf("%zu tests, %d failed\n", ran, failed);
   }
   return failed == 0 ? 0 : 1;
 }

@@ -41,16 +41,36 @@ std::vector<Shoebox> decode_shoeboxes(const Table &table) {
     if (box.nx() < 0 || box.ny() < 0 || box.nz() < 0) {
       throw ReflError("a shoebox has a bounding box with a negative extent");
     }
+    // The byte after the box is the record's version: DIALS writes 1, with
+    // the mask a 4-byte integer a voxel, or 2, with it one byte, which is what
+    // mxi writes. Both are read; the mask's flags all fit in a byte.
     const std::size_t n = box.size();
-    if (at + 9 * n > blob.size()) {
+    if (box.flag != 1 && box.flag != 2) {
+      throw ReflError("a shoebox record is of version " +
+                      std::to_string(static_cast<int>(box.flag)) +
+                      ", where 1 and 2 are known");
+    }
+    const std::size_t mask_bytes = box.flag == 1 ? 4 : 1;
+    if (at + (8 + mask_bytes) * n > blob.size()) {
       throw ReflError("the shoebox column ends in the middle of a record");
     }
     box.data.resize(n);
     std::memcpy(box.data.data(), blob.data() + at, 4 * n);
     at += 4 * n;
     box.mask.resize(n);
-    std::memcpy(box.mask.data(), blob.data() + at, n);
-    at += n;
+    if (box.flag == 1) {
+      for (std::size_t k = 0; k < n; ++k) {
+        std::int32_t m;
+        std::memcpy(&m, blob.data() + at + 4 * k, 4);
+        if (m < 0 || m > 255)
+          throw ReflError("a version 1 shoebox has a mask value of " +
+                          std::to_string(m) + ", beyond a byte's");
+        box.mask[k] = static_cast<std::uint8_t>(m);
+      }
+    } else {
+      std::memcpy(box.mask.data(), blob.data() + at, n);
+    }
+    at += mask_bytes * n;
     box.background.resize(n);
     std::memcpy(box.background.data(), blob.data() + at, 4 * n);
     at += 4 * n;
@@ -137,7 +157,10 @@ std::string encode_shoeboxes(const std::vector<Shoebox> &boxes) {
     put(&out, box.panel);
     for (std::int32_t v : box.bbox)
       put(&out, v);
-    put(&out, box.flag);
+    // Version 2 always, the layout written here -- a mask a byte a voxel --
+    // whatever version the box was read from: a version 1 box from DIALS,
+    // its masks narrowed on reading, labelled 1 again would be unreadable.
+    put(&out, static_cast<std::uint8_t>(2));
     const std::size_t n = box.size();
     if (box.data.size() != n || box.mask.size() != n ||
         box.background.size() != n) {

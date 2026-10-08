@@ -11,10 +11,17 @@
 //
 //     int32          panel
 //     int32 x 6      bbox as x0, x1, y0, y1, z0, z1
-//     uint8          a flag, 2 in every record seen
+//     uint8          the record's version: 1 or 2
 //     float32 x N    data          N = (x1-x0)(y1-y0)(z1-z0)
-//     uint8  x N     mask
+//     uint8  x N     mask          version 2; version 1, int32 x N
 //     float32 x N    background    all zero out of dials.find_spots
+//
+// The byte after the box was taken for a flag, 2 in every record of that
+// file; it is the version. A dials.refine table of Graeme's, four
+// small-molecule sweeps, was all version 1 -- the mask four bytes a voxel --
+// and read as 2 its records fell three bytes a voxel behind. Both are read, a
+// version 1 mask narrowed to a byte (its flags all fit), and mxi writes version
+// 2 always.
 //
 // The bounds are half open, as everywhere else here: a box from 2010 to 2014
 // is four pixels wide.

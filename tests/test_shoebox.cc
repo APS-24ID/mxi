@@ -184,3 +184,83 @@ TEST(tables_join_with_their_shoeboxes_each_rows_own) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+namespace {
+
+// One shoebox record as DIALS writes version 1: panel, bbox, the version byte,
+// data, the mask as a 4-byte integer a voxel, background.
+std::string version_1_record(std::int32_t x0, int version,
+                             std::int32_t mask_value) {
+  std::string out;
+  const auto put = [&](const void *p, std::size_t n) {
+    out.append(static_cast<const char *>(p), n);
+  };
+  const std::uint32_t panel = 0;
+  put(&panel, 4);
+  const std::int32_t bbox[6] = {x0, x0 + 2, 5, 6, 0, 1}; // 2 x 1 x 1
+  put(bbox, sizeof bbox);
+  const std::uint8_t v = static_cast<std::uint8_t>(version);
+  put(&v, 1);
+  const float data[2] = {7.0f, 8.0f};
+  put(data, sizeof data);
+  const std::int32_t mask[2] = {mask_value, 1};
+  put(mask, sizeof mask);
+  const float background[2] = {0.5f, 0.25f};
+  put(background, sizeof background);
+  return out;
+}
+
+Table with_column(const std::string &bytes, std::size_t rows) {
+  Table t;
+  t.nrows = rows;
+  Table::Opaque column;
+  column.type = "Shoebox<>";
+  column.rows = rows;
+  column.bytes = bytes;
+  t.set_opaque("shoebox", column);
+  return t;
+}
+
+} // namespace
+
+TEST(dials_version_1_shoeboxes_with_their_4_byte_masks_are_read) {
+  // DIALS writes version 1, the mask a 4-byte integer a voxel; mxi read every
+  // record as version 2, a byte a voxel, and fell 3 bytes a voxel behind.
+  const Table t =
+      with_column(version_1_record(10, 1, 5) + version_1_record(20, 1, 37), 2);
+  const std::vector<Shoebox> boxes = decode_shoeboxes(t);
+  check::equal(static_cast<long long>(boxes.size()), 2LL, "two boxes");
+  check::equal(static_cast<long long>(boxes[1].bbox[0]), 20LL,
+               "the second where it is");
+  check::equal(static_cast<long long>(boxes[0].mask[0]), 5LL, "its mask");
+  check::equal(static_cast<long long>(boxes[1].mask[0]), 37LL,
+               "and the second's");
+  check::close(boxes[1].data[1], 8.0, 0.0, "its data");
+  check::close(boxes[1].background[1], 0.25, 0.0, "its background");
+
+  // Written again, as version 2 -- the layout it now has -- and read back the
+  // same.
+  const std::string again = encode_shoeboxes(boxes);
+  check::equal(static_cast<long long>(static_cast<unsigned char>(again[28])),
+               2LL, "written as version 2");
+  const std::vector<Shoebox> back = decode_shoeboxes(with_column(again, 2));
+  check::equal(static_cast<long long>(back[1].mask[0]), 37LL,
+               "read back the same");
+
+  const auto refused = [](const Table &bad) {
+    try {
+      decode_shoeboxes(bad);
+    } catch (const ReflError &) {
+      return true;
+    }
+    return false;
+  };
+  check::is_true(refused(with_column(version_1_record(10, 1, 300), 1)),
+                 "a mask beyond a byte, refused");
+  check::is_true(refused(with_column(version_1_record(10, 3, 5), 1)),
+                 "an unknown version, refused");
+}
+
+} // namespace mxi

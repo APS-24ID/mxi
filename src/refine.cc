@@ -209,22 +209,38 @@ struct Layout {
   bool shared_crystal = true;
   std::size_t n_experiments = 0;
   std::size_t crystal_blocks = 0;
-  std::size_t points = 1; // control points per crystal
+  //: Control points per crystal block -- each sweep its own, as its scan's
+  //: width gives -- and where each block starts, one past the last at the end.
+  std::vector<std::size_t> points_of;
+  std::vector<std::size_t> start_of{0};
 
-  std::size_t block() const { return 9 * points; }
+  void set_points(const std::vector<std::size_t> &points) {
+    points_of = points;
+    start_of.assign(1, 0);
+    for (std::size_t p : points)
+      start_of.push_back(start_of.back() + 9 * p);
+  }
+  std::size_t crystal_size() const { return start_of.back(); }
+  std::size_t block_of(std::size_t experiment) const {
+    return shared_crystal ? 0 : experiment;
+  }
+  //: The experiment's crystal's control points: 1 for a static crystal, and
+  //: 1 where no crystal is refined.
+  std::size_t points_at(std::size_t experiment) const {
+    return points_of.empty() ? 1 : points_of[block_of(experiment)];
+  }
   std::size_t size() const {
-    return crystal_blocks * block() + (detector ? 6 * n_experiments : 0) +
+    return crystal_size() + (detector ? 6 * n_experiments : 0) +
            (beam ? 2 * n_experiments : 0);
   }
   std::size_t crystal_at(std::size_t experiment) const {
-    return (shared_crystal ? 0 : experiment) * block();
+    return start_of[block_of(experiment)];
   }
   std::size_t detector_at(std::size_t experiment) const {
-    return crystal_blocks * block() + 6 * experiment;
+    return crystal_size() + 6 * experiment;
   }
   std::size_t beam_at(std::size_t experiment) const {
-    return crystal_blocks * block() + (detector ? 6 * n_experiments : 0) +
-           2 * experiment;
+    return crystal_size() + (detector ? 6 * n_experiments : 0) + 2 * experiment;
   }
 
   // Which experiment a parameter belongs to, or -1 for one shared by all.
@@ -233,10 +249,14 @@ struct Layout {
   // would be quadratic in the number of sweeps for no reason: a crystal
   // parameter of sweep two cannot move a reflection of sweep three.
   long owner(std::size_t p) const {
-    if (p < crystal_blocks * block()) {
-      return shared_crystal ? -1 : static_cast<long>(p / block());
+    if (p < crystal_size()) {
+      if (shared_crystal)
+        return -1;
+      return static_cast<long>(
+          std::upper_bound(start_of.begin(), start_of.end(), p) -
+          start_of.begin() - 1);
     }
-    std::size_t q = p - crystal_blocks * block();
+    std::size_t q = p - crystal_size();
     if (detector && q < 6 * n_experiments)
       return static_cast<long>(q / 6);
     if (detector)
@@ -255,11 +275,11 @@ void apply(const ExperimentList &base, const Layout &layout,
     Experiment &e = (*out)[i];
     if (layout.crystal && e.crystal) {
       const std::size_t at = layout.crystal_at(i);
-      if (layout.points < 2) {
+      if (layout.points_at(i) < 2) {
         for (std::size_t k = 0; k < 9; ++k)
           e.crystal->A.m[k] += shift[at + k];
       } else {
-        for (std::size_t c = 0; c < layout.points; ++c) {
+        for (std::size_t c = 0; c < layout.points_at(i); ++c) {
           for (std::size_t k = 0; k < 9; ++k) {
             e.crystal->A_points[c].m[k] += shift[at + c * 9 + k];
           }
@@ -418,7 +438,7 @@ void build_analytic_jacobian(const ExperimentList &experiments,
       if (layout.crystal && e.crystal) {
         const auto d = crystal_derivatives(s, o.h, o.k, o.l);
         const std::size_t at = layout.crystal_at(o.experiment);
-        if (layout.points < 2) {
+        if (layout.points_at(o.experiment) < 2) {
           if (span != nullptr) {
             (*span)[i].crystal_low = static_cast<std::uint32_t>(at);
             (*span)[i].crystal_high = static_cast<std::uint32_t>(at + 9);
@@ -509,7 +529,7 @@ std::vector<double> step_sizes(const ExperimentList &experiments,
   for (std::size_t i = 0; i < experiments.size(); ++i) {
     if (layout.crystal && experiments[i].crystal) {
       const std::size_t at = layout.crystal_at(i);
-      const std::size_t n = layout.block();
+      const std::size_t n = 9 * layout.points_at(i);
       // Scaled to the matrix itself: the elements of A are around 1/60 for a
       // protein and 1/5 for a small molecule, and one absolute step cannot
       // suit both.
@@ -571,7 +591,18 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
   layout.n_experiments = experiments.size();
   layout.crystal_blocks =
       options.crystal ? (options.shared_crystal ? 1 : experiments.size()) : 0;
-  layout.points = std::max<std::size_t>(1, options.scan_points);
+  {
+    // Each crystal block its own control points: the experiment's own count
+    // where one is given, else scan_points.
+    std::vector<std::size_t> points(
+        layout.crystal_blocks, std::max<std::size_t>(1, options.scan_points));
+    for (std::size_t b = 0; b < layout.crystal_blocks; ++b) {
+      const std::size_t e = layout.shared_crystal ? 0 : b;
+      if (e < options.scan_points_of.size())
+        points[b] = std::max<std::size_t>(1, options.scan_points_of[e]);
+    }
+    layout.set_points(points);
+  }
 
   result.n_parameters = layout.size();
 
@@ -584,28 +615,30 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
   // took the control points for samples and wrote them out untouched -- five
   // scan points for a 300 image scan, which DIALS cannot read, from refining a
   // scan-varying model a second time.
-  if (layout.points > 1) {
-    for (Experiment &e : experiments) {
+  // Each experiment by its own count.
+  //
+  // A static refinement of the crystal refines A, so A must be what predicts.
+  // A scan-varying crystal predicts from its points instead, and refining A
+  // beneath them moved nothing: given a scan-varying model, the static pass
+  // refined only the detector and the beam, from an RMSD it had not earned. So
+  // a crystal refined static becomes static, as it does in DIALS. Refining
+  // only the detector or the beam keeps a scan-varying crystal as it is.
+  if (options.crystal) {
+    for (std::size_t i = 0; i < experiments.size(); ++i) {
+      Experiment &e = experiments[i];
       if (!e.crystal)
         continue;
-      if (e.crystal->A_points_are_samples ||
-          e.crystal->A_points.size() != layout.points) {
-        e.crystal->A_points.assign(layout.points, e.crystal->A);
+      const std::size_t points = layout.points_at(i);
+      if (points > 1) {
+        if (e.crystal->A_points_are_samples ||
+            e.crystal->A_points.size() != points) {
+          e.crystal->A_points.assign(points, e.crystal->A);
+          e.crystal->A_points_are_samples = false;
+        }
+      } else {
+        e.crystal->A_points.clear();
         e.crystal->A_points_are_samples = false;
       }
-    }
-  } else if (options.crystal) {
-    // A static refinement of the crystal refines A, so A must be what
-    // predicts. A scan-varying crystal predicts from its points instead, and
-    // refining A beneath them moved nothing: given a scan-varying model, the
-    // static pass refined only the detector and the beam, from an RMSD it had
-    // not earned. So the crystal becomes static, as it does in DIALS. Refining
-    // only the detector or the beam keeps a scan-varying crystal as it is.
-    for (Experiment &e : experiments) {
-      if (!e.crystal)
-        continue;
-      e.crystal->A_points.clear();
-      e.crystal->A_points_are_samples = false;
     }
   }
 
@@ -832,26 +865,44 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
     const double t_outlier = now_seconds();
     std::size_t rejected_this_cycle = 0;
     if (options.outlier_sigma > 0.0 && macro + 1 < options.macrocycles) {
-      std::vector<double> dx, dy, dz;
+      // Each experiment's spread from its own residuals, as dials.refine's
+      // outlier rejection takes them, separate_experiments on. Pooled, the
+      // long sweeps set the threshold and a sweep that starts worse -- shorter,
+      // at another goniometer setting -- lost most of its spots: Graeme's
+      // 120 degree kappa sweep kept 474 of some 3400 beside three 350 degree
+      // sweeps, its detector distance then free to slide 0.4 mm with its cell.
+      // One experiment: the same spreads as before.
+      std::size_t n_experiments = 0;
+      for (const auto &o : observations)
+        n_experiments = std::max(n_experiments, o.experiment + 1);
+      std::vector<std::vector<double>> dx(n_experiments), dy(n_experiments),
+          dz(n_experiments);
       for (std::size_t i = 0; i < observations.size(); ++i) {
         if (!observations[i].active)
           continue;
-        dx.push_back(residual[i * 3 + 0]);
-        dy.push_back(residual[i * 3 + 1]);
-        dz.push_back(residual[i * 3 + 2]);
+        const std::size_t e = observations[i].experiment;
+        dx[e].push_back(residual[i * 3 + 0]);
+        dy[e].push_back(residual[i * 3 + 1]);
+        dz[e].push_back(residual[i * 3 + 2]);
       }
-      const double sx = robust_spread(dx), sy = robust_spread(dy),
-                   sz = robust_spread(dz);
+      std::vector<double> sx(n_experiments), sy(n_experiments),
+          sz(n_experiments);
+      for (std::size_t e = 0; e < n_experiments; ++e) {
+        sx[e] = robust_spread(dx[e]);
+        sy[e] = robust_spread(dy[e]);
+        sz[e] = robust_spread(dz[e]);
+      }
       std::size_t rejected = 0;
       for (std::size_t i = 0; i < observations.size(); ++i) {
         if (!observations[i].active)
           continue;
-        const bool bad = (sx > 0 && std::abs(residual[i * 3 + 0]) >
-                                        options.outlier_sigma * sx) ||
-                         (sy > 0 && std::abs(residual[i * 3 + 1]) >
-                                        options.outlier_sigma * sy) ||
-                         (sz > 0 && std::abs(residual[i * 3 + 2]) >
-                                        options.outlier_sigma * sz);
+        const std::size_t e = observations[i].experiment;
+        const bool bad = (sx[e] > 0 && std::abs(residual[i * 3 + 0]) >
+                                           options.outlier_sigma * sx[e]) ||
+                         (sy[e] > 0 && std::abs(residual[i * 3 + 1]) >
+                                           options.outlier_sigma * sy[e]) ||
+                         (sz[e] > 0 && std::abs(residual[i * 3 + 2]) >
+                                           options.outlier_sigma * sz[e]);
         if (bad) {
           observations[i].active = false;
           ++rejected;
@@ -944,18 +995,28 @@ JacobianComparison compare_jacobians(const ExperimentList &experiments,
   layout.n_experiments = experiments.size();
   layout.crystal_blocks =
       options.crystal ? (options.shared_crystal ? 1 : experiments.size()) : 0;
-  layout.points = std::max<std::size_t>(1, options.scan_points);
+  {
+    // Each crystal block its own control points: the experiment's own count
+    // where one is given, else scan_points.
+    std::vector<std::size_t> points(
+        layout.crystal_blocks, std::max<std::size_t>(1, options.scan_points));
+    for (std::size_t b = 0; b < layout.crystal_blocks; ++b) {
+      const std::size_t e = layout.shared_crystal ? 0 : b;
+      if (e < options.scan_points_of.size())
+        points[b] = std::max<std::size_t>(1, options.scan_points_of[e]);
+    }
+    layout.set_points(points);
+  }
   const std::size_t n = layout.size();
   if (n == 0)
     return out;
 
   ExperimentList base = experiments;
-  if (layout.points > 1) {
-    for (Experiment &e : base) {
-      if (e.crystal && e.crystal->A_points.size() != layout.points) {
-        e.crystal->A_points.assign(layout.points, e.crystal->A);
-      }
-    }
+  for (std::size_t i = 0; i < base.size(); ++i) {
+    Experiment &e = base[i];
+    const std::size_t points = layout.points_at(i);
+    if (points > 1 && e.crystal && e.crystal->A_points.size() != points)
+      e.crystal->A_points.assign(points, e.crystal->A);
   }
 
   std::vector<std::vector<double>> analytic;
@@ -1214,10 +1275,26 @@ TwoPassRefinement refine_in_two_passes(ExperimentList &experiments,
                                        RefineOptions options,
                                        std::size_t scan_points,
                                        bool hold_detector) {
+  return refine_in_two_passes(
+      experiments, reflections, options,
+      std::vector<std::size_t>(experiments.size(), scan_points), hold_detector);
+}
+
+TwoPassRefinement
+refine_in_two_passes(ExperimentList &experiments, const Table &reflections,
+                     RefineOptions options,
+                     const std::vector<std::size_t> &scan_points_of,
+                     bool hold_detector) {
   TwoPassRefinement out;
+  options.scan_points = 1;
+  options.scan_points_of.clear();
   out.static_pass = refine(experiments, reflections, options);
-  if (scan_points > 1 && out.static_pass.n_used > 0) {
-    options.scan_points = scan_points;
+  const bool any_varying =
+      std::any_of(scan_points_of.begin(), scan_points_of.end(),
+                  [](std::size_t p) { return p > 1; });
+  if (any_varying && out.static_pass.n_used > 0) {
+    options.scan_points = 1;
+    options.scan_points_of = scan_points_of;
     // The detector is held where the static pass put it.
     //
     // A scan-varying crystal and a refinable detector distance are

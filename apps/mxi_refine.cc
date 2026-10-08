@@ -233,24 +233,37 @@ int run_program(int argc, char **argv) {
     Table reflections = read_reflections(args.positional[1]);
     t_read = now_wall() - t_read_start;
     // Scan-varying by default -- nearly every real crystal moves -- one control
-    // point per 10 degrees; static if asked, or on a scan under 10 degrees,
-    // too little rotation to tell a moving crystal from noise.
-    const Scan &scan = experiments[0].scan;
-    const double degrees =
-        std::abs(scan.osc_width) * static_cast<double>(scan.num_images());
-    int scan_points = 1;
-    if (args.has("--static")) {
-      scan_points = 1;
-    } else if (args.has("--scan-varying") &&
-               !args.value("--scan-varying", "").empty()) {
-      scan_points = static_cast<int>(args.number("--scan-varying", 1));
-    } else if (degrees >= 10.0) {
-      scan_points = static_cast<int>(scan_varying_points(scan));
-    } else {
-      std::printf("Static: the scan is %.1f degrees, under the 10 a "
-                  "scan-varying crystal "
-                  "needs\n",
-                  degrees);
+    // point per 10 degrees of each sweep's own scan; static if asked, or on a
+    // scan under 10 degrees, too little rotation to tell a moving crystal from
+    // noise. Each sweep its own: the first sweep's count for all gave a 120
+    // degree sweep the 35 of the 350 degree ones beside it.
+    std::vector<std::size_t> points_of;
+    for (const Experiment &e : experiments) {
+      const double degrees =
+          std::abs(e.scan.osc_width) * static_cast<double>(e.scan.num_images());
+      std::size_t points = 1;
+      if (args.has("--static")) {
+        points = 1;
+      } else if (args.has("--scan-varying") &&
+                 !args.value("--scan-varying", "").empty()) {
+        points = static_cast<std::size_t>(args.number("--scan-varying", 1));
+      } else if (degrees >= 10.0) {
+        points = scan_varying_points(e.scan);
+      } else {
+        std::printf("Static: the scan is %.1f degrees, under the 10 a "
+                    "scan-varying crystal "
+                    "needs\n",
+                    degrees);
+      }
+      points_of.push_back(points);
+    }
+    // One count, as one sweep has: printed as before; several, each.
+    std::string points_text = std::to_string(points_of.front());
+    if (std::any_of(points_of.begin(), points_of.end(),
+                    [&](std::size_t p) { return p != points_of.front(); })) {
+      points_text.clear();
+      for (std::size_t p : points_of)
+        points_text += (points_text.empty() ? "" : ", ") + std::to_string(p);
     }
     if (conditional_depth) {
       for (Experiment &e : experiments) {
@@ -264,8 +277,7 @@ int run_program(int argc, char **argv) {
                 experiments.size() == 1 ? "" : "s");
 
     const TwoPassRefinement two =
-        refine_in_two_passes(experiments, reflections, options,
-                             static_cast<std::size_t>(scan_points),
+        refine_in_two_passes(experiments, reflections, options, points_of,
                              !args.has("--detector-in-scan-varying"));
     if (two.static_pass.n_used > 0) {
       std::printf("\nScan-static: %zu parameters\n",
@@ -273,8 +285,8 @@ int run_program(int argc, char **argv) {
       print_cycles(two.static_pass);
     }
     if (two.varied && two.varying_pass.n_used > 0) {
-      std::printf("\nScan-varying, %d control points: %zu parameters%s\n",
-                  scan_points, two.varying_pass.n_parameters,
+      std::printf("\nScan-varying, %s control points: %zu parameters%s\n",
+                  points_text.c_str(), two.varying_pass.n_parameters,
                   two.detector_held
                       ? "; the detector held where the scan-static pass put "
                         "it (--detector-in-scan-varying to refine it too)"

@@ -68,6 +68,11 @@ struct RefineOptions {
   //: control points start from the static answer, and starting them from an
   //: unrefined model lets them absorb errors that belong to the detector.
   std::size_t scan_points = 1;
+  //: Several sweeps: each experiment's own count, overriding scan_points --
+  //: a 120 degree sweep beside three of 350 takes its own 12, not their 35,
+  //: which left it so free at its ends that one minimiser could not settle
+  //: it, and stopped the others early with it.
+  std::vector<std::size_t> scan_points_of;
   int max_iterations = 30;
   //: Reject reflections whose residual exceeds this many times the robust
   //: spread, between macrocycles. Zero disables rejection entirely.
@@ -209,6 +214,12 @@ TwoPassRefinement refine_in_two_passes(ExperimentList &experiments,
                                        RefineOptions options,
                                        std::size_t scan_points,
                                        bool hold_detector = true);
+//: The same, each experiment its own number of control points.
+TwoPassRefinement
+refine_in_two_passes(ExperimentList &experiments, const Table &reflections,
+                     RefineOptions options,
+                     const std::vector<std::size_t> &scan_points_of,
+                     bool hold_detector = true);
 
 // Write xyzcal.px and xyzcal.mm into the table from the current models, so the
 // result can be compared against DIALS' own predictions.

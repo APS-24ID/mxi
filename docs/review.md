@@ -250,11 +250,11 @@ that depends on strength and orientation.
   alter a result is shown not to: `integrated.refl`, `symmetrized.refl` and
   `scaled.refl` before and after, one pass against two, one thread against
   sixteen. Work is cut into fixed blocks and combined in block order, so no
-  answer depends on the thread count (`src/parallel.hh`). Nor on the compiler's
-  taste for fused multiply-adds: C++ is built with `-ffp-contract=off`, the
-  arithmetic as written, so a Mac's Clang, which fuses by default, computes what
-  Linux's GCC does -- the default x86 build has no FMA instructions and was
-  unchanged by it, byte for byte.
+  answer depends on the thread count (`src/parallel.hh`). Between compilers it
+  may in the last bits: a compiler may fuse multiply-adds, rounding once where
+  the source rounds twice -- Clang on ARM does by default, for speed -- so a Mac
+  and Linux can differ at about 1e-11, and tests comparing two computations of
+  one quantity allow for that rather than ask for bytes.
 * **Tests that are shown to fail.** A new test is run against the bug it guards
   -- the fix taken out, or the bug put back -- before it is trusted; the commit
   messages record it. 297 C++ unit tests, 10 ctest suites, 230-odd Python tests,

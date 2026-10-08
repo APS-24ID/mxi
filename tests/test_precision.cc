@@ -256,9 +256,13 @@ std::vector<double> reference_derivatives(const Experiment &e,
 } // namespace
 
 TEST(the_templated_derivatives_reproduce_the_real_ones_in_double) {
-  // Bit for bit, measured: the same operations in the same order. Anything
-  // less and the float measurement below would be confounded by a
-  // transcription difference.
+  // The same operations in the same order, so the same to rounding: a
+  // transcription error shows at 1e-6 or worse. Not to the bit -- a compiler
+  // may fuse a multiply and an add into one instruction, rounding once, and
+  // fuse the two transcriptions differently: Clang on ARM, which fuses by
+  // default, put them 2e-11 apart, and GCC allowed FMA 1.7e-14. 1e-9 is fifty
+  // times that and far below any transcription mistake, and still well under
+  // the float measurement below, at 1e-7.
   const Experiment e = insulin_experiment();
   double worst = 0.0;
   std::size_t compared = 0;
@@ -281,7 +285,8 @@ TEST(the_templated_derivatives_reproduce_the_real_ones_in_double) {
     }
   }
   check::is_true(compared > 1000, "enough components compared");
-  check::close(worst, 0.0, 0.0, "identical, not merely close");
+  check::is_true(worst < 1e-9,
+                 "the same to rounding, fused multiply-adds allowed");
 }
 
 TEST(the_analytical_derivative_does_survive_single_precision) {

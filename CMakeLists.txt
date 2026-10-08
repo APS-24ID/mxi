@@ -6,15 +6,6 @@ cmake_minimum_required(VERSION 3.20)
 project(mxi VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
-
-# Floating-point arithmetic as written, on every compiler and machine: no fused
-# multiply-adds the source does not ask for. Clang on ARM fuses by default, and
-# GCC wherever FMA instructions are allowed; either changes the last bits of
-# results -- the same source gave different numbers on a Mac than on Linux, and
-# code computing the same thing twice, the templated derivatives against the
-# hand-written, disagreed at 1e-11 where it was written to agree to the bit.
-# The default x86 build has no FMA instructions and is unchanged by this.
-add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-ffp-contract=off>)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 

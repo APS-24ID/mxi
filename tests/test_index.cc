@@ -913,3 +913,104 @@ TEST(the_max_cell_is_the_histograms_peak_edge_times_1_3_as_dials_takes_it) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(index_recovers_a_cell_with_one_long_axis_not_its_supercell) {
+  // The whole path on such a cell, 43.6, 43.6, 212 A, from exact predicted
+  // spots. Exact spots are too easy to have shown Graeme's failure -- no noise
+  // to smear c* out, no strays for a supercell to take in -- and this passed
+  // before the fixes too; the two tests below are the ones that guard them.
+  Experiment truth = synthetic();
+  const Mat3 r = rotation({0.3, -0.5, 0.81}, 0.9);
+  truth.crystal = Crystal::from_real_space(r * Vec3{43.6, 0.0, 0.0},
+                                           r * Vec3{0.0, 43.6, 0.0},
+                                           r * Vec3{0.0, 0.0, 212.0});
+  Table spots = spots_from(truth, 3.3);
+  check::is_true(spots.nrows > 2000, "enough spots");
+
+  ExperimentList list;
+  Experiment blank = truth;
+  blank.crystal.reset();
+  list.experiments.push_back(blank);
+
+  const IndexResult result = index(list, spots, {});
+  check::is_true(result.fraction_indexed() > 0.9, "most spots should index");
+  check_same_cell(result.crystal.cell(), truth.crystal->cell(), 0.01);
+}
+
+} // namespace mxi
+
+namespace mxi {
+
+namespace {
+
+// The points of a 43.6, 43.6, 212 A lattice, and every twentieth with a stray
+// beside it at (h + 1/2, k + 1/2, l): integer only in the supercell on a + b
+// and a - b, which therefore indexes them all where the true cell indexes 95
+// per cent.
+std::vector<Vec3> long_axis_points(bool strays) {
+  const Mat3 rows =
+      Mat3::from_rows({43.6, 0.0, 0.0}, {0.0, 43.6, 0.0}, {0.0, 0.0, 212.0});
+  const Mat3 A = rows.inverse();
+  std::vector<Vec3> points;
+  int n = 0;
+  for (int h = -8; h <= 8; ++h)
+    for (int k = -8; k <= 8; ++k)
+      for (int l = -40; l <= 40; ++l) {
+        if (h == 0 && k == 0 && l == 0)
+          continue;
+        const Vec3 r = A * Vec3{double(h), double(k), double(l)};
+        if (r.norm() > 1.0 / 3.3)
+          continue;
+        points.push_back(r);
+        if (strays && ++n % 20 == 0)
+          points.push_back(A * Vec3{h + 0.5, k + 0.5, double(l)});
+      }
+  return points;
+}
+
+} // namespace
+
+TEST(the_basis_chosen_is_the_true_cell_not_a_supercell_that_indexes_more) {
+  // As dials.index's filtering ranker chooses: of the triples indexing 90 per
+  // cent of the best, the smallest cell. The most indexed, which won before,
+  // is the supercell -- it takes in the strays.
+  const std::vector<Vec3> points = long_axis_points(true);
+  const Vec3 a{43.6, 0.0, 0.0}, b{0.0, 43.6, 0.0}, c{0.0, 0.0, 212.0};
+  const std::vector<Vec3> candidates = {a + b, a - b, c, a, b};
+  Crystal crystal;
+  std::size_t indexed = 0;
+  check::is_true(choose_basis(candidates, points, 0.1, &crystal, &indexed),
+                 "a basis is chosen");
+  const UnitCell cell = crystal.cell();
+  check::close(cell.volume(), 43.6 * 43.6 * 212.0, 1.0,
+               "the true cell's volume");
+}
+
+TEST(no_candidate_is_a_multiple_of_another) {
+  // dials.index's fft3d drops a peak within 5 degrees of parallel to one kept
+  // and a whole number of times as long, within 0.2. Without it, the 30
+  // candidates of a long-axis cell were a, b, 2a to 6a and their sums, and
+  // its c never among them.
+  const std::vector<Vec3> points = long_axis_points(false);
+  IndexOptions options;
+  const std::vector<Vec3> found =
+      find_candidate_vectors(points, options, 3.3, 286.0, 256);
+  check::is_true(found.size() >= 3, "candidates found");
+  bool any_c = false;
+  for (std::size_t i = 0; i < found.size(); ++i) {
+    any_c = any_c || std::abs(found[i].z) > 100.0;
+    for (std::size_t j = i + 1; j < found.size(); ++j) {
+      const double li = found[i].norm(), lj = found[j].norm();
+      const double cosine = std::abs(found[i].dot(found[j])) / (li * lj);
+      const double ratio = std::max(li, lj) / std::min(li, lj);
+      const bool multiple = cosine > std::cos(5.0 * 3.14159265358979 / 180.0) &&
+                            std::abs(std::round(ratio) - ratio) < 0.2;
+      check::is_true(!multiple, "two candidates parallel, one a multiple");
+    }
+  }
+  check::is_true(any_c, "a candidate along c");
+}
+
+} // namespace mxi

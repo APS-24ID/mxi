@@ -134,6 +134,11 @@ int run_program(int argc, char **argv) {
     add_observed_columns(experiments, reflections);
 
     const IndexResult result = index(experiments, reflections, options);
+    // The search's terms whether it succeeds or not: they are what a failure
+    // is diagnosed by.
+    if (result.max_cell > 0.0)
+      std::printf("  to %.2f A, maximum cell %.1f A, FFT grid %zu^3\n",
+                  result.d_min, result.max_cell, result.grid);
     if (result.n_indexed == 0) {
       std::fprintf(stderr,
                    "mxi_index: no lattice found. Try --max-cell, or --d-min to "
@@ -141,8 +146,6 @@ int run_program(int argc, char **argv) {
       return 1;
     }
 
-    std::printf("  to %.2f A, maximum cell %.1f A, FFT grid %zu^3\n",
-                result.d_min, result.max_cell, result.grid);
     // Each macrocycle: refine on the strong reflections, index everything
     // again. The RMSDs are the refinement's, in pixels and images, which is
     // what DIALS reports and what to set beside it; the index RMSD, which has

@@ -343,6 +343,12 @@ change to the kernel size or to the masking shows up as a failure there.
 
 ## Reading NXmx
 
+The older DECTRIS file writer's master has no `/entry/data/data`, only
+`/entry/data/data_000001` and on, each an external link to a data file's own
+stack: then a block a link, in order, each link's file resolved against the
+master's directory and its frames following the last's, and a link whose file
+is not there refused by name (`docs/import.md`). Otherwise:
+
 `/entry/data/data` in the master file is a virtual dataset over the data files.
 A virtual dataset cannot be chunk-read, so the mapping is unpacked instead:
 `H5Pget_virtual_filename`, `H5Pget_virtual_dsetname` and the two selections

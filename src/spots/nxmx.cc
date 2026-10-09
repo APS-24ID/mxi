@@ -427,6 +427,16 @@ public:
         opened(H5Fopen(master_.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT),
                ("opening " + master_).c_str()),
         H5Fclose);
+    // The older DECTRIS file writer's master has no /entry/data/data, only
+    // /entry/data/data_000001 and on, each a link to a data file's own stack.
+    if (H5Lexists(file.get(), kImageData, H5P_DEFAULT) <= 0 &&
+        H5Lexists(file.get(), "/entry/data/data_000001", H5P_DEFAULT) > 0) {
+      blocks_ = linked_blocks(file.get(), info);
+      info->name = std::filesystem::path(master_).stem().string();
+      masked_ = read_pixel_mask(file.get(), info->height, info->width);
+      info->masked_pixels = masked_ ? masked_->size() : 0;
+      return true;
+    }
     const Handle data(opened(H5Dopen2(file.get(), kImageData, H5P_DEFAULT),
                              ("opening " + std::string(kImageData)).c_str()),
                       H5Dclose);
@@ -569,6 +579,86 @@ private:
     }
     std::sort(blocks.begin(), blocks.end(),
               [](const Block &a, const Block &b) { return a.first < b.first; });
+    return blocks;
+  }
+
+  // A block a link, /entry/data/data_000001 and on, in order: each link's file
+  // resolved against the master's directory, as a virtual dataset's sources
+  // are, and its frames following the last's. A link whose file is not there
+  // is refused by name, rather than the series taken to end before it.
+  // Called from try_open with the HDF5 lock held.
+  std::vector<Block> linked_blocks(hid_t file, Info *info) {
+    const std::filesystem::path directory =
+        std::filesystem::path(master_).parent_path();
+    std::vector<Block> blocks;
+    std::uint64_t next = 0;
+    for (int k = 1;; ++k) {
+      char name[64];
+      std::snprintf(name, sizeof name, "/entry/data/data_%06d", k);
+      if (H5Lexists(file, name, H5P_DEFAULT) <= 0)
+        break;
+        // H5Lget_info2 from HDF5 1.12; before, H5Lget_info, with the same
+        // fields this needs.
+#if H5_VERSION_GE(1, 12, 0)
+      H5L_info2_t link;
+      ok(H5Lget_info2(file, name, &link, H5P_DEFAULT), "H5Lget_info2");
+#else
+      H5L_info_t link;
+      ok(H5Lget_info(file, name, &link, H5P_DEFAULT), "H5Lget_info");
+#endif
+      Block block;
+      if (link.type == H5L_TYPE_EXTERNAL) {
+        std::vector<char> value(link.u.val_size);
+        ok(H5Lget_val(file, name, value.data(), value.size(), H5P_DEFAULT),
+           "H5Lget_val");
+        const char *target_file = nullptr;
+        const char *target_object = nullptr;
+        unsigned flags = 0;
+        ok(H5Lunpack_elink_val(value.data(), value.size(), &flags, &target_file,
+                               &target_object),
+           "H5Lunpack_elink_val");
+        std::filesystem::path path(target_file);
+        if (path.is_relative() && !directory.empty())
+          path = directory / path;
+        block.filename = path.string();
+        block.dataset = target_object;
+      } else {
+        block.filename = master_;
+        block.dataset = name;
+      }
+      std::error_code ignored;
+      if (block.filename != master_ &&
+          !std::filesystem::is_regular_file(block.filename, ignored))
+        throw std::runtime_error(std::string(name) + " links to " +
+                                 block.filename + ", which is not there");
+      const Handle data(opened(H5Dopen2(file, name, H5P_DEFAULT),
+                               ("opening " + std::string(name)).c_str()),
+                        H5Dclose);
+      const Handle space(opened(H5Dget_space(data.get()), "H5Dget_space"),
+                         H5Sclose);
+      if (H5Sget_simple_extent_ndims(space.get()) != 3)
+        throw std::runtime_error(std::string(name) +
+                                 " is not a stack of images");
+      hsize_t dims[3] = {0, 0, 0};
+      ok(H5Sget_simple_extent_dims(space.get(), dims, nullptr),
+         "H5Sget_simple_extent_dims");
+      if (dims[0] == 0)
+        continue;
+      if (!blocks.empty() &&
+          (dims[1] != info->height || dims[2] != info->width))
+        throw std::runtime_error(std::string(name) +
+                                 " holds frames of another size");
+      info->height = dims[1];
+      info->width = dims[2];
+      block.first = next;
+      block.last = next + dims[0] - 1;
+      block.offset = 0;
+      next += dims[0];
+      blocks.push_back(block);
+    }
+    if (blocks.empty())
+      throw std::runtime_error("/entry/data/data_000001 and on hold no frames");
+    info->images = next;
     return blocks;
   }
 

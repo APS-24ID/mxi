@@ -71,6 +71,38 @@ overrides apply to every master alike.
 Every unit is read from its attribute -- lengths to mm, angles to degrees -- and
 one missing is taken as mm or degrees and said.
 
+## The older DECTRIS file writer's masters
+
+Before NXmx, DECTRIS's own file writer wrote a "nearly NeXus" master -- Graeme's
+example a 2023 Eiger 16M on firmware 1.6.6: no NXdetector_module, no depends_on
+chains, no /entry/data/data, the geometry in its own fields and the frames in
+/entry/data/data_000001 and on, each an external link to a data file. dials.import
+reads them through dxtbx's FormatHDF5EigerNearlyNexus, whose EigerNXmxFixer
+builds the missing structure; mxi_import recognises the same masters -- an entry
+with no definition, a detector described as a DECTRIS Eiger, geometry/orientation
+and geometry/translation present -- and makes the models by the fixer's rules,
+so that the two agree:
+
+* **The detector:** one panel, `/entry/instrument/detector/module`; its fast and
+  slow directions geometry/orientation/value's two triples, its origin
+  geometry/translation/distances, each with its z negated, as the fixer has it,
+  "to align with Dectris/NeXus documentation", then into DIALS's frame as any
+  NeXus vector. Pixel sizes from x_pixel_size and y_pixel_size; the size from the
+  first data file, or detectorSpecific's x_ and y_pixels_in_detector if the data
+  files are not beside the master. On Graeme's master the beam meets the panel at
+  2054.14, 2236.73, its own beam_center_x and _y, which nothing read.
+* **The goniometer:** omega about (-1, 0, 0) -- (0, 1, 0) on detector E-32-0105,
+  as the fixer has it -- whatever the master's goniometer group says.
+* **The scan:** from 0 in steps of omega_range_average rounded to 0.01 degree, one
+  a frame of the linked data files (or nimages times ntrigger without them, said
+  so). The master's omega_start is not used, as dials.import does not use it;
+  said so.
+* The rest -- the beam, the sensor, mu, the trusted range from the count cutoff --
+  as for any master.
+
+The frame reader follows the links in order (`docs/spots.md`).
+`python/tests/test_nearly_nexus.py` plants such a series.
+
 ## Overrides
 
 `--wavelength A`; `--distance MM`, moving the detector along its normal;

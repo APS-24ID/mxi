@@ -52,6 +52,9 @@ def plant(
     meta=None,
     material=b"Silicon",
     wavelength=1.0,
+    offset_m=OFFSET_M,
+    offset_vec=OFFSET_VEC,
+    frame_time=None,
 ):
     with h5py.File(path, "w") as f:
         e = f.create_group("entry")
@@ -88,6 +91,8 @@ def plant(
         elif saturation is not None:
             det.create_dataset("saturation_value", data=saturation)
         det.create_dataset("count_time", data=0.01)
+        if frame_time is not None:
+            det.create_dataset("frame_time", data=frame_time).attrs["units"] = "s"
         t = e.create_group("instrument/transformations")
         tt = t.create_dataset("two_theta", data=TWO_THETA)
         tt.attrs.update(
@@ -113,11 +118,11 @@ def plant(
         mod.attrs["NX_class"] = "NXdetector_module"
         mod.create_dataset("data_origin", data=[0, 0])
         mod.create_dataset("data_size", data=[300, 200])
-        mo = mod.create_dataset("module_offset", data=OFFSET_M)
+        mo = mod.create_dataset("module_offset", data=offset_m)
         mo.attrs.update(
             {
                 "transformation_type": "translation",
-                "vector": OFFSET_VEC,
+                "vector": offset_vec,
                 "units": "m",
                 "depends_on": "/entry/instrument/transformations/det_z",
             }
@@ -222,7 +227,8 @@ def test_a_planted_masters_geometry_is_read_as_worked_out_here(tmp_path):
     s = e["scan"][0]
     assert s["image_range"] == [1, 10]
     assert np.allclose(s["properties"]["oscillation"], np.arange(10) * 0.5 + 10.0)
-    assert np.allclose(s["properties"]["exposure_time"], 0.01)
+    # No frame_time: 0, as dials.import gives it -- count_time is not it.
+    assert np.allclose(s["properties"]["exposure_time"], 0.0)
     assert e["beam"][0]["wavelength"] == pytest.approx(1.0)
 
 
@@ -486,3 +492,51 @@ def test_it_writes_what_it_prints_to_mxi_import_log(tmp_path):
     log = tmp_path / "mxi_import.log"
     assert log.exists()
     assert log.read_text() == result.stdout
+
+
+@needs_import
+def test_a_vector_not_of_unit_length_is_used_as_given_as_dxtbx_uses_it(tmp_path):
+    # NXtransformations wants a unit vector, the length in the value. A
+    # beamline's master put a module_offset as 1 m along (0.15756, 0.16414, 0):
+    # dxtbx takes value times vector as it stands, and put the detector where
+    # it was meant; mxi had normalised the vector, and put it 4.4 times too far
+    # off the beam. The same offset written both ways must import alike.
+    plant(tmp_path / "unit.nxs")
+    plant(tmp_path / "long.nxs", offset_m=1.0, offset_vec=OFFSET_VEC * OFFSET_M)
+    origins = []
+    for name in ("unit", "long"):
+        r = subprocess.run(
+            [
+                IMPORT,
+                str(tmp_path / f"{name}.nxs"),
+                "-o",
+                str(tmp_path / f"{name}.expt"),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert r.returncode == 0, r.stderr
+        origins.append(
+            json.load(open(tmp_path / f"{name}.expt"))["detector"][0]["panels"][0][
+                "origin"
+            ]
+        )
+    assert origins[1] == pytest.approx(origins[0], abs=1e-9)
+
+
+@needs_import
+@pytest.mark.parametrize("frame_time", [0.05, None])
+def test_the_exposure_is_frame_time_as_dials_import_takes_it(tmp_path, frame_time):
+    # dxtbx: exposure_time frame_time, the epochs frame_time apart; both 0
+    # without it. mxi had taken count_time, the shorter time counted.
+    plant(tmp_path / "master.nxs", frame_time=frame_time)
+    r = subprocess.run(
+        [IMPORT, str(tmp_path / "master.nxs"), "-o", str(tmp_path / "imported.expt")],
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    p = json.load(open(tmp_path / "imported.expt"))["scan"][0]["properties"]
+    expected = frame_time or 0.0
+    assert p["exposure_time"] == pytest.approx([expected] * len(p["exposure_time"]))
+    assert p["epochs"] == pytest.approx([expected * i for i in range(len(p["epochs"]))])

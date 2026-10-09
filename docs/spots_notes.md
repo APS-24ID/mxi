@@ -331,10 +331,9 @@ could.
   detector hierarchy are `dials.import`'s business; a second model of them here
   would be a second thing to keep in step with dxtbx.
 * **Where this will not match `dials.find_spots`** is in the README, with the
-  reasons. The pixel mask is the one real omission: DIALS masks from the
-  detector's own mask where this recognises only the sentinel values in the data.
-  Closing it needs no kernel change -- read the mask and stamp the sentinel into
-  the frame before the threshold.
+  reasons. The pixel mask, once the one real omission, is read since October
+  2026, as these notes said it should be: no kernel change, the sentinel
+  stamped into each frame as it is decoded (`series::apply_pixel_mask`).
 
 ## HDF5
 

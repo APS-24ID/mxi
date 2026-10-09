@@ -719,6 +719,10 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
       static_cast<unsigned long long>(info.height), source->describe().c_str(),
       options.threads, options.threads == 1 ? "" : "s",
       options.gpu ? "GPU" : "CPU");
+  if (info.masked_pixels > 0)
+    std::fprintf(stdout,
+                 "%llu pixels masked by the detector's own pixel_mask\n",
+                 static_cast<unsigned long long>(info.masked_pixels));
   std::fprintf(
       stdout,
       "Grouping in %s, %zu to %zu pixels a spot, peak within %.1f of the "
@@ -804,6 +808,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
             const double d0 = mxi::Timing::now();
             decompress::image(frame.data, frame.algorithm, frame.bit_depth,
                               height, width, {pixels, bytes});
+            series::apply_pixel_mask(frame, {pixels, bytes});
             const double d1 = mxi::Timing::now();
             t_decompress.add(d1 - d0);
             found.number = frame.number;

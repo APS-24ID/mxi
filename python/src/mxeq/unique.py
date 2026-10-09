@@ -168,9 +168,23 @@ def _cc(a, b):
     return float(np.corrcoef(a[ok], b[ok])[0, 1])
 
 
+def _rank_cc(a, b):
+    """Spearman's: the correlation of the two sets' ranks, which a handful of
+    wild values -- two observations at -25 sigma, merged -- cannot move as they
+    move the correlation of the values themselves."""
+    ok = np.isfinite(a) & np.isfinite(b)
+    if ok.sum() < 3:
+        return float("nan")
+    rank = lambda x: np.argsort(np.argsort(x)).astype(float)
+    return float(np.corrcoef(rank(a[ok]), rank(b[ok]))[0, 1])
+
+
 def best_operator(a: Merged, b_obs: Observations, hall: str):
     """The lattice operator on the second data set's indices under which the
-    two merged data sets agree best, its correlation, and the identity's."""
+    two merged data sets agree best, its rank correlation, and the identity's.
+    By rank: chosen by the values' own correlation, two absurd observations of
+    one reflection read as an indexing that did not match, and a wrong
+    operator was taken."""
     results = []
     for m in reindex.candidate_operators():
         m = np.asarray(m)
@@ -186,7 +200,7 @@ def best_operator(a: Merged, b_obs: Observations, hall: str):
         _, ia, ib = np.intersect1d(a.keys, unique, return_indices=True)
         if len(ia) < 10:
             continue
-        results.append((_cc(a.mean[ia], mean[ib]), m))
+        results.append((_rank_cc(a.mean[ia], mean[ib]), m))
     identity = next(
         (cc for cc, m in results if np.array_equal(m, np.eye(3, dtype=m.dtype))),
         float("nan"),
@@ -216,8 +230,8 @@ def compare(
     lines.append(
         f"  {b_obs.label}'s indices as they are"
         if is_identity
-        else f"  {b_obs.label} reindexed by {m.astype(int).tolist()}: merged intensities CC "
-        f"{cc:.4f}, against {identity:.4f} as they are"
+        else f"  {b_obs.label} reindexed by {m.astype(int).tolist()}: merged intensities' rank "
+        f"correlation {cc:.4f}, against {identity:.4f} as they are"
     )
     b_hkl = np.rint(b_obs.hkl @ m).astype(np.int64)
     b = merge(eq.asu_keys(b_hkl, hall), b_obs)

@@ -155,6 +155,7 @@ int main(int argc, char **argv) {
             out.resize(bytes);
             decompress::image(frame.data, frame.algorithm, frame.bit_depth, h,
                               wd, {out.data(), out.size()});
+            series::apply_pixel_mask(frame, {out.data(), out.size()});
             std::uint64_t largest = 0, bad = 0, joins = 0, over = 0;
             if (frame.bit_depth == 16)
               scan<std::uint16_t>(out.data(), h * wd, &largest, &bad, &joins,

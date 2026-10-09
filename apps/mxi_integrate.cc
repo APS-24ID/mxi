@@ -1717,6 +1717,7 @@ int run_program(int argc, char **argv) {
             std::vector<std::uint8_t> pixels(bytes);
             decompress::image(raw.data, raw.algorithm, raw.bit_depth, height,
                               width, {pixels.data(), bytes});
+            series::apply_pixel_mask(raw, {pixels.data(), bytes});
             const double t2 = now_wall();
             frames_done.fetch_add(1);
 

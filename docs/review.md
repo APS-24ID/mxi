@@ -132,7 +132,16 @@ overlapping boxes left out, nearest neighbours by sweep, 45 degree block and
 entering or not, the edge of their histogram's peak times 1.3. The margin
 matters: the median times 1.5, as it was, let a small molecule with a second
 lattice in it index in a supercell twice the true one's volume. And it has a
-macrocycle of assignment and refinement: assigning once admitted 380
+macrocycle of assignment and refinement. The transform, its candidates and the
+basis follow fft3d's in three more ways, each found missing on a cell of 43.6,
+43.6, 212 A that dials.index indexed and mxi_index did not: the reciprocal grid
+a step of 1 / (2.5 max_cell), as fft3d's, and no point beyond its reach, where
+1 / (2 max_cell) put c* 2.7 steps apart and the points beyond wrapped round;
+candidate peaks a whole multiple of a stronger one dropped, where 2a to 6a had
+filled the 30 and left c out; and the basis chosen as dials.index's filtering
+ranker chooses, the smallest cell of those indexing 90 per cent of the best,
+where the most indexed had won and a supercell, taking in strays, indexes a
+little more. Then the macrocycles: assigning once admitted 380
 weak misindexed reflections that moved the refined distance by 0.27 mm without
 producing a single outlier (`CLAUDE.md`, "Where the cell and distance difference
 from DIALS actually came from"). Given DIALS' own indexed reflections, this

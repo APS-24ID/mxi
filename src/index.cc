@@ -422,8 +422,16 @@ std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
                                          double d_min, double max_cell,
                                          std::size_t grid) {
   const std::size_t n = grid;
-  const double spacing = 1.0 / (2.0 * max_cell); // reciprocal grid spacing
-  const double q_max = 1.0 / d_min;
+  // The reciprocal grid as dials.index's fft3d makes it: a spacing of
+  // 1 / (2.5 max_cell), and no point beyond the grid's own reach, n/2 steps --
+  // which on a capped grid is a resolution limit of 5 max_cell / n, as fft3d's.
+  // It was 1 / (2 max_cell), and the points beyond the reach wrapped round onto
+  // the far side of the grid: on a cell of 43.6, 43.6, 212 A, c* was 2.7 steps
+  // of the grid, every point rounded to its nearest node smeared it out with
+  // the aliased ones, and no candidate had any c in it at all.
+  const double spacing = 1.0 / (2.5 * max_cell);
+  const double q_max =
+      std::min(1.0 / d_min, 0.5 * static_cast<double>(n) * spacing);
 
   std::vector<std::complex<double>> f(n * n * n,
                                       std::complex<double>(0.0, 0.0));
@@ -536,18 +544,42 @@ std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
 
   // A peak and its negation describe the same lattice vector, and so do two
   // peaks a fraction of a grid step apart. Keep the stronger of each.
+  //
+  // And a peak an approximate integer multiple of a stronger one kept adds no
+  // direction a basis needs -- dials.index's is_approximate_integer_multiple:
+  // within 5 degrees of parallel, a length ratio within 0.2 of a whole number
+  // -- so it is dropped, longer or shorter. Unfiltered, on a cell of 43.6,
+  // 43.6, 212 A, the 30 candidates were a, b, 2a to 6a and their sums, all in
+  // one plane, and c's peak never among them. The stronger is kept, never the
+  // shorter in its place: the transform has peaks at fractions of a lattice
+  // vector too, and a/2 for a, tried, gave every other data set a cell too
+  // small.
+  const auto multiple = [](const Vec3 &u, const Vec3 &v) {
+    const double lu = u.norm(), lv = v.norm();
+    if (!(lu > 0.0) || !(lv > 0.0))
+      return false;
+    const double cosine = std::abs(u.dot(v)) / (lu * lv);
+    if (cosine < std::cos(5.0 * 3.14159265358979323846 / 180.0))
+      return false;
+    const double ratio = std::max(lu, lv) / std::min(lu, lv);
+    return std::abs(std::round(ratio) - ratio) < 0.2;
+  };
   std::vector<Vec3> out;
   for (const Peak &p : peaks) {
-    bool duplicate = false;
+    bool skip = false;
     for (const Vec3 &kept : out) {
       const double tolerance = 0.5 * real_spacing + 0.02 * kept.norm();
       if ((p.position - kept).norm() < tolerance ||
           (p.position + kept).norm() < tolerance) {
-        duplicate = true;
+        skip = true;
+        break;
+      }
+      if (multiple(p.position, kept)) {
+        skip = true;
         break;
       }
     }
-    if (duplicate)
+    if (skip)
       continue;
     out.push_back(p.position);
     if (out.size() >= options.n_candidates)
@@ -672,12 +704,25 @@ bool choose_basis(const std::vector<Vec3> &candidates,
   const std::size_t n = candidates.size();
   if (n < 3)
     return false;
-
-  std::size_t best_count = 0;
-  double best_volume = 0.0;
-  Mat3 best_rows = Mat3::identity();
-  bool found = false;
-
+  // Every triple scored, then chosen as dials.index's filtering ranker
+  // (ModelRankFilter) chooses: those indexing at least 90 per cent of what the
+  // best indexes, and of them the smallest cell; on a tie, the more indexed.
+  //
+  // It was the most indexed that won, volume only breaking exact ties. But a
+  // supercell's lattice holds every point of the true one and more, so within
+  // the tolerance it takes in noise and a second lattice's spots too, and
+  // indexed a little more: a cell of 43.6, 43.6, 212 A was given as 61.6,
+  // 61.6, 212. Volume against count as dials.index's weighted ranker weighs
+  // them -- tried first -- chose worse: not every candidate is a lattice
+  // vector, and a small cell of spurious ones indexing a fifth of the spots
+  // won on volume. The 90 per cent shuts those out and lets the true cell
+  // beside its supercell through.
+  struct Triple {
+    std::size_t count;
+    double volume;
+    Mat3 rows;
+  };
+  std::vector<Triple> triples;
   for (std::size_t a = 0; a < n; ++a) {
     for (std::size_t b = a + 1; b < n; ++b) {
       for (std::size_t c = b + 1; c < n; ++c) {
@@ -694,24 +739,28 @@ bool choose_basis(const std::vector<Vec3> &candidates,
           continue;
         }
         ++g_triples_scored;
-
         const std::size_t count = score_basis(rows, points, tolerance, nullptr);
-        // More reflections indexed wins. On a tie the smaller cell wins,
-        // because a supercell indexes everything its sublattice does and
-        // would otherwise be chosen half the time by whichever came first.
-        if (count > best_count ||
-            (count == best_count && found && volume < best_volume - 1e-6)) {
-          best_count = count;
-          best_volume = volume;
-          best_rows = rows;
-          found = true;
-        }
+        if (count > 0)
+          triples.push_back({count, volume, rows});
       }
     }
   }
-  if (!found || best_count == 0)
+  if (triples.empty())
     return false;
-
+  std::size_t most = 0;
+  for (const Triple &t : triples)
+    most = std::max(most, t.count);
+  const double floor = 0.9 * static_cast<double>(most);
+  const Triple *best = nullptr;
+  for (const Triple &t : triples) {
+    if (static_cast<double>(t.count) < floor)
+      continue;
+    if (!best || t.volume < best->volume * (1.0 - 1e-6) ||
+        (t.volume <= best->volume * (1.0 + 1e-6) && t.count > best->count))
+      best = &t;
+  }
+  const std::size_t best_count = best->count;
+  const Mat3 best_rows = best->rows;
   const Mat3 reduced = reduce_basis(best_rows);
   // Reduction must not lose reflections. If it does, the reduction found a
   // different lattice and the unreduced basis is the safer answer.
@@ -834,7 +883,7 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
   std::size_t grid = options.grid;
   if (grid == 0) {
     grid = next_power_of_two(
-        static_cast<std::size_t>(std::ceil(4.0 * max_cell / d_min)));
+        static_cast<std::size_t>(std::ceil(5.0 * max_cell / d_min)));
     grid = std::min<std::size_t>(std::max<std::size_t>(grid, 64), 256);
   }
 
@@ -850,10 +899,8 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
   result.timing.peak_search = g_last_peak_seconds;
   if (options.verbose) {
     std::printf("  %zu candidate basis vectors\n", result.candidates.size());
-    for (std::size_t i = 0;
-         i < std::min<std::size_t>(6, result.candidates.size()); ++i) {
+    for (std::size_t i = 0; i < result.candidates.size(); ++i)
       std::printf("    |v| = %8.3f\n", result.candidates[i].norm());
-    }
   }
 
   const double t_choose = now_seconds();

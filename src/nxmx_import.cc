@@ -445,6 +445,53 @@ first_existing(hid_t file, std::initializer_list<std::string> paths) {
   return std::nullopt;
 }
 
+// The older DECTRIS file writer's "nearly NeXus" master: no NXdetector_module,
+// no depends_on chains, the geometry in its own fields. Recognised as dxtbx's
+// FormatHDF5EigerNearlyNexus recognises it -- an entry with no definition,
+// a detector described as a DECTRIS Eiger -- and its models made as that
+// format's EigerNXmxFixer makes them, so that dials.import and mxi_import
+// agree.
+bool nearly_nexus(hid_t file, const std::string &detector) {
+  if (exists(file, "/entry/definition"))
+    return false;
+  if (!exists(file, detector + "/description") ||
+      !exists(file, detector + "/geometry/orientation/value") ||
+      !exists(file, detector + "/geometry/translation/distances"))
+    return false;
+  return lower(read_string(file, detector + "/description"))
+             .find("dectris eiger") != std::string::npos;
+}
+
+// The frames of a series stored as /entry/data/data_NNNNNN links, each to a
+// data file's own stack: how many in all, and their height and width. None if
+// a linked file cannot be opened.
+struct LinkedFrames {
+  long long images = 0, height = 0, width = 0;
+};
+std::optional<LinkedFrames> linked_frames(hid_t file) {
+  LinkedFrames out;
+  for (int k = 1;; ++k) {
+    char name[64];
+    std::snprintf(name, sizeof name, "/entry/data/data_%06d", k);
+    if (H5Lexists(file, name, H5P_DEFAULT) <= 0)
+      break;
+    H5 d(H5Dopen2(file, name, H5P_DEFAULT), H5Dclose);
+    if (!d.ok())
+      return std::nullopt;
+    H5 space(H5Dget_space(d.get()), H5Sclose);
+    hsize_t dims[3] = {0, 0, 0};
+    if (H5Sget_simple_extent_ndims(space.get()) != 3)
+      return std::nullopt;
+    H5Sget_simple_extent_dims(space.get(), dims, nullptr);
+    out.images += static_cast<long long>(dims[0]);
+    out.height = static_cast<long long>(dims[1]);
+    out.width = static_cast<long long>(dims[2]);
+  }
+  if (out.images == 0)
+    return std::nullopt;
+  return out;
+}
+
 } // namespace
 
 double attenuation_coefficient(const std::string &material, double wavelength) {
@@ -597,8 +644,15 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
     throw std::runtime_error("no " + detector);
   std::vector<std::string> modules =
       groups_of_class(f, detector, "NXdetector_module");
-  if (modules.empty())
+  const bool nearly = modules.empty() && nearly_nexus(f, detector);
+  if (modules.empty() && !nearly)
     throw std::runtime_error("no NXdetector_module under " + detector);
+  if (nearly)
+    notes->push_back(
+        "a DECTRIS file writer's nearly-NeXus master: its geometry taken as "
+        "dxtbx's FormatHDF5EigerNearlyNexus takes it");
+  const std::optional<LinkedFrames> linked =
+      nearly ? linked_frames(f) : std::nullopt;
   std::string material = "Si";
   if (exists(f, detector + "/sensor_material"))
     material = material_symbol(read_string(f, detector + "/sensor_material"));
@@ -702,6 +756,61 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
   }
 
   json::Array panels;
+  if (nearly) {
+    // dxtbx's fixer: the fast and slow directions from geometry/orientation,
+    // the detector's position from geometry/translation, each with its z
+    // negated "to align with Dectris/NeXus documentation"; then into DIALS's
+    // frame as any NeXus vector.
+    const std::vector<double> o =
+        read_doubles(f, detector + "/geometry/orientation/value");
+    const std::vector<double> t =
+        read_doubles(f, detector + "/geometry/translation/distances");
+    if (o.size() < 6 || t.size() < 3)
+      throw std::runtime_error(detector + "/geometry is incomplete");
+    const Vec3 fast_axis = to_imgcif(Vec3{o[0], o[1], -o[2]});
+    const Vec3 slow_axis = to_imgcif(Vec3{o[3], o[4], -o[5]});
+    const Vec3 origin = to_imgcif(Vec3{t[0], t[1], -t[2]} * 1000.0);
+    const auto size_mm = [&](const char *name) {
+      const std::string path = detector + "/" + name;
+      H5 d(H5Dopen2(f, path.c_str(), H5P_DEFAULT), H5Dclose);
+      return read_doubles(f, path).at(0) *
+             to_mm(attr_string(d.get(), "units"), name, notes);
+    };
+    long long nx = 0, ny = 0;
+    if (linked) {
+      nx = linked->width;
+      ny = linked->height;
+    } else {
+      nx = static_cast<long long>(
+          read_doubles(f, detector + "/detectorSpecific/x_pixels_in_detector")
+              .at(0));
+      ny = static_cast<long long>(
+          read_doubles(f, detector + "/detectorSpecific/y_pixels_in_detector")
+              .at(0));
+    }
+    panels.push_back(json::Object{
+        {"name", detector + "/module"},
+        {"type", "SENSOR_PAD"},
+        {"fast_axis", vec(fast_axis)},
+        {"slow_axis", vec(slow_axis)},
+        {"origin", vec(origin)},
+        {"raw_image_offset", json::Array{0LL, 0LL}},
+        {"image_size", json::Array{nx, ny}},
+        {"pixel_size",
+         json::Array{size_mm("x_pixel_size"), size_mm("y_pixel_size")}},
+        {"trusted_range", json::Array{0.0, trusted_max}},
+        {"thickness", thickness},
+        {"material", material},
+        {"mu", mu},
+        {"identifier", ""},
+        {"mask", json::Array{}},
+        {"gain", 1.0},
+        {"pedestal", 0.0},
+        {"px_mm_strategy",
+         json::Object{{"type", mu > 0.0 && thickness > 0.0
+                                   ? "ParallaxCorrectedPxMmStrategy"
+                                   : "SimplePxMmStrategy"}}}});
+  }
   for (const std::string &module : modules) {
     const std::vector<Step> fast_chain =
         chain(f, module + "/fast_pixel_direction", notes);
@@ -826,15 +935,56 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
   // The goniometer: the rotations of the sample's chain, innermost first; the
   // scan axis the one that moves.
   std::string sample_start;
-  if (exists(f, "/entry/sample/depends_on"))
+  if (!nearly && exists(f, "/entry/sample/depends_on"))
     sample_start =
         resolve("/entry/sample", read_string(f, "/entry/sample/depends_on"));
-  if (sample_start.empty())
+  if (!nearly && sample_start.empty())
     throw std::runtime_error("/entry/sample has no depends_on: no goniometer");
   json::Array axes, angles, names;
   int scan_axis = -1;
   std::vector<double> scan_values;
-  for (const Step &s : chain(f, sample_start, notes)) {
+  if (nearly) {
+    // dxtbx's fixer: omega about (-1, 0, 0) -- (0, 1, 0) on detector
+    // E-32-0105 -- from 0 in steps of omega_range_average rounded to a
+    // hundredth of a degree, one a frame of the linked data files.
+    const std::string number =
+        exists(f, detector + "/detector_number")
+            ? read_string(f, detector + "/detector_number")
+            : std::string();
+    const Vec3 axis =
+        number == "E-32-0105" ? Vec3{0.0, 1.0, 0.0} : Vec3{-1.0, 0.0, 0.0};
+    double step =
+        read_doubles(f, "/entry/sample/goniometer/omega_range_average").at(0);
+    step = static_cast<int>(step * 100 + 0.5) / 100.0;
+    long long images = 0;
+    if (linked) {
+      images = linked->images;
+    } else {
+      images = static_cast<long long>(
+          read_doubles(f, detector + "/detectorSpecific/nimages").at(0) *
+          (exists(f, detector + "/detectorSpecific/ntrigger")
+               ? read_doubles(f, detector + "/detectorSpecific/ntrigger").at(0)
+               : 1.0));
+      notes->push_back("the data files are not beside the master: " +
+                       std::to_string(images) +
+                       " images from nimages and ntrigger");
+    }
+    for (long long i = 0; i < images; ++i)
+      scan_values.push_back(step * static_cast<double>(i));
+    if (exists(f, "/entry/sample/goniometer/omega_start"))
+      notes->push_back(
+          "omega from 0, as dials.import starts it: the master's "
+          "omega_start, " +
+          std::to_string(
+              read_doubles(f, "/entry/sample/goniometer/omega_start").at(0)) +
+          ", is not used");
+    scan_axis = 0;
+    axes.push_back(vec(to_imgcif(axis)));
+    angles.push_back(0.0);
+    names.push_back("omega");
+  }
+  for (const Step &s :
+       nearly ? std::vector<Step>{} : chain(f, sample_start, notes)) {
     if (s.type != "rotation")
       continue;
     const bool moves = s.values.size() > 1 &&

@@ -189,10 +189,13 @@ struct SourceDataset {
 
 class NxmxReader : public Reader {
 public:
-  explicit NxmxReader(std::vector<Block> blocks) : blocks_(std::move(blocks)) {}
+  NxmxReader(std::vector<Block> blocks,
+             std::shared_ptr<const std::vector<std::uint64_t>> masked)
+      : blocks_(std::move(blocks)), masked_(std::move(masked)) {}
 
   bool read(const std::string &key, Frame *frame) override {
     const Guard guard(hdf5_mutex());
+    frame->masked = masked_;
     const std::uint64_t index = std::strtoull(key.c_str(), nullptr, 10);
     const Block &block = locate(index);
     SourceDataset &source = open(block);
@@ -292,6 +295,7 @@ private:
   }
 
   std::vector<Block> blocks_;
+  std::shared_ptr<const std::vector<std::uint64_t>> masked_;
   std::map<std::string, SourceDataset> open_;
 };
 
@@ -324,6 +328,76 @@ bool starts_with_brace(const std::string &path) {
     ;
   std::fclose(file);
   return c == '{';
+}
+
+// The detector's own bad pixels, as dials.import reads them: NXdetector's
+// pixel_mask, a pixel bad wherever it is not zero; or, in older DECTRIS
+// masters, the same under detectorSpecific. None if neither is there, nor if
+// it cannot be read -- an external link to a file not beside the master -- nor
+// if its shape is not the frame's, said so. Called with the HDF5 lock held.
+std::shared_ptr<const std::vector<std::uint64_t>>
+read_pixel_mask(hid_t file, std::uint64_t height, std::uint64_t width) {
+  // Probing paths that may not be there: HDF5 would print its error stack.
+  H5E_auto2_t saved_func = nullptr;
+  void *saved_data = nullptr;
+  H5Eget_auto2(H5E_DEFAULT, &saved_func, &saved_data);
+  H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+  struct Restore {
+    H5E_auto2_t func;
+    void *data;
+    ~Restore() { H5Eset_auto2(H5E_DEFAULT, func, data); }
+  } restore{saved_func, saved_data};
+  const auto exists = [&](const std::string &path) {
+    std::string so_far;
+    std::size_t at = 1;
+    while (at <= path.size()) {
+      const std::size_t slash = path.find('/', at);
+      so_far = path.substr(0, slash == std::string::npos ? path.size() : slash);
+      if (H5Lexists(file, so_far.c_str(), H5P_DEFAULT) <= 0)
+        return false;
+      if (slash == std::string::npos)
+        break;
+      at = slash + 1;
+    }
+    return true;
+  };
+  for (const char *path :
+       {"/entry/instrument/detector/pixel_mask",
+        "/entry/instrument/detector/detectorSpecific/pixel_mask"}) {
+    if (!exists(path))
+      continue;
+    const hid_t dataset = H5Dopen2(file, path, H5P_DEFAULT);
+    if (dataset < 0)
+      continue;
+    const hid_t space = H5Dget_space(dataset);
+    hsize_t dims[2] = {0, 0};
+    const int rank = space >= 0 ? H5Sget_simple_extent_ndims(space) : -1;
+    if (rank == 2)
+      H5Sget_simple_extent_dims(space, dims, nullptr);
+    if (space >= 0)
+      H5Sclose(space);
+    if (rank != 2 || dims[0] != height || dims[1] != width) {
+      std::fprintf(stderr,
+                   "the detector's pixel_mask at %s is not the frame's shape, "
+                   "%llu by %llu: not used\n",
+                   path, static_cast<unsigned long long>(height),
+                   static_cast<unsigned long long>(width));
+      H5Dclose(dataset);
+      continue;
+    }
+    std::vector<std::uint32_t> values(height * width);
+    const herr_t read = H5Dread(dataset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL,
+                                H5P_DEFAULT, values.data());
+    H5Dclose(dataset);
+    if (read < 0)
+      continue;
+    auto masked = std::make_shared<std::vector<std::uint64_t>>();
+    for (std::size_t i = 0; i < values.size(); ++i)
+      if (values[i] != 0)
+        masked->push_back(i);
+    return masked;
+  }
+  return nullptr;
 }
 
 class Nxmx : public Series {
@@ -378,6 +452,8 @@ public:
     info->images = dims[0];
     info->height = dims[1];
     info->width = dims[2];
+    masked_ = read_pixel_mask(file.get(), dims[1], dims[2]);
+    info->masked_pixels = masked_ ? masked_->size() : 0;
     return true;
   }
 
@@ -413,7 +489,7 @@ public:
   std::string describe() const override { return master_; }
 
   std::unique_ptr<Reader> reader() override {
-    return std::unique_ptr<Reader>(new NxmxReader(blocks_));
+    return std::unique_ptr<Reader>(new NxmxReader(blocks_, masked_));
   }
 
 private:
@@ -506,6 +582,7 @@ private:
     return {block};
   }
 
+  std::shared_ptr<const std::vector<std::uint64_t>> masked_;
   std::string master_;
   std::vector<Block> blocks_;
   bool dispatched_ = false;

@@ -232,14 +232,20 @@ Not "it is broken" -- the list is short and each item is attributable:
 
 * `dext` evaluates the dispersion test in float where DIALS uses double, so a
   spot at the threshold can fall either side of it.
-* DIALS masks pixels using the detector's own pixel mask, which `dials.import`
-  reads from `/entry/instrument/detector/pixel_mask`. This recognises only the
-  sentinel values in the data, at or above `max() - 1`. On an Eiger the module
-  gaps and the known bad pixels are written as `0xffff`, so that covers most of
-  it -- but a bad pixel recorded with a plausible value is masked over there and
-  not here. **This is the one real omission**, and closing it needs no change to
-  the kernels: read the mask and stamp the sentinel into the frame before the
-  threshold.
+* The detector's own pixel mask, as `dials.import` reads it: NXdetector's
+  `pixel_mask` (or, in older DECTRIS masters, `detectorSpecific/pixel_mask`), a
+  pixel bad wherever it is not zero. The NXmx reader reads it when it opens the
+  series, and every frame decoded has the masked pixels stamped with the
+  sentinel, `max() - 1`, before anything else sees it -- so spot finding,
+  integration and `mxi_max` all leave them out, as they leave out the sentinels
+  the detector wrote, with no change to any kernel. A mask of the wrong shape is
+  not used, said so. Until October 2026 only the sentinels were recognised, and
+  a bad pixel recorded with a plausible value was masked by DIALS and measured
+  here: on a small molecule of Graeme's, one near the detector's edge gave every
+  shoebox over it a background a hundred thousand times too high, and two
+  observations at -25 sigma. On insulin, whose 260861 masked pixels never
+  carry counts, spot finding and integration are byte-identical either way.
+  `python/tests/test_pixel_mask.py`.
 * DIALS sums a shoebox in float (`ProfileFloatType`), this in double, which
   shows up only above 2^24 counts in one spot.
 * Rows come out as their components close rather than in first-pixel order over
@@ -599,7 +605,7 @@ compute capability 8.9, no warnings; it has not run, there being no GPU here.
   dials.scale has scaled. The format was written from the DIALS source, not from a
   file DIALS wrote. If DIALS refuses the file, the column type names and
   `Shoebox<>` being `float` rather than `double` are where to look first.
-* The pixel mask is not read; see the list of differences above.
+* The pixel mask is read; see the list of differences above.
 
 ## Licence
 

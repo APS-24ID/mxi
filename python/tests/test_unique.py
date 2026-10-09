@@ -128,3 +128,23 @@ def test_a_difference_of_overall_scale_cancels_in_the_relative_scatter():
     assert abs(mean - 25.0) < 0.05 and abs(scatter - 25.0) < 0.05
     assert abs(relative_scatter(text)) < 0.05
     assert abs(total) < 0.05 and abs(inv_sigma + 20.0) < 0.05
+
+
+def test_two_absurd_observations_do_not_choose_a_reindexing():
+    # Graeme's mxi table held two observations of one reflection at -25 sigma,
+    # from a defective pixel in their backgrounds. Merged, that reflection was
+    # so far out that the Pearson correlation of the two data sets fell to
+    # 0.44, and a wrong operator -- not even a symmetry of the lattice -- was
+    # taken for the indexing; every statistic after it was nonsense. The
+    # operator is chosen by a rank correlation, which a few such values
+    # cannot move.
+    a = observations()
+    intensity = a.intensity.copy()
+    target = np.flatnonzero(
+        np.all(a.hkl == a.hkl[0], axis=1) | np.all(a.hkl == -a.hkl[0], axis=1)
+    )
+    rows = target[:2] if len(target) >= 2 else np.array([0, 1])
+    intensity[rows] = -150.0 * np.max(a.intensity)
+    b = unique.Observations("b", HALL, a.hkl, intensity, a.variance, a.d)
+    text = unique.compare(a, b, shells=3)
+    assert "b's indices as they are" in text, text.splitlines()[:3]

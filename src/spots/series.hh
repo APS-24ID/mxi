@@ -42,7 +42,40 @@ struct Frame {
 
   std::span<const std::uint8_t> data;
   std::string storage;
+
+  // The detector's own list of bad pixels -- NXdetector's pixel_mask, as
+  // dials.import reads it -- shared by every frame of the series; null where
+  // there is none. apply_pixel_mask marks them in a decompressed frame.
+  std::shared_ptr<const std::vector<std::uint64_t>> masked;
 };
+
+// Every pixel the detector's mask lists made the bad-pixel marker, max - 1 of
+// the pixel's width, which everything that reads frames here already takes for
+// no measurement -- spot finding, integration, the maximum projection. Without
+// it a defective pixel recording large counts was data: on a small-molecule
+// sweep of Graeme's, every shoebox over one such pixel had a background a
+// hundred thousand times too high, and two observations came out at -25
+// sigma, which DIALS, masking the pixel, never had.
+inline void apply_pixel_mask(const Frame &frame,
+                             std::span<std::uint8_t> pixels) {
+  if (!frame.masked)
+    return;
+  const auto mark = [&](auto typed) {
+    using Pixel = decltype(typed);
+    Pixel *p = reinterpret_cast<Pixel *>(pixels.data());
+    const std::size_t n = pixels.size() / sizeof(Pixel);
+    const Pixel marker = static_cast<Pixel>(~Pixel(0) - 1);
+    for (std::uint64_t i : *frame.masked)
+      if (i < n)
+        p[i] = marker;
+  };
+  if (frame.bit_depth == 8)
+    mark(std::uint8_t{});
+  else if (frame.bit_depth == 16)
+    mark(std::uint16_t{});
+  else if (frame.bit_depth == 32)
+    mark(std::uint32_t{});
+}
 
 // One per worker thread: an HDF5 file handle cannot be shared, and neither can
 // the library itself.
@@ -61,6 +94,7 @@ struct Info {
   std::uint64_t images = 0; // 0 if not known
   std::uint64_t height = 0;
   std::uint64_t width = 0;
+  std::uint64_t masked_pixels = 0; // by the detector's own pixel_mask
 };
 
 class Series {

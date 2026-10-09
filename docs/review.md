@@ -120,9 +120,11 @@ windows of 7 x 7, 5 x 5 and 11 x 11. On a 300 image insulin sweep every
 filtering count matches `dials.find_spots` exactly; CUDA and Metal agree with
 each other exactly on 3600 frames. Departures (`docs/spots.md`, "Where this will
 not match dials.find_spots"): the dispersion test in single precision where
-DIALS uses double, so a spot at the threshold can fall either side; and the
-detector's pixel mask not read -- only the sentinel values in the data -- which
-is the one real omission.
+DIALS uses double, so a spot at the threshold can fall either side. The
+detector's own pixel mask is read, as dials.import reads it, since October
+2026: until then only the sentinel values in the data were, and a defective
+pixel recording large counts was data -- on a small molecule of Graeme's, two
+observations at -25 sigma from one under their backgrounds.
 
 **Indexing** is the three-dimensional FFT (Bricogne 1986), as DIALS' `fft3d`,
 its largest cell estimated as `find_max_cell` does -- ice rings and

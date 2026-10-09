@@ -306,15 +306,22 @@ struct Pose {
   Vec3 t;
 };
 
+//: The vector as the file gives it, as dxtbx's nxmx reader takes it: a
+//: translation the value times the vector, a rotation the value times the
+//: vector as a rotation vector -- so a vector not of unit length, which
+//: NXtransformations says it should be, scales either. mxi had normalised it,
+//: and on a beamline's file whose module_offset was 1 m along (0.15756,
+//: 0.16414, 0) put the detector 4.4 times too far off the beam, where
+//: dials.import put it where it was meant.
 Pose pose_of(const std::vector<Step> &steps) {
   Pose p;
   for (const Step &s : steps) { // innermost first: each wraps what came before
     Mat3 r = Mat3::identity();
     Vec3 shift = s.offset;
     if (s.type == "rotation")
-      r = rotation_deg(s.vector, s.values[0]);
+      r = rotation_deg(s.vector, s.values[0] * s.raw.norm());
     else
-      shift = shift + s.vector * s.values[0];
+      shift = shift + s.raw * s.values[0];
     p.R = r * p.R;
     p.t = r * p.t + shift;
   }
@@ -1018,14 +1025,23 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
       throw std::runtime_error("--image-range outside the " +
                                std::to_string(frames) + " images");
   }
-  double exposure = 0.0;
-  if (exists(f, detector + "/count_time"))
-    exposure = read_doubles(f, detector + "/count_time").at(0);
+  // The exposure time and the epochs as dials.import gives them: frame_time,
+  // and the epochs frame_time apart; both 0 without it. (count_time, read
+  // before, is the shorter time the detector counted.)
+  double frame_time = 0.0;
+  if (exists(f, detector + "/frame_time")) {
+    H5 d(H5Dopen2(f, (detector + "/frame_time").c_str(), H5P_DEFAULT),
+         H5Dclose);
+    const std::string u = lower(attr_string(d.get(), "units").value_or("s"));
+    const double k =
+        u == "ms" ? 1e-3 : (u == "us" || u == "\u00b5s" ? 1e-6 : 1.0);
+    frame_time = read_doubles(f, detector + "/frame_time").at(0) * k;
+  }
   json::Array oscillation, epochs, exposures, indices;
   for (long long i = first - 1; i < last; ++i) {
     oscillation.push_back(scan_values[static_cast<std::size_t>(i)]);
-    epochs.push_back(0.0);
-    exposures.push_back(exposure);
+    epochs.push_back(frame_time * static_cast<double>(i));
+    exposures.push_back(frame_time);
     indices.push_back(i);
   }
   json::Object scan{{"image_range", json::Array{first, last}},

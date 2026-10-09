@@ -64,7 +64,19 @@ overrides apply to every master alike.
   dials.import writes them); the one whose values change the scan axis at angle
   0, the others at their values. More than one moving, or none, is a failure.
 * **The scan:** one image a value of the scan axis, images 1 to n; the
-  oscillation those values; exposure time `count_time`; epochs 0.
+  oscillation those values; exposure time `frame_time` and the epochs
+  `frame_time` apart, both 0 without it, as dials.import gives them (October
+  2026; before, `count_time` and 0, which differed from dials.import whenever
+  a master had a count time and no frame time, as insulin's has).
+* **Transformation vectors as the file gives them,** as dxtbx's nxmx reader
+  takes them: a translation the value times the vector, a rotation the value
+  times the vector as a rotation vector. NXtransformations says a vector should
+  be of unit length, the magnitude in the value, and on a conforming file
+  normalising changes nothing; but a beamline master put its module_offset as
+  1 m along (0.15756, 0.16414, 0), and mxi, normalising, put the detector 4.4
+  times too far off the beam where dials.import put it where it was meant
+  (October 2026). The pixel directions are directions only, normalised as
+  dxtbx's panel normalises them.
 * **The image set:** an ImageSequence of the master, by absolute path, and a new
   identifier.
 
@@ -119,8 +131,9 @@ used is said.
 prints each model's parts, "same" or the difference: origins in mm, axes in
 degrees, numbers relatively. On insulin, against dials.import of the full 16M
 master, the differences were the origin and image size -- a different file --
-and the exposure time, 0.0026 s here where dials.import wrote 0; to settle on a
-matched pair.
+and the exposure time, 0.0026 s here where dials.import wrote 0, since settled:
+mxi_import now takes frame_time, as dials.import does, and insulin's master has
+none.
 
 Two things learned from Diamond's Eiger masters. Their offsets come without
 `offset_units`, in metres, and had been taken as millimetres -- the detector a

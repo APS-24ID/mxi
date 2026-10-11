@@ -1,7 +1,13 @@
 # Several lattices in one data set: a plan
 
-STATUS: agreed, October 2026, with Graeme's answers (below). Nothing here is
-built.
+STATUS: agreed, October 2026, with Graeme's answers (below). Built so far,
+of stage 1: models shared in refinement as the experiment list numbers them --
+ExperimentList::beam_of and detector_of, read from the file; a parameter block a
+distinct detector and a distinct beam, owned by all that share it; written back
+interned, once. A single sweep refines to the same bytes as before. Still to
+come in stage 1: a profile model a lattice, and the two views. Stage 0's spots
+are planted in the tests (two lattices 11.6 degrees apart on one sweep); its
+images, for integration, at stage 5.
 
 ## Decisions (Graeme, October 2026)
 

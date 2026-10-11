@@ -1125,4 +1125,131 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
   return result;
 }
 
+// Two crystals of one lattice: the reciprocal bases related by an integer
+// matrix of determinant +-1 -- the same lattice in another basis -- to within
+// a tenth in each element.
+bool same_lattice(const Crystal &a, const Crystal &b) {
+  const Mat3 m = a.A.inverse() * b.A;
+  Mat3 r;
+  for (int k = 0; k < 9; ++k) {
+    r.m[k] = std::round(m.m[k]);
+    if (std::fabs(m.m[k] - r.m[k]) > 0.1)
+      return false;
+  }
+  return std::fabs(std::fabs(r.determinant()) - 1.0) < 1e-6;
+}
+
+// Several lattices in one sweep, as dials.index finds them (max_lattices;
+// docs/multi-lattice.md): index the spots not yet indexed, take the lattice and
+// the spots it indexes, and again on what is left -- until max_lattices, or a
+// lattice of fewer than min_spots, or one found already. Then all the lattices
+// refined together: one experiment a lattice, sharing the sweep's beam and
+// detector, refined once for them all, each its own crystal. A spot is its
+// lattice's experiment's; one no lattice indexes stays as mxi has it, its
+// Miller index 0 0 0, until sweeps are carried through (stage 2).
+LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
+                              const IndexOptions &options, int max_lattices,
+                              std::size_t min_spots) {
+  LatticesResult result;
+  if (sweep.size() != 1)
+    throw std::runtime_error(
+        "several lattices: one sweep at a time for now, not " +
+        std::to_string(sweep.size()));
+  const std::size_t n = reflections.nrows;
+  std::vector<int> lattice_of(n, -1);
+  std::vector<std::int64_t> hkl(3 * n, 0);
+  std::vector<Crystal> found;
+  ExperimentList models = sweep; // as the latest lattice left them
+  for (int l = 0; l < max_lattices; ++l) {
+    std::vector<std::size_t> rows;
+    for (std::size_t i = 0; i < n; ++i)
+      if (lattice_of[i] < 0)
+        rows.push_back(i);
+    if (rows.size() < min_spots) {
+      result.stopped = "only " + std::to_string(rows.size()) + " spots left";
+      break;
+    }
+    Table remaining = select_rows(reflections, rows);
+    ExperimentList trial = models;
+    trial[0].crystal.reset();
+    const IndexResult r = index(trial, remaining, options);
+    if (r.n_indexed < min_spots || !trial[0].crystal) {
+      result.stopped =
+          "none in the " + std::to_string(rows.size()) + " spots left";
+      break;
+    }
+    bool again = false;
+    for (const Crystal &c : found)
+      again = again || same_lattice(c, *trial[0].crystal);
+    if (again) {
+      result.stopped = "one found already, in the " +
+                       std::to_string(rows.size()) + " spots left";
+      break;
+    }
+    const Column &m = remaining.at("miller_index");
+    std::size_t got = 0;
+    for (std::size_t k = 0; k < rows.size(); ++k) {
+      if (m.integer(k, 0) == 0 && m.integer(k, 1) == 0 && m.integer(k, 2) == 0)
+        continue;
+      lattice_of[rows[k]] = l;
+      for (std::size_t j = 0; j < 3; ++j)
+        hkl[3 * rows[k] + j] = m.integer(k, j);
+      ++got;
+    }
+    found.push_back(*trial[0].crystal);
+    models = trial;
+    result.found_in.push_back(rows.size());
+    result.indexed_of.push_back(got);
+  }
+  if (found.empty())
+    return result;
+
+  // One experiment a lattice, the sweep's models shared; each referring to
+  // the sweep's imageset, as its own experiment did.
+  ExperimentList joint;
+  joint.image_template = sweep.image_template;
+  joint.source = sweep.source;
+  if (joint.source.is_object() && joint.source["experiment"].is_array() &&
+      !joint.source["experiment"].as_array().empty()) {
+    const json::Value first = joint.source["experiment"].as_array()[0];
+    json::Array copies(found.size(), first);
+    json::Object document = joint.source.as_object();
+    document["experiment"] = json::Value(std::move(copies));
+    joint.source = json::Value(std::move(document));
+  }
+  for (std::size_t l = 0; l < found.size(); ++l) {
+    Experiment e = models[0];
+    e.crystal = found[l];
+    e.identifier = l == 0 ? sweep[0].identifier : new_identifier();
+    joint.experiments.push_back(std::move(e));
+  }
+  joint.beam_of.assign(found.size(), 0);
+  joint.detector_of.assign(found.size(), 0);
+  // The table's map from id to identifier, every lattice's.
+  reflections.identifiers.clear();
+  for (std::size_t l = 0; l < joint.size(); ++l)
+    reflections.identifiers[l] = joint[l].identifier;
+  {
+    Column &id = reflections.modify_int_column("id", "int", 1);
+    Column &m = reflections.modify_int_column("miller_index",
+                                              "cctbx::miller::index<>", 3);
+    std::size_t indexed = 0;
+    for (std::size_t i = 0; i < n; ++i) {
+      id.ints[i] = lattice_of[i] < 0 ? 0 : lattice_of[i];
+      for (std::size_t j = 0; j < 3; ++j)
+        m.ints[3 * i + j] = hkl[3 * i + j];
+      indexed += lattice_of[i] >= 0;
+    }
+    result.n_indexed = indexed;
+  }
+  set_indexed_flags(reflections);
+
+  RefineOptions refining;
+  refining.shared_crystal = false; // each lattice its own
+  result.refined = refine(joint, reflections, refining);
+  set_indexed_flags(reflections);
+  result.experiments = std::move(joint);
+  return result;
+}
+
 } // namespace mxi

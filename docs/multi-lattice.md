@@ -1,13 +1,24 @@
 # Several lattices in one data set: a plan
 
-STATUS: agreed, October 2026, with Graeme's answers (below). Built so far,
-of stage 1: models shared in refinement as the experiment list numbers them --
-ExperimentList::beam_of and detector_of, read from the file; a parameter block a
-distinct detector and a distinct beam, owned by all that share it; written back
-interned, once. A single sweep refines to the same bytes as before. Still to
-come in stage 1: a profile model a lattice, and the two views. Stage 0's spots
-are planted in the tests (two lattices 11.6 degrees apart on one sweep); its
-images, for integration, at stage 5.
+STATUS: agreed, October 2026, with Graeme's answers (below). Built:
+
+* Stage 1, in part: models shared in refinement as the experiment list numbers
+  them -- ExperimentList::beam_of and detector_of, read from the file; a
+  parameter block a distinct detector and a distinct beam, owned by all that
+  share it; written back interned, once. A single sweep refines to the same
+  bytes as before. The profile model a lattice is moved to stage 5, where
+  integration first uses it.
+* Stage 3, before stage 2: mxi_index --max-lattices N (index_lattices in the
+  library). On Graeme's ins2_27: lattice 1 indexes 15307 of 21299 spots,
+  lattice 2 5906 of the 5992 left, no third in the last 86 -- 99.6 per cent --
+  refined together, one detector, to 0.258 and 0.264 px and 0.227 images; one
+  detector, one beam, one imageset written, two crystals. mxi_refine takes the
+  file as it is, the detector shared as the file numbers it. Unindexed spots
+  keep mxi's convention, Miller index 0 0 0 and `id` 0, until stage 2 carries
+  the sweep's own experiment through -- done after, on the multi-lattice output
+  it must handle. Several sweeps with several lattices: refused for now.
+* Stage 0's spots planted in the tests: two lattices 11.6 degrees apart on one
+  sweep, found and refined; its images, for integration, at stage 5.
 
 ## Decisions (Graeme, October 2026)
 

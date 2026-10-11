@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <map>
+#include <random>
 
 namespace mxi {
 
@@ -273,6 +274,21 @@ ExperimentList experiments_from_json(const json::Value &document) {
     list.experiments.push_back(std::move(x));
   }
   return list;
+}
+
+std::string new_identifier() {
+  std::random_device rd;
+  std::mt19937_64 gen((static_cast<std::uint64_t>(rd()) << 32) ^ rd());
+  std::uniform_int_distribution<int> hex(0, 15);
+  const char *digits = "0123456789abcdef";
+  std::string s = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
+  for (char &c : s) {
+    if (c == 'x')
+      c = digits[hex(gen)];
+    else if (c == 'y')
+      c = digits[8 + hex(gen) % 4];
+  }
+  return s;
 }
 
 json::Value read_experiment_document(const std::string &path) {

@@ -194,8 +194,11 @@ std::vector<TargetRow> gather(const ExperimentList &experiments,
 }
 
 // The parameter vector is laid out as: the crystal blocks first (one, or one
-// per experiment), then six detector parameters per experiment, then two beam
-// parameters per experiment.
+// per experiment), then six detector parameters for each distinct detector,
+// then two beam parameters for each distinct beam -- distinct as the
+// experiment list shares them (ExperimentList::detector_group), so that a
+// sweep's lattices refine its one detector, not one each
+// (docs/multi-lattice.md).
 //: The parameters one reflection can touch, as up to three ranges. Empty
 //: ranges mean the model does not have that part.
 struct ParameterSpan {
@@ -209,6 +212,39 @@ struct Layout {
   bool shared_crystal = true;
   std::size_t n_experiments = 0;
   std::size_t crystal_blocks = 0;
+  //: Each experiment's detector block and beam block, numbered from 0 in the
+  //: order first met, and how many experiments share each: a block of one
+  //: belongs to its experiment, a block of several to them all.
+  std::vector<std::size_t> detector_block, beam_block;
+  std::vector<std::size_t> detector_members, beam_members;
+  std::size_t n_detectors() const { return detector_members.size(); }
+  std::size_t n_beams() const { return beam_members.size(); }
+
+  void set_sharing(const ExperimentList &experiments) {
+    n_experiments = experiments.size();
+    const auto number = [&](auto group_of, std::vector<std::size_t> &block,
+                            std::vector<std::size_t> &members) {
+      block.assign(n_experiments, 0);
+      members.clear();
+      std::vector<std::size_t> seen;
+      for (std::size_t e = 0; e < n_experiments; ++e) {
+        const std::size_t g = group_of(e);
+        const auto at = std::find(seen.begin(), seen.end(), g);
+        if (at == seen.end()) {
+          seen.push_back(g);
+          members.push_back(0);
+        }
+        block[e] = static_cast<std::size_t>(
+            std::find(seen.begin(), seen.end(), g) - seen.begin());
+        ++members[block[e]];
+      }
+    };
+    number([&](std::size_t e) { return experiments.detector_group(e); },
+           detector_block, detector_members);
+    number([&](std::size_t e) { return experiments.beam_group(e); }, beam_block,
+           beam_members);
+  }
+
   //: Control points per crystal block -- each sweep its own, as its scan's
   //: width gives -- and where each block starts, one past the last at the end.
   std::vector<std::size_t> points_of;
@@ -230,17 +266,18 @@ struct Layout {
     return points_of.empty() ? 1 : points_of[block_of(experiment)];
   }
   std::size_t size() const {
-    return crystal_size() + (detector ? 6 * n_experiments : 0) +
-           (beam ? 2 * n_experiments : 0);
+    return crystal_size() + (detector ? 6 * n_detectors() : 0) +
+           (beam ? 2 * n_beams() : 0);
   }
   std::size_t crystal_at(std::size_t experiment) const {
     return start_of[block_of(experiment)];
   }
   std::size_t detector_at(std::size_t experiment) const {
-    return crystal_size() + 6 * experiment;
+    return crystal_size() + 6 * detector_block[experiment];
   }
   std::size_t beam_at(std::size_t experiment) const {
-    return crystal_size() + (detector ? 6 * n_experiments : 0) + 2 * experiment;
+    return crystal_size() + (detector ? 6 * n_detectors() : 0) +
+           2 * beam_block[experiment];
   }
 
   // Which experiment a parameter belongs to, or -1 for one shared by all.
@@ -256,12 +293,24 @@ struct Layout {
           std::upper_bound(start_of.begin(), start_of.end(), p) -
           start_of.begin() - 1);
     }
+    // A detector's or a beam's: its experiment's if it has one, all of them
+    // (-1) if several share it.
+    const auto sole = [&](const std::vector<std::size_t> &block,
+                          const std::vector<std::size_t> &members,
+                          std::size_t b) -> long {
+      if (members[b] != 1)
+        return -1;
+      for (std::size_t e = 0; e < block.size(); ++e)
+        if (block[e] == b)
+          return static_cast<long>(e);
+      return -1;
+    };
     std::size_t q = p - crystal_size();
-    if (detector && q < 6 * n_experiments)
-      return static_cast<long>(q / 6);
+    if (detector && q < 6 * n_detectors())
+      return sole(detector_block, detector_members, q / 6);
     if (detector)
-      q -= 6 * n_experiments;
-    return static_cast<long>(q / 2);
+      q -= 6 * n_detectors();
+    return sole(beam_block, beam_members, q / 2);
   }
 };
 
@@ -588,7 +637,7 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
   layout.detector = options.detector;
   layout.beam = options.beam;
   layout.shared_crystal = options.shared_crystal;
-  layout.n_experiments = experiments.size();
+  layout.set_sharing(experiments);
   layout.crystal_blocks =
       options.crystal ? (options.shared_crystal ? 1 : experiments.size()) : 0;
   {
@@ -992,7 +1041,7 @@ JacobianComparison compare_jacobians(const ExperimentList &experiments,
   layout.detector = options.detector;
   layout.beam = options.beam;
   layout.shared_crystal = options.shared_crystal;
-  layout.n_experiments = experiments.size();
+  layout.set_sharing(experiments);
   layout.crystal_blocks =
       options.crystal ? (options.shared_crystal ? 1 : experiments.size()) : 0;
   {

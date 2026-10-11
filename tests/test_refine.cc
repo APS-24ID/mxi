@@ -978,3 +978,77 @@ TEST(the_profile_model_is_written_as_dials_reads_it) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(two_lattices_on_one_sweep_refine_one_detector_between_them) {
+  // Graeme's two crystals in one beam (docs/multi-lattice.md): two lattices
+  // 11.6 degrees apart on the same images, so one detector, one beam. Shared as
+  // the experiment list numbers them, they are refined once for both: the two
+  // copies end identical, and true. Each its own -- as every experiment had
+  // before -- gives two detectors, near each other but not one.
+  const Experiment truth = base_experiment();
+  Experiment other = truth;
+  other.crystal->A =
+      rotation({0.3, -0.4, 0.87}, Scan::radians(11.6)) * other.crystal->A;
+  const Table a = observations_from(truth, 3.0);
+  const Table b = observations_from(other, 3.0);
+
+  Table both;
+  both.nrows = a.nrows + b.nrows;
+  Column &xyz = both.real_column("xyzobs.px.value", "vec3<double>", 3);
+  Column &miller = both.int_column("miller_index", "cctbx::miller::index<>", 3);
+  Column &panel = both.int_column("panel", "std::size_t", 1);
+  Column &id = both.int_column("id", "int", 1);
+  const auto copy = [&](const Table &from, std::size_t offset,
+                        std::int64_t which) {
+    for (std::size_t i = 0; i < from.nrows; ++i) {
+      for (std::size_t k = 0; k < 3; ++k) {
+        xyz.reals[(offset + i) * 3 + k] = from.at("xyzobs.px.value").real(i, k);
+        miller.ints[(offset + i) * 3 + k] =
+            from.at("miller_index").integer(i, k);
+      }
+      panel.ints[offset + i] = 0;
+      id.ints[offset + i] = which;
+    }
+  };
+  copy(a, 0, 0);
+  copy(b, a.nrows, 1);
+
+  ExperimentList list;
+  for (const Experiment *lattice :
+       std::initializer_list<const Experiment *>{&truth, &other}) {
+    Experiment moved = *lattice;
+    moved.detector.panels[0].origin += Vec3{0.4, -0.3, 1.2};
+    list.experiments.push_back(moved);
+  }
+  RefineOptions options;
+  options.crystal = false; // only the detector was moved
+  options.outlier_sigma = 0.0;
+
+  ExperimentList shared = list;
+  shared.detector_of = {0, 0};
+  shared.beam_of = {0, 0};
+  refine(shared, both, options);
+  const Vec3 d0 = shared[0].detector[0].origin,
+             d1 = shared[1].detector[0].origin;
+  check::is_true(d0.x == d1.x && d0.y == d1.y && d0.z == d1.z,
+                 "one detector: its two copies identical");
+  check::close((d0 - truth.detector[0].origin).norm(), 0.0, 0.01,
+               "and the true one");
+
+  ExperimentList apart = list; // no numbering: each its own, as before
+  refine(apart, both, options);
+  const Vec3 e0 = apart[0].detector[0].origin, e1 = apart[1].detector[0].origin;
+  check::is_true(!(e0.x == e1.x && e0.y == e1.y && e0.z == e1.z),
+                 "each its own: two detectors, not one");
+  // And written so: the shared one once, both experiments referring to it.
+  check::equal(static_cast<long long>(
+                   experiments_to_json(shared)["detector"].as_array().size()),
+               1, "one detector written");
+  check::equal(static_cast<long long>(
+                   experiments_to_json(apart)["detector"].as_array().size()),
+               2, "two written");
+}
+
+} // namespace mxi

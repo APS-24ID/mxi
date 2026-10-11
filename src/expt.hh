@@ -78,6 +78,23 @@ struct ExperimentList {
   //: they come to disagree.
   std::string image_template;
 
+  //: Which beam and which detector each experiment refers to, as the file
+  //: numbered them: experiments with the same number share the model, and
+  //: refinement refines it once for them all (docs/multi-lattice.md) -- the
+  //: lattices of one sweep share its detector; sweeps share one where it did
+  //: not move between them, and keep their own where it did. Each experiment
+  //: holds its own copy of every model all the same: a shared model's copies
+  //: are kept equal, and writing interns them back into one. A list built or
+  //: edited without these -- their size not the list's -- has each experiment
+  //: its own, as before.
+  std::vector<std::size_t> beam_of, detector_of;
+  std::size_t beam_group(std::size_t i) const {
+    return beam_of.size() == experiments.size() ? beam_of[i] : i;
+  }
+  std::size_t detector_group(std::size_t i) const {
+    return detector_of.size() == experiments.size() ? detector_of[i] : i;
+  }
+
   std::size_t size() const { return experiments.size(); }
   bool empty() const { return experiments.empty(); }
   Experiment &operator[](std::size_t i) { return experiments[i]; }

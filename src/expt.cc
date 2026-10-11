@@ -243,6 +243,10 @@ ExperimentList experiments_from_json(const json::Value &document) {
       x.beam = beams[b];
     if (d >= 0 && static_cast<std::size_t>(d) < detectors.size())
       x.detector = detectors[d];
+    // Sharing as numbered; one with no number, its own (one past any number).
+    const std::size_t own = list.experiments.size() + 1000000;
+    list.beam_of.push_back(b >= 0 ? static_cast<std::size_t>(b) : own);
+    list.detector_of.push_back(d >= 0 ? static_cast<std::size_t>(d) : own);
     if (g >= 0 && static_cast<std::size_t>(g) < goniometers.size())
       x.goniometer = goniometers[g];
     if (s >= 0 && static_cast<std::size_t>(s) < scans.size())

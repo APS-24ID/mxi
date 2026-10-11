@@ -15,7 +15,8 @@ chance within the indexing tolerance, its scatter was ten times its own, and
 Needs MXI_INDEX and MXI_TWO_LATTICES, the strong spots mxi_find wrote for
 ins2_27 with its imported models (strong.rflx); and for integration,
 MXI_INTEGRATE and MXI_TWO_LATTICES_REFINED, its two lattices as mxi_refine left
-them.
+them; and for symmetry, MXI_SYMMETRY and MXI_TWO_LATTICES_INTEGRATED, the two
+integrated.
 """
 
 import os
@@ -130,3 +131,35 @@ def test_two_lattices_integrate_each_with_its_own_profile_sharing_the_rest(tmp_p
     # Every row on the one image set: numbered before the joined list shared
     # it, the second lattice's named an image set no longer there.
     assert set(np.asarray(table.columns["imageset_id"]).tolist()) == {0}
+
+
+SYMMETRY = os.environ.get("MXI_SYMMETRY")
+INTEGRATED = os.environ.get("MXI_TWO_LATTICES_INTEGRATED")
+
+
+@pytest.mark.skipif(
+    not (SYMMETRY and INTEGRATED),
+    reason="set MXI_SYMMETRY and MXI_TWO_LATTICES_INTEGRATED",
+)
+def test_cosym_brings_the_two_crystals_to_one_setting_and_finds_i23(tmp_path):
+    # Two crystals of insulin, I23 in an I432 lattice: each indexed in a basis
+    # of its own choosing, the second's half the time the first's twin. cosym
+    # (Gildea & Winter, 2018) reindexes the second into the first's setting;
+    # pooled, they are I m -3, and I 2 3 by absences. Pooled as they were,
+    # without it, C 1 2/m 1.
+    def symmetry(*words):
+        r = subprocess.run(
+            [SYMMETRY, INTEGRATED, "-o", "s.rflx", *words],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+        )
+        assert r.returncode == 0, r.stderr
+        return r.stdout
+
+    out = symmetry()
+    assert "One setting for 2 crystals (cosym)" in out
+    line = next(l for l in out.splitlines() if l.strip().startswith("experiment 1:"))
+    assert float(line.split("CC with the first")[1].split()[0]) > 0.9
+    assert "Recommended space group: I 2 3" in out
+    assert "Recommended space group: I 2 3" not in symmetry("--no-cosym")

@@ -10,6 +10,7 @@
 #include <string>
 
 #include "args.hh"
+#include "cosym.hh"
 #include "expt.hh"
 #include "laue.hh"
 #include "log_mirror.hh"
@@ -22,6 +23,29 @@
 namespace mxi {
 
 namespace {
+
+// A rotation as what it does to indices: "h,k,l" to, say, "-k,h,l".
+std::string as_hkl(const Rotation &g) {
+  const char *names = "hkl";
+  std::string out = "h,k,l to ";
+  for (int i = 0; i < 3; ++i) {
+    std::string term;
+    for (int j = 0; j < 3; ++j) {
+      const int v = g[3 * j + i]; // (R^T h)_i = sum_j R_ji h_j
+      if (v == 0)
+        continue;
+      if (v < 0)
+        term += "-";
+      else if (!term.empty())
+        term += "+";
+      if (std::abs(v) != 1)
+        term += std::to_string(std::abs(v));
+      term += names[j];
+    }
+    out += (i ? "," : "") + (term.empty() ? std::string("0") : term);
+  }
+  return out;
+}
 
 void usage() {
   std::printf(
@@ -44,10 +68,11 @@ void usage() {
 
 int run_program(int argc, char **argv) {
   const std::set<std::string> known = {
-      "--max-delta",   "--threads",     "-o",
+      "--max-delta",   "--threads",     "--no-cosym", "-o",
       "--output-expt", "--output-refl", "--timing"};
   std::set<std::string> takes_value = known;
   takes_value.erase("--timing");
+  takes_value.erase("--no-cosym");
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   // One .rflx stands for the experiment list and the reflections
   // (docs/rflx.md).
@@ -111,6 +136,78 @@ int run_program(int argc, char **argv) {
       std::printf("%zu sweeps, pooled\n", experiments.size());
     std::printf("Cell %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n", cell.a, cell.b,
                 cell.c, cell.alpha, cell.beta, cell.gamma);
+
+    // Several crystals: one setting first (docs/multi-lattice.md). Sweeps of
+    // one crystal share its setting; two crystals, or two lattices in one
+    // sweep, are each in a basis of their own choosing among those their
+    // lattice allows -- with I23 in an I432 lattice, half of them the other's
+    // twin. So cosym (Gildea & Winter, 2018): each experiment's intensities
+    // merged in P1 and normalised, correlated with every other's under every
+    // rotation of the lattice, and each reindexed into the first's setting.
+    bool one_crystal = true;
+    for (std::size_t i = 1; i < experiments.size(); ++i)
+      for (int k = 0; k < 9; ++k)
+        one_crystal = one_crystal && experiments[i].crystal->A.m[k] ==
+                                         experiments[0].crystal->A.m[k];
+    if (experiments.size() > 1 && !one_crystal && !args.has("--no-cosym")) {
+      std::vector<P1Intensities> sets;
+      const Column &id = reflections.at("id");
+      for (std::size_t j = 0; j < experiments.size(); ++j) {
+        std::vector<std::size_t> rows;
+        for (std::size_t r = 0; r < reflections.nrows; ++r)
+          if (id.integer(r) == static_cast<std::int64_t>(j))
+            rows.push_back(r);
+        Table part = select_rows(reflections, rows);
+        Column &own = part.modify_int_column("id", "int", 1);
+        std::fill(own.ints.begin(), own.ints.end(), 0);
+        ExperimentList one;
+        one.experiments.push_back(experiments[j]);
+        P1Selection ignored;
+        P1Intensities d = merge_in_p1(one, part, &ignored);
+        normalise(d, 200);
+        sets.push_back(std::move(d));
+      }
+      const std::vector<Rotation> lattice =
+          lattice_symmetry(cell, args.number("--max-delta", 2.0));
+      const CosymResult c = cosym(sets, lattice);
+      std::printf("\nOne setting for %zu crystals (cosym): the lattice's %zu "
+                  "rotations; principal components",
+                  experiments.size(), lattice.size());
+      for (double share : c.explained)
+        std::printf(" %.1f%%", 100.0 * share);
+      std::printf(", %zu kept\n", c.dimensions);
+      for (std::size_t j = 0; j < experiments.size(); ++j) {
+        const Rotation &g = c.operations[c.chosen[j]];
+        std::printf("  experiment %zu: %s; cosine %.3f; CC with the first "
+                    "%.3f over %zu reflections\n",
+                    j, as_hkl(g).c_str(), c.cosine[j], c.cc[j], c.common[j]);
+        if (c.chosen[j] == 0)
+          continue;
+        // Its indices h to R^T h, and its crystal A to A (R^T)^-1, so that
+        // A h is unchanged -- every scan point too.
+        Mat3 rt;
+        for (int a = 0; a < 3; ++a)
+          for (int b = 0; b < 3; ++b)
+            rt.m[3 * a + b] = g[3 * b + a];
+        const Mat3 undo = rt.inverse();
+        Crystal &crystal = *experiments[j].crystal;
+        crystal.A = crystal.A * undo;
+        for (Mat3 &at : crystal.A_points)
+          at = at * undo;
+        Column &miller = reflections.modify_int_column(
+            "miller_index", "cctbx::miller::index<>", 3);
+        for (std::size_t r = 0; r < reflections.nrows; ++r) {
+          if (id.integer(r) != static_cast<std::int64_t>(j))
+            continue;
+          const Miller h = apply(g, {static_cast<int>(miller.ints[3 * r]),
+                                     static_cast<int>(miller.ints[3 * r + 1]),
+                                     static_cast<int>(miller.ints[3 * r + 2])});
+          for (int k = 0; k < 3; ++k)
+            miller.ints[3 * r + static_cast<std::size_t>(k)] = h[k];
+        }
+      }
+      std::printf("\n");
+    }
 
     P1Selection selection;
     const P1Intensities merged =

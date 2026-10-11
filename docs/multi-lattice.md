@@ -67,6 +67,25 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   was ever overlapped; and the joined table's imageset_id was numbered before
   the image sets were shared, the second lattice's naming one no longer
   there.
+* Stage 6, symmetry: cosym (src/cosym.cc), in mxi_symmetry before the
+  pooling, for experiments whose crystals are not one model. Each experiment's
+  intensities merged in P1, normalised, Friedel mates averaged; each pair's
+  correlation under each of the lattice's rotations, so the matrix r_ik,jl as
+  the paper's from n^2 m correlations through the group's product table; its
+  leading eigenvectors -- the best fit of low rank to a matrix with every
+  entry, which the paper's L-BFGS fits where entries are missing -- with the
+  components holding a tenth of the largest's variance or more kept; each
+  experiment reindexed by the rotation whose point lies nearest in direction
+  to the first's identity point, the identity kept where it is as near, within
+  0.1. Then pooled as before. On ins2_27's two crystals: components 54.1 and
+  36.5 per cent, then 1.4 -- two clusters; the second crystal reindexed
+  h,k,l to -k,-l,h+k+l, its CC with the first 0.942 over 13565 reflections;
+  I m -3 at 0.966, I m -3 m refused; I 2 3 by absences. Pooled without cosym
+  (--no-cosym), C 1 2/m 1. Planted test: P23 in a P432 lattice, one data set
+  indexed through the 4-fold P23 lacks, reindexed to CC above 0.95; one in the
+  reference's setting left as it is. For many partial data sets, as the
+  paper's examples, the correlations with too few reflections in common will
+  want leaving out, and L-BFGS for the missing entries: not yet.
 * Indexing's worst-fitting spots: Graeme, October 2026 -- left out of the
   indexed set, as DIALS leaves them, is fine, the problem being overdetermined,
   but better after the final refinement, the model then good. To do.

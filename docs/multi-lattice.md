@@ -46,8 +46,27 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   if its foreground is overlapped. Which boxes meet, by a hash of 32 pixel
   tiles. On by default, --no-mask-neighbours to leave it out, which gives the
   same bytes as before. On insulin, 2 of 21030 boxes meet another and nothing
-  overlaps: the same bytes either way. Still to come: a sweep's lattices in one
-  run, so that each masks the other's.
+  overlaps: the same bytes either way.
+* Stage 5, each lattice masking the others': the lattices of a sweep --
+  experiments on the same image set and scan; a sweep split in two shares the
+  one and not the other -- integrated each with the others' reflections
+  masked. First every lattice's profile model, each from its own spots,
+  before an image is read (--profile-only); then each lattice's run given the
+  others with theirs (--mask-also), predicting and boxing them, with their own
+  crystals and profile models, for masking alone. Each lattice is still read
+  once a lattice: one pass over the images, the profile fitting shared between
+  lattices, is a re-architecture left for after. On ins2_27: 5756 of each
+  lattice's boxes meet another; overlapped background 2552 and 2375,
+  overlapped foreground 573 and 573. Against DIALS, unchanged to four places:
+  the 205 and 52 strong reflections whose backgrounds were overlapped rose 0.1
+  and 0.5 per cent -- the robust background had mostly set the other lattice's
+  pixels aside already -- so the 2 to 3 per cent by which mxi's summation lies
+  below DIALS's is in what every reflection shares, not in contamination. Two
+  faults found on the way: the neighbours had been found before the list they
+  index was sorted, so every box was masked with others' reflections and none
+  was ever overlapped; and the joined table's imageset_id was numbered before
+  the image sets were shared, the second lattice's naming one no longer
+  there.
 * Indexing's worst-fitting spots: Graeme, October 2026 -- left out of the
   indexed set, as DIALS leaves them, is fine, the problem being overdetermined,
   but better after the final refinement, the model then good. To do.

@@ -101,11 +101,10 @@ REFINED = os.environ.get("MXI_TWO_LATTICES_REFINED")
 )
 def test_two_lattices_integrate_each_with_its_own_profile_sharing_the_rest(tmp_path):
     # Each lattice integrated with a profile model of its own, estimated from
-    # its own spots -- as DIALS's default 3d integrator integrates them, which
-    # masks no reflection's neighbours, so that one lattice's run is the same
-    # alone as beside the other. Joined, the models that are the same are one
-    # again: each run wrote its own copy, and the first join gave two detectors
-    # and two imagesets.
+    # its own spots, and the other lattice's reflections masked out of its
+    # backgrounds, as DIALS's 3d_threaded masks a reflection's neighbours.
+    # Joined, the models that are the same are one again: each run wrote its
+    # own copy, and the first join gave two detectors and two imagesets.
     r = subprocess.run(
         [INTEGRATE, REFINED, "--threads", "2", "-o", "integrated.rflx"],
         capture_output=True,
@@ -118,5 +117,16 @@ def test_two_lattices_integrate_each_with_its_own_profile_sharing_the_rest(tmp_p
         assert len(d[kind]) == 1, kind
     assert len(d["crystal"]) == 2 and len(d["profile"]) == 2
     assert d["profile"][0]["sigma_m"] != d["profile"][1]["sigma_m"]
-    ids = np.asarray(refl.load(str(tmp_path / "integrated.rflx")).columns["id"])
+    table = refl.load(str(tmp_path / "integrated.rflx"))
+    ids = np.asarray(table.columns["id"])
     assert all(40000 < np.sum(ids == l) < 45000 for l in (0, 1))
+    # Each lattice's backgrounds masked of the other's reflections (and its
+    # own): overlapped reflections, both kinds, in both lattices -- none, when
+    # the neighbours were found before the list they index was sorted.
+    flags = np.asarray(table.columns["flags"]).astype(np.int64)
+    for l in (0, 1):
+        assert np.sum((flags[ids == l] >> 11) & 1) > 1000  # background
+        assert np.sum((flags[ids == l] >> 12) & 1) > 100  # foreground
+    # Every row on the one image set: numbered before the joined list shared
+    # it, the second lattice's named an image set no longer there.
+    assert set(np.asarray(table.columns["imageset_id"]).tolist()) == {0}

@@ -49,6 +49,11 @@ void usage() {
       "experiment,\n"
       "                    sharing the sweep's beam and detector (1)\n"
       "  --min-lattice-spots N  the fewest spots a lattice may index (50)\n"
+      "  --ambiguous exclude|closest  a spot more than one lattice indexes:\n"
+      "                    left out of refinement, unindexed (exclude), or\n"
+      "                    given to the lattice it lies nearest (closest)\n"
+      "  --ambiguity-sigma S  ambiguous: within S of each lattice's own RMS\n"
+      "                    scatter of a second lattice's point (3)\n"
       "  --shared-crystal  several sweeps: one crystal throughout, where by\n"
       "                   default the last cycle refines each sweep's apart\n"
       "  --all-reflections  refine on everything, not the stronger half\n"
@@ -61,7 +66,8 @@ void usage() {
 // The several lattices index_lattices found, said and written.
 int report_lattices(const ExperimentList &sweep, Table &reflections,
                     const IndexOptions &options, int max_lattices,
-                    std::size_t min_spots, const rflx::Outputs &out) {
+                    std::size_t min_spots, Ambiguous ambiguous,
+                    double ambiguity_sigma, const rflx::Outputs &out) {
   if (sweep.size() != 1) {
     std::fprintf(stderr,
                  "mxi_index: --max-lattices takes one sweep for now, not %zu\n",
@@ -69,7 +75,8 @@ int report_lattices(const ExperimentList &sweep, Table &reflections,
     return 2;
   }
   const LatticesResult r =
-      index_lattices(sweep, reflections, options, max_lattices, min_spots);
+      index_lattices(sweep, reflections, options, max_lattices, min_spots,
+                     ambiguous, ambiguity_sigma);
   for (std::size_t l = 0; l < r.found_in.size(); ++l)
     std::printf("Lattice %zu: indexed %zu of the %zu spots left\n", l + 1,
                 r.indexed_of[l], r.found_in[l]);
@@ -82,6 +89,13 @@ int report_lattices(const ExperimentList &sweep, Table &reflections,
     return 1;
   }
   const ExperimentList &joint = r.experiments;
+  if (r.n_ambiguous > 0)
+    std::printf("%zu spots indexed by more than one lattice: %s\n",
+                r.n_ambiguous,
+                ambiguous == Ambiguous::Exclude
+                    ? "left out, not refined against (--ambiguous closest to "
+                      "give each to the nearer)"
+                    : "each given to the lattice it lies nearest");
   std::printf("\n%zu lattice%s: %zu of %zu spots indexed (%.1f%%)\n",
               joint.size(), joint.size() == 1 ? "" : "s", r.n_indexed,
               reflections.nrows,
@@ -91,10 +105,22 @@ int report_lattices(const ExperimentList &sweep, Table &reflections,
               "images over %zu spots\n",
               r.refined.rmsd_x, r.refined.rmsd_y, r.refined.rmsd_z,
               r.refined.n_used);
+  // Each lattice's spots, as assigned globally, and its cell.
+  std::vector<std::size_t> own(joint.size(), 0);
+  {
+    const Column &id = reflections.at("id");
+    const Column &mi = reflections.at("miller_index");
+    for (std::size_t i = 0; i < reflections.nrows; ++i)
+      if (mi.integer(i, 0) != 0 || mi.integer(i, 1) != 0 ||
+          mi.integer(i, 2) != 0)
+        ++own[static_cast<std::size_t>(id.integer(i))];
+  }
   for (std::size_t l = 0; l < joint.size(); ++l) {
     const UnitCell c = joint[l].crystal->cell();
-    std::printf("  lattice %zu: %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n", l + 1,
-                c.a, c.b, c.c, c.alpha, c.beta, c.gamma);
+    std::printf("  lattice %zu: %zu spots; %.3f %.3f %.3f A, %.3f %.3f %.3f "
+                "deg; scatter %.5f 1/A\n",
+                l + 1, own[l], c.a, c.b, c.c, c.alpha, c.beta, c.gamma,
+                l < r.scatter.size() ? r.scatter[l] : 0.0);
   }
   add_reciprocal_columns(joint, reflections);
   update_predictions(joint, reflections);
@@ -113,7 +139,8 @@ int run_program(int argc, char **argv) {
       "--output-expt",    "--output-refl",      "--quiet",
       "--verbose",        "--macrocycles",      "--all-reflections",
       "--timing",         "--jacobian-threads", "--fft-threads",
-      "--shared-crystal", "--max-lattices",     "--min-lattice-spots"};
+      "--shared-crystal", "--max-lattices",     "--min-lattice-spots",
+      "--ambiguous",      "--ambiguity-sigma"};
   const std::set<std::string> takes_value = {"--d-min",
                                              "--max-cell",
                                              "--grid",
@@ -126,7 +153,9 @@ int run_program(int argc, char **argv) {
                                              "--jacobian-threads",
                                              "--fft-threads",
                                              "--max-lattices",
-                                             "--min-lattice-spots"};
+                                             "--min-lattice-spots",
+                                             "--ambiguous",
+                                             "--ambiguity-sigma"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   // One .rflx stands for the experiment list and the reflections
   // (docs/rflx.md).
@@ -190,11 +219,19 @@ int run_program(int argc, char **argv) {
     add_observed_columns(experiments, reflections);
 
     const int max_lattices = static_cast<int>(args.number("--max-lattices", 1));
+    const std::string ambiguous = args.value("--ambiguous", "exclude");
+    if (ambiguous != "exclude" && ambiguous != "closest") {
+      std::fprintf(stderr,
+                   "mxi_index: --ambiguous is exclude or closest, not '%s'\n",
+                   ambiguous.c_str());
+      return 2;
+    }
     if (max_lattices > 1)
       return report_lattices(
           experiments, reflections, options, max_lattices,
           static_cast<std::size_t>(args.number("--min-lattice-spots", 50)),
-          out);
+          ambiguous == "closest" ? Ambiguous::Closest : Ambiguous::Exclude,
+          args.number("--ambiguity-sigma", 3.0), out);
 
     const IndexResult result = index(experiments, reflections, options);
     // The search's terms whether it succeeds or not: they are what a failure

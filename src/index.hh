@@ -243,10 +243,21 @@ bool same_lattice(const Crystal &a, const Crystal &b);
 //: how many spots were left when it was looked for and how many it indexed;
 //: why the search stopped; the joint refinement's result. No experiments if
 //: no lattice was found.
+//: A spot as near a second lattice's point as that lattice's own spots lie to
+//: theirs -- within ambiguity_sigma of each lattice's RMS scatter, in
+//: reciprocal space -- is ambiguous: left out, unindexed, so not refined
+//: against, or given to the lattice it lies nearest in those units (Graeme:
+//: leave out, but configurably).
+enum class Ambiguous { Exclude, Closest };
+
 struct LatticesResult {
   ExperimentList experiments;
   std::vector<std::size_t> found_in, indexed_of;
   std::size_t n_indexed = 0;
+  std::size_t n_ambiguous = 0; //: indexed by more than one lattice
+  //: Each lattice's RMS scatter, in reciprocal space (1/A): its indexed spots'
+  //: distance from their own points, the yardstick of ambiguity.
+  std::vector<double> scatter;
   std::string stopped;
   RefineResult refined;
 };
@@ -260,6 +271,8 @@ struct LatticesResult {
 //: lattice indexes keeps Miller index 0 0 0. One sweep for now.
 LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
                               const IndexOptions &options, int max_lattices,
-                              std::size_t min_spots);
+                              std::size_t min_spots,
+                              Ambiguous ambiguous = Ambiguous::Exclude,
+                              double ambiguity_sigma = 3.0);
 
 } // namespace mxi

@@ -1046,7 +1046,13 @@ TEST(two_lattices_in_one_sweep_are_both_found) {
                "two lattices, and no third");
   check::is_true(static_cast<double>(r.n_indexed) >
                      0.95 * static_cast<double>(spots.nrows),
-                 "nearly every spot indexed");
+                 "nearly every spot indexed: " + std::to_string(r.n_indexed) +
+                     " of " + std::to_string(spots.nrows) + ", " +
+                     std::to_string(r.n_ambiguous) + " ambiguous; scatter " +
+                     (r.scatter.size() == 2
+                          ? std::to_string(r.scatter[0]) + " " +
+                                std::to_string(r.scatter[1])
+                          : std::string("?")));
   int matched = 0;
   for (const Crystal *t : {&*a.crystal, &*b.crystal})
     for (const Experiment &e : r.experiments)

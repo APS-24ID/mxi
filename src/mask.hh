@@ -104,4 +104,13 @@ bool build_shoebox(const Experiment &e, const Prediction &p,
                    const MaskOptions &options, Shoebox *box,
                    BoxRejection *why = nullptr);
 
+//: Marks Overlapped every voxel of `box` inside the foreground of a neighbour
+//: q -- under q's experiment and q's profile model, which for a reflection of
+//: another lattice are not the box's own -- given q's bounding box. As DIALS's
+//: 3d_threaded integrator masks a reflection's neighbours: the background then
+//: leaves those voxels out, and the foreground keeps them but is flagged.
+void mark_overlapped(const Experiment &e, const Prediction &q,
+                     const MaskOptions &options, const std::int32_t q_bbox[6],
+                     Shoebox *box);
+
 } // namespace mxi

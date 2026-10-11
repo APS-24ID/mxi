@@ -37,9 +37,17 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   and profile model. Against DIALS, reflection by reflection: profile-fitted
   CC 0.998 and 0.994, median ratio 0.999 and 0.997; summation, above 100
   counts, CC 0.992 and 0.991, ratio 0.985 and 0.976 -- the profile model part of
-  that, the rest to find. Still to come: one pass over the images for a sweep's
-  lattices, where each is now read once a lattice; neighbour masking, as
-  3d_threaded does it, if wanted.
+  that, the rest to find.
+* Stage 5, beyond DIALS's default (Graeme: deviate, and mask neighbours
+  first; one pass then follows): each box's voxels inside another reflection's
+  foreground marked Overlapped (mark_overlapped, sharing build_shoebox's region
+  test), left out of its background, kept in its foreground and flagged
+  overlapped_bg or overlapped_fg (bits 11 and 12, as DIALS); not learned from
+  if its foreground is overlapped. Which boxes meet, by a hash of 32 pixel
+  tiles. On by default, --no-mask-neighbours to leave it out, which gives the
+  same bytes as before. On insulin, 2 of 21030 boxes meet another and nothing
+  overlaps: the same bytes either way. Still to come: a sweep's lattices in one
+  run, so that each masks the other's.
 * Indexing's worst-fitting spots: Graeme, October 2026 -- left out of the
   indexed set, as DIALS leaves them, is fine, the problem being overdetermined,
   but better after the final refinement, the model then good. To do.

@@ -28,6 +28,7 @@
 #include <set>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 #include "../src/expt.hh"
@@ -569,6 +570,7 @@ int run_program(int argc, char **argv) {
                                        "--summation-only",
                                        "--save-background-parameters",
                                        "--two-pass",
+                                       "--no-mask-neighbours",
                                        "-g",
                                        "--gpu",
                                        "--gpu-emulate",
@@ -584,6 +586,7 @@ int run_program(int argc, char **argv) {
   takes_value.erase("--summation-only");
   takes_value.erase("--save-background-parameters");
   takes_value.erase("--two-pass");
+  takes_value.erase("--no-mask-neighbours");
   takes_value.erase("-g");
   takes_value.erase("--gpu");
   takes_value.erase("--gpu-emulate");
@@ -877,6 +880,61 @@ int run_program(int argc, char **argv) {
     }
     if (planned.empty())
       return 1;
+
+    // NEIGHBOURS, MASKED (docs/multi-lattice.md). Each reflection's box with
+    // the voxels inside another reflection's foreground marked Overlapped:
+    // left out of its background, kept in its foreground but flagged. As
+    // DIALS's 3d_threaded integrator does; its default, 3d, finds the overlaps
+    // and masks nothing with them. With two lattices on the images, a box's
+    // background otherwise takes in the other lattice's spots. Which boxes
+    // meet: a hash of 32 pixel tiles of the panel, then the three-dimensional
+    // test.
+    const bool mask_neighbours = !args.has("--no-mask-neighbours");
+    std::vector<std::vector<std::uint32_t>> neighbours(planned.size());
+    if (mask_neighbours) {
+      constexpr std::int32_t kTile = 32;
+      std::unordered_map<std::uint64_t, std::vector<std::uint32_t>> tiles;
+      const auto key = [](std::size_t panel_index, std::int32_t tx,
+                          std::int32_t ty) {
+        return (static_cast<std::uint64_t>(panel_index) << 42) ^
+               (static_cast<std::uint64_t>(static_cast<std::uint32_t>(tx))
+                << 21) ^
+               static_cast<std::uint64_t>(static_cast<std::uint32_t>(ty));
+      };
+      for (std::size_t i = 0; i < planned.size(); ++i) {
+        const std::int32_t *b = planned[i].bbox;
+        for (std::int32_t tx = b[0] / kTile; tx <= (b[1] - 1) / kTile; ++tx)
+          for (std::int32_t ty = b[2] / kTile; ty <= (b[3] - 1) / kTile; ++ty)
+            tiles[key(planned[i].prediction->panel, tx, ty)].push_back(
+                static_cast<std::uint32_t>(i));
+      }
+      for (std::size_t i = 0; i < planned.size(); ++i) {
+        const std::int32_t *b = planned[i].bbox;
+        std::vector<std::uint32_t> &mine = neighbours[i];
+        for (std::int32_t tx = b[0] / kTile; tx <= (b[1] - 1) / kTile; ++tx)
+          for (std::int32_t ty = b[2] / kTile; ty <= (b[3] - 1) / kTile; ++ty) {
+            const auto it =
+                tiles.find(key(planned[i].prediction->panel, tx, ty));
+            if (it == tiles.end())
+              continue;
+            for (std::uint32_t j : it->second) {
+              if (j == i)
+                continue;
+              const std::int32_t *c = planned[j].bbox;
+              if (c[0] < b[1] && b[0] < c[1] && c[2] < b[3] && b[2] < c[3] &&
+                  c[4] < b[5] && b[4] < c[5])
+                mine.push_back(j);
+            }
+          }
+        std::sort(mine.begin(), mine.end());
+        mine.erase(std::unique(mine.begin(), mine.end()), mine.end());
+      }
+      std::size_t meeting = 0;
+      for (const auto &n : neighbours)
+        meeting += n.empty() ? 0 : 1;
+      std::printf("Neighbours masked: %zu of the boxes meet another\n",
+                  meeting);
+    }
 
     // In order of first image, so a block is a contiguous run of this vector.
     std::sort(planned.begin(), planned.end(),
@@ -1681,6 +1739,9 @@ int run_program(int argc, char **argv) {
         if (build_shoebox(e, *planned[at + i].prediction, mask_options, &box,
                           &ignored)) {
           box.data.assign(box.size(), 0.0f);
+          for (std::uint32_t j : neighbours[at + i])
+            mark_overlapped(e, *planned[j].prediction, mask_options,
+                            planned[j].bbox, &box);
         }
       });
       at = stop;
@@ -1908,6 +1969,9 @@ int run_program(int argc, char **argv) {
               if (!(signal > least_signal * sigma))
                 continue;
               if (part_column.reals[row] < 0.99)
+                continue;
+              // Not from a reflection with a neighbour over its foreground.
+              if ((flags.ints[row] & flag::kOverlappedFg) != 0)
                 continue;
               const Prediction &q = *planned[row].prediction;
               const Transformed t =

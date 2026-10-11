@@ -116,6 +116,11 @@ struct IntegratedReflection {
   //: in them -- a module gap, a masked pixel. A reflection with any of the
   //: first has a summed intensity that is missing part of the reflection.
   std::size_t n_foreground_bad = 0;
+  //: Pixels inside a neighbour's foreground (shoebox_mask::kOverlapped): in
+  //: this reflection's foreground, summed all the same and counted; in its
+  //: background, counted and left out of the background's estimate.
+  std::size_t n_foreground_overlapped = 0;
+  std::size_t n_background_overlapped = 0;
   std::size_t n_background_bad = 0;
   std::size_t n_background = 0;
   std::size_t n_valid = 0;

@@ -108,6 +108,7 @@ add_library(mxi
   src/expt.cc
   src/refl.cc
   src/rflx.cc
+  src/cosym.cc
   src/fft.cc
   $<$<BOOL:${MXI_FFTW}>:src/fft_fftw.cc>
   src/index.cc
@@ -343,6 +344,7 @@ add_executable(mxi_tests
   tests/test_lattice.cc
   tests/test_laue.cc
   tests/test_rflx.cc
+  tests/test_cosym.cc
   tests/test_space_group.cc
   tests/test_resolution.cc
   tests/test_timing.cc

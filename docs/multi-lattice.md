@@ -1,6 +1,18 @@
 # Several lattices in one data set: a plan
 
-STATUS: a plan for review, October 2026. Nothing here is built.
+STATUS: agreed, October 2026, with Graeme's answers (below). Nothing here is
+built.
+
+## Decisions (Graeme, October 2026)
+
+1. **Sweeps carried through**, as dials/dials#1029 proposes, in mxi's own files;
+   the crystal-less experiments dropped only when exporting for DIALS.
+2. **Data**: a real data set, two crystals of I23 symmetry, with DIALS's
+   processing of it to judge against. I23 in an I432 lattice has a twofold
+   indexing ambiguity, so the lattices' settings need a cosym-type analysis.
+3. **First case**: two crystals in the beam.
+4. **Separate sweeps share models** in refinement, as DIALS shares them: the
+   four-sweep results will change, and the change is to be judged as such.
 
 dials.index finds several lattices in one data set (`max_lattices`): a split
 crystal, a twin that is not merohedral, two crystals in the beam. Each lattice
@@ -91,11 +103,34 @@ own profile model, sigma_b and sigma_m, from its own strong spots, and learns
 its own reference profiles: a split crystal's two halves need not be equally
 mosaic.
 
-**Symmetry** (mxi_symmetry). Each lattice's Laue group from its own data, then
-one setting for them all: where lattices are of one crystal -- a split crystal,
-a twin -- or of one kind, their indexing must agree, and an indexing ambiguity
-resolved between them as dials.cosym resolves it between data sets, by
-correlating their intensities under each of the ambiguity's operators.
+**Symmetry** (mxi_symmetry). Lattices of different crystals -- the first case,
+two crystals in the beam -- are separate data sets, each indexed in a basis of
+its own choosing among those its lattice's symmetry allows: before they can be
+scaled together they must be brought to one setting, and their Patterson group
+found from them all. Gildea & Winter (2018), Acta Cryst. D74, 405-410, which
+dials.cosym implements, does both at once:
+
+* The lattice group: the highest symmetry the cells allow, its m operations --
+  I432's 24, for I23.
+* Each data set i under each operation k, its intensities merged in P1 and
+  reindexed by it; the correlation r_ik,jl of each such with every other over
+  the reflections they share -- a matrix (n m) by (n m), n data sets.
+* Each data set under each operation a point x_ik in m dimensions, placed by
+  minimising the sum over every pair of (r_ik,jl - x_ik . x_jl)^2, by L-BFGS
+  from random starting points in 0 to 1.
+* The points' principal components: they fall into as many clusters as the
+  lattice group has cosets of the true Patterson group -- two for I23 in I432
+  -- and the share of the variance on each component says how many.
+* Within one cluster, the operations S_k^-1 S_l between its points are the
+  Patterson group; a data set whose point in that cluster carries an operation
+  S_k outside the group is reindexed by it -- the twinning operation -- taken
+  to the unique representative of its coset of the group (Flack, 1987).
+
+With two data sets the matrix is small and the answer could be had by trying
+the ambiguity's operators directly; built as the paper describes, it serves
+any number of crystals, and a multi-crystal data set is the next case after
+two lattices. The Patterson group so found is then tested, and the space group
+chosen by absences, by what mxi_symmetry already does for one data set.
 
 **Scaling** (mxi_scale). A scale model a lattice, as now a sweep; mxi_export a
 data set a lattice, with its own batches.
@@ -108,13 +143,13 @@ crystal give the bytes they give now, stage by stage.
 
 0. **Data.** A planted data set: two lattices predicted onto one sweep, of known
    orientations, cells and profiles -- including a pair whose spots overlap.
-   And real data with several lattices, processed by DIALS to compare with
-   (Graeme: which?).
+   And Graeme's two crystals of I23, with DIALS's processing of them.
 1. **Shared models.** The experiment list's sharing kept, read and written by
    index; a profile model a lattice; the two views, sweeps and lattices.
-   Refinement's parameters a block a model. On every data set now, the same
-   results -- the four-sweep data excepted if separate sweeps are then to share
-   a detector, as DIALS shares one (question 4).
+   Refinement's parameters a block a model, separate sweeps sharing theirs as
+   DIALS shares them (decision 4). On every data set of one sweep, the same
+   results; on the four sweeps, a change, set against dials.refine's -- which
+   shares -- and judged on its own.
 2. **Carrying sweeps through** (#1029): the crystal-less experiments, `id` and
    `imageset_id`, every program reading the list through the two views;
    mxi_convert's DIALS form. A sweep that indexes nothing still there, its
@@ -127,22 +162,19 @@ crystal give the bytes they give now, stage by stage.
 5. **Integrating them** together, overlaps flagged, a profile model each: on the
    planted data, each lattice's intensities as they were planted, overlapped
    spots flagged and the rest unharmed; on the real, against dials.integrate.
-6. **Symmetry and scaling** of several lattices: one setting, ambiguities
-   resolved; on the real data, against dials.cosym and dials.scale.
-7. The documents.
+6. **Symmetry** of several lattices, cosym as above: on planted data -- two data
+   sets of an I23 crystal, one reindexed by the I432 operation I23 lacks, and
+   then many partial ones, as the paper's examples -- the Patterson group and
+   each data set's operation recovered; then on Graeme's two crystals, against
+   dials.cosym.
+7. **Scaling and export** of several lattices: a scale model and a data set a
+   lattice; against dials.scale.
+8. The documents.
 
-## Questions for Graeme
+## Questions settled
 
-1. **#1029 in mxi's own files**: carry the sweeps through as crystal-less
-   experiments, as the issue proposes, with mxi_convert dropping them for
-   DIALS? Or DIALS's form in mxi's files too?
-2. **Data**: a real data set with several lattices, and DIALS's processing of
-   it, to judge against.
-3. **What first**: two crystals in the beam, a split crystal, or a twin that is
-   not merohedral? They differ most in symmetry: lattices of one crystal must
-   share a setting, of different crystals need not.
-4. **Several sweeps, one detector**: should separate sweeps share the detector
-   in refinement, as DIALS shares one model by default, once refinement can share
-   at all? It would change the four-sweep results, and is a choice for itself.
-5. **Stills**: out of scope, as mxi is rotation data; but the same model -- a
-   sweep of one image, lattices in it -- would serve.
+Graeme's answers to the plan's questions are the decisions above. Still open:
+how to bring his two-crystal data here -- images and DIALS's processing --
+and, for stage 1, whether DIALS shares the beam as well as the detector across
+sweeps in his own processing of the four-sweep data, which is what the change
+is to be set against.

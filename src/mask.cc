@@ -142,26 +142,24 @@ bool integration_bbox(const Experiment &e, const Prediction &p,
   return true;
 }
 
-bool build_shoebox(const Experiment &e, const Prediction &p,
-                   const MaskOptions &options, Shoebox *box,
-                   BoxRejection *why) {
-  if (box == nullptr)
-    return false;
-  std::int32_t bbox[6];
-  if (!integration_bbox(e, p, options, bbox, why))
-    return false;
+namespace {
+
+// Which voxels of the box `bbox` lie inside reflection p's foreground region,
+// under the experiment's models and the options' profile model: one byte a
+// voxel, z slowest, then y, then x. For p's own box -- its mask -- or another
+// reflection's, where p is the neighbour whose foreground lies over it.
+void region_of(const Experiment &e, const Prediction &p,
+               const MaskOptions &options, const std::int32_t bbox[6],
+               std::vector<std::uint8_t> *inside) {
   const Panel &panel = e.detector[p.panel];
   const KabschFrame frame = kabsch_frame(e, p.s1);
-
-  box->panel = static_cast<std::int32_t>(p.panel);
-  for (int i = 0; i < 6; ++i)
-    box->bbox[i] = bbox[i];
-  box->flag = 2;
-  const std::size_t n = box->size();
-  box->data.assign(n, 0.0f);
-  box->background.assign(n, 0.0f);
-  box->mask.assign(n, 0);
-
+  const std::int32_t nx = bbox[1] - bbox[0], ny = bbox[3] - bbox[2],
+                     nz = bbox[5] - bbox[4];
+  inside->assign(static_cast<std::size_t>(nx) * static_cast<std::size_t>(ny) *
+                     static_cast<std::size_t>(nz),
+                 0);
+  if (nx <= 0 || ny <= 0 || nz <= 0)
+    return;
   const double width = Scan::radians(e.scan.osc_width);
 
   // eps1 and eps2 depend only on where a pixel is on the detector, and eps3
@@ -173,23 +171,23 @@ bool build_shoebox(const Experiment &e, const Prediction &p,
   //
   // So the face is computed once and the images once: nx*ny + nz evaluations
   // instead of nx*ny*nz. The arithmetic is unchanged and so is every mask.
-  const std::int32_t face = box->nx() * box->ny();
+  const std::int32_t face = nx * ny;
   std::vector<double> eps1(static_cast<std::size_t>(face));
   std::vector<double> eps2(static_cast<std::size_t>(face));
-  for (std::int32_t y = 0; y < box->ny(); ++y) {
-    for (std::int32_t x = 0; x < box->nx(); ++x) {
+  for (std::int32_t y = 0; y < ny; ++y) {
+    for (std::int32_t x = 0; x < nx; ++x) {
       const Epsilon eps =
           epsilon_of(e, frame, panel, static_cast<double>(bbox[0] + x) + 0.5,
                      static_cast<double>(bbox[2] + y) + 0.5, p.phi, p.phi);
       const std::size_t at =
-          static_cast<std::size_t>(y) * static_cast<std::size_t>(box->nx()) +
+          static_cast<std::size_t>(y) * static_cast<std::size_t>(nx) +
           static_cast<std::size_t>(x);
       eps1[at] = eps.e1;
       eps2[at] = eps.e2;
     }
   }
-  std::vector<double> eps3(static_cast<std::size_t>(box->nz()));
-  for (std::int32_t z = 0; z < box->nz(); ++z) {
+  std::vector<double> eps3(static_cast<std::size_t>(nz));
+  for (std::int32_t z = 0; z < nz; ++z) {
     const double image = static_cast<double>(bbox[4] + z) + 0.5;
     const double phi = Scan::radians(e.scan.osc_start) +
                        (image - static_cast<double>(e.scan.z_offset)) * width;
@@ -197,37 +195,85 @@ bool build_shoebox(const Experiment &e, const Prediction &p,
         Scan::degrees(frame.zeta * (phi - p.phi));
   }
 
-  for (std::int32_t z = 0; z < box->nz(); ++z) {
-    for (std::int32_t y = 0; y < box->ny(); ++y) {
-      for (std::int32_t x = 0; x < box->nx(); ++x) {
-        Epsilon eps;
+  std::size_t at = 0;
+  for (std::int32_t z = 0; z < nz; ++z) {
+    for (std::int32_t y = 0; y < ny; ++y) {
+      for (std::int32_t x = 0; x < nx; ++x, ++at) {
         const std::size_t on_face =
-            static_cast<std::size_t>(y) * static_cast<std::size_t>(box->nx()) +
+            static_cast<std::size_t>(y) * static_cast<std::size_t>(nx) +
             static_cast<std::size_t>(x);
-        eps.e1 = eps1[on_face];
-        eps.e2 = eps2[on_face];
-        eps.e3 = eps3[static_cast<std::size_t>(z)];
         // In sigmas, which is the only scale on which the three directions
         // are comparable: eps1 and eps2 are measured against sigma_D and eps3
         // against sigma_M, and here they differ by a factor of four.
-        const double u1 = eps.e1 / options.sigma_d;
-        const double u2 = eps.e2 / options.sigma_d;
-        const double u3 = eps.e3 / options.sigma_m;
-        const bool inside = options.shape == RegionShape::kEllipsoid
-                                ? (u1 * u1 + u2 * u2 + u3 * u3) <=
-                                      options.n_sigma * options.n_sigma
-                                : (std::fabs(u1) <= options.n_sigma &&
-                                   std::fabs(u2) <= options.n_sigma &&
-                                   std::fabs(u3) <= options.n_sigma);
-        // Every voxel is valid -- nothing here has read an image, so nothing
-        // is known to be bad -- and each is either in the region or around it.
-        box->mask[box->at(x, y, z)] = static_cast<std::uint8_t>(
-            shoebox_mask::kValid |
-            (inside ? shoebox_mask::kForeground : shoebox_mask::kBackground));
+        const double u1 = eps1[on_face] / options.sigma_d;
+        const double u2 = eps2[on_face] / options.sigma_d;
+        const double u3 = eps3[static_cast<std::size_t>(z)] / options.sigma_m;
+        const bool in = options.shape == RegionShape::kEllipsoid
+                            ? (u1 * u1 + u2 * u2 + u3 * u3) <=
+                                  options.n_sigma * options.n_sigma
+                            : (std::fabs(u1) <= options.n_sigma &&
+                               std::fabs(u2) <= options.n_sigma &&
+                               std::fabs(u3) <= options.n_sigma);
+        (*inside)[at] = in ? 1 : 0;
       }
     }
   }
+}
+
+} // namespace
+
+bool build_shoebox(const Experiment &e, const Prediction &p,
+                   const MaskOptions &options, Shoebox *box,
+                   BoxRejection *why) {
+  if (box == nullptr)
+    return false;
+  std::int32_t bbox[6];
+  if (!integration_bbox(e, p, options, bbox, why))
+    return false;
+
+  box->panel = static_cast<std::int32_t>(p.panel);
+  for (int i = 0; i < 6; ++i)
+    box->bbox[i] = bbox[i];
+  box->flag = 2;
+  const std::size_t n = box->size();
+  box->data.assign(n, 0.0f);
+  box->background.assign(n, 0.0f);
+  box->mask.assign(n, 0);
+
+  // Every voxel is valid -- nothing here has read an image, so nothing is
+  // known to be bad -- and each is either in the region or around it.
+  std::vector<std::uint8_t> inside;
+  region_of(e, p, options, bbox, &inside);
+  for (std::size_t i = 0; i < n; ++i)
+    box->mask[i] = static_cast<std::uint8_t>(
+        shoebox_mask::kValid |
+        (inside[i] ? shoebox_mask::kForeground : shoebox_mask::kBackground));
   return true;
+}
+
+void mark_overlapped(const Experiment &e, const Prediction &q,
+                     const MaskOptions &options, const std::int32_t q_bbox[6],
+                     Shoebox *box) {
+  if (box == nullptr || box->mask.size() != box->size() ||
+      q.panel != static_cast<std::size_t>(box->panel))
+    return;
+  // Only where the two boxes meet: q's foreground lies inside its own box.
+  std::int32_t meet[6];
+  for (int k = 0; k < 6; k += 2) {
+    meet[k] = std::max(box->bbox[k], q_bbox[k]);
+    meet[k + 1] = std::min(box->bbox[k + 1], q_bbox[k + 1]);
+    if (meet[k] >= meet[k + 1])
+      return;
+  }
+  std::vector<std::uint8_t> inside;
+  region_of(e, q, options, meet, &inside);
+  std::size_t at = 0;
+  for (std::int32_t z = meet[4]; z < meet[5]; ++z)
+    for (std::int32_t y = meet[2]; y < meet[3]; ++y)
+      for (std::int32_t x = meet[0]; x < meet[1]; ++x, ++at)
+        if (inside[at])
+          box->mask[box->at(x - box->bbox[0], y - box->bbox[2],
+                            z - box->bbox[4])] |= shoebox_mask::kOverlapped;
 }
 
 } // namespace mxi

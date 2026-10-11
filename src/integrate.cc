@@ -80,6 +80,10 @@ std::int64_t summation_flags(const IntegratedReflection &r) {
   }
   if (r.n_background_bad > 0)
     f |= flag::kBackgroundIncludesBadPixels;
+  if (r.n_background_overlapped > 0)
+    f |= flag::kOverlappedBg;
+  if (r.n_foreground_overlapped > 0)
+    f |= flag::kOverlappedFg;
   return f;
 }
 
@@ -110,8 +114,14 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
     if (m & shoebox_mask::kForeground) {
       foreground_sum += static_cast<double>(box->data[i]);
       ++n_foreground;
+      if (m & shoebox_mask::kOverlapped)
+        ++out.n_foreground_overlapped;
     } else if (m & shoebox_mask::kBackground) {
-      background_values.push_back(static_cast<double>(box->data[i]));
+      // A neighbour's foreground is no part of this background.
+      if (m & shoebox_mask::kOverlapped)
+        ++out.n_background_overlapped;
+      else
+        background_values.push_back(static_cast<double>(box->data[i]));
     }
   }
   out.n_foreground = n_foreground;

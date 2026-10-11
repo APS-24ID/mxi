@@ -78,6 +78,10 @@ constexpr std::int64_t kIntegratedPrf = 1 << 9;
 //: over a foreground with pixels missing is not that reflection's intensity.
 //: dials.scale's combined intensity needs both kIntegratedSum and
 //: kIntegratedPrf, so those reflections never reach scaling.
+//: Another reflection's foreground over this one's background, or over its
+//: foreground: its neighbours masked (mxi_integrate, as DIALS's 3d_threaded).
+constexpr std::int64_t kOverlappedBg = 1 << 11;
+constexpr std::int64_t kOverlappedFg = 1 << 12;
 constexpr std::int64_t kForegroundIncludesBadPixels = 1 << 14;
 constexpr std::int64_t kBackgroundIncludesBadPixels = 1 << 15;
 constexpr std::int64_t kFailedDuringSummation = 1 << 19;

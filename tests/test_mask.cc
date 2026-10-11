@@ -372,3 +372,69 @@ TEST(a_refused_box_says_which_reason) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(a_neighbours_foreground_is_marked_overlapped_and_nothing_else) {
+  // mark_overlapped: the voxels of one box inside another reflection's
+  // foreground -- exactly those its own mask makes foreground, where the two
+  // boxes meet -- marked Overlapped, every other bit as it was; and a
+  // reflection whose box does not meet it changes nothing.
+  const Experiment e = masking_experiment();
+  PredictOptions po;
+  po.d_min = 2.5;
+  const std::vector<Prediction> predictions = predict(e, po);
+  const MaskOptions options = options_for();
+  std::size_t tried = 0;
+  for (const Prediction &p : predictions) {
+    Shoebox box;
+    if (!build_shoebox(e, p, options, &box))
+      continue;
+    // A neighbour half a foreground away in rotation.
+    Prediction q = p;
+    q.phi += Scan::radians(options.n_sigma * options.sigma_m) /
+             std::max(std::fabs(kabsch_frame(e, p.s1).zeta), 0.1);
+    q.z += (q.phi - p.phi) / Scan::radians(e.scan.osc_width);
+    Shoebox own;
+    if (!build_shoebox(e, q, options, &own))
+      continue;
+    const std::vector<std::uint8_t> before = box.mask;
+    mark_overlapped(e, q, options, own.bbox, &box);
+    std::size_t marked = 0;
+    for (std::int32_t z = box.bbox[4]; z < box.bbox[5]; ++z)
+      for (std::int32_t y = box.bbox[2]; y < box.bbox[3]; ++y)
+        for (std::int32_t x = box.bbox[0]; x < box.bbox[1]; ++x) {
+          const std::size_t i =
+              box.at(x - box.bbox[0], y - box.bbox[2], z - box.bbox[4]);
+          const bool in_own = x >= own.bbox[0] && x < own.bbox[1] &&
+                              y >= own.bbox[2] && y < own.bbox[3] &&
+                              z >= own.bbox[4] && z < own.bbox[5];
+          const bool fg =
+              in_own && (own.mask[own.at(x - own.bbox[0], y - own.bbox[2],
+                                         z - own.bbox[4])] &
+                         shoebox_mask::kForeground) != 0;
+          check::is_true(
+              ((box.mask[i] & shoebox_mask::kOverlapped) != 0) == fg,
+              "Overlapped exactly where the neighbour's foreground is");
+          check::is_true((box.mask[i] & ~shoebox_mask::kOverlapped) ==
+                             before[i],
+                         "and nothing else changed");
+          marked += fg ? 1 : 0;
+        }
+    check::is_true(marked > 0, "the two meet");
+    // A reflection far away: nothing.
+    Prediction far = p;
+    far.px_fast += 500.0;
+    const std::vector<std::uint8_t> kept = box.mask;
+    std::int32_t far_bbox[6];
+    for (int k = 0; k < 6; ++k)
+      far_bbox[k] = own.bbox[k] + (k < 2 ? 500 : 0);
+    mark_overlapped(e, far, options, far_bbox, &box);
+    check::is_true(box.mask == kept, "a box it does not meet: unchanged");
+    if (++tried == 20)
+      break;
+  }
+  check::is_true(tried == 20, "enough pairs");
+}
+
+} // namespace mxi

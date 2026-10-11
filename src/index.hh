@@ -40,6 +40,7 @@
 
 #include "expt.hh"
 #include "geometry.hh"
+#include "refine.hh"
 #include "refl.hh"
 
 namespace mxi {
@@ -232,5 +233,33 @@ Mat3 reduce_basis(const Mat3 &real_space_rows);
 // list and `miller_index` is written into the table.
 IndexResult index(ExperimentList &experiments, Table &reflections,
                   const IndexOptions &options = {});
+
+//: Two crystals of one lattice: their reciprocal bases related by an integer
+//: matrix of determinant +-1, to within a tenth in each element.
+bool same_lattice(const Crystal &a, const Crystal &b);
+
+//: What index_lattices found: one experiment a lattice, sharing the sweep's
+//: beam and detector (beam_of, detector_of), each its own crystal; for each,
+//: how many spots were left when it was looked for and how many it indexed;
+//: why the search stopped; the joint refinement's result. No experiments if
+//: no lattice was found.
+struct LatticesResult {
+  ExperimentList experiments;
+  std::vector<std::size_t> found_in, indexed_of;
+  std::size_t n_indexed = 0;
+  std::string stopped;
+  RefineResult refined;
+};
+
+//: Several lattices in one sweep, as dials.index finds them (max_lattices;
+//: docs/multi-lattice.md): index the spots not yet indexed, take the lattice
+//: and the spots it indexes, and again on what is left -- until max_lattices,
+//: or a lattice of fewer than min_spots, or one found already; then all
+//: refined together, one detector. `reflections` gets each spot's lattice as
+//: `id`, its Miller index, its flags and the table's identifiers; a spot no
+//: lattice indexes keeps Miller index 0 0 0. One sweep for now.
+LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
+                              const IndexOptions &options, int max_lattices,
+                              std::size_t min_spots);
 
 } // namespace mxi

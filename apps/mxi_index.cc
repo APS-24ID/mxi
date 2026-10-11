@@ -44,6 +44,11 @@ void usage() {
       "  --output-expt P   the DIALS pair's experiment list (indexed.expt)\n"
       "  --output-refl P   the DIALS pair's reflections (indexed.refl)\n"
       "  --macrocycles N  assign/refine/re-assign cycles (3)\n"
+      "  --max-lattices N  look for up to N lattices in one sweep -- crystals\n"
+      "                    side by side in the beam -- each its own "
+      "experiment,\n"
+      "                    sharing the sweep's beam and detector (1)\n"
+      "  --min-lattice-spots N  the fewest spots a lattice may index (50)\n"
       "  --shared-crystal  several sweeps: one crystal throughout, where by\n"
       "                   default the last cycle refines each sweep's apart\n"
       "  --all-reflections  refine on everything, not the stronger half\n"
@@ -53,23 +58,75 @@ void usage() {
       "                    longer printed unless --verbose asks for it\n");
 }
 
+// The several lattices index_lattices found, said and written.
+int report_lattices(const ExperimentList &sweep, Table &reflections,
+                    const IndexOptions &options, int max_lattices,
+                    std::size_t min_spots, const rflx::Outputs &out) {
+  if (sweep.size() != 1) {
+    std::fprintf(stderr,
+                 "mxi_index: --max-lattices takes one sweep for now, not %zu\n",
+                 sweep.size());
+    return 2;
+  }
+  const LatticesResult r =
+      index_lattices(sweep, reflections, options, max_lattices, min_spots);
+  for (std::size_t l = 0; l < r.found_in.size(); ++l)
+    std::printf("Lattice %zu: indexed %zu of the %zu spots left\n", l + 1,
+                r.indexed_of[l], r.found_in[l]);
+  if (!r.stopped.empty())
+    std::printf("Lattice %zu: %s\n", r.found_in.size() + 1, r.stopped.c_str());
+  if (r.experiments.empty()) {
+    std::fprintf(stderr,
+                 "mxi_index: no lattice found. Try --max-cell, or --d-min to "
+                 "restrict the resolution range used.\n");
+    return 1;
+  }
+  const ExperimentList &joint = r.experiments;
+  std::printf("\n%zu lattice%s: %zu of %zu spots indexed (%.1f%%)\n",
+              joint.size(), joint.size() == 1 ? "" : "s", r.n_indexed,
+              reflections.nrows,
+              100.0 * static_cast<double>(r.n_indexed) /
+                  static_cast<double>(reflections.nrows));
+  std::printf("Refined together, one detector: RMSD %.3f px, %.3f px, %.3f "
+              "images over %zu spots\n",
+              r.refined.rmsd_x, r.refined.rmsd_y, r.refined.rmsd_z,
+              r.refined.n_used);
+  for (std::size_t l = 0; l < joint.size(); ++l) {
+    const UnitCell c = joint[l].crystal->cell();
+    std::printf("  lattice %zu: %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n", l + 1,
+                c.a, c.b, c.c, c.alpha, c.beta, c.gamma);
+  }
+  add_reciprocal_columns(joint, reflections);
+  update_predictions(joint, reflections);
+  const json::Value document = experiments_to_json(joint);
+  rflx::write_outputs(out, &document, &reflections, "mxi_index");
+  std::printf("Wrote %s\n", rflx::describe(out).c_str());
+  return 0;
+}
+
 } // namespace
 
 int run_program(int argc, char **argv) {
   const std::set<std::string> known = {
-      "--d-min",         "--max-cell",         "--grid",
-      "--tolerance",     "--candidates",       "-o",
-      "--output-expt",   "--output-refl",      "--quiet",
-      "--verbose",       "--macrocycles",      "--all-reflections",
-      "--timing",        "--jacobian-threads", "--fft-threads",
-      "--shared-crystal"};
-  const std::set<std::string> takes_value = {
-      "--d-min",       "--max-cell",
-      "--grid",        "--tolerance",
-      "--candidates",  "-o",
-      "--output-expt", "--output-refl",
-      "--macrocycles", "--jacobian-threads",
-      "--fft-threads"};
+      "--d-min",          "--max-cell",         "--grid",
+      "--tolerance",      "--candidates",       "-o",
+      "--output-expt",    "--output-refl",      "--quiet",
+      "--verbose",        "--macrocycles",      "--all-reflections",
+      "--timing",         "--jacobian-threads", "--fft-threads",
+      "--shared-crystal", "--max-lattices",     "--min-lattice-spots"};
+  const std::set<std::string> takes_value = {"--d-min",
+                                             "--max-cell",
+                                             "--grid",
+                                             "--tolerance",
+                                             "--candidates",
+                                             "-o",
+                                             "--output-expt",
+                                             "--output-refl",
+                                             "--macrocycles",
+                                             "--jacobian-threads",
+                                             "--fft-threads",
+                                             "--max-lattices",
+                                             "--min-lattice-spots"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   // One .rflx stands for the experiment list and the reflections
   // (docs/rflx.md).
@@ -131,6 +188,13 @@ int run_program(int argc, char **argv) {
     // recomputes them either, which is exactly why xyzobs.mm.value must not be
     // used as a join key between two runs.
     add_observed_columns(experiments, reflections);
+
+    const int max_lattices = static_cast<int>(args.number("--max-lattices", 1));
+    if (max_lattices > 1)
+      return report_lattices(
+          experiments, reflections, options, max_lattices,
+          static_cast<std::size_t>(args.number("--min-lattice-spots", 50)),
+          out);
 
     const IndexResult result = index(experiments, reflections, options);
     // The search's terms whether it succeeds or not: they are what a failure

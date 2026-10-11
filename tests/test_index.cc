@@ -1014,3 +1014,47 @@ TEST(no_candidate_is_a_multiple_of_another) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(two_lattices_in_one_sweep_are_both_found) {
+  // Two crystals side by side in the beam, 11.6 degrees apart as in Graeme's
+  // data (docs/multi-lattice.md), their spots one table: both lattices found,
+  // each the true one -- its basis an integer one of the truth's, so the same
+  // orientation and cell -- nearly every spot indexed, no third lattice
+  // invented, and the sweep's detector one between them.
+  Experiment truth = synthetic();
+  const Mat3 r1 = rotation({0.3, -0.5, 0.81}, 0.9);
+  const Mat3 r2 =
+      rotation({0.6, 0.2, -0.77}, 11.6 * 3.14159265358979 / 180.0) * r1;
+  Experiment a = truth, b = truth;
+  a.crystal = Crystal::from_real_space(r1 * Vec3{47.0, 0.0, 0.0},
+                                       r1 * Vec3{0.0, 52.0, 0.0},
+                                       r1 * Vec3{0.0, 0.0, 61.0});
+  b.crystal = Crystal::from_real_space(r2 * Vec3{47.0, 0.0, 0.0},
+                                       r2 * Vec3{0.0, 52.0, 0.0},
+                                       r2 * Vec3{0.0, 0.0, 61.0});
+  Table spots = concat_rows({spots_from(a, 2.5), spots_from(b, 2.5)});
+
+  ExperimentList sweep;
+  Experiment blank = truth;
+  blank.crystal.reset();
+  sweep.experiments.push_back(blank);
+
+  const LatticesResult r = index_lattices(sweep, spots, {}, 3, 50);
+  check::equal(static_cast<long long>(r.experiments.size()), 2,
+               "two lattices, and no third");
+  check::is_true(static_cast<double>(r.n_indexed) >
+                     0.95 * static_cast<double>(spots.nrows),
+                 "nearly every spot indexed");
+  int matched = 0;
+  for (const Crystal *t : {&*a.crystal, &*b.crystal})
+    for (const Experiment &e : r.experiments)
+      matched += same_lattice(*t, *e.crystal) ? 1 : 0;
+  check::equal(matched, 2, "each true crystal found, once");
+  check::is_true(r.experiments.detector_group(0) ==
+                     r.experiments.detector_group(1),
+                 "one detector between them");
+}
+
+} // namespace mxi

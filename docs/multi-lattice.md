@@ -204,6 +204,33 @@ crystal give the bytes they give now, stage by stage.
    lattice; against dials.scale.
 8. The documents.
 
+## Against DIALS: ins2_27
+
+Graeme's DIALS processing of ins2_27 -- indexed and integrated, its tables in
+DIALS's HDF5 form, read for this with h5py alone (mxi does not read them;
+docs/rflx.md).
+
+**Indexing.** The same form as mxi's: two experiments, one detector, one beam,
+one imageset, two crystals. Each of mxi's lattices is one of DIALS's, the
+bases related by an integer matrix of determinant +1 off integers by at most
+0.0003 -- the same orientations. DIALS found 21315 spots, mxi 21299; matched
+within half a pixel and image, 21299. DIALS indexes 13348 and 7445, 522 not
+(id -1); mxi 13617 and 7579, 103 not, 17 of them left out as ambiguous. Of the
+20763 both index, 20762 are given the same lattice and the same indices. The
+433 only mxi indexes lie three times as far from their points as the rest --
+0.025 of an index, median, against 0.008 -- and are no more often near the
+other lattice than any spot is: DIALS leaves its worst-fitting spots out of
+the indexed set, it seems by outlier rejection in its final refinement, where
+mxi rejects them from its fit and leaves them indexed. A convention, to be
+decided.
+
+**Integration** -- the target of stage 5. A profile model a lattice: sigma_b
+0.0227 and 0.0206 degrees, sigma_m 0.0473 and 0.0454; scan-varying crystals.
+Predicted 42107 and 42244; summation-integrated 41569 and 41739, profile-fitted
+40678 and 40827. Foreground with bad pixels 538 and 505; background 2712 and
+2356. No reflection flagged overlapped -- DIALS's overlap filter is off by
+default; each reflection's background excludes others' foregrounds instead.
+
 ## Questions settled
 
 Graeme's answers to the plan's questions are the decisions above, and his

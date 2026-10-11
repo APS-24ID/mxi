@@ -248,6 +248,44 @@ private:
                              " is outside every virtual mapping");
   }
 
+  // Why a dataset could not be opened, when it is an external link to a file
+  // that is not there -- the commonest way: a data file renamed or left behind,
+  // as an upload that added "_1" to a name already taken did. Empty otherwise.
+  // Called with the HDF5 lock held, its error printing off.
+  std::string missing_link_target(hid_t file, const std::string &name,
+                                  const std::string &file_path) {
+    if (H5Lexists(file, name.c_str(), H5P_DEFAULT) <= 0)
+      return "";
+#if H5_VERSION_GE(1, 12, 0)
+    H5L_info2_t link;
+    if (H5Lget_info2(file, name.c_str(), &link, H5P_DEFAULT) < 0)
+      return "";
+#else
+    H5L_info_t link;
+    if (H5Lget_info(file, name.c_str(), &link, H5P_DEFAULT) < 0)
+      return "";
+#endif
+    if (link.type != H5L_TYPE_EXTERNAL)
+      return "";
+    std::vector<char> value(link.u.val_size);
+    if (H5Lget_val(file, name.c_str(), value.data(), value.size(),
+                   H5P_DEFAULT) < 0)
+      return "";
+    const char *target = nullptr, *object = nullptr;
+    unsigned flags = 0;
+    if (H5Lunpack_elink_val(value.data(), value.size(), &flags, &target,
+                            &object) < 0)
+      return "";
+    std::filesystem::path where(target);
+    if (where.is_relative())
+      where = std::filesystem::path(file_path).parent_path() / where;
+    std::error_code ignored;
+    if (std::filesystem::exists(where, ignored))
+      return "";
+    return std::string(": it is a link to ") + object + " in " + target +
+           ", and there is no " + where.string();
+  }
+
   // Called with the HDF5 lock already held, which the recursive mutex allows.
   SourceDataset &open(const Block &block) {
     const Guard guard(hdf5_mutex());
@@ -261,10 +299,24 @@ private:
         opened(H5Fopen(block.filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT),
                ("opening " + block.filename).c_str()),
         H5Fclose);
-    source.dataset = Handle(
-        opened(H5Dopen2(source.file.get(), block.dataset.c_str(), H5P_DEFAULT),
-               ("opening " + block.dataset).c_str()),
-        H5Dclose);
+    {
+      // HDF5's own error stack not printed: what went wrong is said here.
+      H5E_auto2_t saved_func = nullptr;
+      void *saved_data = nullptr;
+      H5Eget_auto2(H5E_DEFAULT, &saved_func, &saved_data);
+      H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+      const hid_t id =
+          H5Dopen2(source.file.get(), block.dataset.c_str(), H5P_DEFAULT);
+      const std::string why =
+          id < 0 ? missing_link_target(source.file.get(), block.dataset,
+                                       block.filename)
+                 : std::string();
+      H5Eset_auto2(H5E_DEFAULT, saved_func, saved_data);
+      if (id < 0)
+        throw std::runtime_error("HDF5: opening " + block.dataset + " failed" +
+                                 why);
+      source.dataset = Handle(id, H5Dclose);
+    }
 
     const Handle dcpl(opened(H5Dget_create_plist(source.dataset.get()),
                              "H5Dget_create_plist"),

@@ -773,6 +773,9 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
   std::atomic<std::uint64_t> read{0};
   std::atomic<std::uint64_t> missing{0};
   std::atomic<std::uint64_t> failed{0};
+  // The first frame's error, said once at the end if no frame could be read.
+  std::mutex first_error_mutex;
+  std::string first_error;
   std::atomic<int> live{options.threads};
   const Clock::time_point began = Clock::now();
   // Each stage's time summed across the threads: set against threads x wall,
@@ -892,9 +895,19 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
             read++;
           }
         } catch (const std::exception &error) {
-          failed++;
+          // The first few said; past that, a count. A series that cannot be
+          // read fails the same way on every frame, and six hundred lines of
+          // it hid the one that said why.
+          const std::uint64_t n = failed++;
           have = false;
-          std::fprintf(stderr, "%s: %s\n", key.c_str(), error.what());
+          if (n < 3)
+            std::fprintf(stderr, "%s: %s\n", key.c_str(), error.what());
+          else if (n == 3)
+            std::fprintf(stderr,
+                         "(and more frames like them; counted below)\n");
+          const std::lock_guard<std::mutex> lock(first_error_mutex);
+          if (first_error.empty())
+            first_error = error.what();
         }
         chunk.done(have ? &found : nullptr);
       }
@@ -1083,6 +1096,16 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
   }
 
   const double t_written_from = mxi::Timing::now();
+  // No frame read at all: nothing to write, and an empty table would read as
+  // images without spots. Said once, with why.
+  if (read.load() == 0 && failed.load() > 0) {
+    std::fprintf(stderr,
+                 "mxi_find: none of the %llu images could be read, so nothing "
+                 "is written. The first error: %s\n",
+                 static_cast<unsigned long long>(dispatched.size()),
+                 first_error.c_str());
+    return 1;
+  }
   if (emit(labeller, info, experiments) != 0)
     return 1;
 

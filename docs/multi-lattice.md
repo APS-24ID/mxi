@@ -11,8 +11,11 @@ built.
    processing of it to judge against. I23 in an I432 lattice has a twofold
    indexing ambiguity, so the lattices' settings need a cosym-type analysis.
 3. **First case**: two crystals in the beam.
-4. **Separate sweeps share models** in refinement, as DIALS shares them: the
-   four-sweep results will change, and the change is to be judged as such.
+4. **Models shared where they are the same model**, as the experiment list
+   records them: a sweep's lattices share its detector, beam and goniometer;
+   separate sweeps share a detector where it stood still between them -- as in
+   some of Graeme's data -- and not where it moved, as in the four sweeps,
+   whose results so do not change.
 
 dials.index finds several lattices in one data set (`max_lattices`): a split
 crystal, a twin that is not merohedral, two crystals in the beam. Each lattice
@@ -143,7 +146,13 @@ crystal give the bytes they give now, stage by stage.
 
 0. **Data.** A planted data set: two lattices predicted onto one sweep, of known
    orientations, cells and profiles -- including a pair whose spots overlap.
-   And Graeme's two crystals of I23, with DIALS's processing of them.
+   And Graeme's two crystals of I23 (ins2_27, October 2026): 600 images of
+   0.1 degree on an Eiger 4M at 170 mm, 21299 spots. One lattice indexes 71.9
+   per cent of them, insulin's primitive cell, 67.47 A and 109.47 degrees; the
+   rest, indexed alone, 98.6 per cent of theirs to a second, 67.51 A, the two
+   11.6 degrees apart under cubic symmetry -- two crystals, as said. mxi
+   marks a spot unindexed by its Miller index and flags, `id` staying 0: stage
+   2's crystal-less experiment is where those rows' `id` will point.
 1. **Shared models.** The experiment list's sharing kept, read and written by
    index; a profile model a lattice; the two views, sweeps and lattices.
    Refinement's parameters a block a model, separate sweeps sharing theirs as
@@ -173,8 +182,6 @@ crystal give the bytes they give now, stage by stage.
 
 ## Questions settled
 
-Graeme's answers to the plan's questions are the decisions above. Still open:
-how to bring his two-crystal data here -- images and DIALS's processing --
-and, for stage 1, whether DIALS shares the beam as well as the detector across
-sweeps in his own processing of the four-sweep data, which is what the change
-is to be set against.
+Graeme's answers to the plan's questions are the decisions above, and his
+two-crystal data is here. Still to come: DIALS's processing of it, to judge
+against.

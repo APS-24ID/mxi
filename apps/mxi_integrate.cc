@@ -434,7 +434,7 @@ int integrate_several(const Arguments &args, const char *program,
         return 1;
       }
     }
-    std::printf("Integrating %zu sweeps, each alone, into one table\n", n);
+    std::printf("Integrating %zu experiments, each alone, into one table\n", n);
     std::vector<Table> tables;
     std::vector<json::Value> lists;
     for (std::size_t i = 0; i < n; ++i) {
@@ -475,7 +475,7 @@ int integrate_several(const Arguments &args, const char *program,
           words.push_back(value);
       }
       words.insert(words.end(), {"-o", got_refl, "--output-expt", got_expt});
-      std::printf("\n=== Sweep %zu of %zu ===\n", i + 1, n);
+      std::printf("\n=== Experiment %zu of %zu ===\n", i + 1, n);
       std::fflush(stdout);
       const int status = run(words);
       if (status != 0) {
@@ -520,13 +520,22 @@ int integrate_several(const Arguments &args, const char *program,
           x["crystal"].as_number() == experiments[0]["crystal"].as_number();
     if (shared)
       share_identical(&joined_expt, "crystal");
+    // And every model that is the same, one again: each experiment's run
+    // wrote its own copy, so the lattices of a sweep came back with a detector
+    // and an imageset each (docs/multi-lattice.md). Sweeps whose detector
+    // moved keep theirs apart, being different. Each experiment keeps its own
+    // profile model.
+    for (const char *kind :
+         {"beam", "detector", "goniometer", "scan", "imageset"})
+      share_identical(&joined_expt, kind);
     rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_integrate");
     tidy();
     std::printf("\n");
     for (std::size_t i = 0; i < n; ++i)
-      std::printf("  sweep %zu: %zu reflections\n", i, tables[i].nrows);
-    std::printf("Wrote %zu reflections of %zu sweeps, and the models, to %s\n",
-                joined.nrows, n, rflx::describe(outputs).c_str());
+      std::printf("  experiment %zu: %zu reflections\n", i, tables[i].nrows);
+    std::printf(
+        "Wrote %zu reflections of %zu experiments, and the models, to %s\n",
+        joined.nrows, n, rflx::describe(outputs).c_str());
     return 0;
   } catch (const std::exception &error) {
     std::fprintf(stderr, "mxi_integrate: %s\n", error.what());

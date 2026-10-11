@@ -24,6 +24,25 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   1/A. mxi_refine takes the file as it is. Unindexed spots keep mxi's
   convention, Miller index 0 0 0 and `id` 0, until stage 2. Several sweeps with
   several lattices: refused for now.
+* Stage 5, as far as DIALS's default goes: DIALS's 3d integrator, the
+  default, finds the overlaps between reflections and masks nothing with them
+  (src/dials/algorithms/integration/integrator.py, read for this); only
+  3d_threaded marks a neighbour's foreground in a shoebox Overlapped. So one
+  lattice is integrated alone as beside the other, and mxi_integrate's
+  experiment-at-a-time path is already that: each lattice its own profile
+  model, from its own spots -- sigma_b 0.0214 and 0.0193, sigma_m 0.0557 and
+  0.0437, where DIALS has 0.0227 and 0.0206, 0.0473 and 0.0454 -- 42137 and
+  42370 reflections. Joined, the identical models are one again (each run had
+  written its own detector and imageset), each lattice keeping its own crystal
+  and profile model. Against DIALS, reflection by reflection: profile-fitted
+  CC 0.998 and 0.994, median ratio 0.999 and 0.997; summation, above 100
+  counts, CC 0.992 and 0.991, ratio 0.985 and 0.976 -- the profile model part of
+  that, the rest to find. Still to come: one pass over the images for a sweep's
+  lattices, where each is now read once a lattice; neighbour masking, as
+  3d_threaded does it, if wanted.
+* Indexing's worst-fitting spots: Graeme, October 2026 -- left out of the
+  indexed set, as DIALS leaves them, is fine, the problem being overdetermined,
+  but better after the final refinement, the model then good. To do.
 * Stage 0's spots planted in the tests: two lattices 11.6 degrees apart on one
   sweep, found and refined; its images, for integration, at stage 5.
 

@@ -110,7 +110,7 @@ def test_two_sweeps_integrate_as_the_sweep_whole_does(tmp_path):
         tmp_path / "p_1.txt"
     ).stat().st_size > 0
     assert not (tmp_path / "p.txt").exists()
-    assert "Integrating 2 sweeps" in out
+    assert "Integrating 2 experiments" in out
     assert len(models["experiment"]) == 2 and len(models["crystal"]) == 2
     assert [x["profile"] for x in models["experiment"]] == [0, 1]
     assert [x["scan"] for x in models["experiment"]] == [0, 1]

@@ -436,19 +436,19 @@ int integrate_several(const Arguments &args, const char *program,
       }
     }
     std::printf("Integrating %zu experiments, each alone, into one table\n", n);
-    std::vector<Table> tables;
-    std::vector<json::Value> lists;
+    // Each experiment's inputs: its slice of the list, its own reflections,
+    // the options it is to be run with.
+    std::vector<std::string> stems(n), identifiers(n);
+    std::vector<std::vector<std::string>> base_words(n);
     for (std::size_t i = 0; i < n; ++i) {
-      const std::string stem = base + ".sweep" + std::to_string(i);
-      const std::string in_expt = stem + ".in.expt";
-      const std::string in_refl = stem + ".in.refl";
-      const std::string got_refl = stem + ".refl";
-      const std::string got_expt = stem + ".expt";
-      made.insert(made.end(), {in_expt, in_refl, got_refl, got_expt});
+      stems[i] = base + ".sweep" + std::to_string(i);
+      const std::string in_expt = stems[i] + ".in.expt";
+      const std::string in_refl = stems[i] + ".in.refl";
+      made.insert(made.end(),
+                  {in_expt, in_refl, stems[i] + ".refl", stems[i] + ".expt"});
       json::dump_file(in_expt, slice_experiment_list(document, i));
       const json::Value &ident = experiments[i]["identifier"];
-      const std::string identifier =
-          ident.is_string() ? ident.as_string() : std::string();
+      identifiers[i] = ident.is_string() ? ident.as_string() : std::string();
       if (has_refl) {
         const Column &id = indexed.at("id");
         std::vector<std::size_t> rows;
@@ -459,22 +459,83 @@ int integrate_several(const Arguments &args, const char *program,
         Column &own = part.modify_int_column("id", "int", 1);
         std::fill(own.ints.begin(), own.ints.end(), 0);
         part.identifiers.clear();
-        if (!identifier.empty())
-          part.identifiers[0] = identifier;
+        if (!identifiers[i].empty())
+          part.identifiers[0] = identifiers[i];
         write_reflections(in_refl, part);
       }
-      std::vector<std::string> words = {program, in_expt};
+      base_words[i] = {program, in_expt};
       if (has_refl)
-        words.push_back(in_refl);
+        base_words[i].push_back(in_refl);
       for (const auto &[flag, value] : args.options) {
         if (flag == "-o" || flag == "--output-expt")
           continue;
-        words.push_back(flag);
+        base_words[i].push_back(flag);
         if (flag == "--save-profiles")
-          words.push_back(profiles_of(value, i));
+          base_words[i].push_back(profiles_of(value, i));
         else if (takes_value.count(flag))
-          words.push_back(value);
+          base_words[i].push_back(value);
       }
+    }
+
+    // The lattices of one sweep: experiments on the same images
+    // (docs/multi-lattice.md). Each is integrated with the others' reflections
+    // masked out of its backgrounds, so each needs the others' profile models
+    // first: estimated, each from its own spots, before an image is read.
+    // Same images: the same image set and the same scan -- a sweep split in
+    // two shares its image set and not its scan, and its halves are not each
+    // other's neighbours.
+    std::map<std::pair<long long, long long>, std::vector<std::size_t>>
+        on_imageset;
+    for (std::size_t i = 0; i < n; ++i) {
+      const json::Value &set = experiments[i]["imageset"];
+      const json::Value &scan = experiments[i]["scan"];
+      const long long own = -1 - static_cast<long long>(i);
+      on_imageset[{set.is_number() ? static_cast<long long>(set.as_number())
+                                   : own,
+                   scan.is_number() ? static_cast<long long>(scan.as_number())
+                                    : own}]
+          .push_back(i);
+    }
+    std::vector<json::Value> profiled(n);
+    const bool masking = !args.has("--no-mask-neighbours");
+    for (const auto &[set, members] : on_imageset) {
+      if (members.size() < 2 || !masking)
+        continue;
+      for (std::size_t i : members) {
+        const std::string out = stems[i] + ".profile.expt";
+        made.push_back(out);
+        std::vector<std::string> words = base_words[i];
+        words.insert(words.end(), {"--profile-only", "--output-expt", out});
+        std::printf("\n=== Lattice %zu's profile model ===\n", i + 1);
+        std::fflush(stdout);
+        const int status = run(words);
+        if (status != 0) {
+          tidy();
+          return status;
+        }
+        profiled[i] = read_experiment_document(out);
+      }
+    }
+
+    std::vector<Table> tables;
+    std::vector<json::Value> lists;
+    for (std::size_t i = 0; i < n; ++i) {
+      std::vector<std::string> words = base_words[i];
+      // The other lattices on this one's image set, with their profile models.
+      std::vector<json::Value> neighbours;
+      for (const auto &[set, members] : on_imageset)
+        for (std::size_t j : members)
+          if (j != i && profiled[j].is_object() &&
+              std::find(members.begin(), members.end(), i) != members.end())
+            neighbours.push_back(profiled[j]);
+      if (!neighbours.empty()) {
+        const std::string others = stems[i] + ".others.expt";
+        made.push_back(others);
+        json::dump_file(others, join_experiment_lists(neighbours));
+        words.insert(words.end(), {"--mask-also", others});
+      }
+      const std::string got_refl = stems[i] + ".refl";
+      const std::string got_expt = stems[i] + ".expt";
       words.insert(words.end(), {"-o", got_refl, "--output-expt", got_expt});
       std::printf("\n=== Experiment %zu of %zu ===\n", i + 1, n);
       std::fflush(stdout);
@@ -487,28 +548,11 @@ int integrate_several(const Arguments &args, const char *program,
       Column &id = got.modify_int_column("id", "int", 1);
       std::fill(id.ints.begin(), id.ints.end(), static_cast<std::int64_t>(i));
       got.identifiers.clear();
-      if (!identifier.empty())
-        got.identifiers[i] = identifier;
-      // The image set's index in the joined list, as join_experiment_lists
-      // renumbers it: the image sets of the sweeps before, plus its own in
-      // its list of one. The sweep's run wrote 0, its list's; left so, every
-      // sweep's spots fall on the first image set in dials.image_viewer.
-      json::Value list = read_experiment_document(got_expt);
-      std::int64_t imageset = 0;
-      for (const json::Value &earlier : lists)
-        imageset +=
-            static_cast<std::int64_t>(earlier["imageset"].as_array().size());
-      const json::Value &own = list["experiment"].as_array().at(0)["imageset"];
-      if (own.is_number())
-        imageset += static_cast<std::int64_t>(own.as_number());
-      if (got.has("imageset_id")) {
-        Column &imagesets = got.modify_int_column("imageset_id", "int", 1);
-        std::fill(imagesets.ints.begin(), imagesets.ints.end(), imageset);
-      }
+      if (!identifiers[i].empty())
+        got.identifiers[i] = identifiers[i];
       tables.push_back(std::move(got));
-      lists.push_back(std::move(list));
+      lists.push_back(read_experiment_document(got_expt));
     }
-    const Table joined = concat_rows_with_shoeboxes(tables);
     // One crystal, shared, if the sweeps came in sharing one and none changed
     // it -- as without --postrefine none does: each sweep's list carried a
     // copy, and DIALS writes it once. Postrefined, they may differ, and stay
@@ -529,6 +573,20 @@ int integrate_several(const Arguments &args, const char *program,
     for (const char *kind :
          {"beam", "detector", "goniometer", "scan", "imageset"})
       share_identical(&joined_expt, kind);
+    // Each experiment's reflections on its image set as the joined list
+    // numbers it, after the sharing: numbered before, a sweep's second
+    // lattice's spots named an image set the sharing had removed.
+    for (std::size_t i = 0; i < n; ++i) {
+      if (!tables[i].has("imageset_id"))
+        continue;
+      const json::Value &set =
+          joined_expt["experiment"].as_array().at(i)["imageset"];
+      Column &imagesets = tables[i].modify_int_column("imageset_id", "int", 1);
+      std::fill(imagesets.ints.begin(), imagesets.ints.end(),
+                set.is_number() ? static_cast<std::int64_t>(set.as_number())
+                                : 0);
+    }
+    const Table joined = concat_rows_with_shoeboxes(tables);
     rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_integrate");
     tidy();
     std::printf("\n");
@@ -571,6 +629,8 @@ int run_program(int argc, char **argv) {
                                        "--save-background-parameters",
                                        "--two-pass",
                                        "--no-mask-neighbours",
+                                       "--profile-only",
+                                       "--mask-also",
                                        "-g",
                                        "--gpu",
                                        "--gpu-emulate",
@@ -587,6 +647,7 @@ int run_program(int argc, char **argv) {
   takes_value.erase("--save-background-parameters");
   takes_value.erase("--two-pass");
   takes_value.erase("--no-mask-neighbours");
+  takes_value.erase("--profile-only");
   takes_value.erase("-g");
   takes_value.erase("--gpu");
   takes_value.erase("--gpu-emulate");
@@ -756,6 +817,18 @@ int run_program(int argc, char **argv) {
     std::printf("Profile model: sigma_b %.4f deg, sigma_m %.4f deg (%s); "
                 "foreground to %.1f sigma\n",
                 sigma_b, sigma_m, source, mask_options.n_sigma);
+    // Internal, for the lattices of a sweep integrated each beside the others
+    // (integrate_several): the profile model alone, written with the models,
+    // before an image is read -- each lattice's, for the others to mask with.
+    if (args.has("--profile-only")) {
+      ExperimentList written = experiments;
+      written.profile.present = true;
+      written.profile.sigma_b = sigma_b;
+      written.profile.sigma_m = sigma_m;
+      written.profile.n_sigma = mask_options.n_sigma;
+      write_experiments(args.value("--output-expt", "profile.expt"), written);
+      return 0;
+    }
     IntegrateOptions integrate_options;
     integrate_options.gain = args.number("--gain", 1.0);
 
@@ -881,6 +954,15 @@ int run_program(int argc, char **argv) {
     if (planned.empty())
       return 1;
 
+    // In order of first image, so a block is a contiguous run of this vector --
+    // sorted before the neighbours are found, which are indices into it: found
+    // first, the sort shuffled them, and each box was masked with the
+    // reflections of others.
+    std::sort(planned.begin(), planned.end(),
+              [](const Planned &a, const Planned &b) {
+                return a.bbox[4] < b.bbox[4];
+              });
+
     // NEIGHBOURS, MASKED (docs/multi-lattice.md). Each reflection's box with
     // the voxels inside another reflection's foreground marked Overlapped:
     // left out of its background, kept in its foreground but flagged. As
@@ -890,6 +972,65 @@ int run_program(int argc, char **argv) {
     // meet: a hash of 32 pixel tiles of the panel, then the three-dimensional
     // test.
     const bool mask_neighbours = !args.has("--no-mask-neighbours");
+    // The other lattices of this sweep (--mask-also, from integrate_several):
+    // each with its own crystal and its own profile model, predicted and
+    // boxed here for their foregrounds to be masked out of this lattice's
+    // backgrounds -- not integrated, which their own runs do.
+    struct Other {
+      const Prediction *prediction;
+      std::int32_t bbox[6];
+      std::size_t lattice;
+    };
+    std::vector<Experiment> other_models;
+    std::vector<MaskOptions> other_masks;
+    std::vector<std::vector<Prediction>> other_predictions;
+    std::vector<Other> others;
+    if (mask_neighbours && args.has("--mask-also")) {
+      const json::Value document =
+          read_experiment_document(args.value("--mask-also", ""));
+      const ExperimentList list = experiments_from_json(document);
+      const json::Value &profiles = document["profile"];
+      for (std::size_t k = 0; k < list.size(); ++k) {
+        MaskOptions mk = mask_options;
+        const json::Value &entry = document["experiment"].as_array()[k];
+        if (entry["profile"].is_number() && profiles.is_array()) {
+          const json::Value &pk = profiles.as_array()[static_cast<std::size_t>(
+              entry["profile"].as_number())];
+          mk.sigma_d = pk["sigma_b"].as_number();
+          mk.sigma_m = pk["sigma_m"].as_number();
+          if (pk["n_sigma"].is_number())
+            mk.n_sigma = pk["n_sigma"].as_number();
+        }
+        other_models.push_back(list[k]);
+        other_masks.push_back(mk);
+        other_predictions.push_back(predict(list[k], predict_options));
+      }
+      for (std::size_t k = 0; k < other_models.size(); ++k)
+        for (const Prediction &q : other_predictions[k]) {
+          if (q.z < first_image || q.z > last_image)
+            continue;
+          if (d_max > 0.0 && other_models[k].crystal &&
+              resolution(*other_models[k].crystal, q.h, q.k, q.l) > d_max)
+            continue;
+          Other o;
+          o.prediction = &q;
+          o.lattice = k;
+          if (integration_bbox(other_models[k], q, other_masks[k], o.bbox))
+            others.push_back(o);
+        }
+      std::printf("Masking also %zu reflections of %zu other lattice%s\n",
+                  others.size(), other_models.size(),
+                  other_models.size() == 1 ? "" : "s");
+    }
+    // A reflection's box, its own lattice's or another's.
+    const auto box_of = [&](std::size_t j) -> const std::int32_t * {
+      return j < planned.size() ? planned[j].bbox
+                                : others[j - planned.size()].bbox;
+    };
+    const auto panel_of = [&](std::size_t j) {
+      return j < planned.size() ? planned[j].prediction->panel
+                                : others[j - planned.size()].prediction->panel;
+    };
     std::vector<std::vector<std::uint32_t>> neighbours(planned.size());
     if (mask_neighbours) {
       constexpr std::int32_t kTile = 32;
@@ -901,11 +1042,11 @@ int run_program(int argc, char **argv) {
                 << 21) ^
                static_cast<std::uint64_t>(static_cast<std::uint32_t>(ty));
       };
-      for (std::size_t i = 0; i < planned.size(); ++i) {
-        const std::int32_t *b = planned[i].bbox;
+      for (std::size_t i = 0; i < planned.size() + others.size(); ++i) {
+        const std::int32_t *b = box_of(i);
         for (std::int32_t tx = b[0] / kTile; tx <= (b[1] - 1) / kTile; ++tx)
           for (std::int32_t ty = b[2] / kTile; ty <= (b[3] - 1) / kTile; ++ty)
-            tiles[key(planned[i].prediction->panel, tx, ty)].push_back(
+            tiles[key(panel_of(i), tx, ty)].push_back(
                 static_cast<std::uint32_t>(i));
       }
       for (std::size_t i = 0; i < planned.size(); ++i) {
@@ -920,7 +1061,7 @@ int run_program(int argc, char **argv) {
             for (std::uint32_t j : it->second) {
               if (j == i)
                 continue;
-              const std::int32_t *c = planned[j].bbox;
+              const std::int32_t *c = box_of(j);
               if (c[0] < b[1] && b[0] < c[1] && c[2] < b[3] && b[2] < c[3] &&
                   c[4] < b[5] && b[4] < c[5])
                 mine.push_back(j);
@@ -935,12 +1076,6 @@ int run_program(int argc, char **argv) {
       std::printf("Neighbours masked: %zu of the boxes meet another\n",
                   meeting);
     }
-
-    // In order of first image, so a block is a contiguous run of this vector.
-    std::sort(planned.begin(), planned.end(),
-              [](const Planned &a, const Planned &b) {
-                return a.bbox[4] < b.bbox[4];
-              });
 
     // ONE PASS OVER THE FRAMES, WITH SHOEBOXES OPEN ACROSS THEM
     //
@@ -1739,9 +1874,16 @@ int run_program(int argc, char **argv) {
         if (build_shoebox(e, *planned[at + i].prediction, mask_options, &box,
                           &ignored)) {
           box.data.assign(box.size(), 0.0f);
-          for (std::uint32_t j : neighbours[at + i])
-            mark_overlapped(e, *planned[j].prediction, mask_options,
-                            planned[j].bbox, &box);
+          for (std::uint32_t j : neighbours[at + i]) {
+            if (j < planned.size()) {
+              mark_overlapped(e, *planned[j].prediction, mask_options,
+                              planned[j].bbox, &box);
+            } else {
+              const Other &o = others[j - planned.size()];
+              mark_overlapped(other_models[o.lattice], *o.prediction,
+                              other_masks[o.lattice], o.bbox, &box);
+            }
+          }
         }
       });
       at = stop;

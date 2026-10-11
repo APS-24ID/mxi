@@ -9,14 +9,21 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   bytes as before. The profile model a lattice is moved to stage 5, where
   integration first uses it.
 * Stage 3, before stage 2: mxi_index --max-lattices N (index_lattices in the
-  library). On Graeme's ins2_27: lattice 1 indexes 15307 of 21299 spots,
-  lattice 2 5906 of the 5992 left, no third in the last 86 -- 99.6 per cent --
-  refined together, one detector, to 0.258 and 0.264 px and 0.227 images; one
-  detector, one beam, one imageset written, two crystals. mxi_refine takes the
-  file as it is, the detector shared as the file numbers it. Unindexed spots
-  keep mxi's convention, Miller index 0 0 0 and `id` 0, until stage 2 carries
-  the sweep's own experiment through -- done after, on the multi-lattice output
-  it must handle. Several sweeps with several lattices: refused for now.
+  library). The search as dials.index's; then, every lattice known, each spot
+  assigned again globally -- to the lattice whose integer indices it lies
+  nearest, within the tolerance -- and all refined together with one detector,
+  three times. Without that, the first lattice took some 1700 of the second's
+  spots by chance within the indexing tolerance (0.3 of an index each way is a
+  fifth of a cell), and fitted them. Ambiguous spots (Graeme: left out,
+  configurably): within --ambiguity-sigma (3) of each lattice's own RMS
+  scatter, in reciprocal space, of a second lattice's point as well as their
+  own; --ambiguous exclude, the default, leaves them out, unindexed, so that
+  refinement pulls neither model; closest keeps each with the nearer. On
+  Graeme's ins2_27: 13617 and 7579 spots, 99.5 per cent, 17 ambiguous; one
+  detector, 0.257 and 0.263 px and 0.226 images; scatter 0.00029 and 0.00034
+  1/A. mxi_refine takes the file as it is. Unindexed spots keep mxi's
+  convention, Miller index 0 0 0 and `id` 0, until stage 2. Several sweeps with
+  several lattices: refused for now.
 * Stage 0's spots planted in the tests: two lattices 11.6 degrees apart on one
   sweep, found and refined; its images, for integration, at stage 5.
 

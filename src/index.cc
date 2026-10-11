@@ -7,6 +7,7 @@
 #include <cmath>
 #include <complex>
 #include <cstdio>
+#include <limits>
 #include <map>
 #include <numeric>
 #include <tuple>
@@ -1149,7 +1150,8 @@ bool same_lattice(const Crystal &a, const Crystal &b) {
 // Miller index 0 0 0, until sweeps are carried through (stage 2).
 LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
                               const IndexOptions &options, int max_lattices,
-                              std::size_t min_spots) {
+                              std::size_t min_spots, Ambiguous ambiguous,
+                              double ambiguity_sigma) {
   LatticesResult result;
   if (sweep.size() != 1)
     throw std::runtime_error(
@@ -1204,8 +1206,6 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
   if (found.empty())
     return result;
 
-  // One experiment a lattice, the sweep's models shared; each referring to
-  // the sweep's imageset, as its own experiment did.
   ExperimentList joint;
   joint.image_template = sweep.image_template;
   joint.source = sweep.source;
@@ -1229,7 +1229,114 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
   reflections.identifiers.clear();
   for (std::size_t l = 0; l < joint.size(); ++l)
     reflections.identifiers[l] = joint[l].identifier;
-  {
+
+  // Every spot assigned again, globally, now that every lattice is known: the
+  // search gave the first lattice its spots by the indexing tolerance with the
+  // others' still among them, and a fifth of another lattice's spots fall
+  // within 0.3 of an index of its points by chance -- taken from that lattice,
+  // and fitted by the first. So, as dials.index assigns several crystals'
+  // indices: each spot to the lattice whose integer indices it lies nearest,
+  // within the tolerance; each lattice's scatter from its own; the ambiguous
+  // left out or given to the nearer; all refined together; three times.
+  const Column &xyz = reflections.at("xyzobs.px.value");
+  const bool has_panel = reflections.has("panel");
+  RefineOptions refining;
+  refining.shared_crystal = false; // each lattice its own
+  for (int cycle = 0; cycle < 3; ++cycle) {
+    std::vector<Vec3> points(n);
+    for (std::size_t i = 0; i < n; ++i) {
+      const std::size_t panel =
+          has_panel
+              ? static_cast<std::size_t>(reflections.at("panel").integer(i))
+              : 0;
+      points[i] = reciprocal_lattice_point(joint[0], panel, xyz.real(i, 0),
+                                           xyz.real(i, 1), xyz.real(i, 2));
+    }
+    std::vector<Mat3> inverse;
+    for (const Experiment &e : joint.experiments)
+      inverse.push_back(e.crystal->A.inverse());
+    // Lattice l's indices for a spot, how far from integers (in index units,
+    // the larger of the three), and how far in reciprocal space.
+    struct Fit {
+      std::int64_t h[3] = {0, 0, 0};
+      double index_off = 1e9, distance = 1e9;
+    };
+    const auto fit = [&](std::size_t l, const Vec3 &r) {
+      Fit f;
+      const Vec3 h = inverse[l] * r;
+      const double hs[3] = {h.x, h.y, h.z};
+      bool zero = true;
+      f.index_off = 0.0;
+      for (int k = 0; k < 3; ++k) {
+        f.h[k] = std::llround(hs[k]);
+        f.index_off = std::max(f.index_off,
+                               std::fabs(hs[k] - static_cast<double>(f.h[k])));
+        zero = zero && f.h[k] == 0;
+      }
+      if (zero) {
+        f.index_off = 1e9;
+        return f;
+      }
+      const Vec3 at{static_cast<double>(f.h[0]), static_cast<double>(f.h[1]),
+                    static_cast<double>(f.h[2])};
+      f.distance = (joint[l].crystal->A * at - r).norm();
+      return f;
+    };
+    // Each spot to the lattice it lies nearest, within the tolerance.
+    for (std::size_t i = 0; i < n; ++i) {
+      lattice_of[i] = -1;
+      double best = options.tolerance;
+      for (std::size_t l = 0; l < joint.size(); ++l) {
+        const Fit f = fit(l, points[i]);
+        if (f.index_off <= best) {
+          best = f.index_off;
+          lattice_of[i] = static_cast<int>(l);
+          std::copy(f.h, f.h + 3, hkl.begin() + static_cast<long>(3 * i));
+        }
+      }
+      if (lattice_of[i] < 0)
+        std::fill(hkl.begin() + static_cast<long>(3 * i),
+                  hkl.begin() + static_cast<long>(3 * i + 3), 0);
+    }
+    // Each lattice's scatter, from its own spots.
+    std::vector<double> scatter(joint.size(), 0.0);
+    std::vector<std::size_t> counted(joint.size(), 0);
+    for (std::size_t i = 0; i < n; ++i) {
+      if (lattice_of[i] < 0)
+        continue;
+      const std::size_t l = static_cast<std::size_t>(lattice_of[i]);
+      const double d = fit(l, points[i]).distance;
+      scatter[l] += d * d;
+      ++counted[l];
+    }
+    for (std::size_t l = 0; l < joint.size(); ++l)
+      scatter[l] = counted[l]
+                       ? std::sqrt(scatter[l] / static_cast<double>(counted[l]))
+                       : 0.0;
+    result.scatter = scatter;
+    // The ambiguous: within ambiguity_sigma of each lattice's own scatter of a
+    // second lattice's point, as well as their own. Left out, unindexed, so
+    // that refinement pulls neither model towards it; or kept with the
+    // lattice nearest in index units, as assigned above.
+    result.n_ambiguous = 0;
+    if (joint.size() > 1)
+      for (std::size_t i = 0; i < n; ++i) {
+        if (lattice_of[i] < 0)
+          continue;
+        int near = 0;
+        for (std::size_t l = 0; l < joint.size(); ++l)
+          if (scatter[l] > 0.0 &&
+              fit(l, points[i]).distance <= ambiguity_sigma * scatter[l])
+            ++near;
+        if (near < 2)
+          continue;
+        ++result.n_ambiguous;
+        if (ambiguous == Ambiguous::Exclude) {
+          lattice_of[i] = -1;
+          std::fill(hkl.begin() + static_cast<long>(3 * i),
+                    hkl.begin() + static_cast<long>(3 * i + 3), 0);
+        }
+      }
     Column &id = reflections.modify_int_column("id", "int", 1);
     Column &m = reflections.modify_int_column("miller_index",
                                               "cctbx::miller::index<>", 3);
@@ -1241,12 +1348,9 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
       indexed += lattice_of[i] >= 0;
     }
     result.n_indexed = indexed;
+    set_indexed_flags(reflections);
+    result.refined = refine(joint, reflections, refining);
   }
-  set_indexed_flags(reflections);
-
-  RefineOptions refining;
-  refining.shared_crystal = false; // each lattice its own
-  result.refined = refine(joint, reflections, refining);
   set_indexed_flags(reflections);
   result.experiments = std::move(joint);
   return result;

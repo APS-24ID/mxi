@@ -13,7 +13,9 @@ chance within the indexing tolerance, its scatter was ten times its own, and
 1308 were called ambiguous.
 
 Needs MXI_INDEX and MXI_TWO_LATTICES, the strong spots mxi_find wrote for
-ins2_27 with its imported models (strong.rflx).
+ins2_27 with its imported models (strong.rflx); and for integration,
+MXI_INTEGRATE and MXI_TWO_LATTICES_REFINED, its two lattices as mxi_refine left
+them.
 """
 
 import os
@@ -88,3 +90,33 @@ def test_fewer_are_ambiguous_as_the_threshold_tightens(tmp_path):
         for s in ("1.5", "2", "3")
     ]
     assert counts[0] <= counts[1] <= counts[2] and counts[0] < counts[2]
+
+
+INTEGRATE = os.environ.get("MXI_INTEGRATE")
+REFINED = os.environ.get("MXI_TWO_LATTICES_REFINED")
+
+
+@pytest.mark.skipif(
+    not (INTEGRATE and REFINED), reason="set MXI_INTEGRATE and MXI_TWO_LATTICES_REFINED"
+)
+def test_two_lattices_integrate_each_with_its_own_profile_sharing_the_rest(tmp_path):
+    # Each lattice integrated with a profile model of its own, estimated from
+    # its own spots -- as DIALS's default 3d integrator integrates them, which
+    # masks no reflection's neighbours, so that one lattice's run is the same
+    # alone as beside the other. Joined, the models that are the same are one
+    # again: each run wrote its own copy, and the first join gave two detectors
+    # and two imagesets.
+    r = subprocess.run(
+        [INTEGRATE, REFINED, "--threads", "2", "-o", "integrated.rflx"],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert r.returncode == 0, r.stderr[-2000:]
+    d = rflx.experiments_dict(str(tmp_path / "integrated.rflx"))
+    for kind in ("detector", "beam", "scan", "imageset"):
+        assert len(d[kind]) == 1, kind
+    assert len(d["crystal"]) == 2 and len(d["profile"]) == 2
+    assert d["profile"][0]["sigma_m"] != d["profile"][1]["sigma_m"]
+    ids = np.asarray(refl.load(str(tmp_path / "integrated.rflx")).columns["id"])
+    assert all(40000 < np.sum(ids == l) < 45000 for l in (0, 1))

@@ -12,6 +12,7 @@
 #include "expt.hh"
 #include "log_mirror.hh"
 #include "parallel.hh"
+#include "processing.hh"
 #include "refl.hh"
 #include "resolution.hh"
 #include "rflx.hh"
@@ -310,6 +311,38 @@ int run_program(int argc, char **argv) {
         std::printf("; relative B %.3f to %.3f A^2", bmin, bmax);
       std::printf("\n");
     }
+    // The scale by image: each tenth of each sweep's rotation, the mean
+    // inverse scale over its observations -- decay, or a beam's drop, at a
+    // glance.
+    std::vector<std::vector<double>> by_tenth(run.model.sweeps(),
+                                              std::vector<double>(10, 0.0));
+    {
+      std::vector<std::vector<std::size_t>> count(
+          run.model.sweeps(), std::vector<std::size_t>(10, 0));
+      for (std::size_t i = 0; i < data.size(); ++i) {
+        const ScaleObservation &o = data.observation[i];
+        if (o.sweep >= by_tenth.size())
+          continue;
+        const std::size_t t = std::min<std::size_t>(
+            9, static_cast<std::size_t>(std::fmax(0.0, o.rotation) * 10.0));
+        by_tenth[o.sweep][t] += run.g[i];
+        ++count[o.sweep][t];
+      }
+      for (std::size_t w = 0; w < by_tenth.size(); ++w) {
+        std::printf("  scale by image, a tenth of the scan each%s:",
+                    by_tenth.size() > 1
+                        ? (" (experiment " + std::to_string(w) + ")").c_str()
+                        : "");
+        for (std::size_t t = 0; t < 10; ++t) {
+          by_tenth[w][t] =
+              count[w][t] > 0
+                  ? by_tenth[w][t] / static_cast<double>(count[w][t])
+                  : 0.0;
+          std::printf(" %.3f", by_tenth[w][t]);
+        }
+        std::printf("\n");
+      }
+    }
     if (run.i_mid == 0.0)
       std::printf("Intensities: profile fitted\n");
     else if (std::isinf(run.i_mid))
@@ -466,7 +499,95 @@ int run_program(int argc, char **argv) {
     Table written_table = rows_again(
         reflections, crystal_less_rows(whole_table, views), views, written);
     const json::Value document = experiments_to_json(written);
-    rflx::write_outputs(out, &document, &written_table, "mxi_scale");
+    // The summary: the model, the error model, the merging statistics and
+    // the resolution -- what a crystallographer judges the data by.
+    Summary summary("mxi_scale", args.positional[0]);
+    {
+      const UnitCell cell = experiments[0].crystal->cell();
+      summary.set("cell",
+                  json::Value(json::Array{
+                      json::Value(cell.a), json::Value(cell.b),
+                      json::Value(cell.c), json::Value(cell.alpha),
+                      json::Value(cell.beta), json::Value(cell.gamma)}));
+      summary.set("error_model_a", json::Value(run.error_model.a));
+      summary.set("error_model_b", json::Value(run.error_model.b));
+      summary.set("outliers", json::Value(static_cast<long>(run.outliers)));
+      summary.set("observations",
+                  json::Value(static_cast<long>(all.observations)));
+      summary.set("unique", json::Value(static_cast<long>(all.unique)));
+      if (res.d_min_cc_half > 0.0)
+        summary.set("resolution_cc_half", json::Value(res.d_min_cc_half));
+      if (res.d_min_significance > 0.0)
+        summary.set("resolution_cc_half_significance",
+                    json::Value(res.d_min_significance));
+      json::Array scale_rows;
+      for (const std::vector<double> &w : by_tenth) {
+        json::Array a;
+        for (double v : w)
+          a.push_back(json::Value(v));
+        scale_rows.push_back(json::Value(std::move(a)));
+      }
+      summary.set("scale_by_tenth_of_scan", json::Value(std::move(scale_rows)));
+      const auto shells_table =
+          [&](const std::vector<const MergingShell *> &rows,
+              const std::vector<std::string> &labels) {
+            std::vector<std::vector<json::Value>> c(17);
+            for (std::size_t k = 0; k < rows.size(); ++k) {
+              const MergingShell &m = *rows[k];
+              c[0].push_back(json::Value(labels.empty() ? std::to_string(k + 1)
+                                                        : labels[k]));
+              c[1].push_back(json::Value(m.d_max));
+              c[2].push_back(json::Value(m.d_min));
+              c[3].push_back(json::Value(static_cast<long>(m.observations)));
+              c[4].push_back(json::Value(static_cast<long>(m.unique)));
+              c[5].push_back(json::Value(m.multiplicity));
+              c[6].push_back(json::Value(100.0 * m.completeness));
+              c[7].push_back(json::Value(m.mean_i));
+              c[8].push_back(json::Value(m.i_over_sigma));
+              c[9].push_back(json::Value(m.rmerge));
+              c[10].push_back(json::Value(m.rmeas));
+              c[11].push_back(json::Value(m.rpim));
+              c[12].push_back(json::Value(m.cc_half));
+              c[13].push_back(json::Value(100.0 * m.anom_completeness));
+              c[14].push_back(json::Value(m.anom_multiplicity));
+              c[15].push_back(json::Value(m.cc_anom));
+              c[16].push_back(json::Value(m.anom_slope));
+            }
+            return c;
+          };
+      const std::vector<std::string> names = {"shell",
+                                              "d_max",
+                                              "d_min",
+                                              "observations",
+                                              "unique",
+                                              "multiplicity",
+                                              "completeness",
+                                              "mean_i",
+                                              "i_over_sigma",
+                                              "rmerge",
+                                              "rmeas",
+                                              "rpim",
+                                              "cc_half",
+                                              "anom_completeness",
+                                              "anom_multiplicity",
+                                              "cc_anom",
+                                              "anom_slope"};
+      std::vector<const MergingShell *> rows;
+      for (const MergingShell &m : table)
+        rows.push_back(&m);
+      summary.table("merging_by_resolution", names, shells_table(rows, {}));
+      std::vector<const MergingShell *> top = {&all, &table.front(),
+                                               &table.back()};
+      std::vector<std::string> labels = {"overall", "low", "high"};
+      if (cut) {
+        top.push_back(&suggested);
+        labels.push_back("suggested");
+      }
+      summary.table("merging_summary", names, shells_table(top, labels));
+    }
+    const json::Value summary_document = summary.document();
+    rflx::write_outputs(out, &document, &written_table, "mxi_scale",
+                        &summary_document);
     std::printf("\nWrote %s\n", rflx::describe(out).c_str());
     phase("writing");
     timing.report(stdout);

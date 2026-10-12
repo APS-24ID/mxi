@@ -1458,13 +1458,18 @@ int run_program(int argc, char **argv) {
     // a held box is the box the second pass would rebuild -- so the table is
     // the same bytes, which python/tests/test_single_pass.py holds. --two-pass
     // keeps the old way, to compare against.
-    GridSpec grid_spec;
-    grid_spec.n = static_cast<int>(args.number("--grid-points", 4.0));
-    grid_spec.sigma_d = sigma_b;
-    grid_spec.sigma_m = sigma_m;
-    grid_spec.half_width = mask_options.n_sigma;
-    grid_spec.subdivisions =
-        static_cast<int>(args.number("--subdivisions", 5.0));
+    // A profile grid a lattice, each on its own profile model's scale; the
+    // first's what the rest reads where there is one lattice.
+    std::vector<GridSpec> grids(n_lattices);
+    for (std::size_t l = 0; l < n_lattices; ++l) {
+      grids[l].n = static_cast<int>(args.number("--grid-points", 4.0));
+      grids[l].sigma_d = lattice_masks[l].sigma_d;
+      grids[l].sigma_m = lattice_masks[l].sigma_m;
+      grids[l].half_width = lattice_masks[l].n_sigma;
+      grids[l].subdivisions =
+          static_cast<int>(args.number("--subdivisions", 5.0));
+    }
+    const GridSpec &grid_spec = grids[0];
     // One scan block per 10 degrees of the range integrated, unless told: the
     // profile drifts along the scan, so a block should be a fixed ANGLE rather
     // than a fixed fraction of the scan -- and a reflection is fitted only once
@@ -1477,9 +1482,16 @@ int run_program(int argc, char **argv) {
         args.has("--scan-blocks")
             ? std::max(1, static_cast<int>(args.number("--scan-blocks", 1.0)))
             : std::max(1, static_cast<int>(std::lround(range_degrees / 10.0)));
-    ReferenceProfiles reference = make_reference(
-        grid_spec, static_cast<int>(args.number("--regions", 3.0)), scan_blocks,
-        e.detector.size(), first_image, last_image);
+    // Reference profiles a lattice, each learned from its own reflections
+    // alone and laid out alike -- the same regions, the same scan blocks -- so
+    // that what depends on a reflection's place alone is the same for every
+    // lattice: the first's stands for all of them there.
+    std::vector<ReferenceProfiles> references;
+    for (std::size_t l = 0; l < n_lattices; ++l)
+      references.push_back(make_reference(
+          grids[l], static_cast<int>(args.number("--regions", 3.0)),
+          scan_blocks, e.detector.size(), first_image, last_image));
+    ReferenceProfiles &reference = references[0];
     const bool fitting = !args.has("--summation-only");
     // ONE PASS over the images unless --two-pass: a reflection is fitted as
     // soon as the scan blocks its profile is interpolated from are complete,
@@ -1528,34 +1540,43 @@ int run_program(int argc, char **argv) {
     // average if it has spots, else the latest earlier one's, else -- no
     // earlier block having any -- it waits for the first later one that
     // does. finalise_reference's rule, a block at a time.
+    // A lattice at a time: one lattice's empty block borrows its own latest
+    // average, never another lattice's, whose grid is on another scale.
     int finalised_through = -1;
-    std::vector<int> waiting_empty;
-    std::vector<double> latest_average;
-    bool have_average = false;
+    std::vector<std::vector<int>> waiting_empty(n_lattices);
+    std::vector<std::vector<double>> latest_average(n_lattices);
+    std::vector<char> have_average(n_lattices, 0);
     const auto finalise_closed = [&](std::int32_t closed_to) {
       while (finalised_through + 1 < n_blocks &&
              block_done[static_cast<std::size_t>(finalised_through + 1)] <=
                  closed_to) {
         const int b = ++finalised_through;
-        std::vector<double> average;
-        if (block_average(reference, b, &average)) {
-          for (int w : waiting_empty)
-            finalise_block(&reference, w, 10, average);
-          waiting_empty.clear();
-          finalise_block(&reference, b, 10, average);
-          latest_average = average;
-          have_average = true;
-        } else if (have_average) {
-          finalise_block(&reference, b, 10, latest_average);
-        } else {
-          waiting_empty.push_back(b);
+        for (std::size_t l = 0; l < n_lattices; ++l) {
+          ReferenceProfiles &own = references[l];
+          std::vector<double> average;
+          if (block_average(own, b, &average)) {
+            for (int w : waiting_empty[l])
+              finalise_block(&own, w, 10, average);
+            waiting_empty[l].clear();
+            finalise_block(&own, b, 10, average);
+            latest_average[l] = average;
+            have_average[l] = 1;
+          } else if (have_average[l]) {
+            finalise_block(&own, b, 10, latest_average[l]);
+          } else {
+            waiting_empty[l].push_back(b);
+          }
         }
       }
     };
     // Every block up to this one is final.
+    // Every lattice's: no lattice still waiting on any of them.
     const auto final_through = [&]() {
-      return waiting_empty.empty() ? finalised_through
-                                   : waiting_empty.front() - 1;
+      int through = finalised_through;
+      for (const std::vector<int> &waiting : waiting_empty)
+        if (!waiting.empty())
+          through = std::min(through, waiting.front() - 1);
+      return through;
     };
     std::vector<Shoebox> held;
     std::vector<std::size_t> held_rows;
@@ -1652,13 +1673,15 @@ int run_program(int argc, char **argv) {
       // A weighted average of the nearby profiles, not the nearest one:
       // taking the nearest makes the model jump at a cell boundary, so two
       // reflections either side of one are fitted with different profiles.
+      // Its own lattice's reference profiles, on its own lattice's grid.
+      const std::uint32_t lattice = planned[row].lattice;
       const double f0 = Timing::now();
-      const std::vector<double> local =
-          profile_at(reference, panel, static_cast<std::size_t>(q.panel),
-                     q.px_fast, q.px_slow, q.z);
+      const std::vector<double> local = profile_at(
+          references[lattice], panel, static_cast<std::size_t>(q.panel),
+          q.px_fast, q.px_slow, q.z);
       const double f1 = Timing::now();
       t_fit_interpolate.add(f1 - f0);
-      if (local.size() != grid_spec.size()) {
+      if (local.size() != grids[lattice].size()) {
         failed(row, FitFailure::no_reference);
         return;
       }
@@ -1672,7 +1695,7 @@ int run_program(int argc, char **argv) {
       // DIALS has 0.84 -- errors too small by 1.6, and everything weighted
       // by them wrong.
       const std::vector<double> on_pixels =
-          profile_on_pixels(e, box, q.s1, q.phi, grid_spec, local, cells);
+          profile_on_pixels(e, box, q.s1, q.phi, grids[lattice], local, cells);
       const double f2 = Timing::now();
       t_fit_onto.add(f2 - f1);
       if (on_pixels.empty()) {
@@ -1707,6 +1730,14 @@ int run_program(int argc, char **argv) {
     // boxes at a time; --gpu-emulate the same on the CPU. One pass only.
     const bool emulate_gpu = args.has("--gpu-emulate");
     bool use_gpu = emulate_gpu || args.has("-g") || args.has("--gpu");
+    if (use_gpu && n_lattices > 1) {
+      // The device's batch carries one grid, and the lattices' grids are on
+      // scales of their own: not yet.
+      std::printf("--gpu fits one lattice at a time; with %zu lattices the "
+                  "fitting is on the CPU\n",
+                  n_lattices);
+      use_gpu = false;
+    }
     if (use_gpu && !single_pass) {
       std::printf("--gpu fits in one pass only; with --two-pass the fitting is "
                   "on the CPU\n");
@@ -2152,11 +2183,15 @@ int run_program(int argc, char **argv) {
               std::min(kBlocks, std::max<std::size_t>(count, 1));
           // The cells each box's transform computes, kept for its fit.
           cells_of.assign(single_pass ? count : 0, PixelCells{});
-          std::vector<ReferenceProfiles> partial(blocks, reference);
-          for (ReferenceProfiles &r : partial) {
-            for (std::vector<double> &p : r.profile)
-              std::fill(p.begin(), p.end(), 0.0);
-            std::fill(r.spots.begin(), r.spots.end(), 0);
+          // Each lattice's own, learned from its own reflections alone.
+          std::vector<std::vector<ReferenceProfiles>> partial(n_lattices);
+          for (std::size_t l = 0; l < n_lattices; ++l) {
+            partial[l].assign(blocks, references[l]);
+            for (ReferenceProfiles &r : partial[l]) {
+              for (std::vector<double> &p : r.profile)
+                std::fill(p.begin(), p.end(), 0.0);
+              std::fill(r.spots.begin(), r.spots.end(), 0);
+            }
           }
           std::atomic<std::size_t> learned{0};
           in_parallel(blocks, [&](std::size_t b) {
@@ -2176,8 +2211,9 @@ int run_program(int argc, char **argv) {
               if ((flags.ints[row] & flag::kOverlappedFg) != 0)
                 continue;
               const Prediction &q = *planned[row].prediction;
+              const std::uint32_t lattice = planned[row].lattice;
               const Transformed t =
-                  transform_shoebox(e, boxes[i], q.s1, q.phi, grid_spec,
+                  transform_shoebox(e, boxes[i], q.s1, q.phi, grids[lattice],
                                     single_pass ? &cells_of[i] : nullptr);
               if (!t.valid || t.outside > 0.05)
                 continue;
@@ -2190,16 +2226,18 @@ int run_program(int argc, char **argv) {
               if (single_pass &&
                   block_of_cell(reference, region) <= finalised_through)
                 learned_into_final.store(true);
-              if (add_reference(&partial[b], region, t))
+              if (add_reference(&partial[lattice][b], region, t))
                 learned.fetch_add(1);
             }
           });
-          for (const ReferenceProfiles &r : partial) {
-            for (std::size_t g = 0; g < reference.profile.size(); ++g) {
-              for (std::size_t k = 0; k < reference.profile[g].size(); ++k) {
-                reference.profile[g][k] += r.profile[g][k];
+          for (std::size_t l = 0; l < n_lattices; ++l) {
+            ReferenceProfiles &own = references[l];
+            for (const ReferenceProfiles &r : partial[l]) {
+              for (std::size_t g = 0; g < own.profile.size(); ++g) {
+                for (std::size_t k = 0; k < own.profile[g].size(); ++k)
+                  own.profile[g][k] += r.profile[g][k];
+                own.spots[g] += r.spots[g];
               }
-              reference.spots[g] += r.spots[g];
             }
           }
           references_used += learned.load();
@@ -2260,51 +2298,75 @@ int run_program(int argc, char **argv) {
         // profiles are what they are going to be.
         if (single_pass) {
           finalise_closed(std::numeric_limits<std::int32_t>::max());
-          for (int w : waiting_empty)
-            finalise_block(&reference, w, 10,
-                           std::vector<double>(reference.spec.size(), 0.0));
-          waiting_empty.clear();
-          reference.finalised = true;
-        } else {
-          finalise_reference(&reference);
-        }
-        const std::string profile_path = args.value("--save-profiles", "");
-        if (!profile_path.empty()) {
-          std::FILE *f = std::fopen(profile_path.c_str(), "w");
-          if (f == nullptr) {
-            std::fprintf(stderr, "mxi_integrate: cannot write %s\n",
-                         profile_path.c_str());
-          } else {
-            // Plain text, one profile a block, because the thing that reads
-            // this is a person with a plotting script and not a program that
-            // needs a format.
-            std::fprintf(f, "# reference profiles\n");
-            std::fprintf(f, "side %d\n", grid_spec.side());
-            std::fprintf(f, "sigma_b %.9g\n", grid_spec.sigma_d);
-            std::fprintf(f, "sigma_m %.9g\n", grid_spec.sigma_m);
-            std::fprintf(f, "half_width %.9g\n", grid_spec.half_width);
-            std::fprintf(f, "divisions %d\n", reference.divisions);
-            std::fprintf(f, "blocks %d\n", reference.blocks);
-            std::fprintf(f, "panels %zu\n", reference.panels);
-            for (std::size_t r = 0; r < reference.profile.size(); ++r) {
-              std::fprintf(f, "profile %zu spots %zu\n", r, reference.spots[r]);
-              for (double v : reference.profile[r])
-                std::fprintf(f, "%.9g\n", v);
-            }
-            std::fclose(f);
-            std::printf("wrote %s\n", profile_path.c_str());
+          for (std::size_t l = 0; l < n_lattices; ++l) {
+            for (int w : waiting_empty[l])
+              finalise_block(
+                  &references[l], w, 10,
+                  std::vector<double>(references[l].spec.size(), 0.0));
+            waiting_empty[l].clear();
+            references[l].finalised = true;
           }
+        } else {
+          for (ReferenceProfiles &own : references)
+            finalise_reference(&own);
         }
-        std::size_t empty = 0;
-        for (std::size_t r = 0; r < reference.spots.size(); ++r) {
-          if (reference.spots[r] < 10)
-            ++empty;
+        // Each lattice's: one lattice to the path given, several each to the
+        // path its own sweep's run would have had.
+        for (std::size_t l = 0; l < n_lattices; ++l) {
+          const ReferenceProfiles &own = references[l];
+          const GridSpec &grid = grids[l];
+          const std::string given = args.value("--save-profiles", "");
+          std::string profile_path = given;
+          if (!given.empty() && n_lattices > 1) {
+            // As integrate_several names a sweep's: its number before the
+            // extension.
+            const std::size_t slash = given.find_last_of('/');
+            const std::size_t dot = given.find_last_of('.');
+            const bool has_ext = dot != std::string::npos &&
+                                 (slash == std::string::npos || dot > slash);
+            profile_path = has_ext ? given.substr(0, dot) + "_" +
+                                         std::to_string(l) + given.substr(dot)
+                                   : given + "_" + std::to_string(l);
+          }
+          if (!profile_path.empty()) {
+            std::FILE *f = std::fopen(profile_path.c_str(), "w");
+            if (f == nullptr) {
+              std::fprintf(stderr, "mxi_integrate: cannot write %s\n",
+                           profile_path.c_str());
+            } else {
+              // Plain text, one profile a block, because the thing that reads
+              // this is a person with a plotting script and not a program
+              // that needs a format.
+              std::fprintf(f, "# reference profiles\n");
+              std::fprintf(f, "side %d\n", grid.side());
+              std::fprintf(f, "sigma_b %.9g\n", grid.sigma_d);
+              std::fprintf(f, "sigma_m %.9g\n", grid.sigma_m);
+              std::fprintf(f, "half_width %.9g\n", grid.half_width);
+              std::fprintf(f, "divisions %d\n", own.divisions);
+              std::fprintf(f, "blocks %d\n", own.blocks);
+              std::fprintf(f, "panels %zu\n", own.panels);
+              for (std::size_t r = 0; r < own.profile.size(); ++r) {
+                std::fprintf(f, "profile %zu spots %zu\n", r, own.spots[r]);
+                for (double v : own.profile[r])
+                  std::fprintf(f, "%.9g\n", v);
+              }
+              std::fclose(f);
+              std::printf("wrote %s\n", profile_path.c_str());
+            }
+          }
+          std::size_t empty = 0;
+          for (std::size_t r = 0; r < own.spots.size(); ++r) {
+            if (own.spots[r] < 10)
+              ++empty;
+          }
+          if (n_lattices > 1)
+            std::printf("Lattice %zu: ", l + 1);
+          std::printf(
+              "Reference profiles: %zu learned from %zu reflections (%zu of "
+              "%zu regions borrowed their scan block's detector average)\n",
+              own.region_count() - empty, references_used, empty,
+              own.region_count());
         }
-        std::printf(
-            "Reference profiles: %zu learned from %zu reflections (%zu of %zu "
-            "regions borrowed their scan block's detector average)\n",
-            reference.region_count() - empty, references_used, empty,
-            reference.region_count());
         if (references_used == 0) {
           std::fprintf(stderr,
                        "mxi_integrate: nothing to learn profiles from, so no "

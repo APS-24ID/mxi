@@ -394,6 +394,208 @@ int integrate_with_postrefinement(const Arguments &args, const char *program,
 // experiment's index as its id, and the experiments, each with its own profile
 // model. A list of one never comes here, so one sweep is integrated as it
 // always was.
+// Several sweeps: each integrated in a run of its own -- its lattices in one
+// pass over its images, its own crystal-less experiment carried through
+// (docs/multi-lattice.md, stage 2) -- and the runs joined, in the order the
+// list had its experiments. A sweep of one lattice is the run it always was.
+int integrate_sweeps(const Arguments &args, const char *program,
+                     const std::set<std::string> &takes_value,
+                     const json::Value &document) {
+  const rflx::Outputs outputs = rflx::outputs(args, "integrated");
+  const std::string base = outputs.rflx.empty() ? outputs.refl : outputs.rflx;
+  const json::Array &experiments =
+      document.as_object().at("experiment").as_array();
+  const std::size_t n = experiments.size();
+  const bool has_refl = args.positional.size() == 2;
+  std::vector<std::string> made;
+  const auto tidy = [&] {
+    for (const std::string &f : made)
+      std::remove(f.c_str());
+  };
+  const auto run = [](std::vector<std::string> words) {
+    std::vector<char *> argv;
+    for (std::string &w : words)
+      argv.push_back(w.data());
+    argv.push_back(nullptr);
+    return run_program(static_cast<int>(words.size()), argv.data());
+  };
+  const auto profiles_of = [](const std::string &path, std::size_t sweep) {
+    const std::size_t slash = path.find_last_of('/');
+    const std::size_t dot = path.find_last_of('.');
+    const bool has_ext =
+        dot != std::string::npos && (slash == std::string::npos || dot > slash);
+    return has_ext ? path.substr(0, dot) + "_" + std::to_string(sweep) +
+                         path.substr(dot)
+                   : path + "_" + std::to_string(sweep);
+  };
+  try {
+    // The sweeps: experiments on one image set and one scan, in the order
+    // first met.
+    std::vector<std::pair<long long, long long>> keys;
+    std::vector<std::vector<std::size_t>> groups;
+    for (std::size_t i = 0; i < n; ++i) {
+      const json::Value &set = experiments[i]["imageset"];
+      const json::Value &scan = experiments[i]["scan"];
+      const long long own = -1 - static_cast<long long>(i);
+      const std::pair<long long, long long> key{
+          set.is_number() ? static_cast<long long>(set.as_number()) : own,
+          scan.is_number() ? static_cast<long long>(scan.as_number()) : own};
+      std::size_t g = 0;
+      while (g < keys.size() && keys[g] != key)
+        ++g;
+      if (g == keys.size()) {
+        keys.push_back(key);
+        groups.emplace_back();
+      }
+      groups[g].push_back(i);
+    }
+    Table indexed;
+    if (has_refl) {
+      indexed = read_reflections(args.positional[1]);
+      if (!indexed.has("id")) {
+        std::fprintf(stderr,
+                     "mxi_integrate: %s has no id column, so which of the %zu "
+                     "experiments each reflection belongs to is not known\n",
+                     args.positional[1].c_str(), n);
+        return 1;
+      }
+    }
+    std::printf("Integrating %zu experiments, a sweep at a time -- %zu "
+                "sweeps -- into one table\n",
+                n, groups.size());
+    std::vector<Table> tables;
+    std::vector<json::Value> lists;
+    std::vector<std::size_t> order; // the whole index of each joined entry
+    for (std::size_t g = 0; g < groups.size(); ++g) {
+      const std::vector<std::size_t> &members = groups[g];
+      const std::string stem = base + ".sweep" + std::to_string(g);
+      const std::string in_expt = stem + ".in.expt",
+                        in_refl = stem + ".in.refl";
+      const std::string got_expt = stem + ".expt", got_refl = stem + ".refl";
+      made.insert(made.end(), {in_expt, in_refl, got_expt, got_refl});
+      // Its experiments as one list, the models they share one again.
+      std::vector<json::Value> slices;
+      for (std::size_t i : members)
+        slices.push_back(slice_experiment_list(document, i));
+      json::Value own = join_experiment_lists(slices);
+      for (const char *kind :
+           {"beam", "detector", "goniometer", "scan", "imageset"})
+        share_identical(&own, kind);
+      json::dump_file(in_expt, own);
+      if (has_refl) {
+        const Column &id = indexed.at("id");
+        std::vector<std::size_t> rows;
+        std::vector<long> renumber(n, -1);
+        for (std::size_t k = 0; k < members.size(); ++k)
+          renumber[members[k]] = static_cast<long>(k);
+        for (std::size_t r = 0; r < indexed.nrows; ++r) {
+          const std::int64_t i = id.integer(r);
+          if (i >= 0 && static_cast<std::size_t>(i) < n &&
+              renumber[static_cast<std::size_t>(i)] >= 0)
+            rows.push_back(r);
+        }
+        Table part = select_rows_with_shoeboxes(indexed, rows);
+        Column &ids = part.modify_int_column("id", "int", 1);
+        for (std::int64_t &i : ids.ints)
+          i = renumber[static_cast<std::size_t>(i)];
+        part.identifiers.clear();
+        for (std::size_t k = 0; k < members.size(); ++k) {
+          const json::Value &ident = experiments[members[k]]["identifier"];
+          if (ident.is_string())
+            part.identifiers[k] = ident.as_string();
+        }
+        write_reflections(in_refl, part);
+      }
+      std::vector<std::string> words = {program, in_expt};
+      if (has_refl)
+        words.push_back(in_refl);
+      for (const auto &[flag, value] : args.options) {
+        if (flag == "-o" || flag == "--output-expt")
+          continue;
+        words.push_back(flag);
+        if (flag == "--save-profiles")
+          words.push_back(profiles_of(value, g));
+        else if (takes_value.count(flag))
+          words.push_back(value);
+      }
+      words.insert(words.end(), {"-o", got_refl, "--output-expt", got_expt});
+      std::printf("\n=== Sweep %zu of %zu: experiment%s", g + 1, groups.size(),
+                  members.size() == 1 ? "" : "s");
+      for (std::size_t i : members)
+        std::printf(" %zu", i);
+      std::printf(" ===\n");
+      std::fflush(stdout);
+      const int status = run(words);
+      if (status != 0) {
+        tidy();
+        return status;
+      }
+      Table got = read_reflections(got_refl);
+      Column &ids = got.modify_int_column("id", "int", 1);
+      for (std::int64_t &i : ids.ints)
+        i = static_cast<std::int64_t>(members.at(static_cast<std::size_t>(i)));
+      tables.push_back(std::move(got));
+      lists.push_back(read_experiment_document(got_expt));
+      order.insert(order.end(), members.begin(), members.end());
+    }
+    // Joined, then each experiment back in its place in the list.
+    json::Value joined_expt = join_experiment_lists(lists);
+    {
+      json::Object o = joined_expt.as_object();
+      const json::Array entries = o.at("experiment").as_array();
+      json::Array placed(entries.size());
+      for (std::size_t p = 0; p < entries.size(); ++p)
+        placed.at(order.at(p)) = entries[p];
+      o["experiment"] = json::Value(std::move(placed));
+      joined_expt = json::Value(std::move(o));
+    }
+    bool shared = true;
+    for (const json::Value &x : experiments)
+      shared =
+          shared && x["crystal"].is_number() &&
+          x["crystal"].as_number() == experiments[0]["crystal"].as_number();
+    if (shared)
+      share_identical(&joined_expt, "crystal");
+    for (const char *kind :
+         {"beam", "detector", "goniometer", "scan", "imageset"})
+      share_identical(&joined_expt, kind);
+    // Each row on its experiment's image set as the joined list numbers it.
+    for (Table &t : tables) {
+      if (!t.has("imageset_id"))
+        continue;
+      const Column &id = t.at("id");
+      Column &imagesets = t.modify_int_column("imageset_id", "int", 1);
+      for (std::size_t r = 0; r < t.nrows; ++r) {
+        const json::Value &set = joined_expt["experiment"].as_array().at(
+            static_cast<std::size_t>(id.integer(r)))["imageset"];
+        imagesets.ints[r] =
+            set.is_number() ? static_cast<std::int64_t>(set.as_number()) : 0;
+      }
+    }
+    Table joined = concat_rows_with_shoeboxes(tables);
+    joined.identifiers.clear();
+    for (std::size_t i = 0; i < n; ++i) {
+      const json::Value &ident =
+          joined_expt["experiment"].as_array()[i]["identifier"];
+      if (ident.is_string())
+        joined.identifiers[i] = ident.as_string();
+    }
+    rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_integrate");
+    tidy();
+    std::printf("\n");
+    for (std::size_t g = 0; g < groups.size(); ++g)
+      std::printf("  sweep %zu: %zu reflections\n", g, tables[g].nrows);
+    std::printf(
+        "Wrote %zu reflections of %zu experiments, and the models, to %s\n",
+        joined.nrows, n, rflx::describe(outputs).c_str());
+    return 0;
+  } catch (const std::exception &error) {
+    std::fprintf(stderr, "mxi_integrate: %s\n", error.what());
+    tidy();
+    return 1;
+  }
+}
+
 int integrate_several(const Arguments &args, const char *program,
                       const std::set<std::string> &takes_value,
                       const json::Value &document) {
@@ -708,15 +910,21 @@ int run_program(int argc, char **argv) {
             x["imageset"].as_number() == first["imageset"].as_number() &&
             x["scan"].as_number() == first["scan"].as_number();
       if (!one_sweep) {
-        for (const json::Value &x : document["experiment"].as_array())
-          if (!x["crystal"].is_number()) {
-            std::fprintf(stderr,
-                         "mxi_integrate: several sweeps carried through, with "
-                         "crystal-less experiments: not yet -- one sweep's "
-                         "lattices, or sweeps indexed without --keep-sweeps\n");
-            return 1;
-          }
-        return integrate_several(args, argv[0], takes_value, document);
+        // A run an experiment, asked for or postrefined: each lattice alone.
+        // Otherwise a run a sweep, its lattices in one pass, its own
+        // crystal-less experiment carried through.
+        if (args.has("--each-alone") || args.has("--postrefine")) {
+          for (const json::Value &x : document["experiment"].as_array())
+            if (!x["crystal"].is_number()) {
+              std::fprintf(stderr,
+                           "mxi_integrate: a run an experiment cannot take a "
+                           "crystal-less one: without --each-alone or "
+                           "--postrefine, a run a sweep carries it\n");
+              return 1;
+            }
+          return integrate_several(args, argv[0], takes_value, document);
+        }
+        return integrate_sweeps(args, argv[0], takes_value, document);
       }
     }
   }

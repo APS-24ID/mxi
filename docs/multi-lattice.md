@@ -19,8 +19,11 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   their spots -1. On Graeme's two crystals, indexed with and without the
   sweep from the same spots and carried through every program: the same
   refined models, the same integrated and scaled tables but for id, I 2 3
-  from both, the same MTZ row for row. Several sweeps carried through
-  integration: refused by name, not yet.
+  from both, the same MTZ row for row. Several sweeps: integrated a run a
+  sweep, each sweep's lattices in one pass and its crystal-less experiment
+  carried, the runs joined in the list's order -- a sweep of one lattice the
+  run it always was; on insulin split in two and carried through, the same
+  table as without, the lattices' ids two on.
 
   A lattice missed, recovered (Graeme: an unindexed lattice found at the end
   with the refined geometry of another): mxi_index given a list with lattices

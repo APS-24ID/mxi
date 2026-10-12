@@ -86,6 +86,18 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   reference's setting left as it is. For many partial data sets, as the
   paper's examples, the correlations with too few reflections in common will
   want leaving out, and L-BFGS for the missing entries: not yet.
+  Against dials.cosym, run by Graeme on mxi's own integration: the same
+  Patterson group, I m -3; its reindexing of the second crystal -x+y,y,y-z,
+  mxi's h,k,l to -k,-l,h+k+l -- different operators of one coset. Put in the
+  conventional basis by b+c,a+c,a+b, both are in 432 and not in 23, the twin
+  coset; they differ by a rotation of 23, the crystal's own symmetry, and so
+  bring the second crystal to the same setting. mxi's output agrees with
+  itself: merged in m-3, the second crystal correlates with the first at 0.934,
+  and at 0.409 after the 4-fold m-3 lacks. A lesson in judging it: correlating
+  raw P1 indices in the primitive basis, without merging under the crystal's
+  symmetry, compares different reflections for different members of a coset,
+  and with partial data gave 0.36 for one and 0.86 for another of the same
+  coset -- the algebra decides, not that.
 * Indexing's worst-fitting spots: Graeme, October 2026 -- left out of the
   indexed set, as DIALS leaves them, is fine, the problem being overdetermined,
   but better after the final refinement, the model then good. To do.

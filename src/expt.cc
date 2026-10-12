@@ -242,6 +242,7 @@ ExperimentList experiments_from_json(const json::Value &document) {
                     at.as_number())])
               : ProfileBlock{});
     }
+  std::vector<std::pair<long long, long long>> sweep_keys;
   for (const json::Value &e : document["experiment"].as_array()) {
     Experiment x;
     x.identifier = e["identifier"].as_string();
@@ -259,6 +260,22 @@ ExperimentList experiments_from_json(const json::Value &document) {
     const std::size_t own = list.experiments.size() + 1000000;
     list.beam_of.push_back(b >= 0 ? static_cast<std::size_t>(b) : own);
     list.detector_of.push_back(d >= 0 ? static_cast<std::size_t>(d) : own);
+    {
+      // Its sweep: its image set and scan, numbered in the order met.
+      const json::Value &set = e["imageset"];
+      const std::pair<long long, long long> key{
+          set.is_number()
+              ? static_cast<long long>(set.as_number())
+              : -1 - static_cast<long long>(list.experiments.size()),
+          s >= 0 ? static_cast<long long>(s)
+                 : -1 - static_cast<long long>(list.experiments.size())};
+      std::size_t at = 0;
+      while (at < sweep_keys.size() && sweep_keys[at] != key)
+        ++at;
+      if (at == sweep_keys.size())
+        sweep_keys.push_back(key);
+      list.sweep_of.push_back(at);
+    }
     if (g >= 0 && static_cast<std::size_t>(g) < goniometers.size())
       x.goniometer = goniometers[g];
     if (s >= 0 && static_cast<std::size_t>(s) < scans.size())

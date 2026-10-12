@@ -99,6 +99,14 @@ struct ExperimentList {
   std::size_t detector_group(std::size_t i) const {
     return detector_of.size() == experiments.size() ? detector_of[i] : i;
   }
+  //: Which sweep each experiment is of: the same image set and the same scan,
+  //: numbered from 0 in the order met (docs/multi-lattice.md) -- a sweep's
+  //: lattices, and its own crystal-less experiment, one sweep. Read with the
+  //: list; a list built or edited without it, each experiment its own.
+  std::vector<std::size_t> sweep_of;
+  std::size_t sweep(std::size_t i) const {
+    return sweep_of.size() == experiments.size() ? sweep_of[i] : i;
+  }
 
   std::size_t size() const { return experiments.size(); }
   bool empty() const { return experiments.empty(); }

@@ -102,8 +102,8 @@ def test_two_sweeps_of_the_same_intensities_scale_as_one(tmp_path):
     two, out, table = scale(
         tmp_path, str(tmp_path / "two.expt"), str(tmp_path / "two.refl"), "two"
     )
-    assert "2 sweeps, a model each" in out
-    assert "sweep 0:" in out and "sweep 1:" in out
+    assert "2 experiments, a model each" in out
+    assert "experiment 0:" in out and "experiment 1:" in out
     assert abs(two["CC half"] - whole["CC half"]) <= 0.002, (two, whole)
     assert abs(two["I/sigma"] / whole["I/sigma"] - 1.0) < 0.05, (two, whole)
     ids = np.asarray(table.columns["id"]).ravel()

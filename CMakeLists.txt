@@ -110,7 +110,7 @@ add_library(mxi
   src/rflx.cc
   src/cosym.cc
   src/views.cc
-  src/summary.cc
+  src/processing.cc
   src/fft.cc
   $<$<BOOL:${MXI_FFTW}>:src/fft_fftw.cc>
   src/index.cc
@@ -189,6 +189,9 @@ target_compile_options(mxi_export PRIVATE -Wall -Wextra)
 add_executable(mxi_symmetry apps/mxi_symmetry.cc)
 target_link_libraries(mxi_symmetry PRIVATE mxi)
 target_compile_options(mxi_symmetry PRIVATE -Wall -Wextra)
+add_executable(mxi_show apps/mxi_show.cc)
+target_link_libraries(mxi_show PRIVATE mxi)
+target_compile_options(mxi_show PRIVATE -Wall -Wextra)
 
 add_executable(mxi_residuals apps/mxi_residuals.cc)
 target_link_libraries(mxi_residuals PRIVATE mxi)
@@ -348,7 +351,7 @@ add_executable(mxi_tests
   tests/test_rflx.cc
   tests/test_cosym.cc
   tests/test_views.cc
-  tests/test_summary.cc
+  tests/test_processing.cc
   tests/test_space_group.cc
   tests/test_resolution.cc
   tests/test_timing.cc

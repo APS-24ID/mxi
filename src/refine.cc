@@ -705,6 +705,10 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
 
   std::vector<double> residual;
   double lambda = 1e-3;
+  // The last weighted normal matrix and the chi^2 it was formed at: the
+  // covariance at convergence, for the cell's e.s.d.s.
+  std::vector<double> last_normal;
+  double last_chi2 = 0.0;
 
   for (int macro = 0; macro < std::max(1, options.macrocycles); ++macro) {
     double previous = residuals_of(experiments, observations, &residual);
@@ -860,6 +864,8 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
         for (std::size_t b = a + 1; b < n; ++b)
           normal[a * n + b] = normal[b * n + a];
       }
+      last_normal = normal;
+      last_chi2 = previous;
 
       g_normal_seconds += now_seconds() - t_normal;
 
@@ -1022,6 +1028,62 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
     result.rmsd_x = std::sqrt(sx / static_cast<double>(count));
     result.rmsd_y = std::sqrt(sy / static_cast<double>(count));
     result.rmsd_z = std::sqrt(sz / static_cast<double>(count));
+  }
+
+  // The cell's e.s.d.s. The covariance: the last normal matrix inverted, a
+  // column at a time, scaled by chi^2 over the degrees of freedom (three
+  // residuals an observation, less the parameters). Carried to the cell by
+  // each parameter's effect on it, a forward difference through the same
+  // apply() the solver uses -- whatever the crystal's parametrisation.
+  const double dof = 3.0 * static_cast<double>(count) - static_cast<double>(n);
+  if (!last_normal.empty() && dof > 0.0) {
+    std::vector<double> covariance(n * n, 0.0);
+    bool inverted = true;
+    for (std::size_t k = 0; k < n && inverted; ++k) {
+      std::vector<double> a = last_normal, column(n, 0.0);
+      column[k] = 1.0;
+      inverted = solve_spd(a.data(), column.data(), n);
+      for (std::size_t j = 0; j < n; ++j)
+        covariance[j * n + k] = column[j] * last_chi2 / dof;
+    }
+    if (inverted) {
+      const std::vector<double> step = step_sizes(experiments, layout);
+      std::vector<std::array<double, 6>> jac(n * experiments.size());
+      std::vector<double> shift(n, 0.0);
+      ExperimentList moved;
+      const auto cell_array = [](const UnitCell &c) {
+        return std::array<double, 6>{c.a, c.b, c.c, c.alpha, c.beta, c.gamma};
+      };
+      for (std::size_t p = 0; p < n; ++p) {
+        std::fill(shift.begin(), shift.end(), 0.0);
+        shift[p] = step[p];
+        apply(experiments, layout, shift, &moved);
+        for (std::size_t e = 0; e < experiments.size(); ++e) {
+          if (!experiments[e].crystal || !moved[e].crystal)
+            continue;
+          const auto c0 = cell_array(experiments[e].crystal->cell());
+          const auto c1 = cell_array(moved[e].crystal->cell());
+          for (int k = 0; k < 6; ++k)
+            jac[e * n + p][static_cast<std::size_t>(k)] =
+                (c1[static_cast<std::size_t>(k)] -
+                 c0[static_cast<std::size_t>(k)]) /
+                step[p];
+        }
+      }
+      result.cell_esd.assign(experiments.size(), {0, 0, 0, 0, 0, 0});
+      for (std::size_t e = 0; e < experiments.size(); ++e) {
+        if (!experiments[e].crystal)
+          continue;
+        for (std::size_t k = 0; k < 6; ++k) {
+          double v = 0.0;
+          for (std::size_t a = 0; a < n; ++a)
+            for (std::size_t b = 0; b < n; ++b)
+              v +=
+                  jac[e * n + a][k] * covariance[a * n + b] * jac[e * n + b][k];
+          result.cell_esd[e][k] = std::sqrt(std::fmax(v, 0.0));
+        }
+      }
+    }
   }
   return result;
 }

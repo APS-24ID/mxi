@@ -18,6 +18,7 @@
 #include "fft.hh"
 #include "index.hh"
 #include "log_mirror.hh"
+#include "processing.hh"
 #include "refine.hh"
 #include "rflx.hh"
 #include "timing.hh"
@@ -68,12 +69,28 @@ void usage() {
       "                    longer printed unless --verbose asks for it\n");
 }
 
+json::Value cell_json(const UnitCell &c) {
+  return json::Value(json::Array{json::Value(c.a), json::Value(c.b),
+                                 json::Value(c.c), json::Value(c.alpha),
+                                 json::Value(c.beta), json::Value(c.gamma)});
+}
+
+// The geometry as the file came and as indexing left it: a wrong beam centre
+// or distance shows here first.
+void say_geometry(const char *now, const GeometryFigures &before,
+                  const GeometryFigures &after) {
+  std::printf("Beam centre %.2f, %.2f px and distance %.3f mm as given; %s "
+              "%.2f, %.2f px and %.3f mm\n",
+              before.beam_x, before.beam_y, before.distance, now, after.beam_x,
+              after.beam_y, after.distance);
+}
+
 // The several lattices index_lattices found, said and written.
 int report_lattices(const ExperimentList &sweep, Table &reflections,
                     const IndexOptions &options, int max_lattices,
                     std::size_t min_spots, Ambiguous ambiguous,
                     double ambiguity_sigma, bool keep_sweeps,
-                    const rflx::Outputs &out,
+                    const rflx::Outputs &out, Summary &summary,
                     const std::vector<Crystal> &known = {},
                     const std::vector<std::string> &known_ids = {},
                     const ExperimentList *carried = nullptr) {
@@ -136,13 +153,33 @@ int report_lattices(const ExperimentList &sweep, Table &reflections,
           mi.integer(i, 2) != 0)
         ++own[static_cast<std::size_t>(id.integer(i))];
   }
+  std::vector<json::Value> t_lattice, t_spots, t_cell, t_scatter;
   for (std::size_t l = 0; l < joint.size(); ++l) {
     const UnitCell c = joint[l].crystal->cell();
+    const double scatter = l < r.scatter.size() ? r.scatter[l] : 0.0;
     std::printf("  lattice %zu: %zu spots; %.3f %.3f %.3f A, %.3f %.3f %.3f "
                 "deg; scatter %.5f 1/A\n",
                 l + 1, own[l], c.a, c.b, c.c, c.alpha, c.beta, c.gamma,
-                l < r.scatter.size() ? r.scatter[l] : 0.0);
+                scatter);
+    t_lattice.push_back(json::Value(static_cast<long>(l + 1)));
+    t_spots.push_back(json::Value(static_cast<long>(own[l])));
+    t_cell.push_back(cell_json(c));
+    t_scatter.push_back(json::Value(scatter));
   }
+  say_geometry("refined together", geometry_figures(sweep[0]),
+               geometry_figures(joint[0]));
+  summary.set("reflections", json::Value(static_cast<long>(reflections.nrows)));
+  summary.set("indexed", json::Value(static_cast<long>(r.n_indexed)));
+  summary.set("lattices", json::Value(static_cast<long>(joint.size())));
+  summary.set("ambiguous", json::Value(static_cast<long>(r.n_ambiguous)));
+  summary.set("rmsd_px_px_images",
+              json::Value(json::Array{json::Value(r.refined.rmsd_x),
+                                      json::Value(r.refined.rmsd_y),
+                                      json::Value(r.refined.rmsd_z)}));
+  summary.set("geometry_given", to_json(geometry_figures(sweep[0])));
+  summary.set("geometry", to_json(geometry_figures(joint[0])));
+  summary.table("each_lattice", {"lattice", "spots", "cell", "scatter"},
+                {t_lattice, t_spots, t_cell, t_scatter});
   add_reciprocal_columns(joint, reflections);
   update_predictions(joint, reflections);
   // The sweep's own experiment carried through, its lattices after it.
@@ -152,7 +189,9 @@ int report_lattices(const ExperimentList &sweep, Table &reflections,
                        std::vector<std::size_t>(joint.size(), 0), &reflections)
           : joint;
   const json::Value document = experiments_to_json(written);
-  rflx::write_outputs(out, &document, &reflections, "mxi_index");
+  const json::Value summary_document = summary.document();
+  rflx::write_outputs(out, &document, &reflections, "mxi_index",
+                      &summary_document);
   std::printf("Wrote %s\n", rflx::describe(out).c_str());
   return 0;
 }
@@ -215,6 +254,7 @@ int run_program(int argc, char **argv) {
   // the cell before and after reduction -- are for whoever is working on the
   // indexer, and were printed by default. The result is what a user reads.
   options.verbose = args.has("--verbose");
+  set_verbose(options.verbose);
   options.d_min = args.number("--d-min", 0.0);
   options.max_cell = args.number("--max-cell", 0.0);
   options.grid = static_cast<std::size_t>(args.number("--grid", 0));
@@ -236,6 +276,8 @@ int run_program(int argc, char **argv) {
     // default (Graeme), --no-keep-sweeps the lattices alone, as before.
     const bool keep_sweeps = !args.has("--no-keep-sweeps");
     const double t_read_seconds = Timing::now() - t_run_start;
+    // This step of the processing's summary, after its input's.
+    Summary summary("mxi_index", args.positional[0]);
     std::printf("Indexing %zu reflections from %zu experiment%s\n",
                 reflections.nrows, experiments.size(),
                 experiments.size() == 1 ? "" : "s");
@@ -315,8 +357,8 @@ int run_program(int argc, char **argv) {
             static_cast<std::size_t>(args.number("--min-lattice-spots", 50)),
             ambiguous == "closest" ? Ambiguous::Closest : Ambiguous::Exclude,
             args.number("--ambiguity-sigma", 3.0),
-            keep_sweeps || views.any_crystal_less(), out, known, known_ids,
-            &carried);
+            keep_sweeps || views.any_crystal_less(), out, summary, known,
+            known_ids, &carried);
       }
     }
     if (max_lattices > 1)
@@ -324,14 +366,30 @@ int run_program(int argc, char **argv) {
           experiments, reflections, options, max_lattices,
           static_cast<std::size_t>(args.number("--min-lattice-spots", 50)),
           ambiguous == "closest" ? Ambiguous::Closest : Ambiguous::Exclude,
-          args.number("--ambiguity-sigma", 3.0), keep_sweeps, out);
+          args.number("--ambiguity-sigma", 3.0), keep_sweeps, out, summary);
 
     const IndexResult result = index(experiments, reflections, options);
     // The search's terms whether it succeeds or not: they are what a failure
     // is diagnosed by.
-    if (result.max_cell > 0.0)
-      std::printf("  to %.2f A, maximum cell %.1f A, FFT grid %zu^3\n",
-                  result.d_min, result.max_cell, result.grid);
+    if (result.max_cell > 0.0) {
+      std::printf("Searched to %.2f A, maximum cell %.1f A\n", result.d_min,
+                  result.max_cell);
+      detail("  FFT grid %zu^3\n", result.grid);
+    }
+    // The solutions the basis search weighed, as dials.index's table.
+    if (!result.considered.empty()) {
+      std::printf("\nCandidate solutions, the most indexing first\n");
+      std::printf("  %8s %8s %8s %8s %8s %8s %10s %9s %8s\n", "a", "b", "c",
+                  "alpha", "beta", "gamma", "volume", "indexed", "");
+      for (const BasisCandidate &b : result.considered)
+        std::printf(
+            "  %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %10.0f %8.1f%% %8s\n",
+            b.cell.a, b.cell.b, b.cell.c, b.cell.alpha, b.cell.beta,
+            b.cell.gamma, b.volume,
+            100.0 * static_cast<double>(b.indexed) /
+                static_cast<double>(std::max<std::size_t>(result.n_total, 1)),
+            b.chosen ? "chosen" : "");
+    }
     if (result.n_indexed == 0) {
       std::fprintf(stderr,
                    "mxi_index: no lattice found. Try --max-cell, or --d-min to "
@@ -366,6 +424,8 @@ int run_program(int argc, char **argv) {
         "Unit cell: %.3f %.3f %.3f A, %.3f %.3f %.3f deg; volume %.0f A^3\n",
         cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma,
         cell.volume());
+    say_geometry("after indexing", geometry_figures(given[0]),
+                 geometry_figures(experiments[0]));
     // Each sweep's, when the last cycle refined them apart.
     if (!result.cycles.empty() && result.cycles.back().per_sweep)
       for (std::size_t i = 0; i < experiments.size(); ++i) {
@@ -387,7 +447,45 @@ int run_program(int argc, char **argv) {
         keep_sweeps ? add_sweeps(given, experiments, each_its_own, &reflections)
                     : experiments;
     const json::Value document = experiments_to_json(written);
-    rflx::write_outputs(out, &document, &reflections, "mxi_index");
+    // The summary: the search, the solutions weighed, the cycles, the result.
+    summary.set("reflections", json::Value(static_cast<long>(result.n_total)));
+    summary.set("indexed", json::Value(static_cast<long>(result.n_indexed)));
+    summary.set("indexed_fraction", json::Value(result.fraction_indexed()));
+    summary.set("d_min", json::Value(result.d_min));
+    summary.set("max_cell", json::Value(result.max_cell));
+    summary.set("cell", cell_json(cell));
+    summary.set("volume", json::Value(cell.volume()));
+    summary.set("geometry_given", to_json(geometry_figures(given[0])));
+    summary.set("geometry", to_json(geometry_figures(experiments[0])));
+    {
+      std::vector<json::Value> c_cell, c_volume, c_indexed, c_chosen;
+      for (const BasisCandidate &b : result.considered) {
+        c_cell.push_back(cell_json(b.cell));
+        c_volume.push_back(json::Value(b.volume));
+        c_indexed.push_back(json::Value(static_cast<long>(b.indexed)));
+        c_chosen.push_back(json::Value(b.chosen ? 1L : 0L));
+      }
+      summary.table("candidates", {"cell", "volume", "indexed", "chosen"},
+                    {c_cell, c_volume, c_indexed, c_chosen});
+      std::vector<json::Value> k_cycle, k_on, k_rej, k_ind, k_x, k_y, k_z;
+      for (std::size_t c = 0; c < result.cycles.size(); ++c) {
+        const IndexCycle &k = result.cycles[c];
+        k_cycle.push_back(json::Value(static_cast<long>(c + 1)));
+        k_on.push_back(json::Value(static_cast<long>(k.refined_on)));
+        k_rej.push_back(json::Value(static_cast<long>(k.rejected)));
+        k_ind.push_back(json::Value(static_cast<long>(k.indexed)));
+        k_x.push_back(json::Value(k.rmsd_x));
+        k_y.push_back(json::Value(k.rmsd_y));
+        k_z.push_back(json::Value(k.rmsd_z));
+      }
+      summary.table("cycles",
+                    {"cycle", "refined_on", "rejected", "indexed", "rmsd_x_px",
+                     "rmsd_y_px", "rmsd_z_images"},
+                    {k_cycle, k_on, k_rej, k_ind, k_x, k_y, k_z});
+    }
+    const json::Value summary_document = summary.document();
+    rflx::write_outputs(out, &document, &reflections, "mxi_index",
+                        &summary_document);
     const double t_write_seconds = Timing::now() - t_write_start;
     std::printf("Wrote %s\n", rflx::describe(out).c_str());
 

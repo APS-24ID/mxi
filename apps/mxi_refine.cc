@@ -17,6 +17,7 @@
 #include "refine.hh"
 #include "rflx.hh"
 #include "timing.hh"
+#include "views.hh"
 #include <algorithm>
 #include <vector>
 
@@ -235,8 +236,14 @@ int run_program(int argc, char **argv) {
 
   try {
     const double t_read_start = now_wall();
-    ExperimentList experiments = read_experiments(args.positional[0]);
-    Table reflections = read_reflections(args.positional[1]);
+    // The lattices refined; each sweep's own crystal-less experiment and its
+    // unindexed spots carried through, the sweep's shared models refined
+    // into them (docs/multi-lattice.md, stage 2).
+    const ExperimentList whole = read_experiments(args.positional[0]);
+    const Table whole_table = read_reflections(args.positional[1]);
+    const Lattices views = lattices_of(whole);
+    ExperimentList experiments = views.list;
+    Table reflections = lattice_rows(whole_table, views);
     t_read = now_wall() - t_read_start;
     // Scan-varying by default -- nearly every real crystal moves -- one control
     // point per 10 degrees of each sweep's own scan; static if asked, or on a
@@ -337,8 +344,11 @@ int run_program(int argc, char **argv) {
           c.a, c.b, c.c, c.alpha, c.beta, c.gamma, c.volume());
     }
     const double t_write_start = now_wall();
-    const json::Value document = experiments_to_json(experiments);
-    rflx::write_outputs(out, &document, &reflections, "mxi_refine");
+    const ExperimentList written = whole_again(whole, views, experiments);
+    Table written_table = rows_again(
+        reflections, crystal_less_rows(whole_table, views), views, written);
+    const json::Value document = experiments_to_json(written);
+    rflx::write_outputs(out, &document, &written_table, "mxi_refine");
     t_write = now_wall() - t_write_start;
     std::printf("Wrote %s\n", rflx::describe(out).c_str());
 

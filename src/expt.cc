@@ -508,7 +508,10 @@ json::Value experiments_to_json(const ExperimentList &list) {
       if (at == profile_blocks.size())
         profile_blocks.push_back(own);
       x["profile"] = json::Value(static_cast<long>(at));
-    } else if (list.profile.present) {
+    } else if (list.profile.present &&
+               list.profiles.size() != list.experiments.size()) {
+      // The one block every experiment refers to. Where each has its own, one
+      // without -- a sweep's crystal-less experiment -- refers to none.
       x["profile"] =
           json::Value(static_cast<long>(0)); // an index, as DIALS reads it
     }

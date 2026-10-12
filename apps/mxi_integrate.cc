@@ -48,6 +48,7 @@
 #include "shoebox.hh"
 #include "summary.hh"
 #include "timing.hh"
+#include "views.hh"
 
 #include "decompress.hh"
 #include "rflx.hh"
@@ -706,8 +707,17 @@ int run_program(int argc, char **argv) {
             one_sweep && x["imageset"].is_number() && x["scan"].is_number() &&
             x["imageset"].as_number() == first["imageset"].as_number() &&
             x["scan"].as_number() == first["scan"].as_number();
-      if (!one_sweep)
+      if (!one_sweep) {
+        for (const json::Value &x : document["experiment"].as_array())
+          if (!x["crystal"].is_number()) {
+            std::fprintf(stderr,
+                         "mxi_integrate: several sweeps carried through, with "
+                         "crystal-less experiments: not yet -- one sweep's "
+                         "lattices, or sweeps indexed without --keep-sweeps\n");
+            return 1;
+          }
         return integrate_several(args, argv[0], takes_value, document);
+      }
     }
   }
   if (args.has("--postrefine"))
@@ -728,9 +738,20 @@ int run_program(int argc, char **argv) {
     double t_region = 0.0;
     double t_integrate = 0.0, t_write = 0.0;
 
-    const ExperimentList experiments = read_experiments(args.positional[0]);
+    // The lattices integrated; the sweep's own crystal-less experiment
+    // carried through (docs/multi-lattice.md, stage 2).
+    const ExperimentList whole = read_experiments(args.positional[0]);
+    const Lattices views = lattices_of(whole);
+    const ExperimentList experiments = views.list;
+    // A lattice's place in the whole list: its id, in what is read and written.
+    const auto whole_id = [&](std::size_t lattice) {
+      return static_cast<std::int64_t>(
+          views.any_crystal_less() ? views.position[lattice] : lattice);
+    };
     if (experiments.size() == 0) {
-      std::fprintf(stderr, "mxi_integrate: no experiments\n");
+      std::fprintf(stderr, whole.size() == 0
+                               ? "mxi_integrate: no experiments\n"
+                               : "mxi_integrate: no lattices: index first\n");
       return 1;
     }
     const Experiment &e = experiments[0];
@@ -803,14 +824,14 @@ int run_program(int argc, char **argv) {
           }
           const Column &s1_in = strong->at("s1");
           const Column &cal_in = strong->at("xyzcal.mm");
-          const bool by_id = n_lattices > 1 && strong->has("id");
+          const bool by_id =
+              (n_lattices > 1 || views.any_crystal_less()) && strong->has("id");
           std::vector<Shoebox> selected;
           std::vector<Vec3> beams;
           std::vector<RangeSample> samples;
           for (std::size_t i = 0; i < strong->nrows && i < strong_boxes.size();
                ++i) {
-            if (by_id &&
-                strong->at("id").integer(i) != static_cast<std::int64_t>(l))
+            if (by_id && strong->at("id").integer(i) != whole_id(l))
               continue;
             if (strong->has("flags") && (strong->at("flags").integer(i) &
                                          flag::kUsedInRefinement) == 0) {
@@ -1279,7 +1300,7 @@ int run_program(int argc, char **argv) {
       miller.ints[row * 3 + 2] = p.l;
       panel_column.ints[row] = static_cast<std::int64_t>(p.panel);
       const std::uint32_t lattice = planned[row].lattice;
-      id.ints[row] = static_cast<std::int64_t>(lattice);
+      id.ints[row] = whole_id(lattice);
       imageset.ints[row] = 0;
       // DIALS' convention for a reflection that reaches a masked pixel, read
       // from its source and confirmed on a real integration. A foreground
@@ -2495,9 +2516,9 @@ int run_program(int argc, char **argv) {
       for (std::size_t r = 0; r < planned.size(); ++r)
         why.ints[r] = failure_of[r];
     }
-    for (std::size_t l = 0; l < n_lattices; ++l)
-      if (!experiments[l].identifier.empty())
-        out.identifiers[l] = experiments[l].identifier;
+    for (std::size_t i = 0; i < whole.size(); ++i)
+      if (!whole[i].identifier.empty())
+        out.identifiers[i] = whole[i].identifier;
 
     {
       const std::size_t lost = prf_no_box + prf_no_reference + prf_no_pixels +
@@ -2548,6 +2569,7 @@ int run_program(int argc, char **argv) {
           b.n_sigma = own.n_sigma;
           written.profiles.push_back(b);
         }
+      written = whole_again(whole, views, written);
       const rflx::Outputs outputs = rflx::outputs(args, "integrated");
       const json::Value document = experiments_to_json(written);
       rflx::write_outputs(outputs, &document, &out, "mxi_integrate");

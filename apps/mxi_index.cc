@@ -72,7 +72,10 @@ int report_lattices(const ExperimentList &sweep, Table &reflections,
                     const IndexOptions &options, int max_lattices,
                     std::size_t min_spots, Ambiguous ambiguous,
                     double ambiguity_sigma, bool keep_sweeps,
-                    const rflx::Outputs &out) {
+                    const rflx::Outputs &out,
+                    const std::vector<Crystal> &known = {},
+                    const std::vector<std::string> &known_ids = {},
+                    const ExperimentList *carried = nullptr) {
   if (sweep.size() != 1) {
     std::fprintf(stderr,
                  "mxi_index: --max-lattices takes one sweep for now, not %zu\n",
@@ -81,10 +84,15 @@ int report_lattices(const ExperimentList &sweep, Table &reflections,
   }
   const LatticesResult r =
       index_lattices(sweep, reflections, options, max_lattices, min_spots,
-                     ambiguous, ambiguity_sigma);
-  for (std::size_t l = 0; l < r.found_in.size(); ++l)
-    std::printf("Lattice %zu: indexed %zu of the %zu spots left\n", l + 1,
-                r.indexed_of[l], r.found_in[l]);
+                     ambiguous, ambiguity_sigma, known);
+  for (std::size_t l = 0; l < r.found_in.size(); ++l) {
+    if (l < r.known)
+      std::printf("Lattice %zu: given, indexing %zu spots\n", l + 1,
+                  r.indexed_of[l]);
+    else
+      std::printf("Lattice %zu: indexed %zu of the %zu spots left\n", l + 1,
+                  r.indexed_of[l], r.found_in[l]);
+  }
   if (!r.stopped.empty())
     std::printf("Lattice %zu: %s\n", r.found_in.size() + 1, r.stopped.c_str());
   if (r.experiments.empty()) {
@@ -93,7 +101,14 @@ int report_lattices(const ExperimentList &sweep, Table &reflections,
                  "restrict the resolution range used.\n");
     return 1;
   }
-  const ExperimentList &joint = r.experiments;
+  // The lattices given keep their identifiers: the same experiments, more
+  // found beside them.
+  ExperimentList joint = r.experiments;
+  for (std::size_t l = 0; l < known_ids.size() && l < joint.size(); ++l)
+    if (!known_ids[l].empty()) {
+      joint.experiments[l].identifier = known_ids[l];
+      reflections.identifiers[l] = known_ids[l];
+    }
   if (r.n_ambiguous > 0)
     std::printf("%zu spots indexed by more than one lattice: %s\n",
                 r.n_ambiguous,
@@ -132,8 +147,8 @@ int report_lattices(const ExperimentList &sweep, Table &reflections,
   // The sweep's own experiment carried through, its lattices after it.
   const ExperimentList written =
       keep_sweeps
-          ? add_sweeps(sweep, joint, std::vector<std::size_t>(joint.size(), 0),
-                       &reflections)
+          ? add_sweeps(carried != nullptr ? *carried : sweep, joint,
+                       std::vector<std::size_t>(joint.size(), 0), &reflections)
           : joint;
   const json::Value document = experiments_to_json(written);
   rflx::write_outputs(out, &document, &reflections, "mxi_index");
@@ -239,6 +254,66 @@ int run_program(int argc, char **argv) {
                    "mxi_index: --ambiguous is exclude or closest, not '%s'\n",
                    ambiguous.c_str());
       return 2;
+    }
+    // Lattices given -- found before, refined since -- and more asked for: a
+    // lattice missed at first looked for again among the spots they leave,
+    // with the geometry they refined (docs/multi-lattice.md). The sweep's own
+    // experiment, if the list carries it, carried again.
+    {
+      const Lattices views = lattices_of(experiments);
+      if (!views.list.empty()) {
+        if (max_lattices <= static_cast<int>(views.list.size())) {
+          std::fprintf(stderr,
+                       "mxi_index: the list has %zu lattice%s already: "
+                       "--max-lattices more than that to look for more\n",
+                       views.list.size(), views.list.size() == 1 ? "" : "s");
+          return 2;
+        }
+        std::vector<std::size_t> sweeps_of;
+        for (std::size_t i = 0; i < experiments.size(); ++i)
+          sweeps_of.push_back(experiments.sweep(i));
+        std::sort(sweeps_of.begin(), sweeps_of.end());
+        if (std::unique(sweeps_of.begin(), sweeps_of.end()) !=
+            sweeps_of.begin() + 1) {
+          std::fprintf(stderr, "mxi_index: lattices looked for again in one "
+                               "sweep at a time, not several\n");
+          return 2;
+        }
+        const auto one_of = [&](std::size_t at) {
+          ExperimentList one;
+          one.experiments.push_back(experiments[at]);
+          one.experiments[0].crystal.reset();
+          one.image_template = experiments.image_template;
+          if (experiments.source.is_object())
+            one.source = slice_experiment_list(experiments.source, at);
+          return one;
+        };
+        const ExperimentList geometry = one_of(views.position[0]);
+        std::vector<Crystal> known;
+        std::vector<std::string> known_ids;
+        for (const Experiment &x : views.list.experiments) {
+          known.push_back(*x.crystal);
+          known_ids.push_back(x.identifier);
+        }
+        std::printf("Looking again for lattices, %zu given, with the geometry "
+                    "they refined\n",
+                    known.size());
+        // Every spot the one sweep's, for the search; numbered again as the
+        // lattices are found.
+        std::fill(reflections.modify_int_column("id", "int", 1).ints.begin(),
+                  reflections.modify_int_column("id", "int", 1).ints.end(), 0);
+        reflections.identifiers.clear();
+        // The sweep's own experiment as given, its identifier with it.
+        const ExperimentList carried =
+            views.any_crystal_less() ? one_of(views.crystal_less[0]) : geometry;
+        return report_lattices(
+            geometry, reflections, options, max_lattices,
+            static_cast<std::size_t>(args.number("--min-lattice-spots", 50)),
+            ambiguous == "closest" ? Ambiguous::Closest : Ambiguous::Exclude,
+            args.number("--ambiguity-sigma", 3.0),
+            keep_sweeps || views.any_crystal_less(), out, known, known_ids,
+            &carried);
+      }
     }
     if (max_lattices > 1)
       return report_lattices(

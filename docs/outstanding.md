@@ -97,7 +97,10 @@ where something is missing.
     the sweep's own experiment, one with no crystal, carried through every
     program and left out only on export to DIALS -- and from them a lattice
     not found at first might be found again, against geometry another
-    lattice refined (stage 2).
+    lattice refined (stage 2). **Mostly done:** behind `mxi_index
+    --keep-sweeps`, every program reads the form and `mxi_convert` writes
+    DIALS's; a missed lattice is recovered beside refined ones. Open: several
+    sweeps carried through integration, and making the form the default.
 * **58.** **difference -- Worst-fitting spots stay indexed.** DIALS leaves its
     worst-fitting out of the indexed set (433 spots of 21299 on the two
     crystals); mxi only out of its fit. Graeme: fine to leave them out, the

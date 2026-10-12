@@ -73,7 +73,8 @@ ExperimentList add_sweeps(const ExperimentList &given,
 //: `table`, if given, numbered to match: a lattice's spots its new index, a
 //: crystal-less experiment's -1, as dials.index leaves an unindexed spot; the
 //: identifier map renumbered. A list without crystal-less experiments, as it
-//: is. mxi_convert's, writing the pair (docs/multi-lattice.md, stage 2).
+//: is; and one without lattices -- imported, before indexing -- likewise.
+//: mxi_convert's, writing the pair (docs/multi-lattice.md, stage 2).
 json::Value dials_form(const json::Value &document, Table *table);
 
 } // namespace mxi

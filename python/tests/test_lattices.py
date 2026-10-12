@@ -324,3 +324,35 @@ def test_the_sweep_carried_through_changes_nothing_refined(tmp_path):
         len(k["experiment"]) == 3
         and k["experiment"][0]["detector"] == k["experiment"][1]["detector"]
     )
+
+
+@pytest.mark.skipif(not REFINE, reason="set MXI_REFINE")
+def test_a_lattice_missed_is_recovered_with_the_refined_geometry(tmp_path):
+    # Graeme: an unindexed lattice recovered at the end, with the refined
+    # geometry of another. One lattice indexed and refined, the sweep carried
+    # through; mxi_index on the refined list, --max-lattices 3, keeps it and
+    # its identifier, finds the second among the spots it leaves -- 13616 and
+    # 7580 spots, as found together at the start -- and no third; the sweep's
+    # own experiment and its unindexed spots carried again.
+    def run(*words):
+        r = subprocess.run(list(words), capture_output=True, text=True, cwd=tmp_path)
+        assert r.returncode == 0, r.stderr[-2000:]
+        return r.stdout
+
+    run(INDEX, STRONG, "--keep-sweeps", "-o", "one.rflx")
+    run(REFINE, "one.rflx", "-o", "refined.rflx")
+    out = run(INDEX, "refined.rflx", "--max-lattices", "3", "-o", "recovered.rflx")
+    assert "1 given" in out
+    before = [
+        e["identifier"]
+        for e in rflx.experiments_dict(str(tmp_path / "refined.rflx"))["experiment"]
+    ]
+    d = rflx.experiments_dict(str(tmp_path / "recovered.rflx"))
+    assert [e.get("crystal") for e in d["experiment"]] == [None, 0, 1]
+    after = [e["identifier"] for e in d["experiment"]]
+    assert after[:2] == before and after[2] not in before
+    t = refl.load(str(tmp_path / "recovered.rflx"))
+    ids = np.asarray(t.columns["id"])
+    indexed = ~np.all(np.asarray(t.columns["miller_index"]).reshape(-1, 3) == 0, axis=1)
+    assert np.sum(ids[indexed] == 2) > 7000 and np.sum(ids[indexed] == 1) > 13000
+    assert set(ids[~indexed].tolist()) == {0}

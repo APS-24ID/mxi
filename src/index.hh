@@ -253,6 +253,8 @@ enum class Ambiguous { Exclude, Closest };
 struct LatticesResult {
   ExperimentList experiments;
   std::vector<std::size_t> found_in, indexed_of;
+  //: How many of the lattices were given, known already: the first so many.
+  std::size_t known = 0;
   std::size_t n_indexed = 0;
   std::size_t n_ambiguous = 0; //: indexed by more than one lattice
   //: Each lattice's RMS scatter, in reciprocal space (1/A): its indexed spots'
@@ -266,13 +268,16 @@ struct LatticesResult {
 //: docs/multi-lattice.md): index the spots not yet indexed, take the lattice
 //: and the spots it indexes, and again on what is left -- until max_lattices,
 //: or a lattice of fewer than min_spots, or one found already; then all
-//: refined together, one detector. `reflections` gets each spot's lattice as
-//: `id`, its Miller index, its flags and the table's identifiers; a spot no
-//: lattice indexes keeps Miller index 0 0 0. One sweep for now.
+//: refined together, one detector. Given `known` lattices -- found and
+//: refined before -- the search starts after them, on the spots they do not
+//: index, with `sweep`'s geometry, theirs. `reflections` gets each spot's
+//: lattice as `id`, its Miller index, its flags and the table's identifiers; a
+//: spot no lattice indexes keeps Miller index 0 0 0. One sweep for now.
 LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
                               const IndexOptions &options, int max_lattices,
                               std::size_t min_spots,
                               Ambiguous ambiguous = Ambiguous::Exclude,
-                              double ambiguity_sigma = 3.0);
+                              double ambiguity_sigma = 3.0,
+                              const std::vector<Crystal> &known = {});
 
 } // namespace mxi

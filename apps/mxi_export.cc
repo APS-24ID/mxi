@@ -548,6 +548,21 @@ int run_program(int argc, char **argv) {
     std::printf(" (%s; %zu left out)\n",
                 scaled ? "scaled intensities" : "profile-fitted and summed",
                 dropped);
+    // The MTZ's summary, as the tutorial reads it off dials.merge: what is in
+    // the file, for the program that reads it next.
+    mtz.update_reso();
+    std::printf("  space group %s; cell %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n",
+                mtz.spacegroup ? mtz.spacegroup->hm : "?", best.a, best.b,
+                best.c, best.alpha, best.beta, best.gamma);
+    std::printf("  resolution %.2f to %.2f A", mtz.resolution_low(),
+                mtz.resolution_high());
+    if (!mtz.batches.empty())
+      std::printf("; batches %d to %d", mtz.batches.front().number,
+                  mtz.batches.back().number);
+    std::printf("\n  columns:");
+    for (const gemmi::Mtz::Column &c : mtz.columns)
+      std::printf(" %s(%c)", c.label.c_str(), c.type);
+    std::printf("\n");
     return 0;
   } catch (const std::exception &ex) {
     std::fprintf(stderr, "mxi_export: %s\n", ex.what());

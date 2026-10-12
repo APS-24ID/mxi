@@ -108,7 +108,9 @@ def test_indexed_in_one_basis_then_each_sweeps_crystal_refined_apart(tmp_path):
     m = re.search(r"Indexed (\d+) of (\d+)", out)
     assert int(m.group(1)) >= 0.95 * int(m.group(2))
     e, (a, b) = matrices(tmp_path / "indexed.expt")
-    assert [x["crystal"] for x in e["experiment"]] == [0, 1]
+    # Each sweep given carried through first, crystal-less (dials/dials#1029,
+    # the default), each sweep's lattice after.
+    assert [x["crystal"] for x in e["experiment"]] == [None, None, 0, 1]
     r = b @ np.linalg.inv(a)
     angle = np.degrees(np.arccos(np.clip((np.trace(r) - 1.0) / 2.0, -1.0, 1.0)))
     assert angle < 0.1, angle

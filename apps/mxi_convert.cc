@@ -41,9 +41,10 @@ const char *kUsage =
     "  --no-compress          a .rflx written uncompressed, as the programs\n"
     "                         write theirs; by default gzip and shuffle, as\n"
     "                         dxtbx-h5 writes, for a file kept or sent\n"
-    "  --keep-sweeps          the pair as mxi has it: each sweep's\n"
-    "                         crystal-less experiment kept; by default left\n"
-    "                         out, its spots' id -1, as DIALS reads them\n";
+    "  --drop-sweeps          the pair without each sweep's crystal-less\n"
+    "                         experiment, its spots' id -1, as dials.index\n"
+    "                         leaves unindexed spots; by default kept, as\n"
+    "                         the .rflx has them\n";
 
 std::string with_extension(const std::string &path, const std::string &ext) {
   return std::filesystem::path(path).replace_extension(ext).string();
@@ -66,6 +67,7 @@ int main(int argc, char **argv) {
                                        "--output-refl",
                                        "--no-compress",
                                        "--keep-sweeps",
+                                       "--drop-sweeps",
                                        "--help"};
   const std::set<std::string> takes_value = {"-o", "--output", "--output-expt",
                                              "--output-refl"};
@@ -117,18 +119,20 @@ int main(int argc, char **argv) {
         std::printf("Wrote %s\n", output.c_str());
         return 0;
       }
-      // The pair in DIALS's form: each sweep's crystal-less experiment left
-      // out, the ids numbered to match, unindexed spots -1 -- unless
-      // --keep-sweeps asks for mxi's (docs/multi-lattice.md, stage 2).
+      // The pair as the .rflx has it, each sweep's crystal-less experiment
+      // with it -- DIALS reads it, and dials.split_experiments can take the
+      // crystal-less one off to be indexed (Graeme). --drop-sweeps leaves
+      // them out, the ids numbered to match, unindexed spots -1, as
+      // dials.index leaves them (docs/multi-lattice.md, stage 2).
       std::optional<Table> table = reflections;
       std::optional<json::Value> list = experiments;
-      if (list && !args.has("--keep-sweeps")) {
+      if (list && args.has("--drop-sweeps")) {
         const std::size_t before = (*list)["experiment"].as_array().size();
         list = dials_form(*list, table ? &*table : nullptr);
         const std::size_t after = (*list)["experiment"].as_array().size();
         if (after < before)
-          std::printf("In DIALS's form: %zu crystal-less experiment%s left "
-                      "out, their spots' id -1 (--keep-sweeps to keep them)\n",
+          std::printf("%zu crystal-less experiment%s left out, their spots' "
+                      "id -1 (--drop-sweeps)\n",
                       before - after, before - after == 1 ? "" : "s");
       }
       if (list) {

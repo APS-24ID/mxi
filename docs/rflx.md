@@ -128,12 +128,12 @@ So the chain becomes
     mxi_convert indexed.rflx -o other.rflx             # a .rflx rewritten
     mxi_convert indexed.expt                           # experiments alone
 
-Written as the pair, the experiment list is in DIALS's form: each sweep's
-crystal-less experiment, which mxi carries through every program
-(`docs/multi-lattice.md`, stage 2), is left out, the lattices numbered from 0,
-and the spots of the sweep -- the unindexed -- given id -1, as dials.index
-leaves them. `--keep-sweeps` writes the pair as mxi has it. A .rflx keeps
-everything.
+Written as the pair, the experiment list is as the .rflx has it, each
+sweep's crystal-less experiment with it (`docs/multi-lattice.md`, stage 2):
+DIALS reads it, and dials.split_experiments can take the crystal-less one off
+to be indexed. `--drop-sweeps` leaves them out instead, the lattices numbered
+from 0 and the spots of the sweep -- the unindexed -- given id -1, as
+dials.index leaves them.
 
 Either half may be absent, as the format allows; a `.refl` it writes is msgpack.
 

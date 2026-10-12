@@ -61,16 +61,16 @@ def ambiguous_count(stdout):
 
 def test_two_lattices_one_detector(tmp_path):
     out, table = index(tmp_path, "closest.rflx", "--ambiguous", "closest")
-    # Each lattice its own spots, the second's not taken by the first: some
-    # 1700 were, before spots were assigned globally.
-    assert np.sum(np.asarray(table.columns["id"])[indexed(table)] == 1) > 7000
+    # The sweep's own experiment first, crystal-less (the default), then the
+    # lattices. Each lattice its own spots, the second's not taken by the
+    # first: some 1700 were, before spots were assigned globally.
+    assert np.sum(np.asarray(table.columns["id"])[indexed(table)] == 2) > 7000
     d = rflx.experiments_dict(str(tmp_path / "closest.rflx"))
-    assert (
-        len(d["experiment"]) == 2 and len(d["detector"]) == 1 and len(d["crystal"]) == 2
-    )
+    assert [e.get("crystal") for e in d["experiment"]] == [None, 0, 1]
+    assert len(d["detector"]) == 1 and len(d["crystal"]) == 2
     assert indexed(table).mean() > 0.99
     ids = np.asarray(table.columns["id"])[indexed(table)]
-    assert set(np.unique(ids)) == {0, 1}
+    assert set(np.unique(ids)) == {1, 2}
     assert table.identifiers == {
         i: e["identifier"] for i, e in enumerate(d["experiment"])
     }
@@ -296,16 +296,18 @@ REFINE = os.environ.get("MXI_REFINE")
 
 @pytest.mark.skipif(not REFINE, reason="set MXI_REFINE")
 def test_the_sweep_carried_through_changes_nothing_refined(tmp_path):
-    # dials/dials#1029 (docs/multi-lattice.md, stage 2): mxi_index
-    # --keep-sweeps writes the sweep's own experiment, crystal-less, first,
+    # dials/dials#1029 (docs/multi-lattice.md, stage 2): mxi_index, by
+    # default, writes the sweep's own experiment, crystal-less, first,
     # its unindexed spots its own, the lattices after it; refined, the
-    # lattices are as without it, the sweep's experiment taking the detector.
+    # lattices are as without it (--no-keep-sweeps), the sweep's experiment
+    # taking the detector.
     def run(*words):
         r = subprocess.run(list(words), capture_output=True, text=True, cwd=tmp_path)
         assert r.returncode == 0, r.stderr[-2000:]
 
-    run(INDEX, STRONG, "--max-lattices", "3", "--keep-sweeps", "-o", "kept.rflx")
-    run(INDEX, STRONG, "--max-lattices", "3", "-o", "plain.rflx")
+    run(INDEX, STRONG, "--max-lattices", "3", "-o", "kept.rflx")
+    run(INDEX, STRONG, "--max-lattices", "3", "--no-keep-sweeps", "-o", "plain.rflx")
+    assert len(rflx.experiments_dict(str(tmp_path / "plain.rflx"))["experiment"]) == 2
     d = rflx.experiments_dict(str(tmp_path / "kept.rflx"))
     assert [e.get("crystal") for e in d["experiment"]] == [None, 0, 1]
     assert len({e["identifier"] for e in d["experiment"]}) == 3
@@ -339,7 +341,7 @@ def test_a_lattice_missed_is_recovered_with_the_refined_geometry(tmp_path):
         assert r.returncode == 0, r.stderr[-2000:]
         return r.stdout
 
-    run(INDEX, STRONG, "--keep-sweeps", "-o", "one.rflx")
+    run(INDEX, STRONG, "-o", "one.rflx")
     run(REFINE, "one.rflx", "-o", "refined.rflx")
     out = run(INDEX, "refined.rflx", "--max-lattices", "3", "-o", "recovered.rflx")
     assert "1 given" in out

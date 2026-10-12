@@ -92,16 +92,6 @@ where something is missing.
     fit batch carries one profile grid, and a sweep's lattices each have their
     own; with several, the fitting is on the CPU. To check against the CPU
     through the emulated device.
-* **57.** **capability -- Sweeps carried through (#1029).** A sweep's spots no
-    lattice indexes keep id 0 and Miller index 0 0 0; they should belong to
-    the sweep's own experiment, one with no crystal, carried through every
-    program and left out only on export to DIALS -- and from them a lattice
-    not found at first might be found again, against geometry another
-    lattice refined (stage 2). **Mostly done:** behind `mxi_index
-    --keep-sweeps`, every program reads the form and `mxi_convert` writes
-    DIALS's; a missed lattice is recovered beside refined ones; several sweeps
-    are integrated a run a sweep, carried through. Open: making the form the
-    default.
 * **58.** **difference -- Worst-fitting spots stay indexed.** DIALS leaves its
     worst-fitting out of the indexed set (433 spots of 21299 on the two
     crystals); mxi only out of its fit. Graeme: fine to leave them out, the
@@ -278,6 +268,12 @@ where something is missing.
     `docs/spots_notes.md`, `docs/spotfinder.md` -- which could be one.
 
 ## Closed
+
+* **57.** Sweeps carried through (dials/dials#1029): each sweep's own
+    experiment, crystal-less, carried through every program by default, its
+    unindexed spots its own; `mxi_index --no-keep-sweeps` the lattices alone,
+    `mxi_convert --drop-sweeps` the pair without them. A missed lattice
+    recovered beside refined ones. `docs/multi-lattice.md`, stage 2.
 
 * **16.** Several crystals on one side of the indexing ambiguity: cosym in
     `mxi_symmetry`, the same coset as dials.cosym on two crystals of insulin.

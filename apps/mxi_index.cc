@@ -53,8 +53,9 @@ void usage() {
       "  --ambiguous exclude|closest  a spot more than one lattice indexes:\n"
       "                    left out of refinement, unindexed (exclude), or\n"
       "                    given to the lattice it lies nearest (closest)\n"
-      "  --keep-sweeps     carry each sweep given through, crystal-less, its\n"
-      "                    unindexed spots its own, the lattices after them\n"
+      "  --no-keep-sweeps  the lattices alone; by default each sweep given is\n"
+      "                    carried through first, crystal-less, its unindexed\n"
+      "                    spots its own, the lattices after it\n"
       "                    (dials/dials#1029)\n"
       "  --ambiguity-sigma S  ambiguous: within S of each lattice's own RMS\n"
       "                    scatter of a second lattice's point (3)\n"
@@ -166,7 +167,8 @@ int run_program(int argc, char **argv) {
       "--verbose",        "--macrocycles",      "--all-reflections",
       "--timing",         "--jacobian-threads", "--fft-threads",
       "--shared-crystal", "--max-lattices",     "--min-lattice-spots",
-      "--ambiguous",      "--ambiguity-sigma",  "--keep-sweeps"};
+      "--ambiguous",      "--ambiguity-sigma",  "--keep-sweeps",
+      "--no-keep-sweeps"};
   const std::set<std::string> takes_value = {"--d-min",
                                              "--max-cell",
                                              "--grid",
@@ -230,7 +232,9 @@ int run_program(int argc, char **argv) {
     Table reflections = read_reflections(args.positional[1]);
     // As given, for --keep-sweeps: each carried through crystal-less.
     const ExperimentList given = experiments;
-    const bool keep_sweeps = args.has("--keep-sweeps");
+    // Each sweep given carried through, its unindexed spots its own: the
+    // default (Graeme), --no-keep-sweeps the lattices alone, as before.
+    const bool keep_sweeps = !args.has("--no-keep-sweeps");
     const double t_read_seconds = Timing::now() - t_run_start;
     std::printf("Indexing %zu reflections from %zu experiment%s\n",
                 reflections.nrows, experiments.size(),

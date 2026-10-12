@@ -189,6 +189,29 @@ crystals' whole background. Both mended, the same two crystals scale with a =
 0.98; insulin's sweep 0.95 1.06 1.09 1.13 1.23 1.20, where it was 0.66 0.92
 1.04 1.13 1.27 1.23. CC half as it was.
 
+## Variances from the model
+
+An observation's variance from integration moves with its own noise -- a low
+one gets a small variance and a large weight -- so an inverse-variance
+weighted mean leans low, and at a high multiplicity of weak data the merged
+I/sigma goes negative: Graeme's ten-turn insulin, -5.7 in the outer shell at a
+multiplicity of 210 (`docs/integration.md`, "The fitted variance"). Once a
+model exists, each observation's variance is built on it instead: its
+variance with no signal, which integration writes, plus the signal's Poisson
+variance at the model's intensity g I_h, corrected as the observation is --
+the same model for every observation of a reflection. The profile and summed
+variances with no signal are mixed as the variances are; the error model's b
+term and its intensity bins take the model's intensity too. Done after the
+first fit and again after each, the last before the final error model. A
+table integrated before, without the columns, scales as it did.
+
+Each reflection's weighted mean against its plain mean, in its merged sigma,
+by resolution sextile: the two crystals -0.89 -1.73 -2.37 -2.23 -1.66 -0.96
+before, -0.10 -0.08 -0.06 -0.02 -0.01 +0.03 after, merged I/sigma in the outer
+two 0.4 and 1.4 to 1.0 and 2.4; insulin -0.05 to -0.17 to within 0.06. The
+calibration by mean intensity sextile, the two crystals 0.42 0.80 1.06 1.05
+0.93 0.98 to 0.79 1.01 1.02 0.98 0.98 0.99; insulin 0.99 to 1.21 as it was.
+
 ## The scale's uncertainty, before the error model
 
 The covariance of the parameters is the inverse of the normal matrix of the

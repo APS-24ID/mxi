@@ -125,22 +125,13 @@ where something is missing.
 
 ## Scaling
 
-* **60.** **correctness -- Merging's weights from each observation's own
-    noise.** An observation's variance, from integration, still moves with
-    its own intensity -- max(I, 0) in summation's Poisson term, the fitted
-    intensity in profile fitting's -- so at very low counts an
-    inverse-variance weighted mean leans negative: on bare background, 210
-    observations' at -1.9 sigma (-12.9 before integration's variance was
-    taken from expected counts). Variances from the scaling model's
-    intensity, the same for every observation of a reflection, would remove
-    it. `docs/integration.md`, "The fitted variance".
 
 * **54.** **correctness -- Weak reflections' sigma, the last of it.** The
     fitted variance's background term carried through the fit's weights, and
     a pixel's least variance 0.001 counts rather than 0.05: insulin's weakest
     scaled sextile 0.66 to 0.95, the two crystals' 0.26 to 0.42 and 0.58 to
-    0.80. Left: shoeboxes of a handful of counts, where a variance from the
-    fit's own noisy intensity is least to be trusted. `docs/integration.md`,
+    0.80, and with scaling's variances from the model 0.79 and 1.01. Left:
+    the very weakest of the weakest crystal, 0.79. `docs/integration.md`,
     "The fitted variance". The CUDA and Metal kernels carry the change,
     unbuilt here.
 
@@ -276,6 +267,11 @@ where something is missing.
     `docs/spots_notes.md`, `docs/spotfinder.md` -- which could be one.
 
 ## Closed
+
+* **60.** Merging's weights from each observation's own noise: each variance
+    now from the model's intensity, on integration's variance with no
+    signal. The weighted means' bias on the two crystals -2.4 to within 0.1
+    merged sigma. `docs/scaling.md`, "Variances from the model".
 
 * **56.** `--gpu` with several lattices: a fit batch a lattice, each on its
     own profile grid. Emulated, one pass the same as each lattice alone, bit

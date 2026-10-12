@@ -48,6 +48,19 @@ struct ScaleData {
   //: Both estimates, corrected likewise, for combining them; has_sum is false
   //: where summation failed, as it does across a module gap.
   std::vector<double> prf, prf_variance, sum, sum_variance;
+  //: Each observation's variance with no signal, profile and summed, as
+  //: integration wrote them (corrected as the variances are), and as
+  //: combined; its correction factor; and, once a model exists, its intensity
+  //: under the model, g I_h. The variance is then built on the model, not on
+  //: the observation's own noise (model_variances).
+  std::vector<double> prf_variance_bg, sum_variance_bg, variance_background;
+  std::vector<double> factor, model_intensity;
+  bool has_background = false;
+  //: The intensity the error model's b term and bins take: the model's once
+  //: there is one, else the observation's.
+  double b_intensity(std::size_t i) const {
+    return model_intensity.empty() ? intensity[i] : model_intensity[i];
+  }
   std::vector<bool> has_sum;
   //: Which half of its Friedel pair each observation is (true for I+ and
   //: for centric reflections), and whether each group is centric.
@@ -188,6 +201,17 @@ ErrorModel refine_error_model(const ScaleData &data,
 //: The error model applied to every observation's variance, from the variance
 //: before any: applying it twice does not compound.
 void apply_error_model(ScaleData &data, const ErrorModel &model);
+
+//: Each observation's variance from the model rather than its own noise: its
+//: variance with no signal, plus the signal's Poisson variance at the model's
+//: intensity g I_h, corrected as the observation is. An observation's own
+//: variance moves with its own intensity, so an inverse-variance weighted
+//: mean leans toward the low ones: on bare background at a hundredth of a
+//: count a pixel, 210 observations' at -1.9 sigma after integration's
+//: variance from expected counts, and profile fitting's further
+//: (docs/integration.md, "The fitted variance"). False, and nothing done, if
+//: integration wrote no variances with no signal.
+bool model_variances(ScaleData &data, const std::vector<double> &g);
 
 //: I = w I_prf + (1 - w) I_sum with w = 1 / (1 + (I_sum / I_mid)^3), eqns 13
 //: and 14; the variance as for fully correlated estimates, which they are,

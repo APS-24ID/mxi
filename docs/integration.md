@@ -469,9 +469,20 @@ inverse-variance weighted mean of 210 at -12.9 sigma -- merging's negative
 intensities. With the expected counts, max(I, 0) + I_bg: mean I/sigma -0.07,
 the weighted mean of 210 -1.9 sigma. The rest is the max(I, 0), a positive
 fluctuation still raising its own variance; only a model's intensity, the
-same for every observation of a reflection, removes it -- in scaling
-(`docs/outstanding.md`, 60). Insulin's sweep: 877 variances of 21030 change,
-merged I/sigma 18.9 to 18.7.
+same for every observation of a reflection, removes it -- in scaling. Insulin's
+sweep: 877 variances of 21030 change, merged I/sigma 18.9 to 18.7.
+
+**Variances from the model, in scaling.** Graeme's rerun was unmoved, digit for
+digit: its weak intensities are profile fitted, and the fit's weights b +
+max(I, 0) p make its variance move with its own noise the same way --
+simulated at 0.005 to 0.5 counts a pixel, a weighted mean of 210 at -3 to
+-18.6 sigma, worst for weak but real signal. No variance from an observation's
+own pixels is free of it. So integration writes each observation's variance
+with no signal -- `intensity.sum.variance_background`, gain I_bg and the
+background estimate's term; `intensity.prf.variance_background`, the fit's
+with weights b alone, gain b P^2 / sum(p^2) and the background's term carried
+by P sum(p) / sum(p^2) -- and scaling (`docs/scaling.md`) builds each
+variance on it and the model's intensity.
 
 What remains is the weakest sextile of the weakest crystal: shoeboxes of a
 handful of counts, where a variance taken from the fit's own noisy intensity

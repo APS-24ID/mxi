@@ -47,6 +47,13 @@ ScaleData build_scale_data(const ExperimentList &experiments,
   const Column &pvar = reflections.at("intensity.prf.variance");
   const Column &sv = reflections.at("intensity.sum.value");
   const Column &svar = reflections.at("intensity.sum.variance");
+  // Each variance with no signal, if integration wrote them.
+  const bool has_bg = reflections.has("intensity.prf.variance_background") &&
+                      reflections.has("intensity.sum.variance_background");
+  const Column *pvar_bg =
+      has_bg ? &reflections.at("intensity.prf.variance_background") : nullptr;
+  const Column *svar_bg =
+      has_bg ? &reflections.at("intensity.sum.variance_background") : nullptr;
 
   // First each row on its own, in parallel: whether it is taken, and its
   // symmetry -- absent, its unique index, which Friedel mate -- which loop over
@@ -182,6 +189,14 @@ ScaleData build_scale_data(const ExperimentList &experiments,
     data.prf_variance.push_back(pvar.reals[i] * factor * factor);
     data.sum.push_back(sv.reals[i] * factor);
     data.sum_variance.push_back(svar.reals[i] * factor * factor);
+    data.factor.push_back(factor);
+    if (has_bg) {
+      const double pb = pvar_bg->reals[i] * factor * factor;
+      const double sb = svar_bg->reals[i] * factor * factor;
+      data.prf_variance_bg.push_back(pb);
+      data.sum_variance_bg.push_back(sb);
+      data.variance_background.push_back(profile ? pb : sb);
+    }
     data.has_sum.push_back(summed);
     data.plus.push_back(plus_of[i] != 0);
     data.observation.push_back(std::move(o));
@@ -190,6 +205,7 @@ ScaleData build_scale_data(const ExperimentList &experiments,
     data.d.push_back(d);
     data.outlier.push_back(false);
   }
+  data.has_background = has_bg;
   if (shape.lmax > 0 && has_s1) {
     const Column &s1 = reflections.at("s1");
     for_each_index(data.size(), [&](std::size_t k) {
@@ -758,7 +774,7 @@ ErrorModel refine_error_model(const ScaleData &data,
   for (std::size_t i : use) {
     const double g2 = g[i] * g[i];
     A_of[i] = (data.variance_before[i] + data.scale_term_at(i)) / g2;
-    B_of[i] = data.intensity[i] * data.intensity[i] / g2;
+    B_of[i] = data.b_intensity(i) * data.b_intensity(i) / g2;
     SA[data.group[i]] += c[i] * c[i] * A_of[i];
     SB[data.group[i]] += c[i] * c[i] * B_of[i];
   }
@@ -783,14 +799,14 @@ ErrorModel refine_error_model(const ScaleData &data,
   }; // Intensity bins for b: logarithmically spaced over the used intensities.
   double lo = HUGE_VAL, hi = 0.0;
   for (std::size_t i : use) {
-    const double v = std::fmax(data.intensity[i], 1e-3);
+    const double v = std::fmax(data.b_intensity(i), 1e-3);
     lo = std::fmin(lo, v);
     hi = std::fmax(hi, v);
   }
   const int nbins = 20;
   std::vector<int> bin(use.size());
   for (std::size_t k = 0; k < use.size(); ++k) {
-    const double v = std::fmax(data.intensity[use[k]], 1e-3);
+    const double v = std::fmax(data.b_intensity(use[k]), 1e-3);
     bin[k] = hi > lo ? std::min(nbins - 1,
                                 static_cast<int>(nbins * std::log(v / lo) /
                                                  std::log(hi / lo)))
@@ -854,11 +870,29 @@ ErrorModel refine_error_model(const ScaleData &data,
 }
 
 void apply_error_model(ScaleData &data, const ErrorModel &model) {
-  for (std::size_t i = 0; i < data.size(); ++i)
-    data.variance[i] =
-        model.a * model.a *
-        (data.variance_before[i] + data.scale_term_at(i) +
-         model.b * model.b * data.intensity[i] * data.intensity[i]);
+  for (std::size_t i = 0; i < data.size(); ++i) {
+    const double I = data.b_intensity(i);
+    data.variance[i] = model.a * model.a *
+                       (data.variance_before[i] + data.scale_term_at(i) +
+                        model.b * model.b * I * I);
+  }
+}
+
+bool model_variances(ScaleData &data, const std::vector<double> &g) {
+  if (!data.has_background || data.variance_background.size() != data.size())
+    return false;
+  const GroupSums s = group_sums(data, g);
+  data.model_intensity.assign(data.size(), 0.0);
+  for (std::size_t i = 0; i < data.size(); ++i) {
+    const std::size_t h = data.group[i];
+    const double mean = s.den[h] > 0.0 ? s.num[h] / s.den[h] : 0.0;
+    const double m = g[i] * mean;
+    data.model_intensity[i] = m;
+    data.variance_before[i] =
+        data.variance_background[i] + data.factor[i] * std::fmax(m, 0.0);
+    data.variance[i] = data.variance_before[i] + data.scale_term_at(i);
+  }
+  return true;
 }
 
 void combine_intensities(ScaleData &data, double i_mid) {
@@ -876,6 +910,13 @@ void combine_intensities(ScaleData &data, double i_mid) {
     const double sigma = w * sp + (1.0 - w) * (data.has_sum[i] ? ss : sp);
     data.variance[i] = sigma * sigma;
     data.variance_before[i] = sigma * sigma;
+    if (data.has_background) {
+      // The variances with no signal, mixed as the variances are.
+      const double bp = std::sqrt(std::fmax(data.prf_variance_bg[i], 0.0)),
+                   bs = std::sqrt(std::fmax(data.sum_variance_bg[i], 0.0));
+      const double b = w * bp + (1.0 - w) * (data.has_sum[i] ? bs : bp);
+      data.variance_background[i] = b * b;
+    }
   });
 }
 
@@ -1271,12 +1312,15 @@ ScaleRun scale_sweep(const ExperimentList &experiments,
     reject_outliers(data, run.g);
   }
   step("outliers and profile against summation");
+  // From here each variance from the model, not the observation's own noise.
+  model_variances(data, run.g);
   run.error_model = refine_error_model(data, run.g);
   apply_error_model(data, run.error_model);
   step("error model 1");
   fit();
   step("fit 2");
   reject_outliers(data, run.g);
+  model_variances(data, run.g);
   run.error_model = refine_error_model(data, run.g);
   apply_error_model(data, run.error_model);
   step("outliers and error model 2");
@@ -1294,6 +1338,7 @@ ScaleRun scale_sweep(const ExperimentList &experiments,
   propagate_scale_variances(data, run.g, run.g_variance);
   step("the scale's uncertainty");
   run.outliers = reject_outliers(data, run.g);
+  model_variances(data, run.g);
   run.error_model = refine_error_model(data, run.g);
   apply_error_model(data, run.error_model);
   step("final outliers and error model");

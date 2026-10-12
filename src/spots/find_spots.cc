@@ -549,12 +549,22 @@ void reconcile(const expt::Info &experiments, const series::Info &series,
   }
   if (experiments.image_slow > 0 && (experiments.image_slow != series.height ||
                                      experiments.image_fast != series.width)) {
+    // The panel the frames' size turned round is the file's metadata with its
+    // x and y pixel counts swapped, the data the right shape: mxi_import now
+    // takes the data's, so importing again mends it.
+    const bool swapped = experiments.image_fast == series.height &&
+                         experiments.image_slow == series.width;
     throw std::runtime_error(
         "the panel in " + options->experiments + " is " +
         std::to_string(experiments.image_fast) + " x " +
         std::to_string(experiments.image_slow) + " and the frames are " +
         std::to_string(series.width) + " x " + std::to_string(series.height) +
-        " (fast x slow); these are not the same images");
+        " (fast x slow); " +
+        (swapped ? "the one is the other turned round -- the file's own "
+                   "detector size has its x and y swapped, the data the "
+                   "right shape. mxi_import takes the data's now: import "
+                   "again"
+                 : std::string("these are not the same images")));
   }
   // A scan covering fewer images than the file is not a mismatch to warn
   // about: the frames outside it are simply not read. It used to warn that z

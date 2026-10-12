@@ -84,6 +84,19 @@ overrides apply to every master alike.
 Every unit is read from its attribute -- lengths to mm, angles to degrees -- and
 one missing is taken as mm or degrees and said.
 
+## The panel is the size the data are
+
+Masters have been written with the detector's x and y pixel counts the wrong
+way round -- `x_pixels_in_detector` and `y_pixels_in_detector`, or a module's
+`data_size` -- the data the right shape; DIALS works around it. Here the data
+are what is read, so a single panel is the frames' size as the data have it:
+`/entry/data/data`, or the numbered links to the data files' stacks, or,
+those not to be opened, the detector's `pixel_mask`, a frame's shape. Where
+the file disagrees, a note says what it said and whether its two were simply
+swapped. A detector of several modules is left as the file has it, the
+modules being the frame between them. `mxi_find`, given a list imported
+before, says so when a panel is the frames turned round, and to import again.
+
 ## The older DECTRIS file writer's masters
 
 Before NXmx, DECTRIS's own file writer wrote a "nearly NeXus" master -- Graeme's

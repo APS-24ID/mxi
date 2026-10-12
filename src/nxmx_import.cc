@@ -499,6 +499,35 @@ std::optional<LinkedFrames> linked_frames(hid_t file) {
   return out;
 }
 
+// The frames' height and width -- slow, fast -- as the data have them: from
+// /entry/data/data, or the numbered links to the data files' stacks, or,
+// those not to be opened, the detector's pixel mask, which is a frame's
+// shape. None if none of them is there.
+std::optional<std::pair<long long, long long>>
+frame_shape(hid_t file, const std::string &detector) {
+  const auto dims_of =
+      [&](const std::string &path,
+          int rank) -> std::optional<std::pair<long long, long long>> {
+    if (H5Lexists(file, path.c_str(), H5P_DEFAULT) <= 0)
+      return std::nullopt;
+    H5 d(H5Dopen2(file, path.c_str(), H5P_DEFAULT), H5Dclose);
+    if (!d.ok())
+      return std::nullopt;
+    H5 space(H5Dget_space(d.get()), H5Sclose);
+    if (H5Sget_simple_extent_ndims(space.get()) != rank)
+      return std::nullopt;
+    hsize_t dims[3] = {0, 0, 0};
+    H5Sget_simple_extent_dims(space.get(), dims, nullptr);
+    return std::make_pair(static_cast<long long>(dims[rank - 2]),
+                          static_cast<long long>(dims[rank - 1]));
+  };
+  if (const auto s = dims_of("/entry/data/data", 3))
+    return s;
+  if (const auto linked = linked_frames(file))
+    return std::make_pair(linked->height, linked->width);
+  return dims_of(detector + "/pixel_mask", 2);
+}
+
 } // namespace
 
 double attenuation_coefficient(const std::string &material, double wavelength) {
@@ -875,6 +904,31 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
     notes->push_back(std::to_string(panels.size()) +
                      " modules, so as many panels: a detector of several "
                      "panels is untested here");
+
+  // The panel's size as the data have it. Files have been written with the
+  // detector's x and y pixel counts the wrong way round -- the data the right
+  // shape -- and DIALS works around it; here the data are what is read, so
+  // they are what the panel is. One panel, the whole frame; several are the
+  // frame between them, and left as the file has them.
+  if (panels.size() == 1) {
+    if (const auto shape = frame_shape(f, detector)) {
+      json::Object p = panels[0].as_object();
+      const json::Array size = p["image_size"].as_array();
+      const long long nx = static_cast<long long>(size.at(0).as_number());
+      const long long ny = static_cast<long long>(size.at(1).as_number());
+      const long long width = shape->second, height = shape->first;
+      if (width > 0 && height > 0 && (nx != width || ny != height)) {
+        notes->push_back(
+            "the file says the detector is " + std::to_string(nx) + " x " +
+            std::to_string(ny) + " pixels (fast x slow) and its data are " +
+            std::to_string(width) + " x " + std::to_string(height) +
+            (nx == height && ny == width ? ", the file's two swapped" : "") +
+            ": the data's taken");
+        p["image_size"] = json::Array{width, height};
+        panels[0] = json::Value(std::move(p));
+      }
+    }
+  }
 
   // The overrides of where the detector is, on the first panel's plane.
   auto &p0 = panels[0].as_object();

@@ -211,6 +211,17 @@ __global__ void fit_kernel(Setup setup, const PanelF *panels, const BoxF *boxes,
       const float carried = profile_sum * weight / weight2;
       f.variance += setup.gain * bg / background_pixels * carried * carried;
     }
+    // With no signal: weights b alone, as fit_on_pixels.
+    f.variance_background = 0.0f;
+    if (SPP > 0.0f) {
+      const float b0 = bg > kLeastVariance ? bg : kLeastVariance;
+      f.variance_background = setup.gain * b0 * profile_sum * profile_sum / SPP;
+      if (background_pixels > 0.0f) {
+        const float carried = profile_sum * SP / SPP;
+        f.variance_background +=
+            setup.gain * bg / background_pixels * carried * carried;
+      }
+    }
     if (N > 1.0f) {
       const float cov = SPD / N - (SP / N) * (SD / N);
       const float va = SPP / N - (SP / N) * (SP / N),

@@ -64,6 +64,9 @@ struct IntegratedReflection {
   //: Background-subtracted sum over the foreground, uncorrected.
   double intensity = 0.0;
   double variance = 0.0;
+  //: The variance with no signal: the background's counts and its estimate's
+  //: own term -- for scaling to add the model's signal to.
+  double variance_background = 0.0;
   //: The fitted background, per pixel, and summed over the foreground.
   double background_mean = 0.0;
   double background_sum = 0.0;

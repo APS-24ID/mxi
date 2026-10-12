@@ -781,6 +781,29 @@ ProfileFit fit_on_pixels(const Shoebox &box,
       out.variance +=
           gain * (mean_background / background_pixels) * carried * carried;
     }
+    // With no signal: weights the background's, b alone -- the fit's variance
+    // gain b P^2 / sum(p^2), and the background's term carried by P sum(p) /
+    // sum(p^2) -- over the foreground pixels the fit used.
+    if (foreground > 0.0) {
+      const double mean_background = background_sum / foreground;
+      double p1 = 0.0, p2 = 0.0;
+      for (std::size_t i = 0; i < box.size(); ++i) {
+        if ((box.mask[i] & shoebox_mask::kForeground) == 0 ||
+            (box.mask[i] & shoebox_mask::kValid) == 0)
+          continue;
+        p1 += pixel_profile[i];
+        p2 += pixel_profile[i] * pixel_profile[i];
+      }
+      if (p2 > 0.0) {
+        const double b0 = std::max(mean_background, kLeastVariance);
+        out.variance_background = gain * b0 * profile_sum * profile_sum / p2;
+        if (background_pixels > 0.0) {
+          const double carried = profile_sum * p1 / p2;
+          out.variance_background +=
+              gain * (mean_background / background_pixels) * carried * carried;
+        }
+      }
+    }
   }
 
   double n = 0.0, sp = 0.0, sd = 0.0, spp = 0.0, sdd = 0.0, spd = 0.0;

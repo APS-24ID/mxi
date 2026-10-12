@@ -124,6 +124,9 @@ struct BoxF {
 struct FitF {
   int valid = 0, iterations = 0;
   float intensity = 0.0f, variance = 0.0f, correlation = 0.0f, measured = 1.0f;
+  //: The variance with no signal (ProfileFit::variance_background): last, so
+  //: the fields before it keep their places in the kernels' copies.
+  float variance_background = 0.0f;
 };
 
 //: The laboratory position of a point on a panel given in pixels, parallax
@@ -387,6 +390,16 @@ FIT_HD inline FitF fit_profile(const Setup &setup, const BoxF &box,
                 vb = sdd / n - (sd / n) * (sd / n);
     if (va > 0.0f && vb > 0.0f)
       out.correlation = cov / f_sqrt(va * vb);
+  }
+  // With no signal: weights b alone, as fit_on_pixels.
+  if (spp > 0.0f) {
+    const float b0 = b > kLeastVariance ? b : kLeastVariance;
+    out.variance_background = setup.gain * b0 * profile_sum * profile_sum / spp;
+    if (background_pixels > 0.0f) {
+      const float carried = profile_sum * sp / spp;
+      out.variance_background +=
+          setup.gain * b / background_pixels * carried * carried;
+    }
   }
   out.valid = 1;
   return out;

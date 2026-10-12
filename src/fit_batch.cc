@@ -18,7 +18,7 @@ static_assert(sizeof(fitdev::F3) == 12, "F3 as the shader has it");
 static_assert(sizeof(fitdev::PanelF) == 72, "PanelF as the shader has it");
 static_assert(sizeof(fitdev::Setup) == 68, "Setup as the shader has it");
 static_assert(sizeof(fitdev::BoxF) == 60, "BoxF as the shader has it");
-static_assert(sizeof(fitdev::FitF) == 24, "FitF as the shader has it");
+static_assert(sizeof(fitdev::FitF) == 28, "FitF as the shader has it");
 
 namespace {
 
@@ -156,6 +156,7 @@ ProfileFit to_profile_fit(const fitdev::FitF &f) {
   p.correlation = static_cast<double>(f.correlation);
   p.iterations = f.iterations;
   p.measured = static_cast<double>(f.measured);
+  p.variance_background = static_cast<double>(f.variance_background);
   return p;
 }
 

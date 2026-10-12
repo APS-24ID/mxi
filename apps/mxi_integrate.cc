@@ -1452,6 +1452,10 @@ int run_program(int argc, char **argv) {
     Column &s1_column = out.real_column("s1", "vec3<double>", 3);
     Column &isum = out.real_column("intensity.sum.value", "double", 1);
     Column &ivar = out.real_column("intensity.sum.variance", "double", 1);
+    // Each variance with no signal, for scaling to add the model's signal to
+    // (docs/integration.md, "The fitted variance").
+    Column &ivar_bg =
+        out.real_column("intensity.sum.variance_background", "double", 1);
     Column &bmean = out.real_column("background.mean", "double", 1);
     Column &bsum = out.real_column("background.sum.value", "double", 1);
     Column &bsumvar = out.real_column("background.sum.variance", "double", 1);
@@ -1475,6 +1479,8 @@ int run_program(int argc, char **argv) {
         out.real_column("xyzres.px.variance", "vec3<double>", 3);
     Column &iprf = out.real_column("intensity.prf.value", "double", 1);
     Column &iprf_var = out.real_column("intensity.prf.variance", "double", 1);
+    Column &iprf_var_bg =
+        out.real_column("intensity.prf.variance_background", "double", 1);
     Column &prf_cc = out.real_column("profile.correlation", "double", 1);
     // How much of each reflection the detector actually recorded. Not a DIALS
     // column; written because 11 per cent of reflections here touch a module
@@ -1576,6 +1582,7 @@ int run_program(int argc, char **argv) {
         s1_column.reals[row * 3 + k] = p.s1[k];
       isum.reals[row] = r.intensity;
       ivar.reals[row] = r.variance;
+      ivar_bg.reals[row] = r.variance_background;
       bmean.reals[row] = r.background_mean;
       bsum.reals[row] = r.background_sum;
       bsumvar.reals[row] = r.background_sum_variance;
@@ -1938,6 +1945,7 @@ int run_program(int argc, char **argv) {
       }
       iprf.reals[row] = fit.intensity;
       iprf_var.reals[row] = fit.variance;
+      iprf_var_bg.reals[row] = fit.variance_background;
       prf_cc.reals[row] = fit.correlation;
       flags.ints[row] |= flag::kIntegratedPrf;
     };

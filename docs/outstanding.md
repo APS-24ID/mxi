@@ -9,6 +9,12 @@ where something is missing.
 
 ## Integration
 
+* **55.** **difference -- Summation 2 to 3 per cent below DIALS's on the two
+    crystals**, profile fitting within 0.3 per cent. Not the other lattice's
+    pixels in the background -- masking them moved the overlapped reflections
+    by 0.1 and 0.5 per cent -- and the profile model only part of it: in what
+    every reflection shares, the foreground's extent or the background's fit.
+
 * **1.** **correctness -- Partials come out high.** Judged by symmetry equivalents,
    observations with partiality below 0.9 are 10.5 per cent high, and those in
    the first two and last five images 4 to 5 per cent: partiality looks
@@ -78,6 +84,25 @@ where something is missing.
   GLM over the box's own pixels, fewer passes -- which helps every path and says
   what is left for a device.
 
+## Several lattices
+
+`docs/multi-lattice.md` for the design and the measurements.
+
+* **56.** **capability -- `--gpu` fits one lattice at a time.** The device's
+    fit batch carries one profile grid, and a sweep's lattices each have their
+    own; with several, the fitting is on the CPU. To check against the CPU
+    through the emulated device.
+* **57.** **capability -- Sweeps carried through (#1029).** A sweep's spots no
+    lattice indexes keep id 0 and Miller index 0 0 0; they should belong to
+    the sweep's own experiment, one with no crystal, carried through every
+    program and left out only on export to DIALS -- and from them a lattice
+    not found at first might be found again, against geometry another
+    lattice refined (stage 2).
+* **58.** **difference -- Worst-fitting spots stay indexed.** DIALS leaves its
+    worst-fitting out of the indexed set (433 spots of 21299 on the two
+    crystals); mxi only out of its fit. Graeme: fine to leave them out, the
+    problem being overdetermined, but after the final refinement.
+
 ## Refinement
 
 * **12.** **correctness -- Outlier rejection is milder than DIALS'**: 11714
@@ -93,10 +118,11 @@ where something is missing.
 
 ## Symmetry
 
-* **16.** **capability -- One sweep only.** With more than one, sweeps must be put on
-    the same side of the indexing ambiguity -- dials.symmetry and this already
-    choose opposite sides on one cubic sweep -- by a reference or by
-    dials.cosym's method. `docs/symmetry.md`.
+* **59.** **capability -- cosym for many partial data sets.** Whole sweeps
+    give every entry of cosym's correlation matrix, and its leading
+    eigenvectors are the fit; many small wedges, as the paper's examples, will
+    want the correlations with too few reflections in common left out, and the
+    coordinates fitted around them by L-BFGS. `docs/multi-lattice.md`.
 * **17.** **difference -- Normalisation is by resolution shells**, where DIALS fits an
     anisotropic maximum-likelihood model; the identity CC is 0.858 against
     0.931 on one sweep. The first thing to revisit if a harder case disagrees.
@@ -108,6 +134,13 @@ where something is missing.
 * **20.** **capability -- No obliquity (delta) column** in the table of subgroups.
 
 ## Scaling
+
+* **54.** **difference -- The error model's a: 1.12 where dials.scale's is
+    near 0.8.** On the two crystals of insulin the scaled intensities agree to
+    CC 0.9997 and R merge and CC half to the third place, but merged mean
+    I/sigma is 9.4 against 12.5: mxi's error model widens a weak reflection's
+    sigma 38 per cent more than DIALS's, a strong one's 7. dials.scale's log
+    would give its a and b. `docs/multi-lattice.md`.
 
 * **21.** **capability -- One sweep only.**
 * **22.** **capability -- No free-set validation**, the check for overfitting.
@@ -241,6 +274,10 @@ where something is missing.
     `docs/spots_notes.md`, `docs/spotfinder.md` -- which could be one.
 
 ## Closed
+
+* **16.** Several crystals on one side of the indexing ambiguity: cosym in
+    `mxi_symmetry`, the same coset as dials.cosym on two crystals of insulin.
+    `docs/symmetry.md`, `docs/multi-lattice.md`.
 
 * **25.** dials.merge on `scaled.refl`: it takes it, run by Graeme.
 * **38.** Integration decompressing every frame twice: one pass over the

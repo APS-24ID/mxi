@@ -1066,7 +1066,14 @@ int run_program(int argc, char **argv) {
             lm = reflecting_range(samples, Scan::radians(le.scan.osc_width),
                                   0.0);
           }
-          sources[l] = "estimated from the indexed spots";
+          // Which were estimated: a number given is not.
+          sources[l] =
+              given_b > 0.0
+                  ? "sigma_b given, sigma_m estimated from the indexed "
+                    "spots"
+              : given_m > 0.0 ? "sigma_b estimated from the indexed "
+                                "spots, sigma_m given"
+                              : "estimated from the indexed spots";
         }
         double ln = n_sigma;
         if ((!(lb > 0.0) || !(lm > 0.0)) && experiments.profile.present) {

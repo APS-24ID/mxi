@@ -9,11 +9,15 @@ where something is missing.
 
 ## Integration
 
-* **55.** **difference -- Summation 2 to 3 per cent below DIALS's on the two
-    crystals**, profile fitting within 0.3 per cent. Not the other lattice's
-    pixels in the background -- masking them moved the overlapped reflections
-    by 0.1 and 0.5 per cent -- and the profile model only part of it: in what
-    every reflection shares, the foreground's extent or the background's fit.
+* **55.** **understood -- Summation 2 to 3 per cent below DIALS's on the two
+    crystals**: the foreground's extent. A 3 sigma ellipsoid holds 97.1 per
+    cent of a three-dimensional Gaussian, and mxi's sigma_b is some 6 per cent
+    below DIALS's -- the same estimator, line for line; the spot finder's
+    pixels the difference -- so its foreground holds a little less of each
+    spot. At 3.5 sigma summation is 1.002 and 0.997 of DIALS's, profile
+    fitting 1.012 and 1.005: both move, so not the background. A constant
+    fraction, which scaling takes up; an error only if it varies with the
+    geometry.
 
 * **1.** **correctness -- Partials come out high.** Judged by symmetry equivalents,
    observations with partiality below 0.9 are 10.5 per cent high, and those in
@@ -32,6 +36,11 @@ where something is missing.
   sigma_m half again too wide makes a cut box's rocking curve look more partial
   than it is, and dividing by that overshoots: items 1 and 3 are likely one. To
   test, `mxi_integrate --sigma-m 0.086` and the tool again.
+  Done (October 2026): at 0.086 degrees merging is worse -- R merge 0.035 to
+  0.038, merged I/sigma 18.6 to 16.8 -- and the partials' excess mixed, +13.6
+  to +7.7 per cent at partiality 0.8 to 0.9, +1.7 to +7.5 at 0.9 to 0.99: not
+  sigma_m too wide. And small: some 70 observations of 13300, all at the
+  scan's ends -- on a ten-turn sweep, nothing.
   Not repeated on ferritin: there partials are a few per cent low, and suggest
   the sigma_m integrated with (item 3). So insulin's, not the integrator's in
   general -- a question for more data sets.
@@ -51,6 +60,13 @@ where something is missing.
 * **4.** **correctness -- The background is about one per cent high at low
    resolution.** A guard ring around the foreground would likely fix it.
    `docs/integration.md`.
+  Measured on bare background (insulin's crystal turned 3 degrees): mean I
+  -0.5 to -1.0 per cent of the background under the foreground from 55 to 2.25
+  A, at 4 to 6 standard errors, nothing at high resolution. With no spot
+  there, not a spot's tails: a guard ring would not mend it. Likeliest the
+  background's curvature near the beam, which a constant model fitted around
+  the foreground cannot follow; a plane or a radial term to test it. DIALS's
+  default model is constant too.
 * **5.** **correctness -- A dependence of the z centre on strength remains** after
    `--postrefine`, +0.018 images for the weakest to -0.036 for the strongest:
    the integrator's centre on an asymmetric rocking curve.

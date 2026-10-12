@@ -109,6 +109,24 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   data set (one wavelength, as dials.export). So the whole chain runs on two
   crystals in one beam: mxi_index --max-lattices 2, mxi_refine, mxi_integrate,
   mxi_symmetry, mxi_scale, mxi_export.
+
+  Against dials.scale, run by Graeme on dials.cosym's output from mxi's own
+  integration, the same observations, matched by predicted position (0.01 to
+  0.02 px apart, mxi having predicted again on its regularised cell): scaled
+  intensities above 10 sigma, CC 0.9997 for both crystals, mxi's 0.8 and 0.5
+  per cent above; scale factors at the same level, 0.995 and 0.991, varying
+  across each sweep alike, CC 0.98 and 0.93. Merged by one and the same
+  function, to 1.81 A in m-3: R merge 0.165 and 0.166, CC half 0.9971 and
+  0.9970 -- and mean I/sigma 12.5 and 9.4. The difference is the error model:
+  mxi's widens a weak reflection's sigma some 38 per cent more than dials's,
+  a strong one's some 7: its a, 1.12, where dials's must be near 0.8. To be
+  looked into, apart from the lattices; dials.scale's log would give its a
+  and b.
+
+  Batches, Graeme's rule: a sweep whose images overlap another's moved up by
+  whole blocks, the next power of ten above the largest image number -- 1 to
+  600 and 1001 to 1600 for the two crystals, where dials' rule gave 701 to
+  1300. One that does not overlap keeps its own numbers, as before.
 * Indexing's worst-fitting spots: Graeme, October 2026 -- left out of the
   indexed set, as DIALS leaves them, is fine, the problem being overdetermined,
   but better after the final refinement, the model then good. To do.

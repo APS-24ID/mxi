@@ -45,11 +45,15 @@ operation, and the rows sorted on H, K, L, M/ISYM, BATCH.
 ## Batches
 
 A reflection's batch is its observed frame, floor(z) + 1, plus its sweep's
-batch offset. The offsets as dials' `_calculate_batch_offsets`: each sweep keeps
-its own image numbers as batch numbers unless they would overlap another's --
-those moved to the next number ending in 01 past the highest so far; sweeps
-that only meet, 1 to 150 and 151 to 300, keep theirs -- and batch zero never
-used.
+batch offset. Each sweep keeps its own image numbers as batch numbers unless
+they would overlap another's, as dials' `_calculate_batch_offsets` has it;
+sweeps that only meet, 1 to 150 and 151 to 300, keep theirs. One that would
+overlap is moved up by whole blocks, the block the next power of ten above the
+largest image number, to the first block where it meets no other: two lattices
+of 600 images are 1 to 600 and 1001 to 1600, four sweeps of 3600 images 1,
+10001, 20001 and 30001 on -- each block's numbers its images' (Graeme, October
+2026). dials moves it instead to the next number ending in 01 past the highest
+so far, 701 to 1300 for the lattices. Batch zero is never used.
 
 ## Batch headers
 

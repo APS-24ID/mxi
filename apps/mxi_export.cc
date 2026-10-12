@@ -165,42 +165,40 @@ Mat3 half_rotation(const Mat3 &r) {
   return rotation(axis.normalized(), 0.5 * angle);
 }
 
-// dials' _calculate_batch_offsets.
-std::int64_t next_epoch(std::int64_t v) {
-  if (v % 100 == 99)
-    return v + 2;
-  if (v % 100 == 0)
-    return v + 101;
-  return v - v % 100 + 101;
-}
-
+// Batch offsets. A sweep keeps its own image numbers as its batches unless
+// they would overlap another's, as dials' _calculate_batch_offsets has it;
+// one that would is moved up by whole blocks -- the block the next power of
+// ten above the largest image number -- to the first block where it meets no
+// other: two lattices of 600 images, 1 to 600 and 1001 to 1600, where dials
+// gives 701 to 1300; four sweeps of 3600, 1, 10001, 20001 and 30001 on (Graeme,
+// October 2026: each block's numbers its images'). Batch zero never used.
 std::vector<std::int64_t> batch_offsets(
     const std::vector<std::pair<std::int64_t, std::int64_t>> &ranges) {
   std::vector<std::int64_t> offsets(ranges.size(), 0);
+  std::int64_t largest = 0;
+  for (const auto &[lo, hi] : ranges)
+    largest = std::max(largest, hi + (lo == 0 ? 1 : 0));
+  std::int64_t block = 10;
+  while (block <= largest)
+    block *= 10;
   std::vector<std::pair<std::int64_t, std::int64_t>> kept;
-  std::vector<std::size_t> shift;
-  std::int64_t highest = 0;
+  const auto meets = [&](std::int64_t lo, std::int64_t hi) {
+    for (const auto &[l, h] : kept)
+      if (lo < h + 1 && hi >= l - 1)
+        return true;
+    return false;
+  };
   for (std::size_t i = 0; i < ranges.size(); ++i) {
     std::int64_t lo = ranges[i].first, hi = ranges[i].second;
-    if (lo == 0) {
+    if (lo == 0) { // batch zero never used
       ++lo;
       ++hi;
     }
-    bool overlaps = false;
-    for (const auto &[l, h] : kept)
-      overlaps = overlaps || (lo < h + 1 && hi >= l - 1);
-    if (overlaps) {
-      shift.push_back(i);
-    } else {
-      offsets[i] = lo - ranges[i].first;
-      kept.emplace_back(lo, hi);
-      highest = std::max(highest, hi);
-    }
-  }
-  for (std::size_t i : shift) {
-    const std::int64_t start = next_epoch(highest);
-    offsets[i] = start - ranges[i].first;
-    highest = start + (ranges[i].second - ranges[i].first);
+    std::int64_t shift = 0;
+    while (meets(lo + shift, hi + shift))
+      shift += block;
+    offsets[i] = lo + shift - ranges[i].first;
+    kept.emplace_back(lo + shift, hi + shift);
   }
   return offsets;
 }
@@ -297,8 +295,8 @@ int run_program(int argc, char **argv) {
     const Mat3 best_o = orthogonalization(best);
     const Mat3 best_gs = (best_o.transpose() * best_o).inverse();
 
-    // Batch offsets, as dials': each sweep's images its batches unless they
-    // overlap another's.
+    // Batch offsets (batch_offsets): each sweep's images its batches unless
+    // they overlap another's.
     std::vector<std::pair<std::int64_t, std::int64_t>> ranges;
     for (const Experiment &e : experiments)
       ranges.emplace_back(e.scan.first_image, e.scan.last_image);

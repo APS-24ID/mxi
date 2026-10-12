@@ -219,3 +219,28 @@ def test_the_two_crystals_scale_each_with_its_own_model_and_agree(tmp_path):
     assert np.corrcoef(x, y)[0, 1] > 0.97
     strong = x > np.median(x)
     assert 0.9 < np.median(y[strong] / x[strong]) < 1.1
+
+
+EXPORT = os.environ.get("MXI_EXPORT")
+SCALED = os.environ.get("MXI_TWO_LATTICES_SCALED")
+
+
+@pytest.mark.skipif(
+    not (EXPORT and SCALED), reason="set MXI_EXPORT and MXI_TWO_LATTICES_SCALED"
+)
+def test_the_second_crystals_batches_start_a_block_of_a_thousand(tmp_path):
+    # Graeme: a sweep whose images overlap another's moved up by whole blocks,
+    # the next power of ten above the largest image number -- 1 to 600, then
+    # 1001 to 1600 -- where dials' rule gives 701 to 1300.
+    gemmi = pytest.importorskip("gemmi")
+    r = subprocess.run(
+        [EXPORT, SCALED, "-o", "scaled.mtz"],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert r.returncode == 0, r.stderr
+    numbers = sorted(
+        b.number for b in gemmi.read_mtz_file(str(tmp_path / "scaled.mtz")).batches
+    )
+    assert numbers == list(range(1, 601)) + list(range(1001, 1601))

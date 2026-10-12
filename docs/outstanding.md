@@ -93,8 +93,10 @@ where something is missing.
    `docs/integration.md`.
 * **6.** **correctness -- For a thin spot `xyzres.px` in z reports the foreground
    window.** `docs/integration.md`.
-* **7.** **capability -- Overlapping reflections are not detected** (Leslie 6.3,
-   6.7.1), nor overloads: there is no overload flag. `docs/integration.md`.
+* **7.** **capability -- No overload flag.** Overlapping reflections are now
+   found and each one's neighbours masked out of its background, flagged
+   overlapped_bg and overlapped_fg (`docs/integration.md`, "Several lattices,
+   and neighbours masked"); overloads are not flagged. `docs/integration.md`.
 * **8.** **decision -- Whether `--postrefine` should be the default**, and what it does
    to scaled intensities: it removes the z offset, at twice the integration
    time. `docs/integration.md`.
@@ -171,7 +173,6 @@ where something is missing.
     "The fitted variance". The CUDA and Metal kernels carry the change,
     unbuilt here.
 
-* **21.** **capability -- One sweep only.**
 * **22.** **capability -- No free-set validation**, the check for overfitting.
 * **26.** **capability -- The scaling model is not written** to `scaled.expt`, as
     dials.scale writes its `scaling_model`.
@@ -303,6 +304,9 @@ where something is missing.
     `docs/spots_notes.md`, `docs/spotfinder.md` -- which could be one.
 
 ## Closed
+
+* **21.** One sweep only, in scaling: several sweeps, and several crystals,
+    each a model of its own (`docs/multi-sweep.md`, `docs/multi-lattice.md`).
 
 * **60.** Merging's weights from each observation's own noise: each variance
     now from the model's intensity, on integration's variance with no

@@ -321,6 +321,13 @@ Every column DIALS' own `integrated.refl` has that this computes:
 
 Columns of this package's own:
 
+* **`intensity.sum.variance_background`** and
+  **`intensity.prf.variance_background`** -- each variance with no signal: the
+  background's counts and its estimate's term; the fit's with weights b
+  alone. Scaling builds each observation's variance on them and the model's
+  intensity ("The fitted variance"; `docs/scaling.md`, "Variances from the
+  model").
+
 * **`xyzres.px.value`** and **`.variance`** -- the observed centre of mass less
   the prediction, in fast pixels, slow pixels and images. Both ends are in the
   frame the images are in, parallax included, so it is a plain difference. The
@@ -469,7 +476,9 @@ inverse-variance weighted mean of 210 at -12.9 sigma -- merging's negative
 intensities. With the expected counts, max(I, 0) + I_bg: mean I/sigma -0.07,
 the weighted mean of 210 -1.9 sigma. The rest is the max(I, 0), a positive
 fluctuation still raising its own variance; only a model's intensity, the
-same for every observation of a reflection, removes it -- in scaling. Insulin's
+same for every observation of a reflection, removes it -- in scaling. DIALS
+(summation.h) takes |I| + I_bg (1 + m/n): noise-dependent too, but evenly either
+side of zero, so it does not lean a mean low as the counted form did. Insulin's
 sweep: 877 variances of 21030 change, merged I/sigma 18.9 to 18.7.
 
 **Variances from the model, in scaling.** Graeme's rerun was unmoved, digit for
@@ -545,4 +554,7 @@ What is known not to be right yet, with what is known about each.
   the foreground's edge to 0.58 at two and a half radii -- and a guard ring at
   1.5 radii would exclude it for about fourteen per cent of the background
   pixels. Not built.
-* **Overlapping reflections are not detected** (Leslie sections 6.3, 6.7.1).
+* **Overlapping reflections are masked, not resolved** (Leslie sections 6.3,
+  6.7.1): each reflection's neighbours' foregrounds are kept out of its
+  background and flagged ("Several lattices, and neighbours masked"); a
+  foreground two reflections share is summed and fitted as one.

@@ -50,9 +50,10 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   refinement pulls neither model; closest keeps each with the nearer. On
   Graeme's ins2_27: 13617 and 7579 spots, 99.5 per cent, 17 ambiguous; one
   detector, 0.257 and 0.263 px and 0.226 images; scatter 0.00029 and 0.00034
-  1/A. mxi_refine takes the file as it is. Unindexed spots keep mxi's
-  convention, Miller index 0 0 0 and `id` 0, until stage 2. Several sweeps with
-  several lattices: refused for now.
+  1/A. mxi_refine takes the file as it is. Unindexed spots kept mxi's
+  convention, Miller index 0 0 0 and `id` 0, until stage 2 gave them their
+  sweep's own experiment (below). Several sweeps with several lattices in one
+  indexing: refused still.
 * Stage 5, as far as DIALS's default goes: DIALS's 3d integrator, the
   default, finds the overlaps between reflections and masks nothing with them
   (src/dials/algorithms/integration/integrator.py, read for this); only
@@ -104,7 +105,8 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   finalised a lattice, an empty block borrowing only its own lattice's
   average; and the routing, with each experiment's own profile block written
   and read (ExperimentList::profiles). --each-alone integrates them a run
-  each, as before; several sweeps, or postrefinement, a run each still; --gpu
+  each, as before; postrefinement a run each still, and several sweeps a run
+  a sweep (below, stage 2); --gpu
   a fit batch a lattice, each on its own grid -- emulated, the same bit for
   bit as each alone, the CPU's count fitted. ins2_27: the same,
   row for row, as a run a lattice -- but partial_id, the row's number, and the
@@ -150,7 +152,8 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   CC half 0.997, R merge 0.168 overall and 0.077 at low resolution, 1.81 A by
   CC half. Each crystal merged apart after scaling agrees with the other at CC
   0.987, the second 6 per cent above the first on the stronger half. Exported
-  in I 2 3, 80420 reflections, 1200 batches, the second crystal's from 701, one
+  in I 2 3, 80420 reflections, 1200 batches, the second crystal's from 701 --
+  1001 since, Graeme's blocks (below) -- one
   data set (one wavelength, as dials.export). So the whole chain runs on two
   crystals in one beam: mxi_index --max-lattices 2, mxi_refine, mxi_integrate,
   mxi_symmetry, mxi_scale, mxi_export.
@@ -385,5 +388,5 @@ default; each reflection's background excludes others' foregrounds instead.
 ## Questions settled
 
 Graeme's answers to the plan's questions are the decisions above, and his
-two-crystal data is here. Still to come: DIALS's processing of it, to judge
-against.
+two-crystal data is here, and DIALS's processing of it -- indexing,
+integration, cosym and scaling -- judged against throughout above.

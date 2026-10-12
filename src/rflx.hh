@@ -70,7 +70,8 @@ Outputs outputs(const Arguments &args, const std::string &step);
 //: the experiment list as JSON, the reflections as msgpack. Either half may be
 //: absent, as for mxi_import's experiments alone.
 void write_outputs(const Outputs &out, const json::Value *experiments,
-                   const Table *reflections, const std::string &creator);
+                   const Table *reflections, const std::string &creator,
+                   const json::Value *summary = nullptr);
 
 //: "indexed.rflx", or "indexed.expt and indexed.refl": for "Wrote ...".
 std::string describe(const Outputs &out, bool experiments = true,
@@ -85,7 +86,13 @@ std::string describe(const Outputs &out, bool experiments = true,
 //: more than the work it saved (docs/rflx.md).
 void write(const std::string &path, const json::Value *experiments,
            const Table *reflections, const std::string &creator,
-           bool compress = false);
+           bool compress = false, const json::Value *summary = nullptr);
+
+//: The processing's summary, if the file has one: `/summary`, a dictionary
+//: whose `steps` are each program's figures and tables in the order they ran,
+//: carried from file to file (docs/output.md). Written beside the experiments
+//: and reflections, in the same encoding.
+std::optional<json::Value> read_summary(const std::string &path);
 
 } // namespace rflx
 } // namespace mxi

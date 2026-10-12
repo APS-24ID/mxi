@@ -110,6 +110,7 @@ add_library(mxi
   src/rflx.cc
   src/cosym.cc
   src/views.cc
+  src/summary.cc
   src/fft.cc
   $<$<BOOL:${MXI_FFTW}>:src/fft_fftw.cc>
   src/index.cc
@@ -347,6 +348,7 @@ add_executable(mxi_tests
   tests/test_rflx.cc
   tests/test_cosym.cc
   tests/test_views.cc
+  tests/test_summary.cc
   tests/test_space_group.cc
   tests/test_resolution.cc
   tests/test_timing.cc

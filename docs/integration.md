@@ -458,6 +458,21 @@ sigma right, or a little small. Two things in the fit were not:
   crystals' weakest sextiles go from 0.26 and 0.58 to 0.42 and 0.80, the rest
   near one.
 
+**The summed variance from counts expected, not counted.** Graeme's ten-turn
+insulin, multiplicity 210: merged I/sigma -5.7 in the outer shell. Leslie's
+equation 11 was taken with the counted foreground for I + I_bg; at a hundredth
+of a count a pixel an empty foreground has I = -I_bg and next to no variance,
+one count I > 0 and a variance of one, so each sigma moved with its own noise.
+On the two crystals' bare background (a crystal turned 3 degrees): mean I
++0.011 counts, unbiased, but mean I/sigma -0.35, -0.53 at the edge, and the
+inverse-variance weighted mean of 210 at -12.9 sigma -- merging's negative
+intensities. With the expected counts, max(I, 0) + I_bg: mean I/sigma -0.07,
+the weighted mean of 210 -1.9 sigma. The rest is the max(I, 0), a positive
+fluctuation still raising its own variance; only a model's intensity, the
+same for every observation of a reflection, removes it -- in scaling
+(`docs/outstanding.md`, 60). Insulin's sweep: 877 variances of 21030 change,
+merged I/sigma 18.9 to 18.7.
+
 What remains is the weakest sextile of the weakest crystal: shoeboxes of a
 handful of counts, where a variance taken from the fit's own noisy intensity
 -- b + max(I, 0) p -- is least to be trusted. Taking it linear in I, which is

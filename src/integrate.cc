@@ -353,12 +353,20 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
   }
 
   out.intensity = foreground_sum - out.background_sum;
-  // Leslie (11): G [ I + I_bg + (m/n) I_bg ]. The first two together are the
-  // Poisson noise of what was actually counted in the foreground, so they are
-  // the raw foreground sum; writing it that way keeps the variance positive
-  // when the intensity is negative, which happens for weak reflections and is
-  // not an error.
-  out.variance = options.gain * foreground_sum + out.background_sum_variance;
+  // Leslie (11): G [ I + I_bg + (m/n) I_bg ], the first two the Poisson
+  // variance of the foreground's counts -- their EXPECTED counts, the
+  // background and the signal, not those counted. The counted sum makes each
+  // reflection's sigma move with its own noise: at a hundredth of a count a
+  // pixel, an empty foreground has I = -I_bg and next to no variance, one
+  // count I > 0 and a variance of one. Bare background then gave a mean
+  // I/sigma of -0.5, and an inverse-variance weighted mean of 210 of them
+  // -12.9 sigma -- a merged I/sigma gone negative at a multiplicity of 210.
+  // The signal's part taken as max(I, 0), the variance is positive for a
+  // negative intensity as before; the weighted mean of 210 is -1.9 sigma, the
+  // rest being the max(I, 0), which only a model's intensity can remove.
+  out.variance =
+      options.gain * (std::max(out.intensity, 0.0) + out.background_sum) +
+      out.background_sum_variance;
 
   // The fitted background, left in the shoebox so a saved one carries what was
   // subtracted from it.

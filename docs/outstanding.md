@@ -125,6 +125,16 @@ where something is missing.
 
 ## Scaling
 
+* **60.** **correctness -- Merging's weights from each observation's own
+    noise.** An observation's variance, from integration, still moves with
+    its own intensity -- max(I, 0) in summation's Poisson term, the fitted
+    intensity in profile fitting's -- so at very low counts an
+    inverse-variance weighted mean leans negative: on bare background, 210
+    observations' at -1.9 sigma (-12.9 before integration's variance was
+    taken from expected counts). Variances from the scaling model's
+    intensity, the same for every observation of a reflection, would remove
+    it. `docs/integration.md`, "The fitted variance".
+
 * **54.** **correctness -- Weak reflections' sigma, the last of it.** The
     fitted variance's background term carried through the fit's weights, and
     a pixel's least variance 0.001 counts rather than 0.05: insulin's weakest

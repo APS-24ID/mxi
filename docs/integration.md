@@ -291,7 +291,11 @@ whose foreground is overlapped is not learned from. DIALS's 3d_threaded
 integrator does this; its default, 3d, finds the overlaps and masks nothing.
 On a single well-separated lattice nothing overlaps and nothing changes; on
 two crystals of insulin, a sixth of each lattice's boxes meet another.
-`--no-mask-neighbours` leaves them in.
+`--no-mask-neighbours` leaves them in. Which boxes meet: a hash of tiles of 32 pixels and 16
+images, looked up on every thread. Keyed on the panel's pixels alone, a tile
+held every reflection that fell there through the whole scan: on a ten-turn
+scan of 2.5 million boxes the search took 178 s on one thread, a couple of
+minutes before Graeme's 7.4 million began integrating; now 4 s on two.
 
 **Lattices.** The experiments of one sweep -- on one image set and one scan --
 are integrated in one pass over its images, each lattice with its own profile

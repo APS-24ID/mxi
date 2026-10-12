@@ -65,7 +65,8 @@ where something is missing.
   likely the reference an average of spots of different widths, heavier in
   its tails than any one -- inherent to one shape a region. Summing the
   valid pixels and fitting only the missing part is the same estimate,
-  algebraically. The real gaps' mixed signs -- low at 0.80 to 0.95, high
+  algebraically. --grid-points 6 is now the default (Graeme). The real gaps'
+  mixed signs -- low at 0.80 to 0.95, high
   below 0.80 -- are something more, the detector's own at its gaps perhaps:
   to look at with a module boundary's pixels.
 * **3.** **correctness -- sigma_m is 0.129 degrees here against DIALS' 0.089** on the

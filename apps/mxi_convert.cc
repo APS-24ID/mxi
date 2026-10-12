@@ -113,9 +113,12 @@ int main(int argc, char **argv) {
         return 1;
       }
       if (!output.empty() && ends_with(output, ".rflx")) {
+        // The processing's summary goes with the file, as it was: a
+        // conversion is not a step of the processing.
+        const std::optional<json::Value> summary = rflx::read_summary(in);
         rflx::write(output, experiments ? &*experiments : nullptr,
                     reflections ? &*reflections : nullptr, "mxi_convert",
-                    compress);
+                    compress, summary ? &*summary : nullptr);
         std::printf("Wrote %s\n", output.c_str());
         return 0;
       }

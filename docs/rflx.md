@@ -81,6 +81,13 @@ groups, joined in order, each row's experiment by its `id`. The earlier layouts
 the HANDOVER describes (its section 6), and DIALS's own HDF5 `.refl`, are not
 read: those, if wanted, come later and deliberately, through the converter.
 
+## The processing's summary
+
+A top-level `summary` group, in the experiment list's encoding:
+`{"steps": [...]}`, each program's figures and tables in the order they ran,
+carried from file to file (`docs/output.md`). Older files have none; the pair
+has no place for it.
+
 ## The programs
 
 **Input.** One `.rflx`, or the DIALS pair as now:

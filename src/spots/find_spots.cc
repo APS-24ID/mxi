@@ -49,6 +49,7 @@
 
 #include "../expt.hh"
 #include "../log_mirror.hh"
+#include "../processing.hh"
 #include "../rflx.hh"
 #include "../timing.hh"
 #include "decompress.hh"
@@ -57,6 +58,77 @@
 #include "expt.hh"
 #include "histogram.hh"
 #include "queue.hh"
+
+namespace {
+// This run's step of the processing's summary (docs/output.md): begun once,
+// on the experiments given, filled as the run reports, written with the table.
+mxi::Summary &find_summary(const std::string &input = "") {
+  static mxi::Summary step("mxi_find", input);
+  return step;
+}
+
+// Spots by resolution, from the experiment's geometry, in ten shells of equal
+// reciprocal volume; and the ice rings, where the spots crowd one -- three
+// times the share a uniform spread puts in its band, and twenty spots or more.
+void report_resolution(const std::vector<double> &dstar) {
+  if (dstar.size() < 10)
+    return;
+  const auto [lo_it, hi_it] = std::minmax_element(dstar.begin(), dstar.end());
+  const double lo = *lo_it, hi = *hi_it;
+  const double v_lo = lo * lo * lo, v_hi = hi * hi * hi;
+  if (!(v_hi > v_lo))
+    return;
+  std::vector<std::size_t> shell(10, 0);
+  for (double d : dstar) {
+    const double f = (d * d * d - v_lo) / (v_hi - v_lo);
+    ++shell[std::min<std::size_t>(9, static_cast<std::size_t>(f * 10.0))];
+  }
+  std::printf("Spots by resolution\n  %8s %8s %8s\n", "d max", "d min",
+              "spots");
+  std::vector<mxi::json::Value> c_max, c_min, c_n;
+  for (std::size_t k = 0; k < 10; ++k) {
+    const double a =
+        std::cbrt(v_lo + (v_hi - v_lo) * static_cast<double>(k) / 10.0);
+    const double b =
+        std::cbrt(v_lo + (v_hi - v_lo) * static_cast<double>(k + 1) / 10.0);
+    const double d_max = a > 0.0 ? 1.0 / a : 0.0, d_min = 1.0 / b;
+    std::printf("  %8.2f %8.2f %8zu\n", d_max, d_min, shell[k]);
+    c_max.push_back(mxi::json::Value(d_max));
+    c_min.push_back(mxi::json::Value(d_min));
+    c_n.push_back(mxi::json::Value(static_cast<long>(shell[k])));
+  }
+  std::printf("\n");
+  find_summary().table("spots_by_resolution", {"d_max", "d_min", "spots"},
+                       {c_max, c_min, c_n});
+  // Hexagonal ice, as dials.find_spots' powder-ring filter has them; a band
+  // of 0.004 in d*^2 about each.
+  static const double ice[] = {3.897, 3.669, 3.441, 2.671, 2.249,
+                               2.072, 1.948, 1.918, 1.883, 1.721};
+  mxi::json::Array crowded;
+  std::string said;
+  for (double d : ice) {
+    const double centre = 1.0 / (d * d);
+    const double a = std::sqrt(std::fmax(centre - 0.002, 0.0)),
+                 b = std::sqrt(centre + 0.002);
+    if (b < lo || a > hi)
+      continue;
+    std::size_t in = 0;
+    for (double x : dstar)
+      in += (x >= a && x <= b) ? 1 : 0;
+    const double expected = static_cast<double>(dstar.size()) *
+                            (b * b * b - a * a * a) / (v_hi - v_lo);
+    if (in >= 20 && static_cast<double>(in) > 3.0 * expected) {
+      crowded.push_back(mxi::json::Value(d));
+      char text[32];
+      std::snprintf(text, sizeof text, "%s%.2f", said.empty() ? "" : ", ", d);
+      said += text;
+    }
+  }
+  if (!said.empty())
+    std::printf("Ice rings: the spots crowd %s A\n", said.c_str());
+  find_summary().set("ice_rings", mxi::json::Value(std::move(crowded)));
+}
+} // namespace
 #include "refl.hh"
 #include "series.hh"
 #include "signal_pixel.hh"
@@ -141,6 +213,8 @@ void usage(const char *program, std::FILE *to = stderr) {
       "  --timing           where the time goes: each stage's time summed "
       "across\n"
       "                     the threads, against the time they had\n"
+      "  --verbose          the run's particulars as well: the images, the\n"
+      "                     series, threads, mask and grouping\n"
       "  -g, --gpu          run the threshold on the GPU; 16-bit only under\n"
       "                     Metal, which has no double precision\n"
       "  --gpu-force        32-bit frames narrowed to 16 bits, so that a GPU "
@@ -249,6 +323,8 @@ bool parse_options(int argc, char **argv, Options *options) {
       options->gpu = true;
     } else if (flag == "--timing") {
       options->timing = true;
+    } else if (flag == "--verbose") {
+      mxi::set_verbose(true);
     } else if (flag == "--no-shoeboxes") {
       options->shoeboxes = false;
     } else if (flag == "--2d") {
@@ -343,8 +419,8 @@ bool parse_options(int argc, char **argv, Options *options) {
       return false;
     } else {
       options->master = info.image_file;
-      std::fprintf(stdout, "Images: %s, from %s\n", options->master.c_str(),
-                   options->experiments.c_str());
+      mxi::detail("Images: %s, from %s\n", options->master.c_str(),
+                  options->experiments.c_str());
     }
   }
   if (options->master.empty() && options->sweeps <= 1) {
@@ -537,7 +613,7 @@ series::Info open_series(series::Series *source, const Options &options) {
 // reason would not be visible in either file.
 void reconcile(const expt::Info &experiments, const series::Info &series,
                Options *options) {
-  std::fprintf(stdout, "Experiments: %s\n", describe(experiments).c_str());
+  mxi::detail("Experiments: %s\n", describe(experiments).c_str());
 
   // One experiment's, always: several sweeps are taken one at a time.
   if (experiments.panels > 1) {
@@ -622,10 +698,9 @@ void reconcile(const expt::Info &experiments, const series::Info &series,
                                          : experiments.first_image - 1;
     options->z_offset = (experiments.first_image - 1) - first_index;
     if (options->z_offset != 0) {
-      std::fprintf(stdout,
-                   "The scan starts at image %lld, so z starts at %lld\n",
-                   static_cast<long long>(experiments.first_image),
-                   static_cast<long long>(options->z_offset));
+      mxi::detail("The scan starts at image %lld, so z starts at %lld\n",
+                  static_cast<long long>(experiments.first_image),
+                  static_cast<long long>(options->z_offset));
     }
   }
 }
@@ -647,8 +722,9 @@ void write_table(const Options &options, const std::vector<refl::Part> &parts,
   std::optional<mxi::json::Value> document;
   if (!options.experiments.empty())
     document = mxi::read_experiment_document(options.experiments);
+  const mxi::json::Value summary = find_summary().document();
   mxi::rflx::write(options.rflx, document ? &*document : nullptr, &table,
-                   "mxi_find");
+                   "mxi_find", false, &summary);
 }
 
 // What was written, or that nothing was.
@@ -752,8 +828,10 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
                  static_cast<unsigned long long>(restricted),
                  static_cast<unsigned long long>(info.images));
   }
-  std::fprintf(
-      stdout,
+  std::fprintf(stdout, "Finding spots on %llu images\n",
+               static_cast<unsigned long long>(restricted > 0 ? restricted
+                                                              : info.images));
+  mxi::detail(
       "Series %s: %llu images of %llu x %llu pixels (fast x slow), from %s, "
       "%d thread%s, "
       "on the %s\n",
@@ -763,11 +841,9 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
       options.threads, options.threads == 1 ? "" : "s",
       options.gpu ? "GPU" : "CPU");
   if (info.masked_pixels > 0)
-    std::fprintf(stdout,
-                 "%llu pixels masked by the detector's own pixel_mask\n",
-                 static_cast<unsigned long long>(info.masked_pixels));
-  std::fprintf(
-      stdout,
+    mxi::detail("%llu pixels masked by the detector's own pixel_mask\n",
+                static_cast<unsigned long long>(info.masked_pixels));
+  mxi::detail(
       "Grouping in %s, %zu to %zu pixels a spot, peak within %.1f of the "
       "centroid\n",
       options.two_d ? "two dimensions" : "three dimensions",
@@ -1032,14 +1108,22 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
       std::chrono::duration<double>(Clock::now() - began).count();
   const dials_spots::Counts &counts = labeller.counts();
 
-  std::fprintf(stdout,
-               "Thresholded %llu of %llu images in %.1f s (%.1f images/s), "
-               "%llu never written, %llu failures\n",
-               static_cast<unsigned long long>(read.load()),
-               static_cast<unsigned long long>(dispatched.size()), seconds,
-               seconds > 0 ? read.load() / seconds : 0.0,
-               static_cast<unsigned long long>(missing.load()),
-               static_cast<unsigned long long>(failed.load()));
+  mxi::detail("Thresholded %llu of %llu images in %.1f s (%.1f images/s), "
+              "%llu never written, %llu failures\n",
+              static_cast<unsigned long long>(read.load()),
+              static_cast<unsigned long long>(dispatched.size()), seconds,
+              seconds > 0 ? read.load() / seconds : 0.0,
+              static_cast<unsigned long long>(missing.load()),
+              static_cast<unsigned long long>(failed.load()));
+  // Images missing are data missing: said always, not under --verbose.
+  if (!mxi::verbose() && (missing.load() > 0 || failed.load() > 0))
+    std::fprintf(stdout,
+                 "Read %llu of %llu images: %llu never written, %llu "
+                 "failures\n",
+                 static_cast<unsigned long long>(read.load()),
+                 static_cast<unsigned long long>(dispatched.size()),
+                 static_cast<unsigned long long>(missing.load()),
+                 static_cast<unsigned long long>(failed.load()));
   if (out_of_order > 0) {
     std::fprintf(stderr,
                  "warning: %llu frames arrived after a later one and were "
@@ -1102,8 +1186,39 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
       for (const std::string &line : spots::spot_histogram(per_image, first))
         std::fprintf(stdout, "%s\n", line.c_str());
       std::fprintf(stdout, "\n");
+      mxi::json::Array each;
+      for (std::size_t n : per_image)
+        each.push_back(mxi::json::Value(static_cast<long>(n)));
+      find_summary().set("first_image", mxi::json::Value(first));
+      find_summary().set("spots_per_image", mxi::json::Value(std::move(each)));
+    }
+    // By resolution, if the experiment's geometry can be read in full.
+    if (!options.experiments.empty()) {
+      try {
+        const mxi::ExperimentList list =
+            mxi::read_experiments(options.experiments);
+        if (!list.empty() && list[0].detector.size() > 0) {
+          const mxi::Experiment &e = list[0];
+          const mxi::Vec3 s0 = e.beam.s0();
+          std::vector<double> dstar;
+          dstar.reserve(labeller.spots().size());
+          for (const auto &spot : labeller.spots()) {
+            const mxi::Vec3 lab =
+                e.detector[0].lab_coord_px(spot.position[0], spot.position[1]);
+            const mxi::Vec3 s1 = lab / lab.norm() / e.beam.wavelength;
+            dstar.push_back((s1 - s0).norm());
+          }
+          report_resolution(dstar);
+        }
+      } catch (const std::exception &) {
+        // No full geometry to be read: no table by resolution.
+      }
     }
   }
+  find_summary().set("signal_pixels",
+                     mxi::json::Value(static_cast<long>(counts.signal_pixels)));
+  find_summary().set("spots",
+                     mxi::json::Value(static_cast<long>(counts.accepted)));
 
   const double t_written_from = mxi::Timing::now();
   // No frame read at all: nothing to write, and an empty table would read as
@@ -1223,6 +1338,9 @@ int main(int argc, char **argv) {
   Options options;
   if (!parse_options(argc, argv, &options))
     return 2;
+  // This run's step of the summary, after the steps its input carried: begun
+  // here, before anything fills it.
+  find_summary(options.experiments);
   // Nothing named, or a .rflx: one .rflx, its table written beside it first.
   {
     const std::string &o = options.output;

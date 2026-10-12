@@ -104,6 +104,18 @@ def experiments_dict(path: str) -> dict:
         return _decode(f["experiments"])
 
 
+def summary_dict(path: str) -> dict | None:
+    """The processing's summary a .rflx carries -- {"steps": [...]}, each
+    program's figures and tables in the order they ran (docs/output.md) -- or
+    None if it carries none."""
+    import h5py
+
+    with h5py.File(path, "r") as f:
+        if "summary" not in f:
+            return None
+        return _decode(f["summary"])
+
+
 _TAGS = {
     "bool": "bool",
     "int": "int",

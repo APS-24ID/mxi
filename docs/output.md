@@ -1,6 +1,7 @@
 # What the programs say, and for whom
 
-STATUS: plan, for Graeme's agreement, 12 October 2026. Nothing here is built.
+STATUS: built, 12 and 13 October 2026, as Graeme decided (below); the GUI
+deferred.
 
 Graeme: the programs' output is technical -- where the data are -- and light on
 crystallography, refinement's progress and the like. DIALS's logs are mostly of
@@ -42,48 +43,59 @@ cycles with their RMSDs and rejections, the cell, integration's summaries by
 resolution and overall, symmetry's subgroups, scaling's merging statistics
 and resolution -- but uneven.
 
-## What changes
+## Graeme's decisions
 
-Each program's printed output for a crystallographer first. What only a
-developer needs moves behind `--verbose` (it is still in `mxi_<program>.log`).
+* The tables a program prints go into the .rflx it writes, under a top-level
+  `summary` group -- less clutter than a JSON file beside it, and the file says
+  how it was made. Each program carries its input's steps and adds its own.
+* Developer detail under `--verbose`, to the terminal and the log alike;
+  without it the crystallography alone, to both (`cat mxi_find.log`).
+* No hint of the next step.
+* `mxi_show state.rflx`: the state of processing, summary statistics with it.
+* The GUI later.
 
-* **mxi_import** -- as it is: wavelength, distance, beam centre, panel, scan.
-  Add the total rotation, and the exposure where the file gives it.
-* **mxi_find** -- the preamble (images' path, identifier, thread count, mask
-  count, grouping parameters) to `--verbose`. Keep the counts and the
-  histogram of spots per image. Add spots by resolution, and ice rings
-  flagged if the strong spots crowd them.
-* **mxi_index** -- add the candidate solutions considered, as dials.index's
-  table; the cell with e.s.d.s; the refined beam centre and distance beside
-  import's, so a wrong beam centre is seen; and per sweep, or per lattice, the
-  fraction indexed. With several lattices, a table a lattice.
-* **mxi_refine** -- add the cell with e.s.d.s; the refined geometry (distance,
-  beam centre, wavelength) and what refinement moved it by; and, scan-varying,
-  how far the cell and the orientation wander over the scan, the check the
-  tutorial makes in dials.report.
-* **mxi_integrate** -- the image path to `--verbose`; progress on a long run
-  (images done, the rate, the time left); the summaries kept.
-* **mxi_symmetry** -- each symmetry element described as DIALS does, its order
-  and axis ("2 |(1,1,0)", "3 |(1,1,1)"), not a letter; the rest kept.
-* **mxi_scale** -- kept: the model, the error model, the merging statistics, the
-  resolution. Add the scale's range by image (decay at a glance).
-* **mxi_export** -- the MTZ's summary: space group, cell, resolution range,
-  batches, the columns.
-* **Every program** ends by naming what it wrote and the step that takes it
-  next ("Next: mxi_refine indexed.rflx"), as a tutorial would.
+## What was built
 
-## For a GUI: each program's results as JSON
+**The summary** (`src/processing.cc`): `{"steps": [...]}` at `/summary`, in the
+encoding the experiment list has; one step a program run, `program` and `time`
+first, then its figures and tables, a table column by column. A program reads
+its input's steps and writes them before its own; `mxi_convert` carries them
+between .rflx files and adds none; the DIALS pair has no place for them. On
+insulin, from import to scaling: seven steps. `mxeq.rflx.summary_dict` reads
+it in Python.
 
-Beside `mxi_<program>.log`, each program writes `mxi_<program>.json`: the
-numbers its printed tables hold, keyed and typed -- indexing's candidates and
-cycles, refinement's steps and models, integration's summaries, symmetry's
-scores and choice, scaling's merging statistics by shell. A GUI then reads
-data, not text, and the printed layout can change without breaking it; scripts
-(a pipeline, a beamline's automation) read the same file. One writer in the
-library, each program filling a document as it goes and writing it on exit,
-failure included (with the reason).
+**mxi_show FILE [REFL]**: each sweep's images, rotation, wavelength, distance
+and beam centre once, each experiment on it -- its cell and space group, or the
+sweep's own crystal-less one -- and its profile model; the reflections by
+experiment, strong, indexed, summed, fitted, scaled, outliers; every step of
+the summary in order.
 
-## The GUI
+**Each program:**
+
+* **mxi_import** -- the total rotation; the first step, each sweep as imported.
+* **mxi_find** -- "Finding spots on N images" where the images' path, the
+  experiments, the series, threads, mask and grouping were (now `--verbose`);
+  spots by resolution, ten shells of equal reciprocal volume, from the
+  experiment's geometry; the ice rings the spots crowd, three times a uniform
+  share and twenty spots or more; its step, with the spots per image.
+* **mxi_index** -- the candidate solutions the basis search weighed, its ten
+  best distinct reduced cells, the chosen one marked; the beam centre and
+  distance as given and after indexing; the FFT grid under `--verbose`.
+* **mxi_refine** -- the cell with e.s.d.s, 67.4634(18) 67.5191(18) 67.484(3) A on
+  insulin: the covariance at convergence carried to the cell; scan-varying,
+  the cell's range over the scan and the orientation's turn; the geometry as
+  given and refined.
+* **mxi_integrate** -- progress each tenth of the way on runs of 100000
+  reflections or more (`--progress-from`); the image path, neighbours and
+  reference profiles' bookkeeping under `--verbose`; several sweeps, their
+  summaries as one after each sweep's own.
+* **mxi_symmetry** -- each element by its order and axis as cctbx describes it,
+  2 |(1,1,0), beside its letter, the likely ones marked.
+* **mxi_scale** -- the mean scale over each tenth of each sweep, on a line.
+* **mxi_export** -- the MTZ's summary: space group, cell, resolution, batches,
+  every column with its type.
+
+## The GUI, later
 
 Port `dials_ui` to mxi as a second back end in the same program, not a copy:
 its steps, runner and frame are about running programs in order and showing
@@ -92,13 +104,3 @@ mxi back end is a step list (`mxi_import` to `mxi_export`, their options) and a
 reader of `mxi_<program>.json` in place of the log parsers. The viewers
 (image viewer, reciprocal lattice viewer) stay DIALS's, given the DIALS pair
 through `mxi_convert` where they need it.
-
-## Questions for Graeme
-
-1. **JSON beside the log** -- `mxi_<program>.json` -- for the GUI and scripts,
-   rather than DIALS-shaped tables for its parsers?
-2. **Where the GUI lives** -- a second back end in `dials_ui` itself (one GUI,
-   DIALS or mxi), or a port inside this repository?
-3. **`--verbose`** for the developer's lines, or kept in the log file only
-   (printed nowhere, written to `mxi_<program>.log` always)?
-4. **The "Next:" line** -- helpful, or noise for those who know the chain?

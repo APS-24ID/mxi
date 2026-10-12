@@ -13,6 +13,7 @@
 #include "json.hh"
 #include "log_mirror.hh"
 #include "nxmx_import.hh"
+#include "processing.hh"
 #include "rflx.hh"
 
 namespace {
@@ -107,10 +108,12 @@ void describe(const std::string &master, const mxi::json::Value &expt,
   const auto &osc = s.at("properties").as_object().at("oscillation").as_array();
   const auto &range = s.at("image_range").as_array();
   const double width = osc.size() > 1 ? num(osc[1]) - num(osc[0]) : 0.0;
-  std::printf("  scan: images %lld to %lld, from %.4f deg, %.4f deg each\n",
+  std::printf("  scan: images %lld to %lld, from %.4f deg, %.4f deg each, "
+              "%.1f deg in all\n",
               static_cast<long long>(num(range[0])),
               static_cast<long long>(num(range[1])),
-              osc.empty() ? 0.0 : num(osc[0]), width);
+              osc.empty() ? 0.0 : num(osc[0]), width,
+              width * (num(range[1]) - num(range[0]) + 1.0));
   for (const std::string &n : notes)
     std::printf("  note: %s\n", n.c_str());
 }
@@ -167,7 +170,36 @@ int main(int argc, char **argv) {
       describe(master, lists.back(), notes);
     }
     const json::Value document = join_experiment_lists(lists);
-    rflx::write_outputs(out, &document, nullptr, "mxi_import");
+    // The first step of the processing's summary: each sweep as imported.
+    Summary summary("mxi_import", "");
+    {
+      const ExperimentList list = experiments_from_json(document);
+      std::vector<json::Value> c_file, c_first, c_last, c_start, c_width,
+          c_wavelength, c_distance, c_beam;
+      for (std::size_t i = 0; i < list.size(); ++i) {
+        const Experiment &e = list[i];
+        const GeometryFigures g = geometry_figures(e);
+        c_file.push_back(json::Value(
+            i < args.positional.size() ? args.positional[i] : std::string()));
+        c_first.push_back(json::Value(static_cast<long>(e.scan.first_image)));
+        c_last.push_back(json::Value(static_cast<long>(e.scan.last_image)));
+        c_start.push_back(json::Value(e.scan.osc_start));
+        c_width.push_back(json::Value(e.scan.osc_width));
+        c_wavelength.push_back(json::Value(g.wavelength));
+        c_distance.push_back(json::Value(g.distance));
+        c_beam.push_back(json::Value(
+            json::Array{json::Value(g.beam_x), json::Value(g.beam_y)}));
+      }
+      summary.table("sweeps",
+                    {"file", "first_image", "last_image", "osc_start_deg",
+                     "osc_width_deg", "wavelength", "distance",
+                     "beam_centre_px"},
+                    {c_file, c_first, c_last, c_start, c_width, c_wavelength,
+                     c_distance, c_beam});
+    }
+    const json::Value summary_document = summary.document();
+    rflx::write_outputs(out, &document, nullptr, "mxi_import",
+                        &summary_document);
     if (lists.size() > 1)
       std::printf("%zu sweeps, one experiment each\n", lists.size());
     std::printf("Wrote %s\n", rflx::describe(out, true, false).c_str());

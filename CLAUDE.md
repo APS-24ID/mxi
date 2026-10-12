@@ -129,6 +129,16 @@ reflection at a time, and `mxeq observations`, every observation of one;
 * **`--grid-points 6`** by default (item 2); import takes a panel's size from
   the data, which some masters' metadata has swapped.
 
+**Done since 414, 12 and 13 October:** what the programs say
+(`docs/output.md`). Each .rflx carries the processing's summary, `/summary`,
+each program's figures and tables after its input's (`src/processing.cc`);
+`mxi_show` tells the state of a file; developer detail under `--verbose`;
+indexing's candidates, the cell's e.s.d.s from refinement's covariance, the
+scan-varying cell's range, symmetry's elements by order and axis, the scale by
+image, the MTZ's summary, spots by resolution and ice rings. Mind the names:
+`src/summary.*` is integration's summary tables -- the processing's summary
+was once written over them, unchecked, and restored.
+
 **Paused: the backstop** (`docs/backstop.md`, "Where it stands"; items 52, 53).
 Against DIALS on ferritin the innermost shell agreed worst; the cause, the
 reflections beside the backstop -- its shadow attenuating signal and background

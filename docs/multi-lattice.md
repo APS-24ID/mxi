@@ -8,6 +8,19 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   share it; written back interned, once. A single sweep refines to the same
   bytes as before. The profile model a lattice is moved to stage 5, where
   integration first uses it.
+* Stage 2, sweeps carried through (dials/dials#1029), behind mxi_index
+  --keep-sweeps until every program reads the form: the two views in one
+  place (src/views.cc) -- the lattices taken out of a list for a program and
+  put back, each crystal-less experiment given the models its sweep's
+  lattices refined; mxi_index writing each sweep given first, crystal-less,
+  its unindexed spots its own, the lattices after it; mxi_refine,
+  mxi_integrate, mxi_symmetry, mxi_scale and mxi_export reading through the
+  views; mxi_convert's pair in DIALS's form, the crystal-less left out and
+  their spots -1. On Graeme's two crystals, indexed with and without the
+  sweep from the same spots and carried through every program: the same
+  refined models, the same integrated and scaled tables but for id, I 2 3
+  from both, the same MTZ row for row. Several sweeps carried through
+  integration: refused by name, not yet.
 * Stage 3, before stage 2: mxi_index --max-lattices N (index_lattices in the
   library). The search as dials.index's; then, every lattice known, each spot
   assigned again globally -- to the lattice whose integer indices it lies

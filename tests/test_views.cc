@@ -186,3 +186,40 @@ TEST(indexing_carries_the_sweep_given_through_and_adds_its_lattices) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(dials_form_leaves_the_crystal_less_out_and_unindexed_spots_minus_one) {
+  // mxi_convert's pair for DIALS: the sweep's crystal-less experiment left
+  // out, the lattices renumbered from 0 with their references unchanged, an
+  // unindexed spot -1 as dials.index leaves it, the identifiers to match.
+  const ExperimentList whole = one_sweep();
+  const json::Value doc = experiments_to_json(whole);
+  Table t = spots();
+  const json::Value dials = dials_form(doc, &t);
+  const json::Array &x = dials["experiment"].as_array();
+  check::equal(static_cast<long long>(x.size()), 2, "the two lattices");
+  check::is_true(
+      x[0]["crystal"].is_number() && x[1]["crystal"].is_number() &&
+          x[0]["detector"].as_number() ==
+              doc["experiment"].as_array()[1]["detector"].as_number(),
+      "their references unchanged");
+  check::is_true(t.at("id").ints == std::vector<std::int64_t>{-1, 0, 1},
+                 "the unindexed spot -1, the lattices' 0 and 1");
+  check::is_true(t.identifiers.size() == 2 && t.identifiers.at(0) == "a" &&
+                     t.identifiers.at(1) == "b",
+                 "the identifiers renumbered");
+  // A list of lattices alone: as it is.
+  ExperimentList lattices = whole;
+  lattices.experiments.erase(lattices.experiments.begin());
+  lattices.beam_of = lattices.detector_of = lattices.sweep_of = {0, 0};
+  const json::Value plain = experiments_to_json(lattices);
+  Table u = spots();
+  const json::Value same = dials_form(plain, &u);
+  check::equal(static_cast<long long>(same["experiment"].as_array().size()), 2,
+               "nothing left out");
+  check::is_true(u.at("id").ints == std::vector<std::int64_t>{0, 1, 2},
+                 "the table as it was");
+}
+
+} // namespace mxi

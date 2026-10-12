@@ -5,6 +5,7 @@
 #include "shoebox.hh"
 
 #include <algorithm>
+#include <map>
 #include <stdexcept>
 #include <string>
 
@@ -273,6 +274,36 @@ ExperimentList add_sweeps(const ExperimentList &given,
       table->identifiers[i] = whole[i].identifier;
   }
   return whole;
+}
+
+json::Value dials_form(const json::Value &document, Table *table) {
+  if (!document.is_object() || !document["experiment"].is_array())
+    return document;
+  const json::Array &all = document["experiment"].as_array();
+  std::vector<long> renumber(all.size(), -1);
+  json::Array kept;
+  for (std::size_t i = 0; i < all.size(); ++i)
+    if (all[i]["crystal"].is_number()) {
+      renumber[i] = static_cast<long>(kept.size());
+      kept.push_back(all[i]);
+    }
+  if (kept.size() == all.size())
+    return document;
+  json::Object out = document.as_object();
+  out["experiment"] = json::Value(std::move(kept));
+  if (table != nullptr && table->has("id")) {
+    Column &id = table->modify_int_column("id", "int", 1);
+    for (std::int64_t &i : id.ints)
+      i = i >= 0 && static_cast<std::size_t>(i) < renumber.size()
+              ? renumber[static_cast<std::size_t>(i)]
+              : -1;
+    std::map<std::size_t, std::string> identifiers;
+    for (const auto &[i, name] : table->identifiers)
+      if (i < renumber.size() && renumber[i] >= 0)
+        identifiers[static_cast<std::size_t>(renumber[i])] = name;
+    table->identifiers = identifiers;
+  }
+  return json::Value(std::move(out));
 }
 
 } // namespace mxi

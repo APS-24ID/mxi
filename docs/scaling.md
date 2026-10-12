@@ -111,8 +111,11 @@ A scaled, unmerged reflection table with dials.scale's columns --
 `inverse_scale_factor` and its variance, `intensity.scale.value` and variance --
 and its flags (scaled, bit 26; an outlier in scaling, bit 23; excluded, bit 24)
 ADDED to those integration set, and dials.merge takes it -- as the DIALS pair,
-written by `-o scaled.refl --output-expt scaled.expt` or from `scaled.rflx` by
-`mxi_convert scaled.rflx`.
+from `scaled.rflx` by `mxi_convert scaled.rflx --drop-sweeps`. Without
+`--drop-sweeps`, and in the pair `-o scaled.refl --output-expt scaled.expt`
+writes, each sweep's crystal-less experiment is carried
+(`docs/multi-lattice.md`, stage 2), which DIALS's programs past indexing may
+not expect: not yet tried.
 The intensity's variance already carries the scale's uncertainty, as dials.scale's
 does, so nothing downstream should add `inverse_scale_factor_variance` to it
 again. The models, reindexed, go with it, into `scaled.rflx` (`scaled.expt` in the

@@ -25,6 +25,7 @@
 #include <limits>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <string>
 #include <thread>
@@ -737,86 +738,121 @@ int run_program(int argc, char **argv) {
     double sigma_m = args.number("--sigma-m", 0.0);
     double n_sigma = args.number("--n-sigma", 0.0);
     const char *source = "the command line";
-    if ((!(sigma_b > 0.0) || !(sigma_m > 0.0)) && !strong_path.empty()) {
-      const Table strong = read_reflections(strong_path);
-      const std::vector<Shoebox> strong_boxes = decode_shoeboxes(strong);
-      if (strong_boxes.empty()) {
-        std::fprintf(stderr,
-                     "mxi_integrate: %s has no shoeboxes, so the profile model "
-                     "cannot be estimated from it\n",
-                     strong_path.c_str());
-        return 1;
-      }
-      // The profile model needs INDEXED spots -- each spot's predicted
-      // diffracted beam -- and a spot finder's strong.refl has none. Said in
-      // those terms, because "no column 's1'" is true and names nothing a
-      // user can do.
-      if (!strong.has("s1") || !strong.has("xyzcal.mm")) {
-        std::fprintf(
-            stderr,
-            "mxi_integrate: %s has no predictions for its spots, so the "
-            "profile model cannot be estimated from it. Give the "
-            "refined or indexed reflections (refined.refl), not the "
-            "spot finder's, or set --sigma-b and --sigma-m\n",
-            strong_path.c_str());
-        return 1;
-      }
-      const Column &s1_in = strong.at("s1");
-      const Column &cal_in = strong.at("xyzcal.mm");
-      std::vector<Shoebox> selected;
-      std::vector<Vec3> beams;
-      std::vector<RangeSample> samples;
-      for (std::size_t i = 0; i < strong.nrows && i < strong_boxes.size();
-           ++i) {
-        if (strong.has("flags") &&
-            (strong.at("flags").integer(i) & flag::kUsedInRefinement) == 0) {
-          continue;
+    // Each lattice's profile model, from its own spots (docs/multi-lattice.md):
+    // the experiments of one sweep integrated together, each its own. One
+    // lattice, as before. The command line's numbers hold for every lattice;
+    // the .expt's profile block, one for the list, likewise.
+    const std::size_t n_lattices = experiments.size();
+    std::vector<MaskOptions> lattice_masks(n_lattices, mask_options);
+    std::vector<const char *> sources(n_lattices, source);
+    {
+      std::optional<Table> strong;
+      std::vector<Shoebox> strong_boxes;
+      const double given_b = sigma_b, given_m = sigma_m;
+      for (std::size_t l = 0; l < n_lattices; ++l) {
+        const Experiment &le = experiments[l];
+        double lb = given_b, lm = given_m;
+        if ((!(lb > 0.0) || !(lm > 0.0)) && !strong_path.empty()) {
+          if (!strong) {
+            strong = read_reflections(strong_path);
+            strong_boxes = decode_shoeboxes(*strong);
+            if (strong_boxes.empty()) {
+              std::fprintf(stderr,
+                           "mxi_integrate: %s has no shoeboxes, so the profile "
+                           "model cannot be estimated from it\n",
+                           strong_path.c_str());
+              return 1;
+            }
+            // The profile model needs INDEXED spots -- each spot's predicted
+            // diffracted beam -- and a spot finder's strong.refl has none.
+            // Said in those terms, because "no column 's1'" is true and names
+            // nothing a user can do.
+            if (!strong->has("s1") || !strong->has("xyzcal.mm")) {
+              std::fprintf(
+                  stderr,
+                  "mxi_integrate: %s has no predictions for its spots, so the "
+                  "profile model cannot be estimated from it. Give the "
+                  "refined or indexed reflections (refined.refl), not the "
+                  "spot finder's, or set --sigma-b and --sigma-m\n",
+                  strong_path.c_str());
+              return 1;
+            }
+          }
+          const Column &s1_in = strong->at("s1");
+          const Column &cal_in = strong->at("xyzcal.mm");
+          const bool by_id = n_lattices > 1 && strong->has("id");
+          std::vector<Shoebox> selected;
+          std::vector<Vec3> beams;
+          std::vector<RangeSample> samples;
+          for (std::size_t i = 0; i < strong->nrows && i < strong_boxes.size();
+               ++i) {
+            if (by_id &&
+                strong->at("id").integer(i) != static_cast<std::int64_t>(l))
+              continue;
+            if (strong->has("flags") && (strong->at("flags").integer(i) &
+                                         flag::kUsedInRefinement) == 0) {
+              continue;
+            }
+            const Vec3 beam{s1_in.real(i, 0), s1_in.real(i, 1),
+                            s1_in.real(i, 2)};
+            if (std::fabs(compute_zeta(le, beam)) < 0.05)
+              continue;
+            if (!has_prediction(*strong, i))
+              continue;
+            selected.push_back(strong_boxes[i]);
+            beams.push_back(beam);
+            for (const RangeSample &sample :
+                 range_samples(le, strong_boxes[i], cal_in.real(i, 2),
+                               compute_zeta(le, beam))) {
+              samples.push_back(sample);
+            }
+          }
+          std::size_t used = 0;
+          if (!(lb > 0.0))
+            lb = beam_divergence(le, selected, beams, &used);
+          if (!(lm > 0.0)) {
+            lm = reflecting_range(samples, Scan::radians(le.scan.osc_width),
+                                  0.0);
+          }
+          sources[l] = "estimated from the indexed spots";
         }
-        const Vec3 beam{s1_in.real(i, 0), s1_in.real(i, 1), s1_in.real(i, 2)};
-        if (std::fabs(compute_zeta(e, beam)) < 0.05)
-          continue;
-        if (!has_prediction(strong, i))
-          continue;
-        selected.push_back(strong_boxes[i]);
-        beams.push_back(beam);
-        for (const RangeSample &sample :
-             range_samples(e, strong_boxes[i], cal_in.real(i, 2),
-                           compute_zeta(e, beam))) {
-          samples.push_back(sample);
+        double ln = n_sigma;
+        if ((!(lb > 0.0) || !(lm > 0.0)) && experiments.profile.present) {
+          if (!(lb > 0.0))
+            lb = experiments.profile.sigma_b;
+          if (!(lm > 0.0))
+            lm = experiments.profile.sigma_m;
+          if (!(ln > 0.0))
+            ln = experiments.profile.n_sigma;
+          sources[l] = "the profile block of the .expt";
         }
+        if (!(lb > 0.0) || !(lm > 0.0)) {
+          std::fprintf(stderr,
+                       "mxi_integrate: no profile model. Give a .refl of "
+                       "strong spots with shoeboxes to estimate it from, or "
+                       "--sigma-b and --sigma-m, or an .expt that carries a "
+                       "profile block.\n");
+          return 1;
+        }
+        lattice_masks[l].sigma_d = lb;
+        lattice_masks[l].sigma_m = lm;
+        lattice_masks[l].n_sigma = ln > 0.0 ? ln : 3.0;
       }
-      std::size_t used = 0;
-      if (!(sigma_b > 0.0))
-        sigma_b = beam_divergence(e, selected, beams, &used);
-      if (!(sigma_m > 0.0)) {
-        sigma_m =
-            reflecting_range(samples, Scan::radians(e.scan.osc_width), 0.0);
-      }
-      source = "estimated from the indexed spots";
     }
-    if ((!(sigma_b > 0.0) || !(sigma_m > 0.0)) && experiments.profile.present) {
-      if (!(sigma_b > 0.0))
-        sigma_b = experiments.profile.sigma_b;
-      if (!(sigma_m > 0.0))
-        sigma_m = experiments.profile.sigma_m;
-      if (!(n_sigma > 0.0))
-        n_sigma = experiments.profile.n_sigma;
-      source = "the profile block of the .expt";
-    }
-    if (!(sigma_b > 0.0) || !(sigma_m > 0.0)) {
-      std::fprintf(stderr,
-                   "mxi_integrate: no profile model. Give a .refl of strong "
-                   "spots with shoeboxes to estimate it from, or --sigma-b and "
-                   "--sigma-m, or an .expt that carries a profile block.\n");
-      return 1;
-    }
-    mask_options.sigma_d = sigma_b;
-    mask_options.sigma_m = sigma_m;
-    mask_options.n_sigma = n_sigma > 0.0 ? n_sigma : 3.0;
+    // The first lattice's, as the one lattice's was: what the rest reads.
+    mask_options = lattice_masks[0];
+    sigma_b = mask_options.sigma_d;
+    sigma_m = mask_options.sigma_m;
+    source = sources[0];
     t_profile = now_wall() - t_profile_start;
-    std::printf("Profile model: sigma_b %.4f deg, sigma_m %.4f deg (%s); "
-                "foreground to %.1f sigma\n",
-                sigma_b, sigma_m, source, mask_options.n_sigma);
+    for (std::size_t l = 0; l < n_lattices; ++l) {
+      if (n_lattices > 1)
+        std::printf("Lattice %zu: ", l + 1);
+      std::printf("Profile model: sigma_b %.4f deg, sigma_m %.4f deg (%s); "
+                  "foreground to %.1f sigma\n",
+                  lattice_masks[l].sigma_d, lattice_masks[l].sigma_m,
+                  sources[l], lattice_masks[l].n_sigma);
+    }
     // Internal, for the lattices of a sweep integrated each beside the others
     // (integrate_several): the profile model alone, written with the models,
     // before an image is read -- each lattice's, for the others to mask with.

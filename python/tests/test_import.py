@@ -540,3 +540,37 @@ def test_the_exposure_is_frame_time_as_dials_import_takes_it(tmp_path, frame_tim
     expected = frame_time or 0.0
     assert p["exposure_time"] == pytest.approx([expected] * len(p["exposure_time"]))
     assert p["epochs"] == pytest.approx([expected * i for i in range(len(p["epochs"]))])
+
+
+@needs_import
+@pytest.mark.parametrize(
+    "where, shape, size",
+    [
+        ("data", (2, 200, 300), [300, 200]),  # the file's x and y swapped
+        ("data", (2, 300, 200), [200, 300]),  # the file right: left as it is
+        ("pixel_mask", (200, 300), [300, 200]),  # no data to open: the mask's
+    ],
+)
+def test_the_panel_is_the_size_the_data_are(tmp_path, where, shape, size):
+    # Graeme: masters have been written with the detector's x and y pixel
+    # counts the wrong way round, the data the right shape -- here data_size
+    # says 300 slow by 200 fast. The data are what is read, so the panel is
+    # their size; failing them, the pixel mask's, a frame's shape.
+    plant(tmp_path / "master.nxs")
+    with h5py.File(tmp_path / "master.nxs", "r+") as f:
+        if where == "data":
+            f.create_dataset("entry/data/data", data=np.zeros(shape, dtype=np.uint16))
+        else:
+            f.create_dataset(
+                "entry/instrument/detector/pixel_mask",
+                data=np.zeros(shape, dtype=np.uint32),
+            )
+    result = subprocess.run(
+        [IMPORT, str(tmp_path / "master.nxs"), "-o", str(tmp_path / "imported.expt")],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    panel = json.load(open(tmp_path / "imported.expt"))["detector"][0]["panels"][0]
+    assert panel["image_size"] == size
+    assert ("the data's taken" in result.stdout) == (size != [200, 300])

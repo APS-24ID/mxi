@@ -43,6 +43,7 @@
 #include "mask.hh"
 #include "postrefine.hh"
 #include "predict.hh"
+#include "processing.hh"
 #include "profile_model.hh"
 #include "reference.hh"
 #include "shoebox.hh"
@@ -60,6 +61,95 @@
 namespace mxi {
 
 namespace {
+
+// Integration's summaries, by resolution and overall, as the processing's
+// summary keeps them (docs/output.md).
+void add_integration_tables(Summary &step, const IntegrationSummary &in) {
+  const auto columns = [](const std::vector<const SummaryRow *> &rows) {
+    std::vector<std::vector<json::Value>> c(12);
+    for (const SummaryRow *r : rows) {
+      c[0].push_back(json::Value(r->d_max));
+      c[1].push_back(json::Value(r->d_min));
+      c[2].push_back(json::Value(static_cast<long>(r->full)));
+      c[3].push_back(json::Value(static_cast<long>(r->partial)));
+      c[4].push_back(json::Value(static_cast<long>(r->summed)));
+      c[5].push_back(json::Value(static_cast<long>(r->fitted)));
+      c[6].push_back(json::Value(r->background));
+      c[7].push_back(json::Value(r->isigma_sum));
+      c[8].push_back(json::Value(r->isigma_prf));
+      c[9].push_back(json::Value(r->cc_prf));
+      c[10].push_back(json::Value(r->rmsd_xy));
+      c[11].push_back(json::Value(static_cast<long>(r->n)));
+    }
+    return c;
+  };
+  const std::vector<std::string> names = {
+      "d_max",      "d_min",  "full",       "partial",
+      "summed",     "fitted", "ibg",        "isigma_sum",
+      "isigma_prf", "cc_prf", "rmsd_xy_px", "reflections"};
+  std::vector<const SummaryRow *> shells;
+  for (const SummaryRow &r : in.shells)
+    shells.push_back(&r);
+  step.table("by_resolution", names, columns(shells));
+  step.table("overall", names, columns({&in.overall}));
+  step.set("pearson_sum_prf", json::Value(in.pearson_sum_prf));
+}
+
+// The same summaries from an integrated table's own columns: for the runs of
+// several sweeps joined, summarised as one.
+std::optional<IntegrationSummary> summarise_table(const Table &t) {
+  for (const char *c :
+       {"d", "flags", "intensity.sum.value", "intensity.sum.variance",
+        "intensity.prf.value", "intensity.prf.variance", "profile.correlation",
+        "background.mean", "partiality", "xyzobs.px.value", "xyzcal.px",
+        "xyzres.px.value"})
+    if (!t.has(c))
+      return std::nullopt;
+  SummaryInput in;
+  const std::size_t n = t.nrows;
+  const auto reals = [&](const char *c) {
+    const Column &col = t.at(c);
+    return std::vector<double>(col.reals.begin(), col.reals.begin() + n);
+  };
+  in.d = reals("d");
+  in.flags.assign(t.at("flags").ints.begin(), t.at("flags").ints.begin() + n);
+  in.intensity_sum = reals("intensity.sum.value");
+  in.variance_sum = reals("intensity.sum.variance");
+  in.intensity_prf = reals("intensity.prf.value");
+  in.variance_prf = reals("intensity.prf.variance");
+  in.profile_correlation = reals("profile.correlation");
+  in.background = reals("background.mean");
+  in.partiality = reals("partiality");
+  const Column &obs = t.at("xyzobs.px.value"), &cal = t.at("xyzcal.px"),
+               &res = t.at("xyzres.px.value");
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+  in.res_fast.resize(n);
+  in.res_slow.resize(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    const bool detected = std::isfinite(res.reals[i * 3 + 0]) &&
+                          (in.flags[i] & flag::kIntegratedSum) != 0;
+    in.res_fast[i] =
+        detected ? obs.reals[i * 3 + 0] - cal.reals[i * 3 + 0] : nan;
+    in.res_slow[i] =
+        detected ? obs.reals[i * 3 + 1] - cal.reals[i * 3 + 1] : nan;
+  }
+  return summarise(in, 10);
+}
+
+// A joined run's processing summary: the input's steps, then integration's
+// over every sweep's reflections together, its tables printed as well.
+json::Value joined_summary(const std::string &input, const Table &joined,
+                           std::size_t runs) {
+  Summary step("mxi_integrate", input);
+  step.set("runs", json::Value(static_cast<long>(runs)));
+  step.set("reflections", json::Value(static_cast<long>(joined.nrows)));
+  if (const auto s = summarise_table(joined)) {
+    std::printf("\n=== All %zu together ===\n", runs);
+    print_summary(stdout, *s);
+    add_integration_tables(step, *s);
+  }
+  return step.document();
+}
 
 //: Wall clock, in seconds. Wall rather than CPU: the question is how long
 //: someone waits, and on a seven minute job most of the answer may be the
@@ -580,7 +670,10 @@ int integrate_sweeps(const Arguments &args, const char *program,
       if (ident.is_string())
         joined.identifiers[i] = ident.as_string();
     }
-    rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_integrate");
+    const json::Value joined_document =
+        joined_summary(args.positional[0], joined, tables.size());
+    rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_integrate",
+                        &joined_document);
     tidy();
     std::printf("\n");
     for (std::size_t g = 0; g < groups.size(); ++g)
@@ -797,7 +890,10 @@ int integrate_several(const Arguments &args, const char *program,
                                 : 0);
     }
     const Table joined = concat_rows_with_shoeboxes(tables);
-    rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_integrate");
+    const json::Value joined_document =
+        joined_summary(args.positional[0], joined, tables.size());
+    rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_integrate",
+                        &joined_document);
     tidy();
     std::printf("\n");
     for (std::size_t i = 0; i < n; ++i)
@@ -815,6 +911,8 @@ int integrate_several(const Arguments &args, const char *program,
 
 int run_program(int argc, char **argv) {
   const std::set<std::string> known = {"-o",
+                                       "--verbose",
+                                       "--progress-from",
                                        "--sigma-b",
                                        "--sigma-m",
                                        "--n-sigma",
@@ -863,8 +961,10 @@ int run_program(int argc, char **argv) {
   takes_value.erase("-g");
   takes_value.erase("--gpu");
   takes_value.erase("--gpu-emulate");
+  takes_value.erase("--verbose");
   takes_value.erase("--postrefine");
   Arguments args = parse_arguments(argc, argv, known, takes_value);
+  set_verbose(args.has("--verbose"));
   // One .rflx stands for the experiment list and the reflections
   // (docs/rflx.md).
   args.positional = rflx::as_pair(args.positional);
@@ -1154,7 +1254,7 @@ int run_program(int argc, char **argv) {
         return 1;
       }
     }
-    std::printf("Images: %s (from %s)\n", image_path.c_str(), image_source);
+    detail("Images: %s (from %s)\n", image_path.c_str(), image_source);
 
     std::unique_ptr<series::Series> images = series::nxmx(image_path);
     series::Info info;
@@ -1424,8 +1524,7 @@ int run_program(int argc, char **argv) {
       std::size_t meeting = 0;
       for (const auto &n : neighbours)
         meeting += n.empty() ? 0 : 1;
-      std::printf("Neighbours masked: %zu of the boxes meet another\n",
-                  meeting);
+      detail("Neighbours masked: %zu of the boxes meet another\n", meeting);
     }
 
     // ONE PASS OVER THE FRAMES, WITH SHOEBOXES OPEN ACROSS THEM
@@ -2249,6 +2348,11 @@ int run_program(int argc, char **argv) {
     std::vector<Shoebox> active;
     std::vector<std::size_t> active_rows;
     std::int32_t chunk_start = planned.empty() ? 0 : planned[0].bbox[4];
+    // Progress, on a run long enough to want it: a line each tenth of the way.
+    std::size_t progress_tenth = 0;
+    const double t_progress_start = now_wall();
+    const std::size_t progress_from =
+        static_cast<std::size_t>(args.number("--progress-from", 100000));
     while (at < planned.size() || !active.empty()) {
       if (active.empty() && at < planned.size()) {
         chunk_start = std::max(chunk_start, planned[at].bbox[4]);
@@ -2456,6 +2560,20 @@ int run_program(int argc, char **argv) {
         active_rows.swap(staying_rows);
       }
       const std::size_t count = boxes.size();
+      if (planned.size() >= progress_from && at > 0) {
+        const std::size_t tenth = at * 10 / planned.size();
+        if (tenth > progress_tenth && tenth < 10) {
+          progress_tenth = tenth;
+          const double elapsed = now_wall() - t_progress_start;
+          const double left = elapsed *
+                              static_cast<double>(planned.size() - at) /
+                              static_cast<double>(at);
+          std::printf(
+              "  %3zu%%: images to %d read, %.0f s; about %.0f s left\n",
+              tenth * 10, chunk_end, elapsed, left);
+          std::fflush(stdout);
+        }
+      }
       chunk_start = chunk_end;
       // Which of this chunk's boxes one pass holds for fitting: their release
       // saves them, not the save below.
@@ -2691,12 +2809,11 @@ int run_program(int argc, char **argv) {
               ++empty;
           }
           if (n_lattices > 1)
-            std::printf("Lattice %zu: ", l + 1);
-          std::printf(
-              "Reference profiles: %zu learned from %zu reflections (%zu of "
-              "%zu regions borrowed their scan block's detector average)\n",
-              own.region_count() - empty, learned_by(l), empty,
-              own.region_count());
+            detail("Lattice %zu: ", l + 1);
+          detail("Reference profiles: %zu learned from %zu reflections (%zu of "
+                 "%zu regions borrowed their scan block's detector average)\n",
+                 own.region_count() - empty, learned_by(l), empty,
+                 own.region_count());
         }
         if (references_used == 0) {
           std::fprintf(stderr,
@@ -2736,6 +2853,7 @@ int run_program(int argc, char **argv) {
 
     // What a user reads to judge the run: the summaries dials.integrate
     // prints, against resolution and overall, from the columns just written.
+    std::optional<IntegrationSummary> integration_summary;
     {
       SummaryInput summary;
       const std::size_t n = planned.size();
@@ -2774,7 +2892,8 @@ int run_program(int argc, char **argv) {
         summary.res_slow[i] =
             detected ? obs_px.reals[i * 3 + 1] - cal_px.reals[i * 3 + 1] : nan;
       }
-      print_summary(stdout, summarise(summary, 10));
+      integration_summary = summarise(summary, 10);
+      print_summary(stdout, *integration_summary);
     }
     std::printf("\n");
 
@@ -2849,7 +2968,27 @@ int run_program(int argc, char **argv) {
       written = whole_again(whole, views, written);
       const rflx::Outputs outputs = rflx::outputs(args, "integrated");
       const json::Value document = experiments_to_json(written);
-      rflx::write_outputs(outputs, &document, &out, "mxi_integrate");
+      Summary processing("mxi_integrate", args.positional[0]);
+      {
+        std::vector<json::Value> l_n, l_b, l_m, l_sigma;
+        for (std::size_t l = 0; l < n_lattices; ++l) {
+          l_n.push_back(json::Value(static_cast<long>(l + 1)));
+          l_b.push_back(json::Value(lattice_masks[l].sigma_d));
+          l_m.push_back(json::Value(lattice_masks[l].sigma_m));
+          l_sigma.push_back(json::Value(lattice_masks[l].n_sigma));
+        }
+        processing.table(
+            "profile_model",
+            {"lattice", "sigma_b_deg", "sigma_m_deg", "foreground_sigma"},
+            {l_n, l_b, l_m, l_sigma});
+        processing.set("reflections",
+                       json::Value(static_cast<long>(planned.size())));
+        if (integration_summary)
+          add_integration_tables(processing, *integration_summary);
+      }
+      const json::Value processing_document = processing.document();
+      rflx::write_outputs(outputs, &document, &out, "mxi_integrate",
+                          &processing_document);
       t_write = now_wall() - t_write_start;
       std::printf("Wrote %zu reflections, and the models with the profile "
                   "model, to %s\n",

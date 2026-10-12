@@ -1341,42 +1341,78 @@ int run_program(int argc, char **argv) {
     };
     std::vector<std::vector<std::uint32_t>> neighbours(planned.size());
     if (mask_neighbours) {
-      constexpr std::int32_t kTile = 32;
-      std::unordered_map<std::uint64_t, std::vector<std::uint32_t>> tiles;
+      // Tiles of 32 pixels and 16 images: keyed on the panel alone, a tile
+      // held every reflection that ever fell there through the scan, and
+      // over ten turns each box was tested against thousands -- 178 s for
+      // 2.5 million boxes, all on one thread. In blocks of images too, each
+      // meets only those near it in rotation; and the boxes are looked up
+      // on every thread, each its own neighbours.
+      constexpr std::int32_t kTile = 32, kTileZ = 16;
       const auto key = [](std::size_t panel_index, std::int32_t tx,
-                          std::int32_t ty) {
-        return (static_cast<std::uint64_t>(panel_index) << 42) ^
-               (static_cast<std::uint64_t>(static_cast<std::uint32_t>(tx))
-                << 21) ^
-               static_cast<std::uint64_t>(static_cast<std::uint32_t>(ty));
+                          std::int32_t ty, std::int32_t tz) {
+        // Packed; a collision only adds candidates, which the test refuses.
+        return (static_cast<std::uint64_t>(panel_index & 0xff) << 56) |
+               (static_cast<std::uint64_t>(static_cast<std::uint32_t>(tx) &
+                                           0xffff)
+                << 40) |
+               (static_cast<std::uint64_t>(static_cast<std::uint32_t>(ty) &
+                                           0xffff)
+                << 24) |
+               (static_cast<std::uint64_t>(static_cast<std::uint32_t>(tz)) &
+                0xffffff);
       };
+      const auto floor_div = [](std::int32_t a, std::int32_t b) {
+        return a >= 0 ? a / b : -((-a + b - 1) / b);
+      };
+      std::unordered_map<std::uint64_t, std::vector<std::uint32_t>> tiles;
+      tiles.reserve(planned.size() + others.size());
       for (std::size_t i = 0; i < planned.size() + others.size(); ++i) {
         const std::int32_t *b = box_of(i);
-        for (std::int32_t tx = b[0] / kTile; tx <= (b[1] - 1) / kTile; ++tx)
-          for (std::int32_t ty = b[2] / kTile; ty <= (b[3] - 1) / kTile; ++ty)
-            tiles[key(panel_of(i), tx, ty)].push_back(
-                static_cast<std::uint32_t>(i));
+        for (std::int32_t tx = floor_div(b[0], kTile);
+             tx <= floor_div(b[1] - 1, kTile); ++tx)
+          for (std::int32_t ty = floor_div(b[2], kTile);
+               ty <= floor_div(b[3] - 1, kTile); ++ty)
+            for (std::int32_t tz = floor_div(b[4], kTileZ);
+                 tz <= floor_div(b[5] - 1, kTileZ); ++tz)
+              tiles[key(panel_of(i), tx, ty, tz)].push_back(
+                  static_cast<std::uint32_t>(i));
       }
-      for (std::size_t i = 0; i < planned.size(); ++i) {
-        const std::int32_t *b = planned[i].bbox;
-        std::vector<std::uint32_t> &mine = neighbours[i];
-        for (std::int32_t tx = b[0] / kTile; tx <= (b[1] - 1) / kTile; ++tx)
-          for (std::int32_t ty = b[2] / kTile; ty <= (b[3] - 1) / kTile; ++ty) {
-            const auto it =
-                tiles.find(key(planned[i].prediction->panel, tx, ty));
-            if (it == tiles.end())
-              continue;
-            for (std::uint32_t j : it->second) {
-              if (j == i)
-                continue;
-              const std::int32_t *c = box_of(j);
-              if (c[0] < b[1] && b[0] < c[1] && c[2] < b[3] && b[2] < c[3] &&
-                  c[4] < b[5] && b[4] < c[5])
-                mine.push_back(j);
-            }
-          }
-        std::sort(mine.begin(), mine.end());
-        mine.erase(std::unique(mine.begin(), mine.end()), mine.end());
+      const auto look_up = [&](std::size_t from, std::size_t to) {
+        for (std::size_t i = from; i < to; ++i) {
+          const std::int32_t *b = planned[i].bbox;
+          std::vector<std::uint32_t> &mine = neighbours[i];
+          for (std::int32_t tx = floor_div(b[0], kTile);
+               tx <= floor_div(b[1] - 1, kTile); ++tx)
+            for (std::int32_t ty = floor_div(b[2], kTile);
+                 ty <= floor_div(b[3] - 1, kTile); ++ty)
+              for (std::int32_t tz = floor_div(b[4], kTileZ);
+                   tz <= floor_div(b[5] - 1, kTileZ); ++tz) {
+                const auto it =
+                    tiles.find(key(planned[i].prediction->panel, tx, ty, tz));
+                if (it == tiles.end())
+                  continue;
+                for (std::uint32_t j : it->second) {
+                  if (j == i)
+                    continue;
+                  const std::int32_t *c = box_of(j);
+                  if (c[0] < b[1] && b[0] < c[1] && c[2] < b[3] &&
+                      b[2] < c[3] && c[4] < b[5] && b[4] < c[5])
+                    mine.push_back(j);
+                }
+              }
+          std::sort(mine.begin(), mine.end());
+          mine.erase(std::unique(mine.begin(), mine.end()), mine.end());
+        }
+      };
+      {
+        const std::size_t n = planned.size();
+        const std::size_t parts =
+            std::max<std::size_t>(1, std::min(workers, n));
+        std::vector<std::thread> pool;
+        for (std::size_t k = 0; k < parts; ++k)
+          pool.emplace_back(look_up, n * k / parts, n * (k + 1) / parts);
+        for (std::thread &t : pool)
+          t.join();
       }
       std::size_t meeting = 0;
       for (const auto &n : neighbours)

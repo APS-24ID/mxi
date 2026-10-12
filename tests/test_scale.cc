@@ -647,3 +647,59 @@ TEST(several_sweeps_observations_each_take_their_own_sweeps_scan) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(variances_from_the_model_leave_the_merged_mean_unbiased) {
+  // Weak reflections, true intensity 0.5 counts on a background of 2, counted
+  // with Poisson noise, thirty observations of each of two thousand. Each
+  // observation's own variance -- its counted signal, max(I, 0), plus the
+  // background, as integration's from expected counts -- moves with its own
+  // noise, and the inverse-variance weighted mean leans low. From the model,
+  // the background plus the model's intensity the same for every observation
+  // of a reflection: unbiased (docs/integration.md, "The fitted variance").
+  std::mt19937 rng(11);
+  const double truth = 0.5, background = 2.0;
+  const std::size_t groups = 2000, each = 30, n = groups * each;
+  ScaleData data;
+  data.observation.resize(n);
+  for (std::size_t h = 0; h < groups; ++h) {
+    data.unique.push_back(Miller{static_cast<int>(h) + 1, 0, 0});
+    for (std::size_t k = 0; k < each; ++k) {
+      std::poisson_distribution<int> counts(background + truth);
+      const double I = counts(rng) - background;
+      data.intensity.push_back(I);
+      const double own = std::fmax(I, 0.0) + background;
+      data.variance.push_back(own);
+      data.variance_before.push_back(own);
+      data.group.push_back(h);
+      data.outlier.push_back(false);
+      data.factor.push_back(1.0);
+      data.variance_background.push_back(background);
+    }
+  }
+  data.has_background = true;
+  const std::vector<double> g(n, 1.0);
+  // The merged mean's bias, in its own sigma: averaged over the reflections.
+  const auto bias = [&]() {
+    const std::vector<double> m = merged_intensities(data, g);
+    double sum = 0.0;
+    for (std::size_t h = 0; h < groups; ++h) {
+      double w = 0.0;
+      for (std::size_t k = 0; k < each; ++k)
+        w += 1.0 / data.variance[h * each + k];
+      sum += (m[h] - truth) * std::sqrt(w);
+    }
+    return sum / static_cast<double>(groups);
+  };
+  const double before = bias();
+  check::is_true(before < -0.2, "each its own: the mean leans low, " +
+                                    std::to_string(before) + " sigma");
+  check::is_true(model_variances(data, g), "the model's variances taken");
+  model_variances(data, g); // again, on the model's own means
+  const double after = bias();
+  check::is_true(std::fabs(after) < 0.1, "from the model: unbiased, " +
+                                             std::to_string(after) + " sigma");
+}
+
+} // namespace mxi

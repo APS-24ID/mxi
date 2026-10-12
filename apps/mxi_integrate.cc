@@ -923,13 +923,28 @@ int run_program(int argc, char **argv) {
     // same whatever the thread count.
     predict_options.threads = workers;
     const double t_predict_start = now_wall();
-    const std::vector<Prediction> predictions = predict(e, predict_options);
+    // Each lattice's, with its own crystal: the lattices of a sweep integrated
+    // in one pass over its images (docs/multi-lattice.md).
+    std::vector<std::vector<Prediction>> lattice_predictions;
+    for (std::size_t l = 0; l < n_lattices; ++l)
+      lattice_predictions.push_back(predict(experiments[l], predict_options));
     t_predict = now_wall() - t_predict_start;
     // As frames' array indices, the scan's own by default: a scan from image
     // 151 begins at frame 150.
     const double first_image = args.number("--first-image", e.scan.z_first());
     const double last_image = args.number("--last-image", e.scan.z_last());
-    std::printf("Predicted %zu reflections\n", predictions.size());
+    {
+      std::size_t total = 0;
+      for (const auto &list : lattice_predictions)
+        total += list.size();
+      std::printf("Predicted %zu reflections", total);
+      if (n_lattices > 1) {
+        std::printf(" of %zu lattices:", n_lattices);
+        for (const auto &list : lattice_predictions)
+          std::printf(" %zu", list.size());
+      }
+      std::printf("\n");
+    }
 
     // TWO PASSES, AND WHY
     //
@@ -947,29 +962,34 @@ int run_program(int argc, char **argv) {
     struct Planned {
       const Prediction *prediction;
       std::int32_t bbox[6];
+      std::uint32_t lattice = 0; //: its experiment in the list
     };
     const double t_boxes_start = now_wall();
     std::vector<Planned> planned;
     std::map<std::string, std::size_t> refused;
     std::size_t outside_range = 0;
-    for (const Prediction &p : predictions) {
-      if (p.z < first_image || p.z > last_image) {
-        ++outside_range;
-        continue;
+    for (std::size_t l = 0; l < n_lattices; ++l) {
+      const Experiment &le = experiments[l];
+      for (const Prediction &p : lattice_predictions[l]) {
+        if (p.z < first_image || p.z > last_image) {
+          ++outside_range;
+          continue;
+        }
+        if (d_max > 0.0 && le.crystal &&
+            resolution(*le.crystal, p.h, p.k, p.l) > d_max) {
+          ++refused["lower resolution than --d-max"];
+          continue;
+        }
+        Planned item;
+        item.prediction = &p;
+        item.lattice = static_cast<std::uint32_t>(l);
+        BoxRejection why = BoxRejection::kNone;
+        if (!integration_bbox(le, p, lattice_masks[l], item.bbox, &why)) {
+          ++refused[describe(why)];
+          continue;
+        }
+        planned.push_back(item);
       }
-      if (d_max > 0.0 && e.crystal &&
-          resolution(*e.crystal, p.h, p.k, p.l) > d_max) {
-        ++refused["lower resolution than --d-max"];
-        continue;
-      }
-      Planned item;
-      item.prediction = &p;
-      BoxRejection why = BoxRejection::kNone;
-      if (!integration_bbox(e, p, mask_options, item.bbox, &why)) {
-        ++refused[describe(why)];
-        continue;
-      }
-      planned.push_back(item);
     }
     t_boxes = now_wall() - t_boxes_start;
     {
@@ -1235,7 +1255,8 @@ int run_program(int argc, char **argv) {
       miller.ints[row * 3 + 1] = p.k;
       miller.ints[row * 3 + 2] = p.l;
       panel_column.ints[row] = static_cast<std::int64_t>(p.panel);
-      id.ints[row] = 0;
+      const std::uint32_t lattice = planned[row].lattice;
+      id.ints[row] = static_cast<std::int64_t>(lattice);
       imageset.ints[row] = 0;
       // DIALS' convention for a reflection that reaches a masked pixel, read
       // from its source and confirmed on a real integration. A foreground
@@ -1272,13 +1293,14 @@ int run_program(int argc, char **argv) {
       bsumvar.reals[row] = r.background_sum_variance;
       qe_column.reals[row] = quantum_efficiency(panel, p.s1);
       lp_column.reals[row] = lorentz_polarization(e.beam, e.goniometer, p.s1);
+      const Experiment &le = experiments[lattice];
       d_column.reals[row] =
-          e.crystal ? resolution(*e.crystal, p.h, p.k, p.l) : 0.0;
+          le.crystal ? resolution(*le.crystal, p.h, p.k, p.l) : 0.0;
       const double z_of = compute_zeta(e, p.s1);
       zeta_column.reals[row] = z_of;
       part_column.reals[row] =
-          partiality(e.scan, p.phi, z_of, mask_options.sigma_m, box->bbox[4],
-                     box->bbox[5]);
+          partiality(e.scan, p.phi, z_of, lattice_masks[lattice].sigma_m,
+                     box->bbox[4], box->bbox[5]);
       // Every reflection here is its own, since nothing splits one across two
       // rows; DIALS uses this to tie the pieces of a split reflection together.
       partial_id.ints[row] = static_cast<std::int64_t>(row);
@@ -1907,13 +1929,15 @@ int run_program(int argc, char **argv) {
         active_rows[first_new + i] = at + i;
         BoxRejection ignored = BoxRejection::kNone;
         Shoebox &box = active[first_new + i];
-        if (build_shoebox(e, *planned[at + i].prediction, mask_options, &box,
-                          &ignored)) {
+        const std::uint32_t own = planned[at + i].lattice;
+        if (build_shoebox(experiments[own], *planned[at + i].prediction,
+                          lattice_masks[own], &box, &ignored)) {
           box.data.assign(box.size(), 0.0f);
           for (std::uint32_t j : neighbours[at + i]) {
             if (j < planned.size()) {
-              mark_overlapped(e, *planned[j].prediction, mask_options,
-                              planned[j].bbox, &box);
+              mark_overlapped(
+                  experiments[planned[j].lattice], *planned[j].prediction,
+                  lattice_masks[planned[j].lattice], planned[j].bbox, &box);
             } else {
               const Other &o = others[j - planned.size()];
               mark_overlapped(other_models[o.lattice], *o.prediction,
@@ -2376,8 +2400,9 @@ int run_program(int argc, char **argv) {
       for (std::size_t r = 0; r < planned.size(); ++r)
         why.ints[r] = failure_of[r];
     }
-    if (!e.identifier.empty())
-      out.identifiers[0] = e.identifier;
+    for (std::size_t l = 0; l < n_lattices; ++l)
+      if (!experiments[l].identifier.empty())
+        out.identifiers[l] = experiments[l].identifier;
 
     {
       const std::size_t lost = prf_no_box + prf_no_reference + prf_no_pixels +

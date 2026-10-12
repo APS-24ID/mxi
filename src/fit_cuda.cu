@@ -146,10 +146,11 @@ __global__ void fit_kernel(Setup setup, const PanelF *panels, const BoxF *boxes,
   }
   scale /= profile_sum;
   float variance = 0.0f;
+  float weight = 0.0f, weight2 = 0.0f; // the last round's sum(p/v), sum(p^2/v)
   int iterations = 0;
   const int rounds = setup.iterations > 1 ? setup.iterations : 1;
   for (int round = 0; round < rounds; ++round) {
-    float num = 0.0f, den = 0.0f;
+    float num = 0.0f, den = 0.0f, wt = 0.0f;
     for (int i = t; i < voxels; i += kThreads) {
       if (!(m[i] & kForeground) || !(m[i] & kValid))
         continue;
@@ -158,9 +159,11 @@ __global__ void fit_kernel(Setup setup, const PanelF *panels, const BoxF *boxes,
           setup.gain * (expected > kLeastVariance ? expected : kLeastVariance);
       num += profile[i] * (d[i] - bg) / v;
       den += profile[i] * profile[i] / v;
+      wt += profile[i] / v;
     }
     const float numerator = block_sum(num, scratch),
-                denominator = block_sum(den, scratch);
+                denominator = block_sum(den, scratch),
+                weighted = block_sum(wt, scratch);
     if (!(denominator > 0.0f)) {
       if (t == 0)
         out[b] = FitF{};
@@ -168,6 +171,8 @@ __global__ void fit_kernel(Setup setup, const PanelF *panels, const BoxF *boxes,
     }
     scale = numerator / denominator;
     variance = 1.0f / denominator;
+    weight = weighted;
+    weight2 = denominator;
     iterations = round + 1;
   }
   float fg = 0.0f, bgp = 0.0f, n = 0.0f, sp = 0.0f, sd = 0.0f, spp = 0.0f,
@@ -200,9 +205,12 @@ __global__ void fit_kernel(Setup setup, const PanelF *panels, const BoxF *boxes,
     f.iterations = iterations;
     f.intensity = scale * profile_sum;
     f.variance = variance * profile_sum * profile_sum;
-    if (background_pixels > 0.0f)
-      f.variance +=
-          setup.gain * (foreground / background_pixels) * (foreground * bg);
+    // The background's error carried through the fit's weights, as
+    // fit_on_pixels: profile_sum sum(p/v) / sum(p^2/v).
+    if (background_pixels > 0.0f && foreground > 0.0f && weight2 > 0.0f) {
+      const float carried = profile_sum * weight / weight2;
+      f.variance += setup.gain * bg / background_pixels * carried * carried;
+    }
     if (N > 1.0f) {
       const float cov = SPD / N - (SP / N) * (SD / N);
       const float va = SPP / N - (SP / N) * (SP / N),

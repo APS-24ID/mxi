@@ -125,15 +125,14 @@ where something is missing.
 
 ## Scaling
 
-* **54.** **correctness -- Weak reflections' sigma too large, from
-    integration.** Judged on the same observations by the exact deviations'
-    variance, mxi's final sigma are right for the stronger two-thirds of the
-    two crystals' data and dials.scale's 30 per cent small (its a 0.81, mxi's
-    1.10 -- the 12.5 against 9.4 in merged mean I/sigma); for the weakest third
-    both too large, mxi's by up to two in variance. Integration's: mxi's
-    integration sigma there are 0.68 to 0.83 of DIALS's own, so DIALS's
-    pipeline starts from larger still. The background's term in a weak
-    reflection's variance to be looked at. `docs/scaling.md`.
+* **54.** **correctness -- Weak reflections' sigma, the last of it.** The
+    fitted variance's background term carried through the fit's weights, and
+    a pixel's least variance 0.001 counts rather than 0.05: insulin's weakest
+    scaled sextile 0.66 to 0.95, the two crystals' 0.26 to 0.42 and 0.58 to
+    0.80. Left: shoeboxes of a handful of counts, where a variance from the
+    fit's own noisy intensity is least to be trusted. `docs/integration.md`,
+    "The fitted variance". The CUDA and Metal kernels carry the change,
+    unbuilt here.
 
 * **21.** **capability -- One sweep only.**
 * **22.** **capability -- No free-set validation**, the check for overfitting.

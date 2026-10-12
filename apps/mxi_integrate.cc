@@ -242,7 +242,7 @@ void usage(const char *program) {
       "                    CPU's is in double. One pass only\n"
       "  --gpu-emulate     the same single-precision fitting on the CPU, for\n"
       "                    testing without a device\n"
-      "  --grid-points N   the profile grid is 2N+1 a side (4)\n"
+      "  --grid-points N   the profile grid is 2N+1 a side (6)\n"
       "  --subdivisions N  pixel subdivisions per axis (5, as Kabsch uses)\n"
       "  --regions N       detector divided N by N for reference profiles (3)\n"
       "  --scan-blocks N   the scan divided N ways as well (one per 10 "
@@ -1764,7 +1764,11 @@ int run_program(int argc, char **argv) {
     // first's what the rest reads where there is one lattice.
     std::vector<GridSpec> grids(n_lattices);
     for (std::size_t l = 0; l < n_lattices; ++l) {
-      grids[l].n = static_cast<int>(args.number("--grid-points", 4.0));
+      // Six, not the library's four: a reflection cut by a gap came out high,
+      // the reference broader than its spot, and a third of that was the
+      // grid's smoothing -- gone at six for nothing in time, merging as well
+      // (docs/outstanding.md, item 2).
+      grids[l].n = static_cast<int>(args.number("--grid-points", 6.0));
       grids[l].sigma_d = lattice_masks[l].sigma_d;
       grids[l].sigma_m = lattice_masks[l].sigma_m;
       grids[l].half_width = lattice_masks[l].n_sigma;

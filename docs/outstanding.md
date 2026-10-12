@@ -87,6 +87,21 @@ where something is missing.
   background's curvature near the beam, which a constant model fitted around
   the foreground cannot follow; a plane or a radial term to test it. DIALS's
   default model is constant too.
+  Measured again (13 October 2026), and the low-resolution shape was the
+  test's: the crystal turned alone sat among the real crystal's spots, which
+  it could not mask. Turned and real integrated together, two lattices, the
+  real spots masked as in any run: the turned boxes meeting no real reflection
+  (13959) are -0.36 to -0.57 per cent at every resolution, +-0.15 to 0.24 --
+  not curvature, which would follow resolution -- and those whose foreground
+  holds part of a real spot +3 to +9, which had made the high shells positive.
+  Not the estimator: flat Poisson backgrounds through glm_background, 0.1 to 2
+  counts a pixel, 300 to 1000 pixels, within +0.17 per cent, nothing at
+  insulin's pixel counts. Partly the real spots' tails past their masked 3
+  sigma foregrounds -- thermal diffuse scattering among them, which every run
+  has: -0.58 per cent for the turned boxes nearest a real reflection, -0.28
+  +-0.12 for the farthest fifth. Some 0.3 per cent not yet explained. A
+  constant fraction of the background, so for a weak reflection -0.4 per cent
+  of I_bg under it: about -0.07 sigma at insulin's 300 counts.
 * **5.** **correctness -- A dependence of the z centre on strength remains** after
    `--postrefine`, +0.018 images for the weakest to -0.036 for the strongest:
    the integrator's centre on an asymmetric rocking curve.

@@ -178,3 +178,56 @@ def test_two_sweeps_integrate_as_the_sweep_whole_does(tmp_path):
                 assert "2 sweeps, pooled" in run.stdout
                 assert len(e["experiment"]) == 2
         assert groups[0] == groups[1] and len(groups[1]) == 1
+
+
+@needs
+def test_two_sweeps_carried_through_integrate_as_without_them(tmp_path):
+    # dials/dials#1029 (docs/multi-lattice.md, stage 2): each sweep's own
+    # crystal-less experiment carried in front of the lattices, its unindexed
+    # spots its own, as mxi_index --keep-sweeps writes them. Integrated a run
+    # a sweep, the same table as without them -- the lattices' ids two on --
+    # and the sweeps' experiments carried in their places, crystal-less, with
+    # no reflections.
+    split(tmp_path)
+    e = json.load(open(tmp_path / "two.expt"))
+    kept = copy.deepcopy(e)
+    sweeps = []
+    for i in (0, 1):
+        x = copy.deepcopy(e["experiment"][i])
+        x["crystal"] = None
+        x["identifier"] = f"sweep-{i}"
+        sweeps.append(x)
+    kept["experiment"] = sweeps + e["experiment"]
+    json.dump(kept, open(tmp_path / "kept.expt", "w"))
+    t = refl.load(str(tmp_path / "two.refl"))
+    ids = np.asarray(t.columns["id"]).copy()
+    unindexed = np.all(
+        np.asarray(t.columns["miller_index"]).reshape(-1, 3) == 0, axis=1
+    )
+    t.columns["id"] = np.where(unindexed, ids, ids + 2).astype(np.int32)
+    t.identifiers = {0: "sweep-0", 1: "sweep-1", 2: "half-0", 3: "half-1"}
+    refl.write(str(tmp_path / "kept.refl"), t)
+    plain, _, _ = integrate(tmp_path, "two.expt", "two.refl", "plain")
+    carried, expt, out = integrate(tmp_path, "kept.expt", "kept.refl", "carried")
+    assert "2 sweeps" in out
+    assert [x.get("crystal") is None for x in expt["experiment"]] == [
+        True,
+        True,
+        False,
+        False,
+    ]
+    assert [x["identifier"] for x in expt["experiment"]] == [
+        "sweep-0",
+        "sweep-1",
+        "half-0",
+        "half-1",
+    ]
+    assert carried.nrows == plain.nrows
+    assert np.array_equal(
+        np.asarray(carried.columns["id"]), np.asarray(plain.columns["id"]) + 2
+    )
+    for k in plain.columns:
+        if k == "id":
+            continue
+        a, b = np.asarray(plain.columns[k]), np.asarray(carried.columns[k])
+        assert np.array_equal(a, b, equal_nan=a.dtype.kind == "f"), k

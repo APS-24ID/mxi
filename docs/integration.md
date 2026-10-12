@@ -297,8 +297,10 @@ model, estimated from its own spots, its own profile grid and reference
 profiles, finalised apart, so that one lattice never borrows another's
 average. Each experiment's profile model is written as its own profile block.
 The same, row for row, as a run a lattice (`--each-alone`), but for the row
-numbers and rounding in the fitted values; sweeps, and postrefinement, are
-still a run each. `docs/multi-lattice.md`.
+numbers and rounding in the fitted values. Several sweeps are integrated a run
+a sweep, each its lattices in one pass and its own crystal-less experiment
+carried, the runs joined in the list's order; postrefinement and
+`--each-alone` a run an experiment. `docs/multi-lattice.md`.
 
 ## What it writes
 

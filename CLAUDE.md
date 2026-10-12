@@ -155,7 +155,9 @@ Graeme's objection, and never built.
   MXI_TEST_IMAGES=/mnt/user-data/uploads/ins10_1.nxs PYTHONPATH=src:tests
   python3 -m pytest -q`, run in `python/`.
   `python/tests/test_documents.py` fails on any path or program a document names that
-  does not exist.
+  does not exist. `python/tests/test_lattices.py` wants the two crystals of
+  ins2_27 at each step: `MXI_TWO_LATTICES` (strong spots), `..._REFINED`,
+  `..._INTEGRATED`, `..._SYMMETRIZED`, `..._SCALED`, with the programs named.
 * **Delivery** is a bundle: `git bundle create <file> --all`, `git bundle
   verify`, copied to `/mnt/user-data/outputs/mxi.bundle`; then a fresh
   clone, `git submodule update --init`, `cmake -DMXI_FFTW=ON`, a build and every

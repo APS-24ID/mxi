@@ -4,7 +4,8 @@ STATUS: `mxi_scale` scales one sweep, and several of one crystal together
 (5 October 2026). Not yet: free-set validation. `docs/outstanding.md` has the
 whole list.
 
-**Several sweeps** each have a model of their own -- scale, decay and
+**Several sweeps** -- or several crystals, each an experiment of its own
+(`docs/multi-lattice.md`) -- each have a model of their own -- scale, decay and
 absorption from each sweep's own width of rotation, as dials.scale's physical
 model has one a dataset -- sharing the merged intensities; an observation's id
 chooses its sweep's parameters. The one overall scale and the one overall B the

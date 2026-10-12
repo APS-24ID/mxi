@@ -285,7 +285,9 @@ single precision" line.
 ## Integration
 
 Profile fitting and reading frames, and whether a device is the way to make
-them faster: measured each time before anything moved.
+them faster: measured each time before anything moved. With several lattices
+in a sweep the fitting is on the CPU for now: the device's batch carries one
+profile grid, and each lattice has its own (`docs/outstanding.md`, item 56).
 
 ### What a device would buy, measured first
 

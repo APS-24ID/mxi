@@ -131,8 +131,17 @@ four-fold about b, which is in the lattice's m-3m and not in the crystal's m-3.
 The two tables are on opposite sides of the indexing ambiguity m-3 has in a
 cubic lattice. For one sweep either is right and scales the same; symmetrized.refl
 is not index for index the same as dials.symmetry's, and sweeps -- or a sweep
-and a reference -- must be put on the same side before they are merged. That
-wants a reference, or dials.cosym's method.
+and a reference -- must be put on the same side before they are merged.
+
+For several crystals that is done: `mxi_symmetry` runs cosym (Gildea &
+Winter, 2018; `src/cosym.cc`) before it pools experiments whose crystals are
+not one model -- each crystal's intensities merged in P1 and normalised,
+correlated with every other's under every rotation of the lattice, the
+matrix's leading eigenvectors, and each crystal reindexed into the first's
+setting. On two crystals of insulin it chose the same coset as dials.cosym
+(`docs/multi-lattice.md`). `--no-cosym` pools them as they are. Sweeps of one
+crystal, sharing one crystal model, are left as they are; a lone sweep
+against a reference is still not done.
 
 ## The resolution limit
 

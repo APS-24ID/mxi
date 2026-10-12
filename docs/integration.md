@@ -278,6 +278,28 @@ the 300 image sweep had said 49000 and 1.1 -- boxes wait longer than the estimat
 allowed. Integration there took 19.4 s against two passes' 28.4, and decompressing
 41 thread-seconds against 80.
 
+## Several lattices, and neighbours masked
+
+**Neighbours.** Each reflection's shoebox has the voxels inside any other
+reflection's foreground marked Overlapped -- under that reflection's own
+experiment and profile model, so another lattice's spots are masked as they
+are -- left out of its background, kept in its foreground and flagged
+`overlapped_bg` or `overlapped_fg` (bits 11 and 12, as DIALS's); a reflection
+whose foreground is overlapped is not learned from. DIALS's 3d_threaded
+integrator does this; its default, 3d, finds the overlaps and masks nothing.
+On a single well-separated lattice nothing overlaps and nothing changes; on
+two crystals of insulin, a sixth of each lattice's boxes meet another.
+`--no-mask-neighbours` leaves them in.
+
+**Lattices.** The experiments of one sweep -- on one image set and one scan --
+are integrated in one pass over its images, each lattice with its own profile
+model, estimated from its own spots, its own profile grid and reference
+profiles, finalised apart, so that one lattice never borrows another's
+average. Each experiment's profile model is written as its own profile block.
+The same, row for row, as a run a lattice (`--each-alone`), but for the row
+numbers and rounding in the fitted values; sweeps, and postrefinement, are
+still a run each. `docs/multi-lattice.md`.
+
 ## What it writes
 
 Every column DIALS' own `integrated.refl` has that this computes:

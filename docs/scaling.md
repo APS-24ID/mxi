@@ -182,6 +182,13 @@ agree above ten -- so DIALS's own pipeline starts from larger ones still. The
 weak reflections' variance, its background term above all, is the thing to
 look at; mxi's error model is kept as it is.
 
+It was the fitted variance (`docs/integration.md`, "The fitted variance"): the
+background's term taken as a sum's, and a pixel's least variance above these
+crystals' whole background. Both mended, the same two crystals scale with a =
+1.132, b = 0.0189, and by mean intensity sextile 0.42 0.80 1.06 1.05 0.93
+0.98; insulin's sweep 0.95 1.06 1.09 1.13 1.23 1.20, where it was 0.66 0.92
+1.04 1.13 1.27 1.23. CC half as it was.
+
 ## The scale's uncertainty, before the error model
 
 The covariance of the parameters is the inverse of the normal matrix of the

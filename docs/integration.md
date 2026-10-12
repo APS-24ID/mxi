@@ -146,7 +146,9 @@ Choosing a few of them:
    profile is interpolated from are final, then fitted by weighted least
    squares against its own pixels, with the reference profile interpolated
    between the neighbouring cells and carried onto the pixels, and let go. The variance is
-   the fit's plus the background term of Leslie's equation 34.
+   the fit's plus the background term of Leslie's equation 34, the background
+   estimate's error carried through the fit's own weights (below, "The fitted
+   variance").
 6. **Writing.** One row per prediction.
 
 **Both transforms share one geometry.** Learning carries counts onto the
@@ -422,8 +424,43 @@ something disagrees.
 * **Flags come from DIALS' source,** not from memory or from a table here:
   a guess once took bit 19 for an exclusion flag.
 * **Fit on the pixels, not the grid,** and give the fitted variance its
-  background term; a fitted variance below Leslie's floor of about half the
-  summed one is a missing term, not a better algorithm.
+  background term -- carried through the fit's weights, not as a sum carries
+  it. That the fitted variance could not fall below about half the summed was
+  wrong: equivalents' deviations say a weak reflection's is a quarter
+  ("The fitted variance").
+
+## The fitted variance
+
+Judged by the deviations between equivalents -- one for sigma that are right
+-- the weak reflections' fitted variance was too large, and so were their
+sigma after scaling, in mxi's pipeline and DIALS's own (`docs/scaling.md`).
+Integrating insulin's sweep with a crystal turned 3 degrees, every prediction
+on bare background, the summed I/sigma had variance 1.12 to 1.25: summation's
+sigma right, or a little small. Two things in the fit were not:
+
+* **The background term.** The background's error is one number under every
+  pixel; through the fit it moves the intensity by profile_sum sum(p/v) /
+  sum(p^2/v), not by the m foreground pixels a sum carries it by. Taking
+  summation's (m/n) I_bg overstated it by the square of their ratio. Carried
+  through the weights, insulin's weak fitted deviations go from 0.58 and 0.71
+  to 1.04 and 1.06, summation's being 1.04 and 1.02; the weakest fitted
+  variance is a quarter of the summed, which is what the deviations say it
+  achieves; scaled, the weakest sextile goes from 0.66 to 0.95.
+* **The least variance of a pixel, 0.05 counts.** Two crystals of insulin
+  (`docs/multi-lattice.md`) have a background of 0.016 to 0.034 counts a
+  pixel, below it everywhere, so the floor, not the counts, set a weak
+  reflection's weights and variance. Now 0.001, below any background met:
+  insulin's, about 0.3, changes 17 variances of 20018. Scaled, the two
+  crystals' weakest sextiles go from 0.26 and 0.58 to 0.42 and 0.80, the rest
+  near one.
+
+What remains is the weakest sextile of the weakest crystal: shoeboxes of a
+handful of counts, where a variance taken from the fit's own noisy intensity
+-- b + max(I, 0) p -- is least to be trusted. Taking it linear in I, which is
+right on average, moved the weakest little and left the next too small, the
+weights unsettled by negative intensities: not done. The device's fit
+(fit_device.hh, fit_cuda.cu, fit_metal.metal) carries both changes; the
+emulation matches the CPU, the CUDA and Metal kernels are not built here.
 
 ## Checking a run
 

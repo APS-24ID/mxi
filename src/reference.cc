@@ -13,7 +13,7 @@ namespace {
 //: The least variance a measurement can have, in counts. A point with no
 //: signal still carries the background's noise; anything smaller is a weight
 //: this fit has no business trusting.
-constexpr double kLeastVariance = 0.05;
+constexpr double kLeastVariance = 0.001;
 } // namespace
 
 namespace {
@@ -713,8 +713,9 @@ ProfileFit fit_on_pixels(const Shoebox &box,
   scale /= profile_sum;
 
   double variance = 0.0;
+  double profile_over_v = 0.0, profile2_over_v = 0.0; // the last round's
   for (int round = 0; round < std::max(iterations, 1); ++round) {
-    double numerator = 0.0, denominator = 0.0;
+    double numerator = 0.0, denominator = 0.0, weight = 0.0;
     for (std::size_t i = 0; i < box.size(); ++i) {
       if ((box.mask[i] & shoebox_mask::kForeground) == 0)
         continue;
@@ -726,6 +727,7 @@ ProfileFit fit_on_pixels(const Shoebox &box,
       const double residual = static_cast<double>(box.data[i]) - b;
       numerator += pixel_profile[i] * residual / v;
       denominator += pixel_profile[i] * pixel_profile[i] / v;
+      weight += pixel_profile[i] / v;
     }
     if (!(denominator > 0.0)) {
       out.why = FitFailure::degenerate;
@@ -733,21 +735,26 @@ ProfileFit fit_on_pixels(const Shoebox &box,
     }
     scale = numerator / denominator;
     variance = 1.0 / denominator;
+    profile_over_v = weight;
+    profile2_over_v = denominator;
     out.iterations = round + 1;
   }
   out.intensity = scale * profile_sum;
   out.variance = variance * profile_sum * profile_sum;
 
   // Leslie equation 34: the fitted variance has TWO parts, the fit itself and
-  // the background. The second is the same (m/n) I_bg that summation carries,
-  // because the background was estimated from n pixels and subtracted from m
-  // of them, and that uncertainty does not go away because the foreground was
-  // weighted by a profile.
+  // the background. The background was estimated from n pixels and
+  // subtracted under the foreground, and that uncertainty does not go away
+  // because the foreground was weighted by a profile -- but it is carried
+  // through the fit's weights, not as a sum carries it (below).
   //
-  // Leaving it out made the fitted variance 0.32 of the summed one where DIALS
-  // has 0.85 -- and 0.32 is below the floor Leslie section 6.6 derives, which
-  // is about 0.5 for a typical profile. A ratio better than the theory allows
-  // is not a better algorithm; it is a term that has been forgotten.
+  // Leaving it out made the fitted variance 0.32 of the summed one at high
+  // resolution, and that was taken for a term forgotten; it was. Putting it in
+  // as summation's (m/n) I_bg, though, overstated it: on insulin the weak
+  // reflections' fitted deviations between equivalents then had variance 0.58
+  // where the summed ones had 1.04. Carried through the weights they have
+  // 1.04 too, and the fitted variance of the weakest is a quarter of the
+  // summed -- which is what the deviations say it achieves.
   {
     double foreground = 0.0, background_pixels = 0.0, background_sum = 0.0;
     for (std::size_t i = 0; i < box.size(); ++i) {
@@ -760,8 +767,19 @@ ProfileFit fit_on_pixels(const Shoebox &box,
         background_pixels += 1.0;
       }
     }
-    if (background_pixels > 0.0) {
-      out.variance += gain * (foreground / background_pixels) * background_sum;
+    // The background's error is one number, delta, under every pixel: its
+    // variance the mean background over the n pixels it was estimated from.
+    // Through the fit it moves the intensity by delta times profile_sum
+    // sum(p/v) / sum(p^2/v) -- not by delta times the m foreground pixels, as
+    // it moves a sum. Taking summation's m^2 for it overstated the term by
+    // (m sum(p^2/v) / (profile_sum sum(p/v)))^2, several times over for a
+    // compact profile, and the weak reflections' fitted sigma with it: their
+    // deviations between equivalents had variance 0.66 on insulin.
+    if (background_pixels > 0.0 && foreground > 0.0 && profile2_over_v > 0.0) {
+      const double mean_background = background_sum / foreground;
+      const double carried = profile_sum * profile_over_v / profile2_over_v;
+      out.variance +=
+          gain * (mean_background / background_pixels) * carried * carried;
     }
   }
 

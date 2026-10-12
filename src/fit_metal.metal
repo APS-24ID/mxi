@@ -11,7 +11,7 @@
 using namespace metal;
 
 constant uchar kValid = 1, kBackground = 2, kForeground = 4;
-constant float kLeastVariance = 0.05f;
+constant float kLeastVariance = 0.001f;
 constant float kDegrees = 57.29577951308232f;
 #define K_MAX_SIDE 17
 #define K_MAX_SUB 7
@@ -361,10 +361,11 @@ kernel void fit_kernel(constant Setup &setup [[buffer(0)]],
   }
   fit_scale /= profile_sum;
   float variance = 0.0f;
+  float weight = 0.0f, weight2 = 0.0f; // the last round's sum(p/v), sum(p^2/v)
   int iterations = 0;
   const int rounds = setup.iterations > 1 ? setup.iterations : 1;
   for (int round = 0; round < rounds; ++round) {
-    float num = 0.0f, den = 0.0f;
+    float num = 0.0f, den = 0.0f, wt = 0.0f;
     for (int i = int(t); i < voxels; i += K_THREADS) {
       if ((m[i] & kForeground) == 0 || (m[i] & kValid) == 0)
         continue;
@@ -372,9 +373,11 @@ kernel void fit_kernel(constant Setup &setup [[buffer(0)]],
       const float v = setup.gain * max(expected, kLeastVariance);
       num += profile[i] * (d[i] - bg) / v;
       den += profile[i] * profile[i] / v;
+      wt += profile[i] / v;
     }
     const float numerator = block_sum(num, scratch, t);
     const float denominator = block_sum(den, scratch, t);
+    const float weighted = block_sum(wt, scratch, t);
     if (!(denominator > 0.0f)) {
       if (t == 0)
         out[b] = FitF{0, 0, 0.0f, 0.0f, 0.0f, 1.0f};
@@ -382,6 +385,8 @@ kernel void fit_kernel(constant Setup &setup [[buffer(0)]],
     }
     fit_scale = numerator / denominator;
     variance = 1.0f / denominator;
+    weight = weighted;
+    weight2 = denominator;
     iterations = round + 1;
   }
   float fg = 0.0f, bgp = 0.0f, n = 0.0f, sp = 0.0f, sd = 0.0f, spp = 0.0f, sdd = 0.0f, spd = 0.0f;
@@ -413,8 +418,12 @@ kernel void fit_kernel(constant Setup &setup [[buffer(0)]],
     r.measured = seen / profile_sum;
     r.intensity = fit_scale * profile_sum;
     r.variance = variance * profile_sum * profile_sum;
-    if (background_pixels > 0.0f)
-      r.variance += setup.gain * (foreground / background_pixels) * (foreground * bg);
+    // The background's error carried through the fit's weights, as
+    // fit_on_pixels: profile_sum sum(p/v) / sum(p^2/v).
+    if (background_pixels > 0.0f && foreground > 0.0f && weight2 > 0.0f) {
+      const float carried = profile_sum * weight / weight2;
+      r.variance += setup.gain * bg / background_pixels * carried * carried;
+    }
     r.correlation = 0.0f;
     if (N > 1.0f) {
       const float cov = SPD / N - (SP / N) * (SD / N);

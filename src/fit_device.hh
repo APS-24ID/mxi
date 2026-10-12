@@ -40,7 +40,7 @@ namespace fitdev {
 // agree (fit_batch.cc).
 constexpr std::uint8_t kValid = 1u << 0, kBackground = 1u << 1,
                        kForeground = 1u << 2;
-constexpr float kLeastVariance = 0.05f;
+constexpr float kLeastVariance = 0.001f;
 constexpr int kMaxSide = 17; //: grids up to n = 8
 constexpr int kMaxSub = 7;   //: subdivisions up to 7 x 7
 constexpr float kDegrees = 57.29577951308232f;
@@ -326,9 +326,10 @@ FIT_HD inline FitF fit_profile(const Setup &setup, const BoxF &box,
       scale += data[i] - b;
   scale /= profile_sum;
   float variance = 0.0f;
+  float weight = 0.0f, weight2 = 0.0f; // the last round's sum(p/v), sum(p^2/v)
   const int rounds = setup.iterations > 1 ? setup.iterations : 1;
   for (int round = 0; round < rounds; ++round) {
-    float numerator = 0.0f, denominator = 0.0f;
+    float numerator = 0.0f, denominator = 0.0f, w = 0.0f;
     for (int i = 0; i < voxels; ++i) {
       if (!(mask[i] & kForeground) || !(mask[i] & kValid))
         continue;
@@ -337,11 +338,14 @@ FIT_HD inline FitF fit_profile(const Setup &setup, const BoxF &box,
           setup.gain * (expected > kLeastVariance ? expected : kLeastVariance);
       numerator += profile[i] * (data[i] - b) / v;
       denominator += profile[i] * profile[i] / v;
+      w += profile[i] / v;
     }
     if (!(denominator > 0.0f))
       return out;
     scale = numerator / denominator;
     variance = 1.0f / denominator;
+    weight = w;
+    weight2 = denominator;
     out.iterations = round + 1;
   }
   out.intensity = scale * profile_sum;
@@ -357,9 +361,14 @@ FIT_HD inline FitF fit_profile(const Setup &setup, const BoxF &box,
       background_pixels += 1.0f;
     }
   }
-  if (background_pixels > 0.0f)
-    out.variance +=
-        setup.gain * (foreground / background_pixels) * background_sum;
+  // The background's error carried through the fit's weights, as
+  // fit_on_pixels: profile_sum sum(p/v) / sum(p^2/v), not the m foreground
+  // pixels a sum carries it by.
+  if (background_pixels > 0.0f && foreground > 0.0f && weight2 > 0.0f) {
+    const float carried = profile_sum * weight / weight2;
+    out.variance += setup.gain * (background_sum / foreground) /
+                    background_pixels * carried * carried;
+  }
   float n = 0.0f, sp = 0.0f, sd = 0.0f, spp = 0.0f, sdd = 0.0f, spd = 0.0f;
   for (int i = 0; i < voxels; ++i) {
     if (!(mask[i] & kForeground) || !(mask[i] & kValid))

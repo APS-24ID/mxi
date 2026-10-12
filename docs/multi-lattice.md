@@ -98,6 +98,17 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   symmetry, compares different reflections for different members of a coset,
   and with partial data gave 0.36 for one and 0.86 for another of the same
   coset -- the algebra decides, not that.
+* Stage 7, scaling and export: as they were, a scale model and batches an
+  experiment, the lattices as the sweeps were -- only the words changed, a
+  model an experiment, not a sweep. ins2_27's two crystals: 35 parameters each,
+  the second crystal's scale 0.43 to 0.59 where the first's is 1.23 to 1.73;
+  CC half 0.997, R merge 0.168 overall and 0.077 at low resolution, 1.81 A by
+  CC half. Each crystal merged apart after scaling agrees with the other at CC
+  0.987, the second 6 per cent above the first on the stronger half. Exported
+  in I 2 3, 80420 reflections, 1200 batches, the second crystal's from 701, one
+  data set (one wavelength, as dials.export). So the whole chain runs on two
+  crystals in one beam: mxi_index --max-lattices 2, mxi_refine, mxi_integrate,
+  mxi_symmetry, mxi_scale, mxi_export.
 * Indexing's worst-fitting spots: Graeme, October 2026 -- left out of the
   indexed set, as DIALS leaves them, is fine, the problem being overdetermined,
   but better after the final refinement, the model then good. To do.

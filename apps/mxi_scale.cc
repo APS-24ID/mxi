@@ -255,9 +255,10 @@ int run_program(int argc, char **argv) {
                   shape.scale_points, shape.decay_points,
                   harmonic_count(shape.lmax), run.model.size(), run.fitted_on);
     else
-      std::printf("Scaling model: %zu sweeps, a model each, %zu parameters in "
-                  "all; fitted on %zu observations\n",
-                  run.model.sweeps(), run.model.size(), run.fitted_on);
+      std::printf(
+          "Scaling model: %zu experiments, a model each, %zu parameters in "
+          "all; fitted on %zu observations\n",
+          run.model.sweeps(), run.model.size(), run.fitted_on);
     {
       std::size_t harmonics = 0;
       for (std::size_t w = 0; w < run.model.sweeps(); ++w)
@@ -294,7 +295,7 @@ int run_program(int argc, char **argv) {
         bmax = std::fmax(bmax, b);
       }
       if (run.model.sweeps() > 1)
-        std::printf("  sweep %zu: %zu scale, %zu decay, %zu absorption "
+        std::printf("  experiment %zu: %zu scale, %zu decay, %zu absorption "
                     "parameters;",
                     w, own.scale_points, own.decay_points,
                     harmonic_count(own.lmax));

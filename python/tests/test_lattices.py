@@ -15,8 +15,9 @@ chance within the indexing tolerance, its scatter was ten times its own, and
 Needs MXI_INDEX and MXI_TWO_LATTICES, the strong spots mxi_find wrote for
 ins2_27 with its imported models (strong.rflx); and for integration,
 MXI_INTEGRATE and MXI_TWO_LATTICES_REFINED, its two lattices as mxi_refine left
-them; and for symmetry, MXI_SYMMETRY and MXI_TWO_LATTICES_INTEGRATED, the two
-integrated.
+them; for symmetry, MXI_SYMMETRY and MXI_TWO_LATTICES_INTEGRATED, the two
+integrated; and for scaling, MXI_SCALE and MXI_TWO_LATTICES_SYMMETRIZED, the two
+as mxi_symmetry left them.
 """
 
 import os
@@ -163,3 +164,58 @@ def test_cosym_brings_the_two_crystals_to_one_setting_and_finds_i23(tmp_path):
     assert float(line.split("CC with the first")[1].split()[0]) > 0.9
     assert "Recommended space group: I 2 3" in out
     assert "Recommended space group: I 2 3" not in symmetry("--no-cosym")
+
+
+SCALE = os.environ.get("MXI_SCALE")
+SYMMETRIZED = os.environ.get("MXI_TWO_LATTICES_SYMMETRIZED")
+
+
+@pytest.mark.skipif(
+    not (SCALE and SYMMETRIZED), reason="set MXI_SCALE and MXI_TWO_LATTICES_SYMMETRIZED"
+)
+def test_the_two_crystals_scale_each_with_its_own_model_and_agree(tmp_path):
+    # A scale model a crystal; scaled, each crystal merged apart agrees with
+    # the other (0.987 on Graeme's two), the second's intensities near the
+    # first's.
+    r = subprocess.run(
+        [SCALE, SYMMETRIZED, "-o", "scaled.rflx"],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert r.returncode == 0, r.stderr
+    assert "2 experiments, a model each" in r.stdout
+    t = refl.load(str(tmp_path / "scaled.rflx"))
+    ids = np.asarray(t.columns["id"])
+    hkl = np.asarray(t.columns["miller_index"]).reshape(-1, 3)
+    scaled = np.asarray(t.columns["intensity.scale.value"]) / np.asarray(
+        t.columns["inverse_scale_factor"]
+    )
+    ok = np.isfinite(scaled)
+    # m-3 in the conventional setting: 23's rotations, with inversion.
+    rotations = []
+    for p in ((0, 1, 2), (1, 2, 0), (2, 0, 1)):
+        for s in ((1, 1, 1), (1, -1, -1), (-1, 1, -1), (-1, -1, 1)):
+            m = np.zeros((3, 3), int)
+            for i in range(3):
+                m[i, p[i]] = s[i]
+            rotations.append(m)
+
+    def merged(lattice):
+        out = {}
+        for h, x in zip(hkl[(ids == lattice) & ok], scaled[(ids == lattice) & ok]):
+            key = max(
+                tuple(int(v) for v in sign * (m @ h))
+                for m in rotations
+                for sign in (1, -1)
+            )
+            out.setdefault(key, []).append(x)
+        return {k: np.mean(v) for k, v in out.items()}
+
+    a, b = merged(0), merged(1)
+    common = [k for k in a if k in b]
+    x = np.array([a[k] for k in common])
+    y = np.array([b[k] for k in common])
+    assert np.corrcoef(x, y)[0, 1] > 0.97
+    strong = x > np.median(x)
+    assert 0.9 < np.median(y[strong] / x[strong]) < 1.1

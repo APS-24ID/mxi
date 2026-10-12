@@ -1,6 +1,6 @@
 # Reviewing this code: a guide for DIALS developers
 
-STATUS: written 30 September 2026 for external review, brought up to date 6
+STATUS: written 30 September 2026 for external review, brought up to date 12
 October 2026. It says what this is,
 how to build and run it on your own data, where the code for each step lives,
 what follows DIALS and where it departs from it, and how correctness has been
@@ -10,14 +10,17 @@ of open work.
 
 ## What this is
 
-A C++20 implementation of rotation-data processing for **one sweep or several
-of one crystal** (`docs/multi-sweep.md`), step for step as DIALS divides it, with the spot finder's threshold also on the GPU
-(Metal and CUDA):
+A C++20 implementation of rotation-data processing for **one sweep, several of
+one crystal** (`docs/multi-sweep.md`), **or several crystals in one beam**
+(`docs/multi-lattice.md`), step for step as DIALS divides it, with the spot
+finder's threshold and the profile fitting also on the GPU (Metal and CUDA):
 
     mxi_find -> mxi_index -> mxi_refine -> mxi_integrate -> mxi_symmetry -> mxi_scale -> mxi_export
 
-It reads and writes DIALS' own `.expt` and `.refl`, so any step can be replaced
-by its `dials.*` counterpart and the rest carries on: `dials.scale` has scaled
+Its own files are `.rflx`, one HDF5 file a step in dxtbx-h5's layout
+(`docs/rflx.md`); it reads and writes DIALS' own `.expt` and `.refl` as well,
+and `mxi_convert` goes between them, so any step can be replaced by its
+`dials.*` counterpart and the rest carries on: `dials.scale` has scaled
 this code's integrated tables, and `dials.merge` and `dials.estimate_resolution`
 have read its scaled ones. It is **not a fork of DIALS** and depends on neither
 DIALS, dxtbx nor cctbx. Where it follows a DIALS algorithm the DIALS source was
@@ -36,11 +39,11 @@ package is BSD 3-clause.
 that caused bugs, and what not to do again. It is worth reading for the same
 reason a DIALS developer's notes would be.
 
-Its size, excluding third-party code: the library 15350 lines in `src/` and the
-spot finder 6339 in `src/spots/`; eleven programs in 4273 lines in `apps/`, and
-`mxi_find` in `src/spots/find_spots.cc`; C++ tests 14465 lines; a Python package
-of comparison tools, `mxeq`, 5950 lines, with 2852 of tests; 5400 lines of
-documents. Some 349 commits over three weeks.
+Its size, excluding third-party code: the library 22955 lines in `src/` and the
+spot finder 7141 in `src/spots/`; sixteen programs in 7513 lines in `apps/`,
+and `mxi_find` in `src/spots/find_spots.cc`; C++ tests 14189 lines; a Python
+package of comparison tools, `mxeq`, 9281 lines, with 7038 of tests; 8855 lines
+of documents. Some 414 commits over five weeks.
 
 ## Building it and running it on your data
 
@@ -148,6 +151,18 @@ from DIALS actually came from"). Given DIALS' own indexed reflections, this
 refinement reproduces DIALS' distance to two microns and cell to six
 thousandths of an angstrom.
 
+**Several crystals in one beam** (`docs/multi-lattice.md`): `--max-lattices`
+finds them as dials.index does, then assigns every spot again to the lattice
+it lies nearest and refines them together, one detector: on two crystals of
+insulin, of 20763 spots both index 20762 get DIALS's lattice and indices. A
+spot two lattices claim, within three of their own scatter, is left out of
+refinement (Graeme's choice; `--ambiguous closest` gives it to the nearer).
+Given a refined list, a lattice missed at first is looked for again with the
+geometry refined since. Each sweep's own crystal-less experiment is carried
+through every program, its unindexed spots its own, as dials/dials#1029
+proposes; `mxi_convert --drop-sweeps` leaves it out for DIALS's later
+programs.
+
 **Refinement** has analytical derivatives for crystal, detector and beam,
 checked against finite differences. The scan-varying crystal is a **cubic
 B-spline** of control points, not DIALS' Gaussian smoother: both are smooth and
@@ -177,6 +192,21 @@ against 9580 on one sweep -- and is item 12.
   integrates again: refining against the spot finder's centres leaves a z
   offset of about 0.1 images, varying with strength and orientation, which
   DIALS' integration shows too.
+* **A sweep's lattices in one pass**, each its own profile model and reference
+  profiles, the device's fit a batch a lattice; **each reflection's
+  neighbours**, any lattice's, masked out of its background, as DIALS's
+  3d_threaded integrator does and its default does not.
+* **Variances that do not move with their own noise.** Summation's Poisson term
+  from the counts expected, max(I, 0) + I_bg, not those counted; the fitted
+  variance's background term carried through the fit's weights, not a sum's
+  m^2; a pixel's least variance 0.001 counts, below any real background. And
+  each variance with no signal written, for scaling (below). On a ten-turn
+  insulin sweep, multiplicity 210, the outer shell's merged I/sigma went from
+  -5.7 to +3.8 (`docs/integration.md`, "The fitted variance").
+* **A profile grid of 13 a side** (`--grid-points 6`): reflections cut by a gap
+  come out high where the reference is broader than the spot, +2 per cent at
+  a tenth cut and +6 at a third, by gaps masked on purpose; the finer grid
+  takes a third of it for nothing in time (item 2).
 * Reflections crossing a module gap: judged by their clean symmetry
   equivalents, 0.967 here and 0.777 in DIALS where a tenth to a third of the
   reflection is lost.
@@ -186,7 +216,9 @@ against 9580 on one sweep -- and is item 12.
 **Symmetry** (`docs/symmetry.md`) follows `dials.symmetry`: the lattice's
 symmetry by Le Page's method through gemmi, each element scored and each
 subgroup after Evans (2011), to a resolution limit from CC half, Friedel mates
-apart; then the space group by absences. Departures: intensities normalised by
+apart; then the space group by absences. Several crystals are brought to one
+setting first by cosym (Gildea & Winter 2018): on two crystals of insulin, I23
+in its I432 lattice, the same coset as dials.cosym, then I 2 3. Departures: intensities normalised by
 an anisotropic Wilson model with a light atom's scattering and nothing of
 DIALS's protein model -- a weaker prior, so B comes out larger and the CCs a
 little lower than DIALS's (the identity's 0.842 against 0.95 on a P 4_1
@@ -207,6 +239,11 @@ there:
 * **The scale factors' uncertainty is propagated into the variance before the
   error model**, I^2 var(g) / g^2, where dials.scale multiplies by 1 + sigma_g /
   g after it.
+* **Each variance from the model's intensity**, not the observation's own: its
+  variance with no signal plus the signal's at g I_h. An observation's own
+  variance moves with its noise, so an inverse-variance weighted mean leans
+  low; on two crystals each reflection's weighted mean had been 0.9 to 2.4 of
+  its sigma below its plain mean, within 0.1 after.
 * **The resolution estimate is dials.estimate_resolution's**, and agrees with it
   exactly on 1082994 reflections (1.25 and 1.17 A), except that only bins with
   pairs enough to fit decide whether CC half stays above the limit throughout.
@@ -222,22 +259,17 @@ phase of every program is reported by `--timing`.
 The chain is complete for one sweep and for several of one crystal indexed
 together; beyond it (`docs/outstanding.md` has the numbered list):
 
-* **Sweeps indexed apart**, and so the indexing ambiguity between them --
-  sweeps indexed together are in one basis, each then refining a crystal of its
-  own. Multi-sweep processing works on one sweep split in two and, by Graeme,
-  on the four sweeps of cubic insulin at their own orientations
-  (https://zenodo.org/records/8376818; `docs/multi-sweep.md`).
-* Free-set validation of scaling; overlapping
-  reflections and overloads in integration; e.s.d.s for the cell, and the cell
-  constrained to the lattice's symmetry, in refinement.
+* Free-set validation of scaling; overloads flagged in integration; e.s.d.s
+  for the cell, and the cell constrained to the lattice's symmetry, in
+  refinement; cosym for many small partial data sets.
 * Reports and merged output: an HTML report, merged MTZ and mmCIF are not
   written; `mxi_export` writes the unmerged MTZ, which AIMLESS reads
   (`docs/export.md`), and `dials.merge` takes the scaled table.
-* **Known biases in integration**, measured by `mxeq equivalents` against the
-  data's own symmetry equivalents (`python/README.md`): reflections crossing a
-  module gap low in profile fitting; on insulin, partials high with a sigma_m
-  wider than DIALS's, not repeated on ferritin (`docs/outstanding.md`, items 1
-  to 3).
+* **Known biases in integration** (`docs/outstanding.md`, items 1 to 4):
+  reflections cut by a gap, high by a few per cent where a third is lost; a
+  few partials at a scan's ends high on insulin (not sigma_m: narrower merged
+  worse); the background half to one per cent high at low resolution, on bare
+  background, likeliest its curvature near the beam.
 * **The backstop** (`docs/backstop.md`, items 52 and 53): observations its
   shadow attenuates integrate low, and scaling's outlier rejection keeps them
   over the unharmed, so the lowest-resolution reflections merge too low.
@@ -246,6 +278,16 @@ together; beyond it (`docs/outstanding.md` has the numbered list):
   structure, and no absolute measure of processing quality yet decides it.
 
 ## What this work found in DIALS
+
+Measured on two crystals of insulin, both programs' output on the same
+observations: DIALS's default integrator, 3d, finds overlapping reflections
+and masks nothing with them; dials.scale's final sigma, judged by each
+observation's exact deviation from its equivalents, some 30 per cent small for
+the stronger two-thirds (`docs/scaling.md`). DIALS's summed variance is |I| + I_bg (1
++ m/n) (summation.h): it moves with each observation's noise, but evenly either
+side of zero, so it does not lean a weighted mean as mxi's did -- the counted
+foreground, I + I_bg, until October; now max(I, 0) + I_bg, and in scaling the
+model's intensity.
 
 Measured, and listed with their evidence at the end of `docs/outstanding.md`:
 dials.scale's error model biased low by (n-1)/n; the anomalous slope and dI/s(dI)

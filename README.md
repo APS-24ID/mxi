@@ -4,7 +4,8 @@
 from DIALS and why, and where to find things.
 
 An independent implementation of the MX data-reduction chain for rotation data
--- one sweep, or several of one crystal -- from the images to scaled intensities: spot finding -- on the CPU, or the
+-- one sweep, several of one crystal, or several crystals in one beam -- from
+the images to scaled intensities: spot finding -- on the CPU, or the
 GPU through Metal or CUDA -- indexing, refinement, integration, symmetry
 determination and scaling, in C++; plus `mxeq`, a checker that compares its
 output against DIALS' and explains the differences. It reads and writes DIALS'
@@ -305,11 +306,11 @@ The pipeline:
 | `mxi_convert` | between `.rflx`, mxi's own files, and the DIALS pair, `.expt` and `.refl`, its direction from what it is given; see `docs/rflx.md` |
 | `mxi_import` | an experiment list from NXmx masters, one experiment a sweep, as dials.import writes it; see `docs/import.md` |
 | `mxi_find` | spot finding on the CPU, CUDA or Metal, from NXmx HDF5 |
-| `mxi_index` | FFT indexing with assign, refine and reassign macrocycles |
+| `mxi_index` | FFT indexing with assign, refine and reassign macrocycles; several lattices, and a lattice missed recovered; each sweep carried through; see `docs/multi-lattice.md` |
 | `mxi_refine` | scan-static and scan-varying refinement, analytical derivatives |
-| `mxi_integrate` | summation and profile fitting; see `docs/integration.md` |
-| `mxi_symmetry` | the Laue group and space group, and the data reindexed into them; see `docs/symmetry.md` |
-| `mxi_scale` | scaling, one sweep or several, the error model, merging statistics; see `docs/scaling.md` |
+| `mxi_integrate` | summation and profile fitting, a sweep's lattices in one pass, neighbours masked; see `docs/integration.md` |
+| `mxi_symmetry` | the Laue group and space group, several crystals first brought to one setting (cosym), and the data reindexed into them; see `docs/symmetry.md` |
+| `mxi_scale` | scaling, a model a sweep or crystal, variances from the model, the error model, merging statistics; see `docs/scaling.md` |
 | `mxi_export` | an unmerged MTZ for CCP4, as dials.export writes it, which AIMLESS reads; see `docs/export.md` |
 
 For looking inside it:
@@ -368,7 +369,8 @@ structure, and no absolute measure of processing quality yet decides it.
 
 **Symmetry and scaling take one sweep or several** of one crystal, indexed
 together (`docs/multi-sweep.md`: every program from import to scaling takes
-several, as DIALS does). `mxi_symmetry`
+several, as DIALS does), **and several crystals**, each in a setting of its own
+until cosym brings them to one (`docs/multi-lattice.md`). `mxi_symmetry`
 (`docs/symmetry.md`) chooses the Laue group as dials.symmetry does and the space
 group from the absences, and reindexes; `mxi_scale` (`docs/scaling.md`) scales
 after Beilsten-Edmands et al. (2020), with cubic B-splines for the scale and

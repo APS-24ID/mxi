@@ -49,7 +49,8 @@ was found.
 ## Handover: where the work stands
 
 STATUS: written 4 October 2026, 325 commits; several sweeps, the cell
-regularised and mxi_export added 6 October, 349 commits. For a new session to
+regularised and mxi_export added 6 October, 349 commits; several crystals,
+sweeps carried through and the variances 12 October, 414 commits. For a new session to
 pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in
 flight and how the work is done here. People follow this project: keep the
@@ -57,8 +58,9 @@ README, `docs/review.md` and this handover true as things change.
 
 **The project is mxi.** It began as dials-metal, and its history was rewritten
 with git filter-repo to the name every program already had; the old history is
-kept apart. The chain is complete for one sweep, and for several of one
-crystal indexed together (`docs/multi-sweep.md`), and needs nothing of DIALS:
+kept apart. The chain is complete for one sweep, for several of one crystal
+indexed together (`docs/multi-sweep.md`), and for several crystals in one beam
+(`docs/multi-lattice.md`), and needs nothing of DIALS:
 `mxi_import`, `mxi_find`, `mxi_index`, `mxi_refine`, `mxi_integrate`,
 `mxi_symmetry`, `mxi_scale`, each interchangeable with DIALS at its boundary,
 every core by default.
@@ -97,6 +99,36 @@ reflection at a time, and `mxeq observations`, every observation of one;
 `--d-max` in integration and scaling; and the background's dispersion, under
 `mxi_integrate --save-background-parameters`.
 
+**Done since 349 (to 414), 7 to 12 October:**
+
+* **`.rflx`** (`docs/rflx.md`): one HDF5 file a step in dxtbx-h5's layout, every
+  program's own; the pair as well; `mxi_convert` between them.
+* **Several crystals** (`docs/multi-lattice.md`, Graeme's two crystals of
+  insulin, ins2_27): `mxi_index --max-lattices`, every spot assigned again
+  globally -- the first lattice had taken 1700 of the second's by chance --
+  ambiguous spots left out of refinement; models shared as the list numbers
+  them, refined once; a sweep's lattices integrated in one pass, a profile
+  model and reference profiles each, `--gpu` a batch each; cosym in
+  `mxi_symmetry`, the same coset as dials.cosym; a model each in scaling;
+  batches in blocks of the next power of ten (1 to 600, 1001 to 1600).
+  Against DIALS: the same lattices and indices for 20762 of 20763 spots,
+  intensities CC 0.998, the scaled ones 0.9997.
+* **Sweeps carried through** (dials/dials#1029), the default: each sweep's
+  crystal-less experiment first, its unindexed spots its own, through every
+  program (`src/views.cc`, the two views in one place); `mxi_convert
+  --drop-sweeps` for DIALS's programs past indexing. A lattice missed is
+  recovered beside refined ones.
+* **Neighbours masked** in integration, as DIALS's 3d_threaded and not its
+  default; the search keyed on images too after it took minutes on ten turns.
+* **The variances** (`docs/integration.md`, "The fitted variance";
+  `docs/scaling.md`, "Variances from the model"): the fitted variance's
+  background term through the fit's weights; a pixel's least variance 0.001;
+  summation's from expected counts; each variance with no signal written, and
+  scaling's built on the model's intensity. Graeme's ten-turn insulin: outer
+  shell merged I/sigma -5.7 to +3.8. Confirmed on Metal (Graeme).
+* **`--grid-points 6`** by default (item 2); import takes a panel's size from
+  the data, which some masters' metadata has swapped.
+
 **Paused: the backstop** (`docs/backstop.md`, "Where it stands"; items 52, 53).
 Against DIALS on ferritin the innermost shell agreed worst; the cause, the
 reflections beside the backstop -- its shadow attenuating signal and background
@@ -112,6 +144,14 @@ shadow is the low-count region, the flare the high-background region around it.
 
 **Waiting on Graeme's data or hardware:**
 
+* **The CUDA side** of the October fit changes (the background term, the
+  floor, the variance with no signal, `FitF`'s new field): Metal built and
+  ran them (Graeme); CUDA not built here.
+* **The anomalous slope** on the ten-turn insulin rose from 1.04 to 1.52 with
+  the model's variances; on the data here Friedel and random-half splits
+  agree, so likely real signal. A random-half line beside the slope in
+  `mxi_scale` would settle it on his data -- offered, not built.
+
 * **8BXT, a third not profile fitted** (item 51): `mxeq failures` on its table,
   integrated without `--gpu`, says which reason and where.
 * **`mxi_import` across data sets** (item 49): dials.import and mxi_import on
@@ -121,8 +161,12 @@ shadow is the low-count region, the flare the high-background region around it.
 
 **Measured and settled:** CUDA profile fitting on an RTX 4060, 94.7 s against
 103.8 on dense ferritin; HDF5's lock not what limits reading (item 48); on
-ferritin sigma_m agrees with its partials, so insulin's too-wide sigma_m (items
-1, 3) is insulin's, not yet the integrator's.
+ferritin sigma_m agrees with its partials; and insulin's is not too wide
+either -- at 0.086 rather than 0.128 degrees it merged worse (items 1, 3).
+
+**Next (Graeme):** item 4, the background half to one per cent high at low
+resolution on bare background -- a plane or a radial term to test the
+curvature near the beam.
 
 **Paused:** background and summation on a device (item 47).
 
@@ -1160,10 +1204,22 @@ every prediction on the Ewald sphere under its own crystal; a pull of one on
 spots planted at known positions -- since those cannot be satisfied by an
 answer that is merely consistent.
 
-**A fitted variance below Leslie's floor is a missing term.** About half the
-summed variance is the best a profile can do. Fitting on the grid, and leaving
-out equation 34's background term, each made the fit look better than theory
-allows.
+**A variance is judged by the deviations it predicts, not by a floor.** It was
+written here that a fitted variance below about half the summed one is a
+missing term. A term was missing -- equation 34's background -- but put in as
+a sum's it was several times too large, and the weak reflections' fitted
+deviations between equivalents then had variance 0.58 where the summed ones
+had 1.04. Carried through the fit's own weights, the weakest fitted variance is
+a quarter of the summed, and its deviations 1.04: what the data say the fit
+achieves. Check a variance against equivalents' exact deviations, or bare
+background (a crystal turned off its spots), never against a remembered bound.
+
+**A weight must not move with the observation's own noise.** A variance from
+an observation's own counts -- the counted foreground, the fit's own intensity
+-- gives a low fluctuation a small variance and a large weight, and an
+inverse-variance weighted mean leans low: at a multiplicity of 210, a merged
+I/sigma of -5.7 where CC half said there was signal. Variances from expected
+counts in integration, from the model's intensity in scaling.
 
 **DIALS is a reference, not the truth.** Where they disagree, find something
 that can judge both: a reflection's symmetry equivalents judged DIALS' gap

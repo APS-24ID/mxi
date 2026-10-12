@@ -130,7 +130,8 @@ def test_the_models_are_dxtbx_s(tmp_path):
 @pytest.mark.skipif(not FIND, reason="set MXI_FIND")
 def test_the_frames_are_read_across_the_linked_files(tmp_path):
     master = plant(tmp_path)
-    r = run(tmp_path, FIND, str(master), "-o", "strong.refl")
+    # --verbose: the series' size is the run's particulars.
+    r = run(tmp_path, FIND, str(master), "-o", "strong.refl", "--verbose")
     assert r.returncode == 0, r.stderr + r.stdout
     assert f"{2 * PER_FILE} images of {SIZE} x {SIZE}" in r.stdout
     t = refl.load(str(tmp_path / "strong.refl"))

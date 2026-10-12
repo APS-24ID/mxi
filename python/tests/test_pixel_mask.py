@@ -70,7 +70,8 @@ def series(directory, mask_hot):
 
 def find(directory, master):
     run = subprocess.run(
-        [BINARY, str(master), "-o", "strong.refl"],
+        # --verbose: the masked pixels' count is the run's particulars.
+        [BINARY, str(master), "-o", "strong.refl", "--verbose"],
         capture_output=True,
         text=True,
         cwd=directory,

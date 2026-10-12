@@ -135,8 +135,10 @@ where something is missing.
 
 * **12.** **correctness -- Outlier rejection is milder than DIALS'**: 11714
     reflections kept against 9580 on the same sweep, RMSD 0.30 px against 0.19.
-* **13.** **capability -- No e.s.d.s for the cell**: refinement computes no
-    covariance. The scaling covariance shows how.
+* **13.** **capability -- e.s.d.s for the cell**: now from the covariance at
+    convergence, carried to the cell (RefineResult::cell_esd, mxi_refine,
+    `docs/output.md`); the scan-varying pass's per-point cells have none of
+    their own -- the scan-static pass's are printed, as DIALS does.
 * **14.** **capability -- The cell is not constrained to the lattice's symmetry**:
     77.93 77.90 77.89 A after `mxi_symmetry`, where DIALS reports 77.898.
     `docs/symmetry.md`.

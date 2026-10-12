@@ -268,6 +268,11 @@ struct ProfileFit {
   FitFailure why = FitFailure::none;
   double intensity = 0.0;
   double variance = 0.0;
+  //: The variance this reflection would have with no signal -- the
+  //: background's alone, weights b, the background's own term as below: what
+  //: scaling builds a variance on from the model's intensity rather than this
+  //: observation's own (docs/integration.md, "The fitted variance").
+  double variance_background = 0.0;
   //: Pearson correlation between the reference profile and this reflection's
   //: background-subtracted grid. DIALS writes it as `profile.correlation` and
   //: it is the honest way to spot a reflection the profile does not describe.

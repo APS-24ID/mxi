@@ -52,6 +52,7 @@ struct BoxF {
 struct FitF {
   int valid, iterations;
   float intensity, variance, correlation, measured;
+  float variance_background; // last, as fit_device.hh has it
 };
 struct FrameF {
   int valid;
@@ -423,6 +424,17 @@ kernel void fit_kernel(constant Setup &setup [[buffer(0)]],
     if (background_pixels > 0.0f && foreground > 0.0f && weight2 > 0.0f) {
       const float carried = profile_sum * weight / weight2;
       r.variance += setup.gain * bg / background_pixels * carried * carried;
+    }
+    // With no signal: weights b alone, as fit_on_pixels.
+    r.variance_background = 0.0f;
+    if (SPP > 0.0f) {
+      const float b0 = bg > kLeastVariance ? bg : kLeastVariance;
+      r.variance_background = setup.gain * b0 * profile_sum * profile_sum / SPP;
+      if (background_pixels > 0.0f) {
+        const float carried = profile_sum * SP / SPP;
+        r.variance_background +=
+            setup.gain * bg / background_pixels * carried * carried;
+      }
     }
     r.correlation = 0.0f;
     if (N > 1.0f) {

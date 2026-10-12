@@ -367,6 +367,8 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
   out.variance =
       options.gain * (std::max(out.intensity, 0.0) + out.background_sum) +
       out.background_sum_variance;
+  out.variance_background =
+      options.gain * out.background_sum + out.background_sum_variance;
 
   // The fitted background, left in the shoebox so a saved one carries what was
   // subtracted from it.

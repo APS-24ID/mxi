@@ -183,4 +183,96 @@ Table rows_again(const Table &lattice_rows, const Table &crystal_less_rows,
   return out;
 }
 
+ExperimentList add_sweeps(const ExperimentList &given,
+                          const ExperimentList &lattices,
+                          const std::vector<std::size_t> &sweep_of_lattice,
+                          Table *table) {
+  const std::size_t n_sweeps = given.size(), n_lattices = lattices.size();
+  if (sweep_of_lattice.size() != n_lattices)
+    throw std::runtime_error("add_sweeps: a sweep for every lattice wanted");
+  ExperimentList whole;
+  whole.image_template = given.image_template;
+  // The sweeps: as given, crystal-less, with their first lattice's models.
+  std::vector<long> first_lattice(n_sweeps, -1);
+  for (std::size_t k = 0; k < n_lattices; ++k)
+    if (first_lattice[sweep_of_lattice[k]] < 0)
+      first_lattice[sweep_of_lattice[k]] = static_cast<long>(k);
+  std::vector<std::string> taken;
+  for (std::size_t s = 0; s < n_sweeps; ++s) {
+    Experiment e = given[s];
+    if (first_lattice[s] >= 0) {
+      const Experiment &l =
+          lattices[static_cast<std::size_t>(first_lattice[s])];
+      e.beam = l.beam;
+      e.detector = l.detector;
+      e.goniometer = l.goniometer;
+      e.scan = l.scan;
+    }
+    e.crystal.reset();
+    if (e.identifier.empty())
+      e.identifier = new_identifier();
+    taken.push_back(e.identifier);
+    whole.experiments.push_back(std::move(e));
+  }
+  for (std::size_t k = 0; k < n_lattices; ++k) {
+    Experiment e = lattices[k];
+    if (e.identifier.empty() ||
+        std::find(taken.begin(), taken.end(), e.identifier) != taken.end())
+      e.identifier = new_identifier();
+    taken.push_back(e.identifier);
+    whole.experiments.push_back(std::move(e));
+  }
+  // Sharing: a sweep with its lattices' beam and detector, if it has any;
+  // each sweep its own sweep, each lattice its sweep's.
+  const std::size_t apart = 1000000;
+  for (std::size_t s = 0; s < n_sweeps; ++s) {
+    const long k = first_lattice[s];
+    whole.beam_of.push_back(
+        k >= 0 ? lattices.beam_group(static_cast<std::size_t>(k)) : apart + s);
+    whole.detector_of.push_back(
+        k >= 0 ? lattices.detector_group(static_cast<std::size_t>(k))
+               : apart + s);
+    whole.sweep_of.push_back(s);
+  }
+  for (std::size_t k = 0; k < n_lattices; ++k) {
+    whole.beam_of.push_back(lattices.beam_group(k));
+    whole.detector_of.push_back(lattices.detector_group(k));
+    whole.sweep_of.push_back(sweep_of_lattice[k]);
+  }
+  // The source's experiments, so that each refers to its sweep's image set:
+  // the given ones, then a copy of its sweep's for each lattice.
+  whole.source = given.source;
+  if (given.source.is_object() && given.source["experiment"].is_array() &&
+      given.source["experiment"].as_array().size() == n_sweeps) {
+    json::Array entries = given.source["experiment"].as_array();
+    for (std::size_t k = 0; k < n_lattices; ++k)
+      entries.push_back(
+          given.source["experiment"].as_array()[sweep_of_lattice[k]]);
+    json::Object document = given.source.as_object();
+    document["experiment"] = json::Value(std::move(entries));
+    whole.source = json::Value(std::move(document));
+  }
+  if (table != nullptr && table->has("id")) {
+    Column &id = table->modify_int_column("id", "int", 1);
+    const bool has_miller = table->has("miller_index");
+    for (std::size_t r = 0; r < table->nrows; ++r) {
+      const std::int64_t old = id.ints[r];
+      const bool indexed =
+          has_miller && (table->at("miller_index").integer(r, 0) != 0 ||
+                         table->at("miller_index").integer(r, 1) != 0 ||
+                         table->at("miller_index").integer(r, 2) != 0);
+      if (old < 0 || static_cast<std::size_t>(old) >= n_lattices)
+        continue;
+      id.ints[r] = indexed
+                       ? static_cast<std::int64_t>(n_sweeps) + old
+                       : static_cast<std::int64_t>(
+                             sweep_of_lattice[static_cast<std::size_t>(old)]);
+    }
+    table->identifiers.clear();
+    for (std::size_t i = 0; i < whole.size(); ++i)
+      table->identifiers[i] = whole[i].identifier;
+  }
+  return whole;
+}
+
 } // namespace mxi

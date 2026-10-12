@@ -21,6 +21,7 @@
 #include "refine.hh"
 #include "rflx.hh"
 #include "timing.hh"
+#include "views.hh"
 
 namespace mxi {
 
@@ -52,6 +53,9 @@ void usage() {
       "  --ambiguous exclude|closest  a spot more than one lattice indexes:\n"
       "                    left out of refinement, unindexed (exclude), or\n"
       "                    given to the lattice it lies nearest (closest)\n"
+      "  --keep-sweeps     carry each sweep given through, crystal-less, its\n"
+      "                    unindexed spots its own, the lattices after them\n"
+      "                    (dials/dials#1029)\n"
       "  --ambiguity-sigma S  ambiguous: within S of each lattice's own RMS\n"
       "                    scatter of a second lattice's point (3)\n"
       "  --shared-crystal  several sweeps: one crystal throughout, where by\n"
@@ -67,7 +71,8 @@ void usage() {
 int report_lattices(const ExperimentList &sweep, Table &reflections,
                     const IndexOptions &options, int max_lattices,
                     std::size_t min_spots, Ambiguous ambiguous,
-                    double ambiguity_sigma, const rflx::Outputs &out) {
+                    double ambiguity_sigma, bool keep_sweeps,
+                    const rflx::Outputs &out) {
   if (sweep.size() != 1) {
     std::fprintf(stderr,
                  "mxi_index: --max-lattices takes one sweep for now, not %zu\n",
@@ -124,7 +129,13 @@ int report_lattices(const ExperimentList &sweep, Table &reflections,
   }
   add_reciprocal_columns(joint, reflections);
   update_predictions(joint, reflections);
-  const json::Value document = experiments_to_json(joint);
+  // The sweep's own experiment carried through, its lattices after it.
+  const ExperimentList written =
+      keep_sweeps
+          ? add_sweeps(sweep, joint, std::vector<std::size_t>(joint.size(), 0),
+                       &reflections)
+          : joint;
+  const json::Value document = experiments_to_json(written);
   rflx::write_outputs(out, &document, &reflections, "mxi_index");
   std::printf("Wrote %s\n", rflx::describe(out).c_str());
   return 0;
@@ -140,7 +151,7 @@ int run_program(int argc, char **argv) {
       "--verbose",        "--macrocycles",      "--all-reflections",
       "--timing",         "--jacobian-threads", "--fft-threads",
       "--shared-crystal", "--max-lattices",     "--min-lattice-spots",
-      "--ambiguous",      "--ambiguity-sigma"};
+      "--ambiguous",      "--ambiguity-sigma",  "--keep-sweeps"};
   const std::set<std::string> takes_value = {"--d-min",
                                              "--max-cell",
                                              "--grid",
@@ -202,6 +213,9 @@ int run_program(int argc, char **argv) {
     const double t_run_start = Timing::now();
     ExperimentList experiments = read_experiments(args.positional[0]);
     Table reflections = read_reflections(args.positional[1]);
+    // As given, for --keep-sweeps: each carried through crystal-less.
+    const ExperimentList given = experiments;
+    const bool keep_sweeps = args.has("--keep-sweeps");
     const double t_read_seconds = Timing::now() - t_run_start;
     std::printf("Indexing %zu reflections from %zu experiment%s\n",
                 reflections.nrows, experiments.size(),
@@ -231,7 +245,7 @@ int run_program(int argc, char **argv) {
           experiments, reflections, options, max_lattices,
           static_cast<std::size_t>(args.number("--min-lattice-spots", 50)),
           ambiguous == "closest" ? Ambiguous::Closest : Ambiguous::Exclude,
-          args.number("--ambiguity-sigma", 3.0), out);
+          args.number("--ambiguity-sigma", 3.0), keep_sweeps, out);
 
     const IndexResult result = index(experiments, reflections, options);
     // The search's terms whether it succeeds or not: they are what a failure
@@ -285,7 +299,15 @@ int run_program(int argc, char **argv) {
     add_reciprocal_columns(experiments, reflections);
     update_predictions(experiments, reflections);
     const double t_write_start = Timing::now();
-    const json::Value document = experiments_to_json(experiments);
+    // Each sweep's own experiment carried through, its lattice after it
+    // (docs/multi-lattice.md, stage 2): each sweep here its own lattice.
+    std::vector<std::size_t> each_its_own(experiments.size());
+    for (std::size_t k = 0; k < experiments.size(); ++k)
+      each_its_own[k] = k;
+    const ExperimentList written =
+        keep_sweeps ? add_sweeps(given, experiments, each_its_own, &reflections)
+                    : experiments;
+    const json::Value document = experiments_to_json(written);
     rflx::write_outputs(out, &document, &reflections, "mxi_index");
     const double t_write_seconds = Timing::now() - t_write_start;
     std::printf("Wrote %s\n", rflx::describe(out).c_str());

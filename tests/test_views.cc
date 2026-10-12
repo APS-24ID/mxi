@@ -140,3 +140,49 @@ TEST(the_experiments_of_one_image_set_and_scan_are_one_sweep) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(indexing_carries_the_sweep_given_through_and_adds_its_lattices) {
+  // dials/dials#1029, as mxi_index --keep-sweeps writes it: the sweep given,
+  // crystal-less, first, with the detector its lattices refined; the
+  // lattices after it, the first's identifier -- the sweep's, as indexing
+  // gives it -- made fresh; an indexed spot its lattice's, an unindexed one
+  // its sweep's.
+  ExperimentList given = one_sweep();
+  given.experiments.resize(1); // the sweep alone, as imported
+  given.beam_of = given.detector_of = given.sweep_of = {0};
+  ExperimentList found;
+  Experiment a = lattice(50.0), b = lattice(60.0);
+  a.identifier = "sweep"; // the first lattice keeps the sweep's, in indexing
+  b.identifier = "b";
+  a.detector.panels[0].origin.z = b.detector.panels[0].origin.z = -201.0;
+  found.experiments = {a, b};
+  found.beam_of = found.detector_of = {0, 0};
+  Table t;
+  t.nrows = 3;
+  t.int_column("id", "int", 1).ints = {0, 1, 0};
+  t.int_column("miller_index", "cctbx::miller::index<>", 3).ints = {
+      1, 2, 3, 4, 5, 6, 0, 0, 0};
+  const ExperimentList whole = add_sweeps(given, found, {0, 0}, &t);
+  check::equal(static_cast<long long>(whole.size()), 3, "one in, two found");
+  check::is_true(!whole[0].crystal && whole[1].crystal && whole[2].crystal,
+                 "the sweep first, crystal-less");
+  check::is_true(whole[0].identifier == "sweep" &&
+                     whole[1].identifier != "sweep" &&
+                     whole[2].identifier == "b",
+                 "the sweep's identifier its own, the lattice's made fresh");
+  check::close(whole[0].detector.panels[0].origin.z, -201.0, 1e-12,
+               "the detector its lattices refined");
+  check::is_true(whole.detector_of[0] == whole.detector_of[1] &&
+                     whole.detector_of[1] == whole.detector_of[2] &&
+                     whole.sweep_of == std::vector<std::size_t>{0, 0, 0},
+                 "one detector, one sweep");
+  check::is_true(t.at("id").ints == std::vector<std::int64_t>{1, 2, 0},
+                 "indexed spots their lattices', the unindexed the sweep's");
+  check::is_true(t.identifiers.size() == 3 &&
+                     t.identifiers.at(1) == whole[1].identifier,
+                 "every experiment's identifier");
+}
+
+} // namespace mxi

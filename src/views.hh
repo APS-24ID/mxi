@@ -53,6 +53,20 @@ ExperimentList whole_again(const ExperimentList &whole,
 Table rows_again(const Table &lattice_rows, const Table &crystal_less_rows,
                  const Lattices &lattices, const ExperimentList &whole);
 
+//: The whole list of a program that finds lattices -- indexing -- as
+//: dials/dials#1029 has it: every experiment given carried through,
+//: crystal-less, first and in its place, with its identifier but the models
+//: its sweep's lattices refined; each lattice after them, a fresh identifier
+//: if it had one given, referring to its sweep's shared models; so the count
+//: out is the count in plus the lattices. `sweep_of_lattice` is each
+//: lattice's experiment given. `table`'s ids made the whole list's: an
+//: indexed spot's its lattice's, an unindexed one's -- Miller index 0 0 0 --
+//: its sweep's.
+ExperimentList add_sweeps(const ExperimentList &given,
+                          const ExperimentList &lattices,
+                          const std::vector<std::size_t> &sweep_of_lattice,
+                          Table *table);
+
 } // namespace mxi
 
 #endif // MXI_VIEWS_HH

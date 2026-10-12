@@ -14,6 +14,7 @@ its conclusions sometimes overturned later, with an index of those.
 | `docs/multi-sweep.md` | plan | more than one sweep, from import to scaling: where each program stands, the steps, how each is tested |
 | `docs/multi-lattice.md` | plan, built | several lattices in one data set, with shared models and their own crystals and profiles; sweeps carried through indexing, as dials/dials#1029 proposes: the model, each program, the stages, the questions |
 | `docs/rflx.md` | design, built | `.rflx`, one HDF5 file a step in dxtbx-h5's layout, as mxi's primary format: the decisions, the format, the programs, the converter, and how it will be judged |
+| `docs/output.md` | plan, for agreement | what each program prints for a crystallographer, its results as JSON for a GUI, and porting dials_ui to mxi |
 | `docs/export.md` | design | mxi_export, an unmerged MTZ as dials.export writes it: the intensities and their corrections, the columns, the batches and their headers |
 | `docs/import.md` | reference | `mxi_import`, and checking it against dials.import |
 | `docs/integration.md` | reference | `mxi_integrate` |

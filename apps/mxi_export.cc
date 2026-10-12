@@ -19,6 +19,7 @@
 #include "log_mirror.hh"
 #include "refl.hh"
 #include "rflx.hh"
+#include "views.hh"
 
 namespace mxi {
 
@@ -230,8 +231,12 @@ int run_program(int argc, char **argv) {
     return 2;
   }
   try {
-    ExperimentList experiments = read_experiments(args.positional[0]);
-    const Table in = read_reflections(args.positional[1]);
+    // The lattices alone: a sweep's crystal-less experiment has no
+    // reflections to export (docs/multi-lattice.md, stage 2).
+    const ExperimentList whole = read_experiments(args.positional[0]);
+    const Lattices views = lattices_of(whole);
+    ExperimentList experiments = views.list;
+    const Table in = lattice_rows(read_reflections(args.positional[1]), views);
     const std::size_t sweeps = experiments.size();
     if (sweeps == 0)
       throw std::runtime_error("no experiments");

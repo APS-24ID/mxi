@@ -19,6 +19,7 @@
 #include "rflx.hh"
 #include "symmetry.hh"
 #include "timing.hh"
+#include "views.hh"
 
 namespace mxi {
 
@@ -101,8 +102,13 @@ int run_program(int argc, char **argv) {
       timing.add(name, t - mark);
       mark = t;
     };
-    ExperimentList experiments = read_experiments(args.positional[0]);
-    Table reflections = read_reflections(args.positional[1]);
+    // The lattices; each sweep's own crystal-less experiment carried through
+    // (docs/multi-lattice.md, stage 2).
+    const ExperimentList whole = read_experiments(args.positional[0]);
+    const Table whole_table = read_reflections(args.positional[1]);
+    const Lattices views = lattices_of(whole);
+    ExperimentList experiments = views.list;
+    Table reflections = lattice_rows(whole_table, views);
     phase("reading");
     // Several sweeps of one crystal pooled, as dials.symmetry takes them: the
     // lattice is the first's, so every sweep must have a crystal and the same
@@ -329,8 +335,11 @@ int run_program(int argc, char **argv) {
     std::printf("Cell %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n", after.a, after.b,
                 after.c, after.alpha, after.beta, after.gamma);
     const rflx::Outputs out = rflx::outputs(args, "symmetrized");
-    const json::Value document = experiments_to_json(experiments);
-    rflx::write_outputs(out, &document, &reflections, "mxi_symmetry");
+    const ExperimentList written = whole_again(whole, views, experiments);
+    Table written_table = rows_again(
+        reflections, crystal_less_rows(whole_table, views), views, written);
+    const json::Value document = experiments_to_json(written);
+    rflx::write_outputs(out, &document, &written_table, "mxi_symmetry");
     std::printf("\nWrote %s\n", rflx::describe(out).c_str());
     phase("reindexing and writing");
     timing.report(stdout);

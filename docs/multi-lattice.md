@@ -105,7 +105,8 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   average; and the routing, with each experiment's own profile block written
   and read (ExperimentList::profiles). --each-alone integrates them a run
   each, as before; several sweeps, or postrefinement, a run each still; --gpu
-  fits one lattice at a time for now, the CPU with several. ins2_27: the same,
+  a fit batch a lattice, each on its own grid -- emulated, the same bit for
+  bit as each alone, the CPU's count fitted. ins2_27: the same,
   row for row, as a run a lattice -- but partial_id, the row's number, and the
   fitted intensities to 2e-11 and correlations to 1e-8, the same reflections'
   sums in another order; 16.6 s where a run each took 20.1, on two threads.

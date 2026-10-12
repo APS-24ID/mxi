@@ -358,3 +358,37 @@ def test_a_lattice_missed_is_recovered_with_the_refined_geometry(tmp_path):
     indexed = ~np.all(np.asarray(t.columns["miller_index"]).reshape(-1, 3) == 0, axis=1)
     assert np.sum(ids[indexed] == 2) > 7000 and np.sum(ids[indexed] == 1) > 13000
     assert set(ids[~indexed].tolist()) == {0}
+
+
+@pytest.mark.skipif(
+    not (INTEGRATE and REFINED), reason="set MXI_INTEGRATE and MXI_TWO_LATTICES_REFINED"
+)
+def test_the_device_fits_a_sweeps_lattices_each_with_its_own_grid(tmp_path):
+    # --gpu with several lattices (docs/outstanding.md, 56): a fit batch a
+    # lattice, each made on its own profile grid. On the emulated device --
+    # the device's single-precision steps run on the CPU -- one pass gives
+    # exactly what each lattice alone gives, and as many fitted as the CPU.
+    def integrate(name, *words):
+        r = subprocess.run(
+            [INTEGRATE, REFINED, "--threads", "2", "-o", name, *words],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+        )
+        assert r.returncode == 0, r.stderr[-2000:]
+        return refl.load(str(tmp_path / name))
+
+    one = integrate("one.rflx", "--gpu-emulate")
+    alone = integrate("alone.rflx", "--gpu-emulate", "--each-alone")
+    cpu = integrate("cpu.rflx")
+
+    def order(t):
+        h = np.asarray(t.columns["miller_index"]).reshape(-1, 3)
+        z = np.asarray(t.columns["xyzcal.px"]).reshape(-1, 3)[:, 2]
+        return np.lexsort((z, h[:, 2], h[:, 1], h[:, 0], np.asarray(t.columns["id"])))
+
+    x = np.asarray(one.columns["intensity.prf.value"])[order(one)]
+    y = np.asarray(alone.columns["intensity.prf.value"])[order(alone)]
+    assert np.array_equal(x, y, equal_nan=True)
+    fitted = lambda t: int(np.sum((np.asarray(t.columns["flags"]) >> 9) & 1))
+    assert fitted(one) == fitted(cpu)

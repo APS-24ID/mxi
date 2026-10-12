@@ -88,10 +88,6 @@ where something is missing.
 
 `docs/multi-lattice.md` for the design and the measurements.
 
-* **56.** **capability -- `--gpu` fits one lattice at a time.** The device's
-    fit batch carries one profile grid, and a sweep's lattices each have their
-    own; with several, the fitting is on the CPU. To check against the CPU
-    through the emulated device.
 * **58.** **difference -- Worst-fitting spots stay indexed.** DIALS leaves its
     worst-fitting out of the indexed set (433 spots of 21299 on the two
     crystals); mxi only out of its fit. Graeme: fine to leave them out, the
@@ -271,6 +267,10 @@ where something is missing.
     `docs/spots_notes.md`, `docs/spotfinder.md` -- which could be one.
 
 ## Closed
+
+* **56.** `--gpu` with several lattices: a fit batch a lattice, each on its
+    own profile grid. Emulated, one pass the same as each lattice alone, bit
+    for bit, and as many fitted as the CPU. `docs/gpu.md`.
 
 * **57.** Sweeps carried through (dials/dials#1029): each sweep's own
     experiment, crystal-less, carried through every program by default, its

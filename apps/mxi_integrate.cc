@@ -1721,7 +1721,6 @@ int run_program(int argc, char **argv) {
       grids[l].subdivisions =
           static_cast<int>(args.number("--subdivisions", 5.0));
     }
-    const GridSpec &grid_spec = grids[0];
     // One scan block per 10 degrees of the range integrated, unless told: the
     // profile drifts along the scan, so a block should be a fixed ANGLE rather
     // than a fixed fraction of the scan -- and a reflection is fitted only once
@@ -1982,14 +1981,6 @@ int run_program(int argc, char **argv) {
     // boxes at a time; --gpu-emulate the same on the CPU. One pass only.
     const bool emulate_gpu = args.has("--gpu-emulate");
     bool use_gpu = emulate_gpu || args.has("-g") || args.has("--gpu");
-    if (use_gpu && n_lattices > 1) {
-      // The device's batch carries one grid, and the lattices' grids are on
-      // scales of their own: not yet.
-      std::printf("--gpu fits one lattice at a time; with %zu lattices the "
-                  "fitting is on the CPU\n",
-                  n_lattices);
-      use_gpu = false;
-    }
     if (use_gpu && !single_pass) {
       std::printf("--gpu fits in one pass only; with --two-pass the fitting is "
                   "on the CPU\n");
@@ -2008,7 +1999,13 @@ int run_program(int argc, char **argv) {
     } else if (on_device)
       std::printf("Profile fitting on %s, in single precision\n",
                   fit_device_name());
-    FitBatch fit_batch = make_fit_batch(e, grid_spec, integrate_options.gain);
+    // A batch a lattice, each made on its own lattice's profile grid: the
+    // device's batch carries one grid, and the lattices of a sweep have each
+    // their own (docs/multi-lattice.md).
+    std::vector<FitBatch> fit_batches;
+    for (std::size_t l = 0; l < n_lattices; ++l)
+      fit_batches.push_back(
+          make_fit_batch(e, grids[l], integrate_options.gain));
     ThreadSeconds t_fit_batched, t_gpu_prepare, t_gpu_pack, t_gpu_device;
     std::size_t gpu_boxes = 0;
     double gpu_bytes = 0.0;
@@ -2036,82 +2033,99 @@ int run_program(int argc, char **argv) {
         record_fit(p.rows[n], fit);
       }
     };
-    const auto fit_on_gpu = [&](const std::vector<std::size_t> &which) {
-      const std::size_t chunk = 4096;
-      for (std::size_t from = 0; from < which.size(); from += chunk) {
-        const std::size_t to = std::min(which.size(), from + chunk);
-        const double t_prepare = Timing::now();
-        std::vector<std::vector<double>> locals(to - from);
-        in_parallel(to - from, [&](std::size_t n) {
-          Shoebox &box = held[which[from + n]];
-          if (box.data.empty())
-            return;
-          const std::size_t row = held_rows[which[from + n]];
-          const Prediction &q = *planned[row].prediction;
-          // A saved box has its background, as fit_one gives it; the device
-          // takes the background as one number, so otherwise it is not written
-          // -- four bytes a voxel for nothing.
-          if (save)
-            box.background.assign(box.size(),
-                                  static_cast<float>(bmean.reals[row]));
-          locals[n] =
-              profile_at(reference, panel, static_cast<std::size_t>(q.panel),
-                         q.px_fast, q.px_slow, q.z);
-        });
-        const double t_packing = Timing::now();
-        t_gpu_prepare.add(t_packing - t_prepare);
-        clear_batch(&fit_batch);
-        std::vector<std::size_t> in_batch;
-        std::vector<BatchEntry> entries;
-        for (std::size_t n = 0; n < to - from; ++n) {
-          const Shoebox &box = held[which[from + n]];
-          const std::size_t row = held_rows[which[from + n]];
-          if (box.data.empty()) {
-            failed(row, FitFailure::no_box);
-            continue;
-          }
-          if (locals[n].size() != grid_spec.size()) {
-            failed(row, FitFailure::no_reference);
-            continue;
-          }
-          const Prediction &q = *planned[row].prediction;
-          entries.push_back({&box, q.s1, q.phi, bmean.reals[row], &locals[n]});
-          in_batch.push_back(row);
-        }
-        // A slot must be free before the batch can be packed into it.
-        if (on_device)
-          while (static_cast<int>(pending_fits.size()) >= kFitSlots)
-            collect_oldest_fit();
-        add_to_batch(&fit_batch, entries, on_device);
-        gpu_boxes += fit_batch.boxes.size();
-        gpu_bytes +=
-            static_cast<double>(fit_batch.voxels) * (sizeof(float) + 1) +
-            static_cast<double>(fit_batch.reference_floats) * sizeof(float);
-        const double t_device = Timing::now();
-        t_gpu_pack.add(t_device - t_packing);
-        // On a device the batch is started and not waited for: the threads go
-        // back to reading frames while it fits, and its fits are collected
-        // when a slot is wanted again or the last boxes are done. The GPU and
-        // the CPU took turns before, each idle while the other worked.
-        int ticket = -1;
-        if (on_device) {
-          while (static_cast<int>(pending_fits.size()) >= kFitSlots)
-            collect_oldest_fit();
-          ticket = fit_batch_submit(fit_batch);
-        }
-        if (ticket >= 0) {
-          pending_fits.push_back({ticket, std::move(in_batch)});
+    const auto fit_on_gpu = [&](const std::vector<std::size_t> &all) {
+      // A lattice at a time, each into its own batch; one lattice, all at once.
+      for (std::size_t lattice = 0; lattice < n_lattices; ++lattice) {
+        std::vector<std::size_t> which;
+        if (n_lattices == 1) {
+          which = all;
         } else {
-          const std::vector<fitdev::FitF> fits = fit_batch_emulated(fit_batch);
-          for (std::size_t n = 0; n < in_batch.size(); ++n) {
-            ProfileFit fit = to_profile_fit(fits[n]);
-            if (!fit.valid)
-              fit.why = FitFailure::device;
-            record_fit(in_batch[n], fit);
-          }
+          for (std::size_t k : all)
+            if (planned[held_rows[k]].lattice == lattice)
+              which.push_back(k);
         }
-        t_gpu_device.add(Timing::now() - t_device);
-        t_fit_batched.add(Timing::now() - t_prepare);
+        FitBatch &fit_batch = fit_batches[lattice];
+        const ReferenceProfiles &own = references[lattice];
+        const GridSpec &own_grid = grids[lattice];
+        const std::size_t chunk = 4096;
+        for (std::size_t from = 0; from < which.size(); from += chunk) {
+          const std::size_t to = std::min(which.size(), from + chunk);
+          const double t_prepare = Timing::now();
+          std::vector<std::vector<double>> locals(to - from);
+          in_parallel(to - from, [&](std::size_t n) {
+            Shoebox &box = held[which[from + n]];
+            if (box.data.empty())
+              return;
+            const std::size_t row = held_rows[which[from + n]];
+            const Prediction &q = *planned[row].prediction;
+            // A saved box has its background, as fit_one gives it; the device
+            // takes the background as one number, so otherwise it is not
+            // written
+            // -- four bytes a voxel for nothing.
+            if (save)
+              box.background.assign(box.size(),
+                                    static_cast<float>(bmean.reals[row]));
+            locals[n] =
+                profile_at(own, panel, static_cast<std::size_t>(q.panel),
+                           q.px_fast, q.px_slow, q.z);
+          });
+          const double t_packing = Timing::now();
+          t_gpu_prepare.add(t_packing - t_prepare);
+          clear_batch(&fit_batch);
+          std::vector<std::size_t> in_batch;
+          std::vector<BatchEntry> entries;
+          for (std::size_t n = 0; n < to - from; ++n) {
+            const Shoebox &box = held[which[from + n]];
+            const std::size_t row = held_rows[which[from + n]];
+            if (box.data.empty()) {
+              failed(row, FitFailure::no_box);
+              continue;
+            }
+            if (locals[n].size() != own_grid.size()) {
+              failed(row, FitFailure::no_reference);
+              continue;
+            }
+            const Prediction &q = *planned[row].prediction;
+            entries.push_back(
+                {&box, q.s1, q.phi, bmean.reals[row], &locals[n]});
+            in_batch.push_back(row);
+          }
+          // A slot must be free before the batch can be packed into it.
+          if (on_device)
+            while (static_cast<int>(pending_fits.size()) >= kFitSlots)
+              collect_oldest_fit();
+          add_to_batch(&fit_batch, entries, on_device);
+          gpu_boxes += fit_batch.boxes.size();
+          gpu_bytes +=
+              static_cast<double>(fit_batch.voxels) * (sizeof(float) + 1) +
+              static_cast<double>(fit_batch.reference_floats) * sizeof(float);
+          const double t_device = Timing::now();
+          t_gpu_pack.add(t_device - t_packing);
+          // On a device the batch is started and not waited for: the threads go
+          // back to reading frames while it fits, and its fits are collected
+          // when a slot is wanted again or the last boxes are done. The GPU and
+          // the CPU took turns before, each idle while the other worked.
+          int ticket = -1;
+          if (on_device) {
+            while (static_cast<int>(pending_fits.size()) >= kFitSlots)
+              collect_oldest_fit();
+            ticket = fit_batch_submit(fit_batch);
+          }
+          if (ticket >= 0) {
+            pending_fits.push_back({ticket, std::move(in_batch)});
+          } else {
+            const std::vector<fitdev::FitF> fits =
+                fit_batch_emulated(fit_batch);
+            for (std::size_t n = 0; n < in_batch.size(); ++n) {
+              ProfileFit fit = to_profile_fit(fits[n]);
+              if (!fit.valid)
+                fit.why = FitFailure::device;
+              record_fit(in_batch[n], fit);
+            }
+          }
+          t_gpu_device.add(Timing::now() - t_device);
+          t_fit_batched.add(Timing::now() - t_prepare);
+        }
       }
     };
 

@@ -5,7 +5,8 @@ and SIGI the scaled intensity and its sigma divided by the inverse scale, its
 SCALEUSED, XDET, YDET, ROT and FRACTIONCALC the table's, every batch a header
 with U orthonormal and the scan axis on +Z -- the Cambridge frame. And two
 sweeps whose images overlap -- both numbered from one -- the second's batches
-moved to the next number ending in 01, as dials' offsets have it. Needs
+moved up a block, the next power of ten above the largest image number, 1001
+on (Graeme; dials moves it to the next number ending in 01). Needs
 MXI_EXPORT, MXI_SCALE, MXI_SCALE_EXPT and MXI_SCALE_REFL; and gemmi.
 """
 
@@ -117,9 +118,11 @@ def test_the_scaled_intensities_and_headers_are_as_the_table_and_models_give(tmp
 
 
 @needs
-def test_overlapping_sweeps_batches_move_to_the_next_epoch(tmp_path):
+def test_overlapping_sweeps_batches_move_up_a_block(tmp_path):
     # The sweep split in two, both halves numbered from image one: the second
-    # overlaps the first, and goes to batches 201 to 350.
+    # overlaps the first, and goes up a block -- the next power of ten above
+    # the largest image number, 150 -- to batches 1001 on, where dials' rule
+    # gives 201 to 350.
     e = json.load(open(EXPT))
     n = e["scan"][0]["image_range"][1]
     half = n // 2
@@ -166,10 +169,10 @@ def test_overlapping_sweeps_batches_move_to_the_next_epoch(tmp_path):
     m = gemmi.read_mtz_file(str(tmp_path / "two.mtz"))
     numbers = [b.number for b in m.batches]
     assert numbers[:half] == list(range(1, half + 1))
-    assert numbers[half:] == list(range(201, 201 + n - half))
+    assert numbers[half:] == list(range(1001, 1001 + n - half))
     labels = [c.label for c in m.columns]
     batches = set(np.array(m, copy=False)[:, labels.index("BATCH")].astype(int))
-    assert batches <= set(numbers) and any(b >= 201 for b in batches)
+    assert batches <= set(numbers) and any(b >= 1001 for b in batches)
 
 
 @needs

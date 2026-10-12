@@ -129,12 +129,15 @@ where something is missing.
 
 ## Scaling
 
-* **54.** **difference -- The error model's a: 1.12 where dials.scale's is
-    near 0.8.** On the two crystals of insulin the scaled intensities agree to
-    CC 0.9997 and R merge and CC half to the third place, but merged mean
-    I/sigma is 9.4 against 12.5: mxi's error model widens a weak reflection's
-    sigma 38 per cent more than DIALS's, a strong one's 7. dials.scale's log
-    would give its a and b. `docs/multi-lattice.md`.
+* **54.** **correctness -- Weak reflections' sigma too large, from
+    integration.** Judged on the same observations by the exact deviations'
+    variance, mxi's final sigma are right for the stronger two-thirds of the
+    two crystals' data and dials.scale's 30 per cent small (its a 0.81, mxi's
+    1.10 -- the 12.5 against 9.4 in merged mean I/sigma); for the weakest third
+    both too large, mxi's by up to two in variance. Integration's: mxi's
+    integration sigma there are 0.68 to 0.83 of DIALS's own, so DIALS's
+    pipeline starts from larger still. The background's term in a weak
+    reflection's variance to be looked at. `docs/scaling.md`.
 
 * **21.** **capability -- One sweep only.**
 * **22.** **capability -- No free-set validation**, the check for overfitting.

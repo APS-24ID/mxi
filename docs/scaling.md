@@ -155,6 +155,33 @@ overall:
   those with less than 95 per cent of the profile measured, near a module gap,
   3.4 per cent low. These are integration's to fix.
 
+## The error model against dials.scale's, judged on the same observations
+
+Two crystals of insulin (`docs/multi-lattice.md`), mxi's integration scaled
+by each program: dials.scale's error model a = 0.812, b = 0.0301 on some 4670
+reflections; mxi's a = 1.100, b = 0.0223 on 4791. Merged mean I/sigma 12.5
+and 9.4. The parameters are not comparable across programs -- each applies
+its own to what its own combination and scaling hand it -- so the test is of
+each program's final sigma on the same observations: the variance of each
+observation's EXACT deviation from its group's mean, which is one for sigma
+that are right, binned by mean intensity -- not by I/sigma, which depends on
+sigma and biases the bins:
+
+    mean intensity sextile, weak to strong    1     2     3     4     5     6
+    mxi                                      0.26  0.58  0.84  0.95  0.95  0.98
+    dials.scale                              0.51  1.11  1.55  1.71  1.69  1.70
+
+For the stronger two-thirds mxi's sigma are right and dials.scale's some 30
+per cent small: its lower a, which is what its higher mean I/sigma comes from,
+does not calibrate them better -- by its own eqn 12 deviations still 1.43 on
+the strongest. For the weakest third both are too large, mxi's by up to a
+factor of two in variance, and no a and b can mend both ends at once. That is
+integration's: matched reflection by reflection, mxi's integration sigma for
+I/sigma under one are 0.68 to 0.83 of DIALS's own integration's, and the two
+agree above ten -- so DIALS's own pipeline starts from larger ones still. The
+weak reflections' variance, its background term above all, is the thing to
+look at; mxi's error model is kept as it is.
+
 ## The scale's uncertainty, before the error model
 
 The covariance of the parameters is the inverse of the normal matrix of the

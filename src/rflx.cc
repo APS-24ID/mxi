@@ -1042,9 +1042,11 @@ Outputs outputs(const Arguments &args, const std::string &step) {
 }
 
 void write_outputs(const Outputs &out, const json::Value *experiments,
-                   const Table *reflections, const std::string &creator) {
+                   const Table *reflections, const std::string &creator,
+                   const json::Value *summary) {
+  // The summary goes with the .rflx; the pair has no place for it.
   if (!out.rflx.empty())
-    write(out.rflx, experiments, reflections, creator);
+    write(out.rflx, experiments, reflections, creator, false, summary);
   if (!out.expt.empty() && experiments)
     json::dump_file(out.expt, *experiments);
   if (!out.refl.empty() && reflections)
@@ -1069,6 +1071,18 @@ std::vector<std::string> as_pair(const std::vector<std::string> &inputs) {
   if (inputs.size() == 1 && is_hdf5(inputs[0]))
     return {inputs[0], inputs[0]};
   return inputs;
+}
+
+std::optional<json::Value> read_summary(const std::string &path) {
+  const std::lock_guard<std::mutex> guard(lock());
+  const Quiet quiet;
+  H file(H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
+  if (!file.ok())
+    throw Error("cannot open " + path + " as HDF5");
+  if (!is_group(file.id, "summary"))
+    return std::nullopt;
+  H g(H5Gopen2(file.id, "summary", H5P_DEFAULT), H5Gclose);
+  return read_group(g.id);
 }
 
 std::optional<json::Value> read_experiments(const std::string &path) {
@@ -1184,8 +1198,8 @@ std::optional<Table> read_reflections(const std::string &path,
 }
 
 void write(const std::string &path, const json::Value *experiments,
-           const Table *reflections, const std::string &creator,
-           bool compress) {
+           const Table *reflections, const std::string &creator, bool compress,
+           const json::Value *summary) {
   const std::lock_guard<std::mutex> guard(lock());
   const Quiet quiet;
   struct Setting {
@@ -1216,6 +1230,13 @@ void write(const std::string &path, const json::Value *experiments,
     }
     if (reflections)
       write_table(file.id, *reflections);
+    if (summary && summary->is_object()) {
+      H g(checked(H5Gcreate2(file.id, "summary", H5P_DEFAULT, H5P_DEFAULT,
+                             H5P_DEFAULT),
+                  "creating /summary"),
+          H5Gclose);
+      write_dict(g.id, summary->as_object());
+    }
   }
   // Whole or not at all: the file appears under its name only once written.
   if (std::rename(partial.c_str(), path.c_str()) != 0)

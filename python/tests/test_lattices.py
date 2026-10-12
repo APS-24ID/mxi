@@ -289,3 +289,38 @@ def test_one_pass_over_the_images_is_each_lattice_alone(tmp_path):
     d = rflx.experiments_dict(str(tmp_path / "one.rflx"))
     assert len(d["detector"]) == 1 and len(d["imageset"]) == 1
     assert len(d["crystal"]) == 2 and len(d["profile"]) == 2
+
+
+REFINE = os.environ.get("MXI_REFINE")
+
+
+@pytest.mark.skipif(not REFINE, reason="set MXI_REFINE")
+def test_the_sweep_carried_through_changes_nothing_refined(tmp_path):
+    # dials/dials#1029 (docs/multi-lattice.md, stage 2): mxi_index
+    # --keep-sweeps writes the sweep's own experiment, crystal-less, first,
+    # its unindexed spots its own, the lattices after it; refined, the
+    # lattices are as without it, the sweep's experiment taking the detector.
+    def run(*words):
+        r = subprocess.run(list(words), capture_output=True, text=True, cwd=tmp_path)
+        assert r.returncode == 0, r.stderr[-2000:]
+
+    run(INDEX, STRONG, "--max-lattices", "3", "--keep-sweeps", "-o", "kept.rflx")
+    run(INDEX, STRONG, "--max-lattices", "3", "-o", "plain.rflx")
+    d = rflx.experiments_dict(str(tmp_path / "kept.rflx"))
+    assert [e.get("crystal") for e in d["experiment"]] == [None, 0, 1]
+    assert len({e["identifier"] for e in d["experiment"]}) == 3
+    t = refl.load(str(tmp_path / "kept.rflx"))
+    unindexed = np.all(
+        np.asarray(t.columns["miller_index"]).reshape(-1, 3) == 0, axis=1
+    )
+    assert set(np.asarray(t.columns["id"])[unindexed].tolist()) == {0}
+    assert set(np.asarray(t.columns["id"])[~unindexed].tolist()) == {1, 2}
+    run(REFINE, "kept.rflx", "-o", "kept_refined.rflx")
+    run(REFINE, "plain.rflx", "-o", "plain_refined.rflx")
+    k = rflx.experiments_dict(str(tmp_path / "kept_refined.rflx"))
+    p = rflx.experiments_dict(str(tmp_path / "plain_refined.rflx"))
+    assert k["crystal"] == p["crystal"] and k["detector"] == p["detector"]
+    assert (
+        len(k["experiment"]) == 3
+        and k["experiment"][0]["detector"] == k["experiment"][1]["detector"]
+    )

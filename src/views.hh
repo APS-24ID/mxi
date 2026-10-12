@@ -67,6 +67,15 @@ ExperimentList add_sweeps(const ExperimentList &given,
                           const std::vector<std::size_t> &sweep_of_lattice,
                           Table *table);
 
+//: An experiment list, as a document, in the form DIALS reads: its
+//: crystal-less experiments left out -- every model, image set and profile
+//: still there, each kept experiment's references to them unchanged -- and
+//: `table`, if given, numbered to match: a lattice's spots its new index, a
+//: crystal-less experiment's -1, as dials.index leaves an unindexed spot; the
+//: identifier map renumbered. A list without crystal-less experiments, as it
+//: is. mxi_convert's, writing the pair (docs/multi-lattice.md, stage 2).
+json::Value dials_form(const json::Value &document, Table *table);
+
 } // namespace mxi
 
 #endif // MXI_VIEWS_HH

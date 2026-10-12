@@ -21,6 +21,7 @@
 #include "log_mirror.hh"
 #include "refl.hh"
 #include "rflx.hh"
+#include "views.hh"
 
 namespace {
 
@@ -39,7 +40,10 @@ const char *kUsage =
     "  --output-refl PATH     from a .rflx, the .refl (its name as .refl)\n"
     "  --no-compress          a .rflx written uncompressed, as the programs\n"
     "                         write theirs; by default gzip and shuffle, as\n"
-    "                         dxtbx-h5 writes, for a file kept or sent\n";
+    "                         dxtbx-h5 writes, for a file kept or sent\n"
+    "  --keep-sweeps          the pair as mxi has it: each sweep's\n"
+    "                         crystal-less experiment kept; by default left\n"
+    "                         out, its spots' id -1, as DIALS reads them\n";
 
 std::string with_extension(const std::string &path, const std::string &ext) {
   return std::filesystem::path(path).replace_extension(ext).string();
@@ -56,9 +60,13 @@ int main(int argc, char **argv) {
   using namespace mxi;
   if (!only_asks_for_help(argc, argv))
     mirror_to_log("mxi_convert.log");
-  const std::set<std::string> known = {
-      "-o",    "--output", "--output-expt", "--output-refl", "--no-compress",
-      "--help"};
+  const std::set<std::string> known = {"-o",
+                                       "--output",
+                                       "--output-expt",
+                                       "--output-refl",
+                                       "--no-compress",
+                                       "--keep-sweeps",
+                                       "--help"};
   const std::set<std::string> takes_value = {"-o", "--output", "--output-expt",
                                              "--output-refl"};
   const Arguments args = parse_arguments(argc, argv, known, takes_value);
@@ -109,17 +117,32 @@ int main(int argc, char **argv) {
         std::printf("Wrote %s\n", output.c_str());
         return 0;
       }
-      if (experiments) {
+      // The pair in DIALS's form: each sweep's crystal-less experiment left
+      // out, the ids numbered to match, unindexed spots -1 -- unless
+      // --keep-sweeps asks for mxi's (docs/multi-lattice.md, stage 2).
+      std::optional<Table> table = reflections;
+      std::optional<json::Value> list = experiments;
+      if (list && !args.has("--keep-sweeps")) {
+        const std::size_t before = (*list)["experiment"].as_array().size();
+        list = dials_form(*list, table ? &*table : nullptr);
+        const std::size_t after = (*list)["experiment"].as_array().size();
+        if (after < before)
+          std::printf("In DIALS's form: %zu crystal-less experiment%s left "
+                      "out, their spots' id -1 (--keep-sweeps to keep them)\n",
+                      before - after, before - after == 1 ? "" : "s");
+      }
+      if (list) {
         const std::string out =
             args.value("--output-expt", with_extension(in, ".expt"));
-        json::dump_file(out, *experiments);
+        json::dump_file(out, *list);
         std::printf("Wrote the experiment list to %s\n", out.c_str());
       }
-      if (reflections) {
+      if (table) {
+        const Table &reflections_out = *table;
         const std::string out =
             args.value("--output-refl", with_extension(in, ".refl"));
-        write_reflections(out, *reflections);
-        std::printf("Wrote %zu reflections to %s\n", reflections->nrows,
+        write_reflections(out, reflections_out);
+        std::printf("Wrote %zu reflections to %s\n", reflections_out.nrows,
                     out.c_str());
       }
       return 0;

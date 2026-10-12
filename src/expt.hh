@@ -69,6 +69,11 @@ struct ExperimentList {
 
   //: The profile block of the first experiment, when there is one.
   ProfileBlock profile;
+  //: Each experiment's own profile model, where they have their own -- the
+  //: lattices of a sweep, integrated together, each its own: written a block
+  //: an experiment, the same ones once. Its size not the list's, and every
+  //: experiment refers to `profile`, as before.
+  std::vector<ProfileBlock> profiles;
 
   //: Where the images are, from the `imageset` block: the template of the
   //: first imageset, verbatim. Empty if the file has none.

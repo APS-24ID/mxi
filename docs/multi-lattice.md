@@ -67,6 +67,21 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   was ever overlapped; and the joined table's imageset_id was numbered before
   the image sets were shared, the second lattice's naming one no longer
   there.
+* Stage 5, one pass (Graeme: single pass next): the lattices of a sweep --
+  every experiment on one image set and one scan -- integrated in one pass
+  over its images, in four steps each the same bytes as before for one
+  lattice: a profile model a lattice from its own spots; prediction, boxes,
+  masks and rows a lattice; a profile grid and reference profiles a lattice,
+  finalised a lattice, an empty block borrowing only its own lattice's
+  average; and the routing, with each experiment's own profile block written
+  and read (ExperimentList::profiles). --each-alone integrates them a run
+  each, as before; several sweeps, or postrefinement, a run each still; --gpu
+  fits one lattice at a time for now, the CPU with several. ins2_27: the same,
+  row for row, as a run a lattice -- but partial_id, the row's number, and the
+  fitted intensities to 2e-11 and correlations to 1e-8, the same reflections'
+  sums in another order; 16.6 s where a run each took 20.1, on two threads.
+  Lattice 1's profiles learned from 4336 reflections, lattice 2's from 1246,
+  22 of its 54 regions borrowing.
 * Stage 6, symmetry: cosym (src/cosym.cc), in mxi_symmetry before the
   pooling, for experiments whose crystals are not one model. Each experiment's
   intensities merged in P1, normalised, Friedel mates averaged; each pair's

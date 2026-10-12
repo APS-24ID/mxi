@@ -244,3 +244,48 @@ def test_the_second_crystals_batches_start_a_block_of_a_thousand(tmp_path):
         b.number for b in gemmi.read_mtz_file(str(tmp_path / "scaled.mtz")).batches
     )
     assert numbers == list(range(1, 601)) + list(range(1001, 1601))
+
+
+@pytest.mark.skipif(
+    not (INTEGRATE and REFINED), reason="set MXI_INTEGRATE and MXI_TWO_LATTICES_REFINED"
+)
+def test_one_pass_over_the_images_is_each_lattice_alone(tmp_path):
+    # The lattices of a sweep integrated in one pass over its images, each its
+    # own profile model and reference profiles, each masking the others; the
+    # same, row for row, as a run a lattice (--each-alone) -- but partial_id,
+    # the row's number, and the fitted values to the rounding of their sums,
+    # which gather the same reflections in another order.
+    def integrate(name, *words):
+        r = subprocess.run(
+            [INTEGRATE, REFINED, "--threads", "2", "-o", name, *words],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+        )
+        assert r.returncode == 0, r.stderr[-2000:]
+        return refl.load(str(tmp_path / name))
+
+    one, alone = integrate("one.rflx"), integrate("alone.rflx", "--each-alone")
+    assert one.nrows == alone.nrows and sorted(one.columns) == sorted(alone.columns)
+    assert one.identifiers == alone.identifiers
+
+    def order(t):
+        h = np.asarray(t.columns["miller_index"]).reshape(-1, 3)
+        z = np.asarray(t.columns["xyzcal.px"]).reshape(-1, 3)[:, 2]
+        return np.lexsort((z, h[:, 2], h[:, 1], h[:, 0], np.asarray(t.columns["id"])))
+
+    a, b = order(one), order(alone)
+    for k in one.columns:
+        if k == "partial_id":
+            continue
+        x = np.asarray(one.columns[k]).reshape(one.nrows, -1)[a]
+        y = np.asarray(alone.columns[k]).reshape(alone.nrows, -1)[b]
+        if k.startswith("intensity.prf"):  # differing by 2e-11 at most
+            assert np.allclose(x, y, rtol=1e-9, atol=1e-9, equal_nan=True), k
+        elif k.startswith("profile."):  # the correlation, by 1e-8 at most
+            assert np.allclose(x, y, rtol=1e-7, atol=1e-7, equal_nan=True), k
+        else:
+            assert np.array_equal(x, y, equal_nan=x.dtype.kind == "f"), k
+    d = rflx.experiments_dict(str(tmp_path / "one.rflx"))
+    assert len(d["detector"]) == 1 and len(d["imageset"]) == 1
+    assert len(d["crystal"]) == 2 and len(d["profile"]) == 2

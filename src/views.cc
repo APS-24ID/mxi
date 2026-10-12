@@ -287,7 +287,9 @@ json::Value dials_form(const json::Value &document, Table *table) {
       renumber[i] = static_cast<long>(kept.size());
       kept.push_back(all[i]);
     }
-  if (kept.size() == all.size())
+  // Nothing to leave out; or nothing but crystal-less experiments -- an
+  // imported list, before indexing, which DIALS reads as it is.
+  if (kept.size() == all.size() || kept.empty())
     return document;
   json::Object out = document.as_object();
   out["experiment"] = json::Value(std::move(kept));

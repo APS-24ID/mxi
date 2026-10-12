@@ -220,6 +220,15 @@ TEST(dials_form_leaves_the_crystal_less_out_and_unindexed_spots_minus_one) {
                "nothing left out");
   check::is_true(u.at("id").ints == std::vector<std::int64_t>{0, 1, 2},
                  "the table as it was");
+  // An imported list -- crystal-less alone, before indexing -- as it is: the
+  // first form mxi_convert wrote it with no experiments at all.
+  ExperimentList imported = whole;
+  imported.experiments.resize(1);
+  imported.beam_of = imported.detector_of = imported.sweep_of = {0};
+  const json::Value before = experiments_to_json(imported);
+  check::equal(static_cast<long long>(
+                   dials_form(before, nullptr)["experiment"].as_array().size()),
+               1, "an imported list kept whole");
 }
 
 } // namespace mxi

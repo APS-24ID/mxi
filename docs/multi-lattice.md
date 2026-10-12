@@ -21,6 +21,17 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   refined models, the same integrated and scaled tables but for id, I 2 3
   from both, the same MTZ row for row. Several sweeps carried through
   integration: refused by name, not yet.
+
+  A lattice missed, recovered (Graeme: an unindexed lattice found at the end
+  with the refined geometry of another): mxi_index given a list with lattices
+  already, and --max-lattices more than it has, keeps them and their
+  identifiers, sets aside the spots they index, looks for more among the rest
+  with the geometry they refined, and assigns and refines all together; the
+  sweep's own experiment carried again. On ins2_27, one lattice indexed alone
+  -- 15307 spots, the second's among them by chance -- refined, then given:
+  the second found, 5916 of the 6001 left; after assignment 13616 and 7580,
+  99.5 per cent, RMSD 0.256 and 0.263 px and 0.226 images -- as both found
+  together at the start, 13617 and 7579.
 * Stage 3, before stage 2: mxi_index --max-lattices N (index_lattices in the
   library). The search as dials.index's; then, every lattice known, each spot
   assigned again globally -- to the lattice whose integer indices it lies

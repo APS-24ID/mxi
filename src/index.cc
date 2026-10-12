@@ -1151,7 +1151,8 @@ bool same_lattice(const Crystal &a, const Crystal &b) {
 LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
                               const IndexOptions &options, int max_lattices,
                               std::size_t min_spots, Ambiguous ambiguous,
-                              double ambiguity_sigma) {
+                              double ambiguity_sigma,
+                              const std::vector<Crystal> &known) {
   LatticesResult result;
   if (sweep.size() != 1)
     throw std::runtime_error(
@@ -1162,7 +1163,49 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
   std::vector<std::int64_t> hkl(3 * n, 0);
   std::vector<Crystal> found;
   ExperimentList models = sweep; // as the latest lattice left them
-  for (int l = 0; l < max_lattices; ++l) {
+  // Lattices known already -- found before, and refined: each spot one
+  // indexes within the tolerance set aside for it, the nearest where two do;
+  // the search for more then on what is left, with the geometry they refined
+  // (docs/multi-lattice.md: a lattice missed at first, recovered).
+  if (!known.empty()) {
+    const Column &xyz = reflections.at("xyzobs.px.value");
+    const bool has_panel = reflections.has("panel");
+    for (std::size_t i = 0; i < n; ++i) {
+      const std::size_t panel =
+          has_panel
+              ? static_cast<std::size_t>(reflections.at("panel").integer(i))
+              : 0;
+      const Vec3 r = reciprocal_lattice_point(models[0], panel, xyz.real(i, 0),
+                                              xyz.real(i, 1), xyz.real(i, 2));
+      double best = options.tolerance;
+      for (std::size_t l = 0; l < known.size(); ++l) {
+        const Vec3 h = known[l].A.inverse() * r;
+        const double hs[3] = {h.x, h.y, h.z};
+        double off = 0.0;
+        bool zero = true;
+        std::int64_t rounded[3];
+        for (int k = 0; k < 3; ++k) {
+          rounded[k] = std::llround(hs[k]);
+          off =
+              std::max(off, std::fabs(hs[k] - static_cast<double>(rounded[k])));
+          zero = zero && rounded[k] == 0;
+        }
+        if (zero || off > best)
+          continue;
+        best = off;
+        lattice_of[i] = static_cast<int>(l);
+        std::copy(rounded, rounded + 3, hkl.begin() + static_cast<long>(3 * i));
+      }
+    }
+    for (std::size_t l = 0; l < known.size(); ++l) {
+      found.push_back(known[l]);
+      result.found_in.push_back(n);
+      result.indexed_of.push_back(static_cast<std::size_t>(std::count(
+          lattice_of.begin(), lattice_of.end(), static_cast<int>(l))));
+    }
+    result.known = known.size();
+  }
+  for (int l = static_cast<int>(found.size()); l < max_lattices; ++l) {
     std::vector<std::size_t> rows;
     for (std::size_t i = 0; i < n; ++i)
       if (lattice_of[i] < 0)

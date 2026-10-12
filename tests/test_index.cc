@@ -1064,3 +1064,41 @@ TEST(two_lattices_in_one_sweep_are_both_found) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(a_lattice_missed_is_found_again_beside_one_given) {
+  // docs/multi-lattice.md: a lattice known -- found and refined before --
+  // given, and the other of two crystals looked for among the spots it does
+  // not index: found, the given one kept first.
+  Experiment truth = synthetic();
+  const Mat3 r1 = rotation({0.3, -0.5, 0.81}, 0.9);
+  const Mat3 r2 =
+      rotation({0.6, 0.2, -0.77}, 11.6 * 3.14159265358979 / 180.0) * r1;
+  Experiment a = truth, b = truth;
+  a.crystal = Crystal::from_real_space(r1 * Vec3{47.0, 0.0, 0.0},
+                                       r1 * Vec3{0.0, 52.0, 0.0},
+                                       r1 * Vec3{0.0, 0.0, 61.0});
+  b.crystal = Crystal::from_real_space(r2 * Vec3{47.0, 0.0, 0.0},
+                                       r2 * Vec3{0.0, 52.0, 0.0},
+                                       r2 * Vec3{0.0, 0.0, 61.0});
+  Table spots = concat_rows({spots_from(a, 2.5), spots_from(b, 2.5)});
+  ExperimentList sweep;
+  Experiment blank = truth;
+  blank.crystal.reset();
+  sweep.experiments.push_back(blank);
+  const LatticesResult r = index_lattices(
+      sweep, spots, {}, 3, 50, Ambiguous::Exclude, 3.0, {*a.crystal});
+  check::equal(static_cast<long long>(r.known), 1, "one given");
+  check::equal(static_cast<long long>(r.experiments.size()), 2,
+               "the other found, no third");
+  check::is_true(same_lattice(*a.crystal, *r.experiments[0].crystal),
+                 "the given one first");
+  check::is_true(same_lattice(*b.crystal, *r.experiments[1].crystal),
+                 "the missed one found");
+  check::is_true(static_cast<double>(r.n_indexed) >
+                     0.95 * static_cast<double>(spots.nrows),
+                 "nearly every spot indexed");
+}
+
+} // namespace mxi

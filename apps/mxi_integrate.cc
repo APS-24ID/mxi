@@ -227,6 +227,12 @@ void usage(const char *program) {
       "                    20000); shortens the chunk\n"
       "                    when it bites, about 31 kB a box\n"
       "  --summation-only  skip profile fitting\n"
+      "  --no-mask-neighbours  leave each reflection's neighbours in its\n"
+      "                    background: by default, their foregrounds are\n"
+      "                    masked out of it, any lattice's, as DIALS's\n"
+      "                    3d_threaded integrator does\n"
+      "  --each-alone      the lattices of a sweep a run each, reading its\n"
+      "                    images once a lattice, rather than in one pass\n"
       "  --two-pass        read the images twice, to learn and then to fit, "
       "as\n"
       "                    before one pass; the same answer, byte for byte\n"
@@ -631,6 +637,7 @@ int run_program(int argc, char **argv) {
                                        "--two-pass",
                                        "--no-mask-neighbours",
                                        "--profile-only",
+                                       "--each-alone",
                                        "--mask-also",
                                        "-g",
                                        "--gpu",
@@ -649,6 +656,7 @@ int run_program(int argc, char **argv) {
   takes_value.erase("--two-pass");
   takes_value.erase("--no-mask-neighbours");
   takes_value.erase("--profile-only");
+  takes_value.erase("--each-alone");
   takes_value.erase("-g");
   takes_value.erase("--gpu");
   takes_value.erase("--gpu-emulate");
@@ -683,9 +691,24 @@ int run_program(int argc, char **argv) {
     } catch (const std::exception &) {
       // Read again below, where a bad file is reported as it always was.
     }
+    // The lattices of one sweep -- every experiment on the same image set
+    // and the same scan -- in one pass over its images, each with its own
+    // profile model and reference profiles, each masking the others
+    // (docs/multi-lattice.md); --each-alone integrates them a run each, as
+    // several sweeps are. Postrefined, a run each.
+    bool one_sweep = false;
     if (document.is_object() && document["experiment"].is_array() &&
-        document["experiment"].as_array().size() > 1)
-      return integrate_several(args, argv[0], takes_value, document);
+        document["experiment"].as_array().size() > 1) {
+      one_sweep = !args.has("--each-alone") && !args.has("--postrefine");
+      const json::Value &first = document["experiment"].as_array()[0];
+      for (const json::Value &x : document["experiment"].as_array())
+        one_sweep =
+            one_sweep && x["imageset"].is_number() && x["scan"].is_number() &&
+            x["imageset"].as_number() == first["imageset"].as_number() &&
+            x["scan"].as_number() == first["scan"].as_number();
+      if (!one_sweep)
+        return integrate_several(args, argv[0], takes_value, document);
+    }
   }
   if (args.has("--postrefine"))
     return integrate_with_postrefinement(args, argv[0], takes_value);
@@ -2354,6 +2377,16 @@ int run_program(int argc, char **argv) {
               std::printf("wrote %s\n", profile_path.c_str());
             }
           }
+          // How many reflections this lattice learned from: its own regions'
+          // count, summed; one lattice, the run's.
+          const auto learned_by = [&](std::size_t lattice) {
+            if (n_lattices == 1)
+              return references_used;
+            std::size_t sum = 0;
+            for (std::size_t n : references[lattice].spots)
+              sum += n;
+            return sum;
+          };
           std::size_t empty = 0;
           for (std::size_t r = 0; r < own.spots.size(); ++r) {
             if (own.spots[r] < 10)
@@ -2364,7 +2397,7 @@ int run_program(int argc, char **argv) {
           std::printf(
               "Reference profiles: %zu learned from %zu reflections (%zu of "
               "%zu regions borrowed their scan block's detector average)\n",
-              own.region_count() - empty, references_used, empty,
+              own.region_count() - empty, learned_by(l), empty,
               own.region_count());
         }
         if (references_used == 0) {
@@ -2505,6 +2538,16 @@ int run_program(int argc, char **argv) {
       written.profile.sigma_b = sigma_b;
       written.profile.sigma_m = sigma_m;
       written.profile.n_sigma = mask_options.n_sigma;
+      written.profiles.clear();
+      if (n_lattices > 1)
+        for (const MaskOptions &own : lattice_masks) {
+          ProfileBlock b;
+          b.present = true;
+          b.sigma_b = own.sigma_d;
+          b.sigma_m = own.sigma_m;
+          b.n_sigma = own.n_sigma;
+          written.profiles.push_back(b);
+        }
       const rflx::Outputs outputs = rflx::outputs(args, "integrated");
       const json::Value document = experiments_to_json(written);
       rflx::write_outputs(outputs, &document, &out, "mxi_integrate");

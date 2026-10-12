@@ -215,22 +215,33 @@ ExperimentList experiments_from_json(const json::Value &document) {
     }
   }
 
-  // The profile block, if the file has one. Only the first: this package has
-  // no per-experiment profile model and would not know what to do with a
-  // second.
+  // The profile blocks, if the file has them: the first as the list's own,
+  // what a list of one sweep reads; and each experiment's, by its index --
+  // the lattices of a sweep, integrated together, each their own.
   const json::Value &profiles = document["profile"];
-  if (profiles.is_array() && !profiles.as_array().empty()) {
-    const json::Value &first = profiles.as_array()[0];
-    if (first.is_object() && first["sigma_b"].is_number() &&
-        first["sigma_m"].is_number()) {
-      list.profile.present = true;
-      list.profile.sigma_b = first["sigma_b"].as_number();
-      list.profile.sigma_m = first["sigma_m"].as_number();
-      if (first["n_sigma"].is_number()) {
-        list.profile.n_sigma = first["n_sigma"].as_number();
-      }
+  const auto read_profile = [](const json::Value &v) {
+    ProfileBlock b;
+    if (v.is_object() && v["sigma_b"].is_number() && v["sigma_m"].is_number()) {
+      b.present = true;
+      b.sigma_b = v["sigma_b"].as_number();
+      b.sigma_m = v["sigma_m"].as_number();
+      if (v["n_sigma"].is_number())
+        b.n_sigma = v["n_sigma"].as_number();
     }
-  }
+    return b;
+  };
+  if (profiles.is_array() && !profiles.as_array().empty())
+    list.profile = read_profile(profiles.as_array()[0]);
+  if (profiles.is_array() && profiles.as_array().size() > 1)
+    for (const json::Value &x : document["experiment"].as_array()) {
+      const json::Value &at = x["profile"];
+      list.profiles.push_back(
+          at.is_number() && static_cast<std::size_t>(at.as_number()) <
+                                profiles.as_array().size()
+              ? read_profile(profiles.as_array()[static_cast<std::size_t>(
+                    at.as_number())])
+              : ProfileBlock{});
+    }
   for (const json::Value &e : document["experiment"].as_array()) {
     Experiment x;
     x.identifier = e["identifier"].as_string();
@@ -352,6 +363,7 @@ std::size_t intern(std::vector<json::Value> &pool, json::Value value) {
 
 json::Value experiments_to_json(const ExperimentList &list) {
   std::vector<json::Value> beams, detectors, goniometers, scans, crystals;
+  std::vector<ProfileBlock> profile_blocks; // each experiment's own, if any
   json::Array experiments;
 
   for (std::size_t i = 0; i < list.size(); ++i) {
@@ -465,11 +477,24 @@ json::Value experiments_to_json(const ExperimentList &list) {
       // element of a list that may well be empty.
       x["crystal"] = json::Value();
     }
-    // The profile model this list carries, as the one block every experiment
-    // refers to: this package has one profile model, not one per experiment.
-    if (list.profile.present)
+    // The profile model: each experiment's own, if the list has them -- the
+    // same ones written once -- else the one block every experiment refers to.
+    if (list.profiles.size() == list.experiments.size() &&
+        list.profiles[i].present) {
+      const ProfileBlock &own = list.profiles[i];
+      std::size_t at = 0;
+      for (; at < profile_blocks.size(); ++at)
+        if (profile_blocks[at].sigma_b == own.sigma_b &&
+            profile_blocks[at].sigma_m == own.sigma_m &&
+            profile_blocks[at].n_sigma == own.n_sigma)
+          break;
+      if (at == profile_blocks.size())
+        profile_blocks.push_back(own);
+      x["profile"] = json::Value(static_cast<long>(at));
+    } else if (list.profile.present) {
       x["profile"] =
           json::Value(static_cast<long>(0)); // an index, as DIALS reads it
+    }
 
     // Carry through this experiment's references to models this package does
     // not have: the imageset above all, since it is the only link from the
@@ -507,13 +532,21 @@ json::Value experiments_to_json(const ExperimentList &list) {
   // The profile model, in DIALS' form, when this list has one: what the
   // integration used, so that what follows it -- or a later integration --
   // reads the same. A source's profile block is otherwise carried unchanged.
-  if (list.profile.present) {
+  const auto block = [](const ProfileBlock &b) {
     json::Object p;
     p["__id__"] = json::Value("gaussian_rs");
-    p["n_sigma"] = json::Value(list.profile.n_sigma);
-    p["sigma_b"] = json::Value(list.profile.sigma_b);
-    p["sigma_m"] = json::Value(list.profile.sigma_m);
-    out["profile"] = json::Value(json::Array{json::Value(std::move(p))});
+    p["n_sigma"] = json::Value(b.n_sigma);
+    p["sigma_b"] = json::Value(b.sigma_b);
+    p["sigma_m"] = json::Value(b.sigma_m);
+    return json::Value(std::move(p));
+  };
+  if (!profile_blocks.empty()) {
+    json::Array blocks;
+    for (const ProfileBlock &b : profile_blocks)
+      blocks.push_back(block(b));
+    out["profile"] = json::Value(std::move(blocks));
+  } else if (list.profile.present) {
+    out["profile"] = json::Value(json::Array{block(list.profile)});
   }
   // `imageset` is deliberately NOT written here: whatever the source had is
   // already in `out`, and a list built in memory has none, in which case the

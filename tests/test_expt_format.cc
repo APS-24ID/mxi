@@ -740,3 +740,45 @@ TEST(different_crystals_are_not_made_one) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(each_experiments_own_profile_model_is_written_and_read_back) {
+  // The lattices of a sweep integrated together, each its own profile model:
+  // a block an experiment, the same ones once, each experiment referring to
+  // its own; read back, each its own again, the first as the list's. Without
+  // them, the one block every experiment refers to, as before.
+  ExperimentList list = one_experiment(0.0);
+  const Experiment one = list.experiments[0];
+  list.experiments = {one, one, one};
+  ProfileBlock a, b;
+  a.present = b.present = true;
+  a.sigma_b = 0.02;
+  a.sigma_m = 0.05;
+  b.sigma_b = 0.03;
+  b.sigma_m = 0.04;
+  list.profiles = {a, b, a};
+  const json::Value doc = experiments_to_json(list);
+  check::equal(static_cast<long long>(doc["profile"].as_array().size()), 2,
+               "two blocks, the same one once");
+  const json::Array &x = doc["experiment"].as_array();
+  check::is_true(x[0]["profile"].as_number() == x[2]["profile"].as_number() &&
+                     x[0]["profile"].as_number() != x[1]["profile"].as_number(),
+                 "each experiment its own");
+  const ExperimentList back = experiments_from_json(doc);
+  check::equal(static_cast<long long>(back.profiles.size()), 3, "read back");
+  check::close(back.profiles[1].sigma_b, 0.03, 1e-12, "the second's");
+  check::close(back.profiles[2].sigma_m, 0.05, 1e-12, "the third's");
+  check::close(back.profile.sigma_b, 0.02, 1e-12, "the first as the list's");
+
+  ExperimentList plain = list;
+  plain.profiles.clear();
+  plain.profile = b;
+  const json::Value one_block = experiments_to_json(plain);
+  check::equal(static_cast<long long>(one_block["profile"].as_array().size()),
+               1, "without them, one block");
+  check::is_true(experiments_from_json(one_block).profiles.empty(),
+                 "and none an experiment read back");
+}
+
+} // namespace mxi

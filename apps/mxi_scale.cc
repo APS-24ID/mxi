@@ -18,6 +18,7 @@
 #include "scale.hh"
 #include "symmetry.hh"
 #include "timing.hh"
+#include "views.hh"
 
 namespace mxi {
 
@@ -160,8 +161,13 @@ int run_program(int argc, char **argv) {
       timing.add(name, t - mark);
       mark = t;
     };
-    ExperimentList experiments = read_experiments(args.positional[0]);
-    Table reflections = read_reflections(args.positional[1]);
+    // The lattices; each sweep's own crystal-less experiment carried through
+    // (docs/multi-lattice.md, stage 2).
+    const ExperimentList whole = read_experiments(args.positional[0]);
+    const Table whole_table = read_reflections(args.positional[1]);
+    const Lattices views = lattices_of(whole);
+    ExperimentList experiments = views.list;
+    Table reflections = lattice_rows(whole_table, views);
     phase("reading");
     // One sweep or several of one crystal, each scaled by a model of its own
     // sharing the merged intensities; each must have a crystal, and they
@@ -456,8 +462,11 @@ int run_program(int argc, char **argv) {
     // take the table on.
     write_scaling(reflections, data, run.g, run.g_variance);
     const rflx::Outputs out = rflx::outputs(args, "scaled");
-    const json::Value document = experiments_to_json(experiments);
-    rflx::write_outputs(out, &document, &reflections, "mxi_scale");
+    const ExperimentList written = whole_again(whole, views, experiments);
+    Table written_table = rows_again(
+        reflections, crystal_less_rows(whole_table, views), views, written);
+    const json::Value document = experiments_to_json(written);
+    rflx::write_outputs(out, &document, &written_table, "mxi_scale");
     std::printf("\nWrote %s\n", rflx::describe(out).c_str());
     phase("writing");
     timing.report(stdout);

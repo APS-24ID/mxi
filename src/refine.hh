@@ -42,6 +42,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <vector>
 
@@ -157,6 +158,13 @@ struct RefineResult {
   //: Free parameters, and the macrocycles that fitted them.
   std::size_t n_parameters = 0;
   std::vector<RefineCycle> cycles;
+  //: Each experiment's cell e.s.d.s -- a, b, c in A, alpha, beta, gamma in
+  //: degrees -- from the covariance at convergence: the inverse of the last
+  //: weighted normal matrix times chi^2 over the degrees of freedom, carried to
+  //: the cell through each parameter's effect on it. Empty without a crystal,
+  //: and zero where the cell is a scan-varying pass's per-point parameters,
+  //: not the static ones: take the scan-static pass's.
+  std::vector<std::array<double, 6>> cell_esd;
 };
 
 // Observed minus calculated for one reflection, in pixels and images, plus

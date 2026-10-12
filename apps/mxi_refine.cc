@@ -14,6 +14,7 @@
 #include "args.hh"
 #include "log_mirror.hh"
 #include "postrefine.hh"
+#include "processing.hh"
 #include "refine.hh"
 #include "rflx.hh"
 #include "timing.hh"
@@ -156,6 +157,7 @@ int run_program(int argc, char **argv) {
   double t_read = 0.0;
   double t_write = 0.0;
   const std::set<std::string> known = {"--static",
+                                       "--verbose",
                                        "--no-crystal",
                                        "--no-detector",
                                        "--beam",
@@ -283,8 +285,11 @@ int run_program(int argc, char **argv) {
         for (Panel &p : e.detector.panels)
           p.parallax_conditional = true;
       }
-      std::printf("using the conditional absorption depth\n");
+      detail("using the conditional absorption depth\n");
     }
+    set_verbose(args.has("--verbose"));
+    Summary summary("mxi_refine", args.positional[0]);
+    const ExperimentList given_models = experiments;
     std::printf("Refining against %zu reflections from %zu experiment%s\n",
                 reflections.nrows, experiments.size(),
                 experiments.size() == 1 ? "" : "s");
@@ -332,23 +337,149 @@ int run_program(int argc, char **argv) {
         update_predictions(experiments, reflections);
     print_residuals(reflections, unpredicted);
     std::printf("\n");
+    // Each crystal: the cell with the scan-static pass's e.s.d.s, as DIALS
+    // prints it; scan-varying, how far the cell and the orientation move
+    // over the scan -- the check the tutorial makes in dials.report.
+    const std::vector<std::array<double, 6>> &esd = two.static_pass.cell_esd;
+    std::vector<json::Value> t_exp, t_cell, t_esd, t_lo, t_hi, t_turn;
     for (std::size_t i = 0; i < experiments.size(); ++i) {
       if (!experiments[i].crystal)
         continue;
-      const UnitCell c = experiments[i].crystal->cell();
-      std::printf(
-          "Unit cell%s: %.4f %.4f %.4f A, %.3f %.3f %.3f deg; volume %.0f "
-          "A^3\n",
-          experiments.size() > 1 ? (" [" + std::to_string(i) + "]").c_str()
-                                 : "",
-          c.a, c.b, c.c, c.alpha, c.beta, c.gamma, c.volume());
+      const Crystal &x = *experiments[i].crystal;
+      const UnitCell c = x.cell();
+      const std::array<double, 6> v = {c.a, c.b, c.c, c.alpha, c.beta, c.gamma};
+      const std::array<double, 6> e =
+          i < esd.size() ? esd[i] : std::array<double, 6>{0, 0, 0, 0, 0, 0};
+      std::printf("Unit cell%s: %s %s %s A, %s %s %s deg; volume %.0f A^3\n",
+                  experiments.size() > 1
+                      ? (" [" + std::to_string(i) + "]").c_str()
+                      : "",
+                  with_esd(v[0], e[0]).c_str(), with_esd(v[1], e[1]).c_str(),
+                  with_esd(v[2], e[2]).c_str(), with_esd(v[3], e[3], 3).c_str(),
+                  with_esd(v[4], e[4], 3).c_str(),
+                  with_esd(v[5], e[5], 3).c_str(), c.volume());
+      json::Array jc, je, jlo, jhi;
+      for (int k = 0; k < 6; ++k) {
+        jc.push_back(json::Value(v[static_cast<std::size_t>(k)]));
+        je.push_back(json::Value(e[static_cast<std::size_t>(k)]));
+      }
+      double turned = 0.0;
+      if (x.A_points.size() > 1) {
+        std::array<double, 6> lo, hi;
+        lo.fill(HUGE_VAL);
+        hi.fill(-HUGE_VAL);
+        for (const Mat3 &A : x.A_points) {
+          Crystal at = x;
+          at.A = A;
+          const UnitCell p = at.cell();
+          const std::array<double, 6> q = {p.a,     p.b,    p.c,
+                                           p.alpha, p.beta, p.gamma};
+          for (std::size_t k = 0; k < 6; ++k) {
+            lo[k] = std::min(lo[k], q[k]);
+            hi[k] = std::max(hi[k], q[k]);
+          }
+        }
+        // The orientation: A = U B, B the Cholesky factor of A^T A, so U =
+        // A B^-1; the turn from the first scan point's U to the last's.
+        const auto orientation = [](const Mat3 &A) {
+          const Mat3 G = A.transpose() * A;
+          Mat3 B{0, 0, 0, 0, 0, 0, 0, 0, 0};
+          B(0, 0) = std::sqrt(G(0, 0));
+          B(0, 1) = G(0, 1) / B(0, 0);
+          B(0, 2) = G(0, 2) / B(0, 0);
+          B(1, 1) = std::sqrt(G(1, 1) - B(0, 1) * B(0, 1));
+          B(1, 2) = (G(1, 2) - B(0, 1) * B(0, 2)) / B(1, 1);
+          B(2, 2) = std::sqrt(G(2, 2) - B(0, 2) * B(0, 2) - B(1, 2) * B(1, 2));
+          return A * B.inverse();
+        };
+        const Mat3 R = orientation(x.A_points.back()) *
+                       orientation(x.A_points.front()).transpose();
+        const double cosine = (R(0, 0) + R(1, 1) + R(2, 2) - 1.0) / 2.0;
+        turned =
+            std::acos(std::fmax(-1.0, std::fmin(1.0, cosine))) * 180.0 / M_PI;
+        std::printf("  over the scan: a %.4f to %.4f, b %.4f to %.4f, c %.4f "
+                    "to %.4f A; alpha %.3f to %.3f, beta %.3f to %.3f, gamma "
+                    "%.3f to %.3f deg; the orientation turns %.3f deg\n",
+                    lo[0], hi[0], lo[1], hi[1], lo[2], hi[2], lo[3], hi[3],
+                    lo[4], hi[4], lo[5], hi[5], turned);
+        for (std::size_t k = 0; k < 6; ++k) {
+          jlo.push_back(json::Value(lo[k]));
+          jhi.push_back(json::Value(hi[k]));
+        }
+      }
+      t_exp.push_back(json::Value(static_cast<long>(i)));
+      t_cell.push_back(json::Value(std::move(jc)));
+      t_esd.push_back(json::Value(std::move(je)));
+      t_lo.push_back(json::Value(std::move(jlo)));
+      t_hi.push_back(json::Value(std::move(jhi)));
+      t_turn.push_back(json::Value(turned));
+    }
+    // The geometry as given and as refined.
+    // Once a detector: lattices on one sweep share it.
+    std::vector<GeometryFigures> said;
+    for (std::size_t i = 0; i < experiments.size() && i < given_models.size();
+         ++i) {
+      const GeometryFigures before = geometry_figures(given_models[i]);
+      const GeometryFigures after = geometry_figures(experiments[i]);
+      bool seen = false;
+      for (const GeometryFigures &g : said)
+        seen = seen || (g.distance == after.distance &&
+                        g.beam_x == after.beam_x && g.beam_y == after.beam_y);
+      if (seen)
+        continue;
+      said.push_back(after);
+      std::printf("Beam centre %.2f, %.2f px and distance %.3f mm as given; "
+                  "refined %.2f, %.2f px and %.3f mm\n",
+                  before.beam_x, before.beam_y, before.distance, after.beam_x,
+                  after.beam_y, after.distance);
+      if (i == 0) {
+        summary.set("geometry_given", to_json(before));
+        summary.set("geometry", to_json(after));
+      }
+    }
+    summary.set("reflections",
+                json::Value(static_cast<long>(reflections.nrows)));
+    summary.set("refined_on", json::Value(static_cast<long>(result.n_used)));
+    summary.set("rejected", json::Value(static_cast<long>(result.n_rejected)));
+    summary.set("rmsd_px_px_images",
+                json::Value(json::Array{json::Value(result.rmsd_x),
+                                        json::Value(result.rmsd_y),
+                                        json::Value(result.rmsd_z)}));
+    summary.set("scan_varying", json::Value(two.varied ? 1L : 0L));
+    summary.table("crystals",
+                  {"experiment", "cell", "cell_esd", "scan_min", "scan_max",
+                   "orientation_turn_deg"},
+                  {t_exp, t_cell, t_esd, t_lo, t_hi, t_turn});
+    {
+      std::vector<json::Value> p_pass, p_cycle, p_n, p_rej, p_x, p_y, p_z;
+      const auto add = [&](const char *pass, const RefineResult &r) {
+        for (std::size_t c = 0; c < r.cycles.size(); ++c) {
+          const RefineCycle &k = r.cycles[c];
+          p_pass.push_back(json::Value(std::string(pass)));
+          p_cycle.push_back(json::Value(static_cast<long>(c + 1)));
+          p_n.push_back(json::Value(static_cast<long>(k.reflections)));
+          p_rej.push_back(json::Value(static_cast<long>(k.rejected)));
+          p_x.push_back(json::Value(k.rmsd_x));
+          p_y.push_back(json::Value(k.rmsd_y));
+          p_z.push_back(json::Value(k.rmsd_z));
+        }
+      };
+      add("scan-static", two.static_pass);
+      if (two.varied)
+        add("scan-varying", two.varying_pass);
+      summary.table("cycles",
+                    {"pass", "cycle", "reflections", "rejected", "rmsd_x_px",
+                     "rmsd_y_px", "rmsd_z_images"},
+                    {p_pass, p_cycle, p_n, p_rej, p_x, p_y, p_z});
     }
     const double t_write_start = now_wall();
     const ExperimentList written = whole_again(whole, views, experiments);
     Table written_table = rows_again(
         reflections, crystal_less_rows(whole_table, views), views, written);
     const json::Value document = experiments_to_json(written);
-    rflx::write_outputs(out, &document, &written_table, "mxi_refine");
+    const json::Value summary_document = summary.document();
+    rflx::write_outputs(out, &document, &written_table, "mxi_refine",
+                        &summary_document);
     t_write = now_wall() - t_write_start;
     std::printf("Wrote %s\n", rflx::describe(out).c_str());
 

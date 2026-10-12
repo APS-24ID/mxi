@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <numeric>
 #include <set>
 #include <string>
 
@@ -15,6 +16,7 @@
 #include "laue.hh"
 #include "log_mirror.hh"
 #include "parallel.hh"
+#include "processing.hh"
 #include "refl.hh"
 #include "rflx.hh"
 #include "symmetry.hh"
@@ -22,6 +24,52 @@
 #include "views.hh"
 
 namespace mxi {
+
+namespace {
+
+// An element as cctbx describes it: its order and its axis, "2 |(1,1,0)" --
+// the direction in the cell's lattice basis that the rotation, acting on
+// coordinates as h' = h R has it act on indices, leaves where it was: the
+// cross product of two independent rows of R - 1, divided by their common
+// factor, its first non-zero component positive.
+std::string describe_element(const Rotation &r, int order) {
+  long m[3][3];
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j)
+      m[i][j] = r[static_cast<std::size_t>(i * 3 + j)] - (i == j ? 1 : 0);
+  long axis[3] = {0, 0, 0};
+  for (int a = 0; a < 3 && axis[0] == 0 && axis[1] == 0 && axis[2] == 0; ++a)
+    for (int b = a + 1; b < 3; ++b) {
+      const long u[3] = {m[a][1] * m[b][2] - m[a][2] * m[b][1],
+                         m[a][2] * m[b][0] - m[a][0] * m[b][2],
+                         m[a][0] * m[b][1] - m[a][1] * m[b][0]};
+      if (u[0] != 0 || u[1] != 0 || u[2] != 0) {
+        axis[0] = u[0];
+        axis[1] = u[1];
+        axis[2] = u[2];
+        break;
+      }
+    }
+  long g = 0;
+  for (long v : axis)
+    g = std::gcd(g, std::labs(v));
+  if (g > 1)
+    for (long &v : axis)
+      v /= g;
+  for (long v : axis)
+    if (v != 0) {
+      if (v < 0)
+        for (long &w : axis)
+          w = -w;
+      break;
+    }
+  char text[64];
+  std::snprintf(text, sizeof text, "%d |(%ld,%ld,%ld)", order, axis[0], axis[1],
+                axis[2]);
+  return text;
+}
+
+} // namespace
 
 namespace {
 
@@ -268,13 +316,14 @@ int run_program(int argc, char **argv) {
                 scores.cc_sig_fac);
 
     std::printf("\nScoring each symmetry element\n");
-    std::printf("  %-4s %5s %7s %6s %7s %10s\n", "", "order", "pairs", "CC",
-                "Z-CC", "likelihood");
+    std::printf("  %-4s %-14s %7s %6s %7s %10s\n", "", "operator", "pairs",
+                "CC", "Z-CC", "likelihood");
     for (std::size_t k = 0; k < scores.elements.size(); ++k) {
       const ElementScore &e = scores.elements[k];
-      std::printf("  %-4c %5d %7zu %6.3f %7.2f %10.3f\n",
-                  static_cast<char>('a' + k), e.order, e.pairs, e.cc, e.z,
-                  e.likelihood);
+      std::printf("  %-4c %-14s %7zu %6.3f %7.2f %10.3f %s\n",
+                  static_cast<char>('a' + k),
+                  describe_element(e.rotation, e.order).c_str(), e.pairs, e.cc,
+                  e.z, e.likelihood, e.likelihood > 0.5 ? "***" : "");
     }
 
     std::printf("\nScoring all possible subgroups\n");
@@ -339,7 +388,56 @@ int run_program(int argc, char **argv) {
     Table written_table = rows_again(
         reflections, crystal_less_rows(whole_table, views), views, written);
     const json::Value document = experiments_to_json(written);
-    rflx::write_outputs(out, &document, &written_table, "mxi_symmetry");
+    // The summary: each element, each subgroup, the choice.
+    Summary summary("mxi_symmetry", args.positional[0]);
+    {
+      std::vector<json::Value> e_name, e_op, e_pairs, e_cc, e_z, e_l;
+      for (std::size_t k = 0; k < scores.elements.size(); ++k) {
+        const ElementScore &e = scores.elements[k];
+        e_name.push_back(
+            json::Value(std::string(1, static_cast<char>('a' + k))));
+        e_op.push_back(json::Value(describe_element(e.rotation, e.order)));
+        e_pairs.push_back(json::Value(static_cast<long>(e.pairs)));
+        e_cc.push_back(json::Value(e.cc));
+        e_z.push_back(json::Value(e.z));
+        e_l.push_back(json::Value(e.likelihood));
+      }
+      summary.table(
+          "elements",
+          {"element", "operator", "pairs", "cc", "z_cc", "likelihood"},
+          {e_name, e_op, e_pairs, e_cc, e_z, e_l});
+      std::vector<json::Value> g_name, g_l, g_net, g_cc, g_against, g_cb;
+      for (std::size_t k = 0; k < scores.groups.size(); ++k) {
+        const GroupScore &g = scores.groups[k];
+        const std::optional<Setting> &st = settings[k];
+        g_name.push_back(json::Value(st ? st->group.name() : std::string("?")));
+        g_l.push_back(json::Value(g.likelihood));
+        g_net.push_back(json::Value(g.z_net));
+        g_cc.push_back(json::Value(g.cc_for));
+        g_against.push_back(json::Value(g.cc_against));
+        g_cb.push_back(json::Value(st ? st->cb_text : std::string("?")));
+      }
+      summary.table("subgroups",
+                    {"patterson_group", "likelihood", "net_z_cc", "cc_for",
+                     "cc_against", "reindex"},
+                    {g_name, g_l, g_net, g_cc, g_against, g_cb});
+      summary.set("laue_group", json::Value(best->group.name()));
+      summary.set("space_group", json::Value(choice.chosen.name()));
+      json::Array alike;
+      for (const std::string &n : choice.indistinguishable)
+        alike.push_back(json::Value(n));
+      summary.set("indistinguishable_by_absences",
+                  json::Value(std::move(alike)));
+      summary.set("reindex", json::Value(best->cb_text));
+      summary.set("cell",
+                  json::Value(json::Array{
+                      json::Value(after.a), json::Value(after.b),
+                      json::Value(after.c), json::Value(after.alpha),
+                      json::Value(after.beta), json::Value(after.gamma)}));
+    }
+    const json::Value summary_document = summary.document();
+    rflx::write_outputs(out, &document, &written_table, "mxi_symmetry",
+                        &summary_document);
     std::printf("\nWrote %s\n", rflx::describe(out).c_str());
     phase("reindexing and writing");
     timing.report(stdout);

@@ -124,8 +124,19 @@ struct IndexCycle {
   bool per_sweep = false;
 };
 
+//: A solution the basis search considered: its reduced cell, and how many
+//: spots its lattice indexed (docs/output.md: dials.index's candidate table).
+struct BasisCandidate {
+  UnitCell cell;
+  double volume = 0.0;
+  std::size_t indexed = 0;
+  bool chosen = false;
+};
+
 struct IndexResult {
   Crystal crystal;
+  //: The best distinct cells the basis search considered, most indexed first.
+  std::vector<BasisCandidate> considered;
   std::size_t n_indexed = 0;
   std::size_t n_total = 0;
   double fraction_indexed() const {
@@ -224,7 +235,8 @@ std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
 // Choose three of the candidates, reduce the resulting cell, and return it.
 bool choose_basis(const std::vector<Vec3> &candidates,
                   const std::vector<Vec3> &points, double tolerance,
-                  Crystal *crystal, std::size_t *n_indexed);
+                  Crystal *crystal, std::size_t *n_indexed,
+                  std::vector<BasisCandidate> *considered = nullptr);
 
 // Replace the basis by a reduced one describing the same lattice.
 Mat3 reduce_basis(const Mat3 &real_space_rows);

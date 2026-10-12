@@ -701,7 +701,8 @@ Mat3 reduce_basis(const Mat3 &real_space_rows) {
 
 bool choose_basis(const std::vector<Vec3> &candidates,
                   const std::vector<Vec3> &points, double tolerance,
-                  Crystal *crystal, std::size_t *n_indexed) {
+                  Crystal *crystal, std::size_t *n_indexed,
+                  std::vector<BasisCandidate> *considered) {
   const std::size_t n = candidates.size();
   if (n < 3)
     return false;
@@ -771,6 +772,50 @@ bool choose_basis(const std::vector<Vec3> &candidates,
   crystal->A = chosen.inverse();
   if (n_indexed)
     *n_indexed = std::max(best_count, after);
+
+  // The solutions considered, for the reader: the best by count, each
+  // reduced, the same cell from another triple counted once, ten at most.
+  if (considered) {
+    considered->clear();
+    std::vector<const Triple *> order;
+    for (const Triple &t : triples)
+      order.push_back(&t);
+    std::sort(order.begin(), order.end(), [](const Triple *x, const Triple *y) {
+      return x->count != y->count ? x->count > y->count : x->volume < y->volume;
+    });
+    const auto cell_of = [](const Mat3 &rows) {
+      Crystal c;
+      c.A = rows.inverse();
+      return c.cell();
+    };
+    const auto same = [](const UnitCell &x, const UnitCell &y) {
+      const double lengths[3][2] = {{x.a, y.a}, {x.b, y.b}, {x.c, y.c}};
+      const double angles[3][2] = {
+          {x.alpha, y.alpha}, {x.beta, y.beta}, {x.gamma, y.gamma}};
+      // Loosely: the candidates are the transform's vectors before any
+      // refinement, the same lattice from two triples differing by a per cent.
+      for (const auto &l : lengths)
+        if (std::fabs(l[0] - l[1]) > 0.02 * std::max(l[0], l[1]))
+          return false;
+      for (const auto &a : angles)
+        if (std::fabs(a[0] - a[1]) > 2.5)
+          return false;
+      return true;
+    };
+    const UnitCell chosen_cell = cell_of(chosen);
+    for (const Triple *t : order) {
+      if (considered->size() >= 10)
+        break;
+      const UnitCell cell = cell_of(reduce_basis(t->rows));
+      bool seen = false;
+      for (const BasisCandidate &b : *considered)
+        seen = seen || same(b.cell, cell);
+      if (seen)
+        continue;
+      considered->push_back(
+          {cell, t->volume, t->count, same(cell, chosen_cell)});
+    }
+  }
   return true;
 }
 
@@ -909,7 +954,7 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
   g_triples_skipped = 0;
   std::size_t n_indexed = 0;
   if (!choose_basis(result.candidates, points, options.tolerance,
-                    &result.crystal, &n_indexed)) {
+                    &result.crystal, &n_indexed, &result.considered)) {
     return result;
   }
   result.timing.choose_basis = now_seconds() - t_choose;

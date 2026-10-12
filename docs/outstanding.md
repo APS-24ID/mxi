@@ -49,6 +49,25 @@ where something is missing.
    reflections that are themselves cut. `docs/integration.md`, open questions.
   `mxeq equivalents` on the 300 image sweep: 80 to 95 per cent of the profile on
   valid pixels, fully recorded, -3.1 to -3.7 per cent.
+  Measured cleanly (October 2026) by gaps of our own: insulin's master copied
+  with stripes four pixels wide masked across it, the same images and models
+  integrated with and without, each cut reflection against itself uncut --
+  the control 1.0000. Cut reflections come out HIGH, more the more is cut:
+  measured 0.90 to 0.95, +2.1 to +2.6 per cent; 0.80 to 0.90, +2.1 to +2.8;
+  0.70 to 0.80, +4.5 to +5.2; 0.60 to 0.70, +6.3 to +6.9. A reference profile
+  broader than the spot it fits overstates the tail a gap removes, and the
+  fit's scale over what is left comes out high. Not the learning from cut
+  reflections: learning from uncut ones only changed nothing. Partly the
+  grid's smoothing: at --grid-points 6 the bias is a third less (0.60 to
+  0.70, +4.5 to +5.9; 0.90 to 0.95, +1.4 to +1.7), at 8 little more; 6 costs
+  nothing in time (8.6 s and 8.7 s) and merges as well (R merge and R pim
+  the same, CC half 0.986 to 0.987); the device's grids go to 8. The rest
+  likely the reference an average of spots of different widths, heavier in
+  its tails than any one -- inherent to one shape a region. Summing the
+  valid pixels and fitting only the missing part is the same estimate,
+  algebraically. The real gaps' mixed signs -- low at 0.80 to 0.95, high
+  below 0.80 -- are something more, the detector's own at its gaps perhaps:
+  to look at with a module boundary's pixels.
 * **3.** **correctness -- sigma_m is 0.129 degrees here against DIALS' 0.089** on the
    same 300 image sweep; it sets how large the boxes are. Not yet investigated.
   The partials put it at 0.082 to 0.086 degrees (`mxeq equivalents`, item 1).

@@ -111,6 +111,7 @@ add_library(mxi
   src/cosym.cc
   src/views.cc
   src/processing.cc
+  src/two_theta.cc
   src/fft.cc
   $<$<BOOL:${MXI_FFTW}>:src/fft_fftw.cc>
   src/index.cc
@@ -358,6 +359,7 @@ add_executable(mxi_tests
   tests/test_cosym.cc
   tests/test_views.cc
   tests/test_processing.cc
+  tests/test_two_theta.cc
   tests/test_space_group.cc
   tests/test_resolution.cc
   tests/test_timing.cc

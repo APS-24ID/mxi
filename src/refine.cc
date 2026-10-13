@@ -705,10 +705,6 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
 
   std::vector<double> residual;
   double lambda = 1e-3;
-  // The last weighted normal matrix and the chi^2 it was formed at: the
-  // covariance at convergence, for the cell's e.s.d.s.
-  std::vector<double> last_normal;
-  double last_chi2 = 0.0;
 
   for (int macro = 0; macro < std::max(1, options.macrocycles); ++macro) {
     double previous = residuals_of(experiments, observations, &residual);
@@ -864,8 +860,6 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
         for (std::size_t b = a + 1; b < n; ++b)
           normal[a * n + b] = normal[b * n + a];
       }
-      last_normal = normal;
-      last_chi2 = previous;
 
       g_normal_seconds += now_seconds() - t_normal;
 
@@ -1030,90 +1024,6 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
     result.rmsd_z = std::sqrt(sz / static_cast<double>(count));
   }
 
-  // The cell's e.s.d.s: var(cell_k) = J_k N^-1 J_k^T chi^2 / dof, J_k each
-  // parameter's effect on cell parameter k -- a forward difference through
-  // the same apply() the solver uses, whatever the crystal's parametrisation
-  // -- and N the last weighted normal matrix. N is factorised once and solved
-  // against each J_k: six right-hand sides a crystal. It was inverted a column
-  // at a time, a factorisation each, n^4 / 3: Graeme's four small-molecule
-  // sweeps, scan-varying, spent most of refinement there. Only where asked --
-  // the scan-static pass, whose e.s.d.s are printed.
-  const double dof = 3.0 * static_cast<double>(count) - static_cast<double>(n);
-  if (options.cell_esd && !last_normal.empty() && dof > 0.0) {
-    // Cholesky, N = L L^T, L in the lower triangle.
-    std::vector<double> L = last_normal;
-    bool factored = true;
-    for (std::size_t j = 0; j < n && factored; ++j) {
-      double d = L[j * n + j];
-      for (std::size_t k = 0; k < j; ++k)
-        d -= L[j * n + k] * L[j * n + k];
-      if (!(d > 0.0)) {
-        factored = false;
-        break;
-      }
-      const double root = std::sqrt(d);
-      L[j * n + j] = root;
-      for (std::size_t i = j + 1; i < n; ++i) {
-        double v = L[i * n + j];
-        for (std::size_t k = 0; k < j; ++k)
-          v -= L[i * n + k] * L[j * n + k];
-        L[i * n + j] = v / root;
-      }
-    }
-    if (factored) {
-      const std::vector<double> step = step_sizes(experiments, layout);
-      // jac[e][k][p]: d cell_k / d parameter p, for experiment e.
-      std::vector<std::array<std::vector<double>, 6>> jac(experiments.size());
-      for (auto &per : jac)
-        for (auto &column : per)
-          column.assign(n, 0.0);
-      std::vector<double> shift(n, 0.0);
-      ExperimentList moved;
-      const auto cell_array = [](const UnitCell &c) {
-        return std::array<double, 6>{c.a, c.b, c.c, c.alpha, c.beta, c.gamma};
-      };
-      for (std::size_t p = 0; p < n; ++p) {
-        std::fill(shift.begin(), shift.end(), 0.0);
-        shift[p] = step[p];
-        apply(experiments, layout, shift, &moved);
-        for (std::size_t e = 0; e < experiments.size(); ++e) {
-          if (!experiments[e].crystal || !moved[e].crystal)
-            continue;
-          const auto c0 = cell_array(experiments[e].crystal->cell());
-          const auto c1 = cell_array(moved[e].crystal->cell());
-          for (std::size_t k = 0; k < 6; ++k)
-            jac[e][k][p] = (c1[k] - c0[k]) / step[p];
-        }
-      }
-      result.cell_esd.assign(experiments.size(), {0, 0, 0, 0, 0, 0});
-      std::vector<double> x(n);
-      for (std::size_t e = 0; e < experiments.size(); ++e) {
-        if (!experiments[e].crystal)
-          continue;
-        for (std::size_t k = 0; k < 6; ++k) {
-          const std::vector<double> &g = jac[e][k];
-          // L y = g, then L^T x = y: x = N^-1 g.
-          for (std::size_t i = 0; i < n; ++i) {
-            double v = g[i];
-            for (std::size_t j = 0; j < i; ++j)
-              v -= L[i * n + j] * x[j];
-            x[i] = v / L[i * n + i];
-          }
-          for (std::size_t ii = n; ii-- > 0;) {
-            double v = x[ii];
-            for (std::size_t j = ii + 1; j < n; ++j)
-              v -= L[j * n + ii] * x[j];
-            x[ii] = v / L[ii * n + ii];
-          }
-          double variance = 0.0;
-          for (std::size_t i = 0; i < n; ++i)
-            variance += g[i] * x[i];
-          result.cell_esd[e][k] =
-              std::sqrt(std::fmax(variance * last_chi2 / dof, 0.0));
-        }
-      }
-    }
-  }
   return result;
 }
 
@@ -1448,8 +1358,6 @@ refine_in_two_passes(ExperimentList &experiments, const Table &reflections,
     // There is nothing scan-varying about a detector in any case. It does
     // not move during a sweep, so letting it move while the crystal is free
     // only gives crystal drift somewhere else to go.
-    // The cell's e.s.d.s are the scan-static pass's: none asked of this one.
-    options.cell_esd = false;
     if (hold_detector && options.detector) {
       options.detector = false;
       out.detector_held = true;

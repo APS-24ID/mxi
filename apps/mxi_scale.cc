@@ -19,6 +19,7 @@
 #include "scale.hh"
 #include "symmetry.hh"
 #include "timing.hh"
+#include "two_theta.hh"
 #include "views.hh"
 
 namespace mxi {
@@ -481,6 +482,41 @@ int run_program(int argc, char **argv) {
     // The summary: the model, the error model, the merging statistics and
     // the resolution -- what a crystallographer judges the data by.
     Summary summary("mxi_scale", args.positional[0]);
+    // The cell from two-theta, as dials.two_theta_refine refines it: the
+    // cell alone against every scaled reflection's observed scattering angle,
+    // constrained to the space group's crystal system -- the cell's e.s.d.s,
+    // where refinement's covariance had given them (docs/scaling.md).
+    {
+      const TwoThetaResult tt =
+          two_theta_refine(experiments, reflections, group);
+      if (tt.valid) {
+        const UnitCell &c = tt.cell;
+        std::printf("Cell from two-theta, %zu reflections, %s, RMSD %.4f deg: "
+                    "%s %s %s A, %s %s %s deg\n",
+                    tt.reflections, name_of(tt.system), tt.rmsd_deg,
+                    with_esd(c.a, tt.esd[0]).c_str(),
+                    with_esd(c.b, tt.esd[1]).c_str(),
+                    with_esd(c.c, tt.esd[2]).c_str(),
+                    with_esd(c.alpha, tt.esd[3], 3).c_str(),
+                    with_esd(c.beta, tt.esd[4], 3).c_str(),
+                    with_esd(c.gamma, tt.esd[5], 3).c_str());
+        json::Array cell, esd;
+        const double v[6] = {c.a, c.b, c.c, c.alpha, c.beta, c.gamma};
+        for (std::size_t k = 0; k < 6; ++k) {
+          cell.push_back(json::Value(v[k]));
+          esd.push_back(json::Value(tt.esd[k]));
+        }
+        summary.set("two_theta_cell", json::Value(std::move(cell)));
+        summary.set("two_theta_cell_esd", json::Value(std::move(esd)));
+        summary.set("two_theta_reflections",
+                    json::Value(static_cast<long>(tt.reflections)));
+        summary.set("two_theta_rmsd_deg", json::Value(tt.rmsd_deg));
+        summary.set("two_theta_system",
+                    json::Value(std::string(name_of(tt.system))));
+      } else {
+        std::printf("Cell from two-theta: not refined, %s\n", tt.why.c_str());
+      }
+    }
     {
       const UnitCell cell = experiments[0].crystal->cell();
       summary.set("cell",

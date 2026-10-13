@@ -185,7 +185,8 @@ public:
   std::string plot(const std::string &title, const std::string &x_title,
                    const std::string &y_title, const json::Array &traces,
                    bool reverse_x = false, double y_span = 0.0,
-                   const json::Object &x_axis = {}) {
+                   const json::Object &x_axis = {}, bool y_log = false,
+                   const std::string &y2_title = "") {
     const std::string id = "plot" + std::to_string(++count_);
     json::Object layout;
     layout["title"] = json::Value(unentity(title));
@@ -196,6 +197,17 @@ public:
     for (const auto &[k, v] : x_axis)
       x[k] = v;
     y["title"] = json::Value(unentity(y_title));
+    // R factors on a log scale: they span decades, and one wild shell had
+    // flattened the rest (Graeme).
+    if (y_log)
+      y["type"] = json::Value(std::string("log"));
+    // A second axis on the right, for the traces marked y2: multiplicity
+    // beside completeness.
+    if (!y2_title.empty())
+      layout["yaxis2"] = json::Value(
+          json::Object{{"title", json::Value(unentity(y2_title))},
+                       {"overlaying", json::Value(std::string("y"))},
+                       {"side", json::Value(std::string("right"))}});
     if (y_span > 0.0) {
       double lo = HUGE_VAL, hi = -HUGE_VAL;
       for (const json::Value &t : traces)
@@ -240,6 +252,13 @@ json::Value trace(const json::Array &x, const json::Array &y,
   if (type == "scatter")
     t["mode"] = json::Value(mode);
   return json::Value(std::move(t));
+}
+
+// A trace drawn against the right-hand axis.
+json::Value on_right(json::Value t) {
+  json::Object o = t.as_object();
+  o["yaxis"] = json::Value(std::string("y2"));
+  return json::Value(std::move(o));
 }
 
 json::Array counting(std::size_t n, long first) {
@@ -617,15 +636,16 @@ std::string section_scale(const json::Value &s, Figures &f,
                 {trace(d, column(m, "i_over_sigma"), "&lang;I/&sigma;&rang;")},
                 true);
     o << f.plot("Completeness and multiplicity by resolution",
-                "d<sub>min</sub> (&Aring;)", "",
+                "d<sub>min</sub> (&Aring;)", "completeness (%)",
                 {trace(d, column(m, "completeness"), "completeness (%)"),
-                 trace(d, column(m, "multiplicity"), "multiplicity")},
-                true);
-    o << f.plot("R factors by resolution", "d<sub>min</sub> (&Aring;)", "",
+                 on_right(trace(d, column(m, "multiplicity"), "multiplicity"))},
+                true, 0.0, {}, false, "multiplicity");
+    o << f.plot("R factors by resolution", "d<sub>min</sub> (&Aring;)",
+                "R (log scale)",
                 {trace(d, column(m, "rmerge"), "R merge"),
                  trace(d, column(m, "rmeas"), "R meas"),
                  trace(d, column(m, "rpim"), "R pim")},
-                true);
+                true, 0.0, {}, true);
     o << "</div><h4>Merging statistics by resolution</h4>" << html_table(m);
   }
   // By image, from the reflections: each sweep's mean scale and <I/sigma>

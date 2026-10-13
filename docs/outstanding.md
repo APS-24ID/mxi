@@ -221,7 +221,6 @@ where something is missing.
 
 ## New programs
 
-* **27.** **mxi_report**: HTML reports of merging statistics, as dials.scale's.
 * **28.** **mxi_export**: MTZ and mmCIF.
 
 ## The spot finder
@@ -346,6 +345,9 @@ where something is missing.
     `docs/spots_notes.md`, `docs/spotfinder.md` -- which could be one.
 
 ## Closed
+
+* **27.** mxi_report: an HTML report of the processing a .rflx records, each
+    step's figures, tables and plots, after dials.scale's (`docs/output.md`).
 
 * **21.** One sweep only, in scaling: several sweeps, and several crystals,
     each a model of its own (`docs/multi-sweep.md`, `docs/multi-lattice.md`).

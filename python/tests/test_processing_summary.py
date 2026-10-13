@@ -47,3 +47,53 @@ def test_a_step_is_added_after_those_the_input_carried(tmp_path):
     two = rflx.summary_dict(str(tmp_path / "second.rflx"))
     assert [s["program"] for s in two["steps"]] == ["mxi_find", "mxi_find"]
     assert two["steps"][0]["time"] == one["steps"][0]["time"]
+
+
+REPORT = os.environ.get("MXI_REPORT")
+
+
+@pytest.mark.skipif(not (FIND and REPORT), reason="set MXI_FIND and MXI_REPORT")
+def test_the_report_draws_each_step_it_finds(tmp_path):
+    # mxi_report on the spot finder's file: its step's section, its plots,
+    # each plot's data and layout JSON a browser's plotly can take.
+    import json
+    import re
+
+    subprocess.run(
+        [sys.executable, "-m", "mxeq.fixtures.nxmx", str(tmp_path / "s"), "12"],
+        check=True,
+        capture_output=True,
+    )
+    s = tmp_path / "s"
+    found = subprocess.run(
+        [
+            FIND,
+            "-e",
+            str(s / "series.expt"),
+            str(s / "series.nxs"),
+            "-o",
+            "strong.rflx",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert found.returncode == 0, found.stderr + found.stdout
+    r = subprocess.run(
+        [REPORT, "strong.rflx", "-o", "report.html"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr + r.stdout
+    page = (tmp_path / "report.html").read_text(encoding="utf-8")
+    assert "<h2>Spot finding" in page
+    calls = re.findall(
+        r"Plotly\.newPlot\('plot\d+', (\[.*?\]), (\{.*?\}), \{responsive: true\}\)",
+        page,
+    )
+    assert calls, "no plots"
+    titles = [json.loads(layout)["title"] for _, layout in calls]
+    assert "Spots per image" in titles
+    for traces, _ in calls:
+        assert all(len(t["x"]) == len(t["y"]) for t in json.loads(traces))

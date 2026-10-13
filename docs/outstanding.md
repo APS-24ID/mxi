@@ -22,6 +22,17 @@ where something is missing.
     reflections is 3 to 10 times wider at 0.001: 0.89 against 0.32 per cent
     at 1000 to 10000 counts. `mxi_integrate --least-variance 0.05` (the CPU
     fit's) to test it on his data.
+  Confirmed by Graeme: R merge 0.037, low resolution 0.029, <I/sigma> 53.2.
+  Mended (13 October): the fit's weights and its variance apart. The weights
+  on a floor of 0.05 again (`--weight-floor`), robust; the variance the fit's
+  true one whatever its weights, sum(p^2 w^2 V) / sum(p^2 w)^2, V on 0.001
+  (`--least-variance`) -- the same as before wherever the expected count
+  passes 0.05. The CPU fit, fit_profile (whose own comment had said why 0.05:
+  fits failing on a background of a ten-thousandth of a count) and the device
+  fits, CUDA and Metal not built here. On the two crystals: the fitted
+  intensities the old floor's to 1e-15, strong reflections' fitted/summed
+  spread 0.32 per cent again, and the weak sigma still calibrated, 0.76 1.06
+  1.06 1.01 1.00 1.00 by intensity sextile after scaling.
 
 * **55.** **understood -- Summation 2 to 3 per cent below DIALS's on the two
     crystals**: the foreground's extent. A 3 sigma ellipsoid holds 97.1 per

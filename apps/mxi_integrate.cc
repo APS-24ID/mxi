@@ -914,6 +914,7 @@ int run_program(int argc, char **argv) {
                                        "--verbose",
                                        "--progress-from",
                                        "--least-variance",
+                                       "--weight-floor",
                                        "--sigma-b",
                                        "--sigma-m",
                                        "--n-sigma",
@@ -968,6 +969,8 @@ int run_program(int argc, char **argv) {
   set_verbose(args.has("--verbose"));
   if (args.has("--least-variance"))
     set_least_variance(args.number("--least-variance", 0.001));
+  if (args.has("--weight-floor"))
+    set_weight_floor(args.number("--weight-floor", 0.05));
   // One .rflx stands for the experiment list and the reflections
   // (docs/rflx.md).
   args.positional = rflx::as_pair(args.positional);

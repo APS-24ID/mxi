@@ -15,6 +15,7 @@ its conclusions sometimes overturned later, with an index of those.
 | `docs/multi-lattice.md` | plan, built | several lattices in one data set, with shared models and their own crystals and profiles; sweeps carried through indexing, as dials/dials#1029 proposes: the model, each program, the stages, the questions |
 | `docs/rflx.md` | design, built | `.rflx`, one HDF5 file a step in dxtbx-h5's layout, as mxi's primary format: the decisions, the format, the programs, the converter, and how it will be judged |
 | `docs/output.md` | built; the GUI later | what each program prints for a crystallographer, the processing's summary in each .rflx, mxi_show, mxi_report's HTML report, and porting dials_ui to mxi |
+| `docs/regression.md` | built; bisecting next | regression runs over real data sets: mxeq regress, its directory, the figures kept and how runs are compared |
 | `docs/export.md` | design | mxi_export, an unmerged MTZ as dials.export writes it: the intensities and their corrections, the columns, the batches and their headers |
 | `docs/import.md` | reference | `mxi_import`, and checking it against dials.import |
 | `docs/integration.md` | reference | `mxi_integrate` |

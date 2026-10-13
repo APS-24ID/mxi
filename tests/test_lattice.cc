@@ -91,3 +91,25 @@ TEST(a_triclinic_lattice_is_itself) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+TEST(a_primitive_monoclinic_cell_has_beta_obtuse_and_a_shorter_than_c) {
+  // Graeme's 6S0R: dials.symmetry's P 1 2/m 1, 50.287 183.849 109.941 A,
+  // beta 94.234 -- mxi had 110.075 183.899 50.214, a and c the wrong way
+  // round, the convention's a <= c lost to a tie-break on minus signs. Here as
+  // the reduced cell it came from: the two-fold along c, a^b 94.234.
+  const UnitCell reduced{50.287, 109.941, 183.849, 90.0, 90.0, 94.234};
+  const std::vector<Rotation> rots = lattice_symmetry(reduced);
+  check::equal(static_cast<long long>(rots.size()), 2,
+               "one two-fold and the identity");
+  const auto s = reference_setting(rots, reduced);
+  check::is_true(s && s->group.name() == "P 1 2/m 1", "P 1 2/m 1");
+  const UnitCell c = reindexed_cell(reduced, s->cb);
+  check::close(c.a, 50.287, 1e-3, "a the shorter, 50.287");
+  check::close(c.b, 183.849, 1e-3, "b the unique axis");
+  check::close(c.c, 109.941, 1e-3, "c the longer, 109.941");
+  check::close(c.beta, 94.234, 1e-3, "beta obtuse");
+}
+
+} // namespace mxi

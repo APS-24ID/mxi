@@ -420,6 +420,7 @@ std::optional<Setting> reference_setting(const std::vector<Rotation> &rotations,
   int best_cost = 1 << 30;
   double best_beta = 1e9;
   int best_negatives = 1 << 30;
+  int best_order = 1 << 30; // monoclinic: acute beta, then a > c, count against
   for (const auto &u : candidates)
     for (const auto &v : candidates)
       for (const auto &w : candidates) {
@@ -486,19 +487,32 @@ std::optional<Setting> reference_setting(const std::vector<Rotation> &rotations,
         cb.apply(c);
         // beta nearest 90 decides only for monoclinic, one two-fold; for any
         // other group it chose a permutation of a triclinic cell's axes.
-        const double beta =
-            rotations.size() == 2 ? std::abs(c.cell().beta - 90.0) : 0.0;
-        // Fewest coefficients; then, for monoclinic, beta nearest 90; then the
-        // fewest negative signs, so that the operator reads as DIALS' do.
+        const bool monoclinic = rotations.size() == 2;
+        const UnitCell made = c.cell();
+        const double beta = monoclinic ? std::abs(made.beta - 90.0) : 0.0;
+        // The convention's own order for a monoclinic cell, after beta
+        // nearest 90: beta not acute, then a no longer than c -- cctbx's best
+        // cell, which DIALS reports. A tie-break on minus signs alone had
+        // taken b,c,a over a,-c,b for Graeme's 6S0R, a and c swapped.
+        const int order = monoclinic ? (made.beta < 90.0 - 1e-6 ? 2 : 0) +
+                                           (made.a > made.c + 1e-6 ? 1 : 0)
+                                     : 0;
+        // Fewest coefficients; then, for monoclinic, beta nearest 90 and the
+        // order above; then the fewest negative signs, so that the operator
+        // reads as DIALS' do.
+        const bool same_beta = std::abs(beta - best_beta) <= 1e-6;
         const bool better =
             cost < best_cost ||
             (cost == best_cost &&
-             (beta < best_beta - 1e-6 || (std::abs(beta - best_beta) <= 1e-6 &&
-                                          negatives < best_negatives)));
+             (beta < best_beta - 1e-6 ||
+              (same_beta &&
+               (order < best_order ||
+                (order == best_order && negatives < best_negatives)))));
         if (better) {
           best_cost = cost;
           best_beta = beta;
           best_negatives = negatives;
+          best_order = order;
           Setting s{SpaceGroup::from_hall(std::string(" ") + found->hall), cb,
                     text};
           best = std::move(s);

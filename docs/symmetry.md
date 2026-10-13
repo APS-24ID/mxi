@@ -93,6 +93,16 @@ byte-identical, to mxi_scale given the space group and change of basis by hand.
 The cell is written reindexed but not constrained: 77.93 77.90 77.89 A where
 dials.symmetry reports 77.898.
 
+**A monoclinic cell's axes, as the convention orders them** (13 October). Of
+the settings that fit a monoclinic Patterson group, the one with the fewest
+coefficients, then beta nearest 90, then beta not acute, then a no longer than
+c -- cctbx's best cell, which dials.symmetry reports -- and only then the
+fewest minus signs in the operator. Graeme's 6S0R: dials.symmetry's P 1 2/m 1,
+50.287 183.849 109.941 A, beta 94.234; mxi had 110.075 183.899 50.214, the two
+settings b,c,a and a,-c,b alike in coefficients and beta, and the tie-break on
+minus signs taking the first (tests/test_lattice.cc). Choosing I 1 2/m 1 over C
+1 2/m 1 when its beta is nearer 90 is another question, outstanding item 19.
+
 ## A dataset measured to the corner: two simplifications undone
 
 On a sweep dials.symmetry called I m -3, mxi_symmetry chose P -1: the true

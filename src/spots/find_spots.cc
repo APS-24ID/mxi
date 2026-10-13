@@ -1248,10 +1248,34 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
       }
     }
   }
-  find_summary().set("signal_pixels",
-                     mxi::json::Value(static_cast<long>(counts.signal_pixels)));
-  find_summary().set("spots",
-                     mxi::json::Value(static_cast<long>(counts.accepted)));
+  // A row a sweep, and the totals over them: each sweep had written over the
+  // last's (Graeme's four, only one shown).
+  {
+    static std::vector<mxi::json::Value> c_sweep, c_first, c_images, c_pixels,
+        c_spots;
+    static long all_pixels = 0, all_spots = 0;
+    const long long run_first =
+        experiments.has_scan ? static_cast<long long>(experiments.first_image)
+                             : 1;
+    const long long run_last =
+        experiments.has_scan ? static_cast<long long>(experiments.last_image)
+                             : static_cast<long long>(info.images);
+    c_sweep.push_back(mxi::json::Value(static_cast<long>(index)));
+    c_first.push_back(mxi::json::Value(static_cast<long>(run_first)));
+    c_images.push_back(
+        mxi::json::Value(static_cast<long>(run_last - run_first + 1)));
+    c_pixels.push_back(
+        mxi::json::Value(static_cast<long>(counts.signal_pixels)));
+    c_spots.push_back(mxi::json::Value(static_cast<long>(counts.accepted)));
+    all_pixels += static_cast<long>(counts.signal_pixels);
+    all_spots += static_cast<long>(counts.accepted);
+    find_summary().table(
+        "each_sweep",
+        {"sweep", "first_image", "images", "signal_pixels", "spots"},
+        {c_sweep, c_first, c_images, c_pixels, c_spots});
+    find_summary().set("signal_pixels", mxi::json::Value(all_pixels));
+    find_summary().set("spots", mxi::json::Value(all_spots));
+  }
 
   const double t_written_from = mxi::Timing::now();
   // No frame read at all: nothing to write, and an empty table would read as

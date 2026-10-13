@@ -253,9 +253,17 @@ std::string figures_list(const json::Value &step) {
   std::ostringstream o;
   bool any = false;
   for (const auto &[name, value] : step.as_object()) {
-    if (name == "program" || name == "time" || is_table(value) ||
-        (value.is_array() && value.as_array().size() > 12))
+    // Not what a plot or a table shows: long or nested lists -- each sweep's
+    // spots per image had come out as a wall of numbers.
+    if (name == "program" || name == "time" || is_table(value))
       continue;
+    if (value.is_array()) {
+      bool nested = value.as_array().size() > 12;
+      for (const json::Value &v : value.as_array())
+        nested = nested || v.is_array() || v.is_object();
+      if (nested)
+        continue;
+    }
     if (!any)
       o << "<dl>";
     any = true;
@@ -306,6 +314,8 @@ std::string section_find(const json::Value &s, Figures &f) {
     }
     o << f.plot("Spots per image", "image", "spots", traces);
   }
+  if (is_table(s["each_sweep"]))
+    o << "<h4>Each sweep</h4>" << html_table(s["each_sweep"]);
   // By resolution: drawn against 1/d^2, its ticks labelled in d.
   const json::Value &r = s["spots_by_resolution"];
   if (is_table(r)) {
@@ -446,6 +456,41 @@ std::string section_integrate(const json::Value &s, Figures &f) {
   if (is_table(p))
     o << "<h4>Profile model</h4>" << html_table(p);
   const json::Value &r = s["by_resolution"];
+  // Each sweep's, integrated a run each and joined: a line each beside all
+  // together, and each one's overall row.
+  const json::Value &each = s["each_sweep"];
+  if (each.is_array() && !each.as_array().empty() && is_table(r)) {
+    json::Array traces;
+    traces.push_back(
+        trace(column(r, "d_min"), column(r, "isigma_prf"), "all together"));
+    for (const json::Value &sw : each.as_array())
+      if (is_table(sw["by_resolution"]))
+        traces.push_back(trace(column(sw["by_resolution"], "d_min"),
+                               column(sw["by_resolution"], "isigma_prf"),
+                               "sweep " + text_of(sw["sweep"])));
+    o << f.plot("&lang;I/&sigma;&rang; fitted by resolution, each sweep",
+                "d<sub>min</sub> (&Aring;)", "&lang;I/&sigma;&rang;", traces,
+                true);
+    const json::Value &first = each.as_array().front()["overall"];
+    if (is_table(first)) {
+      o << "<h4>Each sweep, overall</h4><table><thead><tr><th>sweep</th>";
+      for (const json::Value &n : first["columns"].as_array())
+        o << "<th>" << pretty(n.as_string()) << "</th>";
+      o << "</tr></thead><tbody>";
+      for (const json::Value &sw : each.as_array()) {
+        const json::Value &ov = sw["overall"];
+        if (!is_table(ov))
+          continue;
+        o << "<tr><td>" << text_of(sw["sweep"]) << "</td>";
+        for (const json::Value &n : ov["columns"].as_array()) {
+          const json::Array c = column(ov, n.as_string());
+          o << "<td>" << (c.empty() ? "" : text_of(c[0])) << "</td>";
+        }
+        o << "</tr>";
+      }
+      o << "</tbody></table>";
+    }
+  }
   if (is_table(r)) {
     const json::Array d = column(r, "d_min");
     o << f.plot("&lang;I/&sigma;&rang; by resolution",

@@ -95,6 +95,21 @@ the summary in order.
 * **mxi_export** -- the MTZ's summary: space group, cell, resolution, batches,
   every column with its type.
 
+**mxi_report FILE.rflx [-o REPORT.html]** (13 October): the processing a file
+records as a page, after dials.scale's report (Graeme's example). The steps
+run and when, the experiments; then each step's section from its summary --
+spots per image and by resolution; indexing's candidates and RMSDs by cycle;
+refinement's cell with e.s.d.s, its RMSDs and the scan-varying cell over the
+scan; integration's profile model and <I/sigma>, profile correlation and
+background by resolution; symmetry's elements and subgroups; scaling's summary
+laid out as DIALS lays it, CC half, <I/sigma>, completeness, multiplicity and
+the R factors by resolution, and from the reflections the inverse scale and
+<I/sigma> by image. Plotly from its CDN (one file, to mail; it draws with a
+network), plot text in characters, not entities, which plotly does not know.
+A step it has no section for gets its tables as they are. Not yet: the error
+model's normal probability plot, the absorption surface, anomalous plots,
+Wilson plots -- dials.scale's analysis plots past the merging statistics.
+
 ## The GUI, later
 
 Port `dials_ui` to mxi as a second back end in the same program, not a copy:

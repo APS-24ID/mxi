@@ -39,11 +39,16 @@ package is BSD 3-clause.
 that caused bugs, and what not to do again. It is worth reading for the same
 reason a DIALS developer's notes would be.
 
-Its size, excluding third-party code: the library 22955 lines in `src/` and the
-spot finder 7141 in `src/spots/`; sixteen programs in 7513 lines in `apps/`,
-and `mxi_find` in `src/spots/find_spots.cc`; C++ tests 14189 lines; a Python
-package of comparison tools, `mxeq`, 9281 lines, with 7038 of tests; 8855 lines
-of documents. Some 414 commits over five weeks.
+Its size, excluding third-party code: the library 23449 lines in `src/` and the
+spot finder 7316 in `src/spots/`; eighteen programs in 9313 lines in `apps/`,
+and `mxi_find` in `src/spots/find_spots.cc`; C++ tests 14250 lines; a Python
+package of comparison tools, `mxeq`, 9299 lines, with 7151 of tests; 9102 lines
+of documents. Some 434 commits over five weeks.
+
+Each .rflx carries the processing's summary, every program's figures and
+tables in the order they ran; `mxi_show` tells a file's state and
+`mxi_report` draws it as a page (`docs/output.md`). Numbers are stored
+bitshuffle-LZ4 (`docs/rflx.md`).
 
 ## Building it and running it on your data
 
@@ -199,7 +204,10 @@ against 9580 on one sweep -- and is item 12.
 * **Variances that do not move with their own noise.** Summation's Poisson term
   from the counts expected, max(I, 0) + I_bg, not those counted; the fitted
   variance's background term carried through the fit's weights, not a sum's
-  m^2; a pixel's least variance 0.001 counts, below any real background. And
+  m^2; the fit's weights on a pixel's least variance of 0.05 counts, robust,
+  its variance the fit's own whatever the weights, sum(p^2 w^2 V) /
+  sum(p^2 w)^2, V on 0.001 -- 0.001 for both had let a strong spot's tail
+  pixels pull its fit about on a near-empty background (item 61). And
   each variance with no signal written, for scaling (below). On a ten-turn
   insulin sweep, multiplicity 210, the outer shell's merged I/sigma went from
   -5.7 to +3.8 (`docs/integration.md`, "The fitted variance").

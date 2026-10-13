@@ -96,17 +96,30 @@ the summary in order.
   every column with its type.
 
 **mxi_report FILE.rflx [-o REPORT.html]** (13 October): the processing a file
-records as a page, after dials.scale's report (Graeme's example). The steps
-run and when, the experiments; then each step's section from its summary --
-spots per image and by resolution; indexing's candidates and RMSDs by cycle;
-refinement's cell with e.s.d.s, its RMSDs and the scan-varying cell over the
-scan; integration's profile model and <I/sigma>, profile correlation and
-background by resolution; symmetry's elements and subgroups; scaling's summary
-laid out as DIALS lays it, CC half, <I/sigma>, completeness, multiplicity and
-the R factors by resolution, and from the reflections the inverse scale and
-<I/sigma> by image. Plotly from its CDN (one file, to mail; it draws with a
-network), plot text in characters, not entities, which plotly does not know.
-A step it has no section for gets its tables as they are. Not yet: the error
+records as a page, after dials.scale's report (Graeme's example), the file
+named in its title. The steps run and when, the experiments; then each step's
+section from its summary, a plot a sweep wherever the data are a sweep's:
+
+* spot finding -- a row a sweep (images, signal pixels, spots), spots per
+  image a plot each, spots by resolution in bins equal in 1/d^2, ticked in d;
+* indexing -- the candidates, the RMSDs by cycle;
+* refinement -- the cell with e.s.d.s, the RMSDs cycle by cycle, and each
+  crystal's cell over the scan, lengths beside angles, as refinement left it
+  (its step records every scan point: the file's own crystals are by then
+  constrained by symmetry, a cubic cell's angles 90.000);
+* integration -- the profile model; a sweep at a time, <I/sigma> fitted and
+  summed beside profile correlation and background by resolution, and a row
+  each overall; then every sweep together;
+* symmetry -- the elements and subgroups, the choice;
+* scaling -- the summary laid out as DIALS lays it; CC half, <I/sigma>,
+  completeness (0 to 100 per cent, multiplicity on its own axis from zero)
+  and the R factors (log scale) by resolution; and from the reflections the
+  inverse scale and <I/sigma> by image, each sweep from its first image.
+
+Plotly from its CDN (one file, to mail; it draws with a network), plot text in
+characters, not entities, which plotly does not know; an axis spans at least
+what makes a constant flat (0.01 A, 0.1 degree). A step it has no section for
+gets its tables; long or nested lists are left to the plots. Not yet: the error
 model's normal probability plot, the absorption surface, anomalous plots,
 Wilson plots -- dials.scale's analysis plots past the merging statistics.
 

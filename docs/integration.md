@@ -464,6 +464,17 @@ sigma right, or a little small. Two things in the fit were not:
   insulin's, about 0.3, changes 17 variances of 20018. Scaled, the two
   crystals' weakest sextiles go from 0.26 and 0.58 to 0.42 and 0.80, the rest
   near one.
+* **The weights apart from the variance (13 October).** 0.001 had set the
+  fit's weights as well as its variance, and on a near-empty background --
+  Graeme's small-molecule set -- a strong spot's tail pixels took fifty times
+  the weight and pulled its fit about: R merge 0.036 to 0.069 (outstanding
+  61). Now the weights on 0.05 (`--weight-floor`), robust, and the variance
+  the fit's true one whatever the weights, sum(p^2 w^2 V) / sum(p^2 w)^2, V on
+  0.001 (`--least-variance`) -- the same wherever the expected count passes
+  0.05. The two crystals: the fitted intensities the 0.05 floor's to 1e-15,
+  strong reflections' fitted/summed spread 0.32 per cent, weak sigma still
+  calibrated, 0.76 to 1.06 by sextile. fit_profile, which had said why 0.05
+  in its own comment, the same.
 
 **The summed variance from counts expected, not counted.** Graeme's ten-turn
 insulin, multiplicity 210: merged I/sigma -5.7 in the outer shell. Leslie's

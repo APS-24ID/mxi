@@ -264,6 +264,9 @@ std::vector<MergingShell> merging_statistics(const ScaleData &data,
                                              MergingShell *overall);
 
 struct ScaleRunOptions {
+  //: Each variance from the model's intensity once there is one
+  //: (model_variances); false keeps the integrated variances, as before.
+  bool model_variances = true;
   bool anomalous = false; //: Friedel mates apart, as ScaleDataOptions
   bool combine = true;    //: choose profile, summation or a mix by Rmeas
   bool absorption = true; //: when the sweep is wide enough for it

@@ -1313,14 +1313,16 @@ ScaleRun scale_sweep(const ExperimentList &experiments,
   }
   step("outliers and profile against summation");
   // From here each variance from the model, not the observation's own noise.
-  model_variances(data, run.g);
+  if (options.model_variances)
+    model_variances(data, run.g);
   run.error_model = refine_error_model(data, run.g);
   apply_error_model(data, run.error_model);
   step("error model 1");
   fit();
   step("fit 2");
   reject_outliers(data, run.g);
-  model_variances(data, run.g);
+  if (options.model_variances)
+    model_variances(data, run.g);
   run.error_model = refine_error_model(data, run.g);
   apply_error_model(data, run.error_model);
   step("outliers and error model 2");
@@ -1338,7 +1340,8 @@ ScaleRun scale_sweep(const ExperimentList &experiments,
   propagate_scale_variances(data, run.g, run.g_variance);
   step("the scale's uncertainty");
   run.outliers = reject_outliers(data, run.g);
-  model_variances(data, run.g);
+  if (options.model_variances)
+    model_variances(data, run.g);
   run.error_model = refine_error_model(data, run.g);
   apply_error_model(data, run.error_model);
   step("final outliers and error model");

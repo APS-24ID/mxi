@@ -52,6 +52,8 @@ void usage() {
       "is\n"
       "                    the same groups either way\n"
       "  --no-absorption   no absorption surface, whatever the sweep\n"
+      "  --no-model-variances  each observation's variance as integrated, not\n"
+      "                    built on the model's intensity (docs/scaling.md)\n"
       "  --absorption-level LEVEL\n"
       "                    as dials.scale's: low (the default) for ~1%% "
       "relative\n"
@@ -78,15 +80,23 @@ void usage() {
 } // namespace
 
 int run_program(int argc, char **argv) {
-  const std::set<std::string> known = {
-      "--anomalous",       "--absorption-level",
-      "--l-max",           "--d-min-auto",
-      "--cc-half-limit",   "--threads",
-      "--timing",          "--space-group",
-      "--change-of-basis", "--d-min",
-      "--no-absorption",   "--profile-only",
-      "--shells",          "-o",
-      "--output-expt",     "--d-max"};
+  const std::set<std::string> known = {"--anomalous",
+                                       "--absorption-level",
+                                       "--l-max",
+                                       "--d-min-auto",
+                                       "--cc-half-limit",
+                                       "--threads",
+                                       "--timing",
+                                       "--space-group",
+                                       "--change-of-basis",
+                                       "--d-min",
+                                       "--no-absorption",
+                                       "--profile-only",
+                                       "--shells",
+                                       "-o",
+                                       "--output-expt",
+                                       "--d-max",
+                                       "--no-model-variances"};
   const std::set<std::string> takes_value = {"--l-max",
                                              "--absorption-level",
                                              "--cc-half-limit",
@@ -207,6 +217,7 @@ int run_program(int argc, char **argv) {
     options.fit.absorption_restraint =
         level == "low" ? 5e5 : (level == "medium" ? 5e4 : 5e3);
     options.anomalous = args.has("--anomalous");
+    options.model_variances = !args.has("--no-model-variances");
     options.d_min = args.number("--d-min", 0.0);
     options.d_max = args.number("--d-max", 0.0);
     const double cc_half_limit = args.number("--cc-half-limit", 0.3);

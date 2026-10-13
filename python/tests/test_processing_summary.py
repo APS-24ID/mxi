@@ -36,6 +36,13 @@ def test_a_step_is_added_after_those_the_input_carried(tmp_path):
     # Its figures are this run's: the spots written.
     table = rflx.load_table(str(tmp_path / "first.rflx"))
     assert one["steps"][0]["spots"] == len(table.columns["flags"])
+    # Spots per image a list a sweep: Graeme's four sweeps had kept only one.
+    per_image = one["steps"][0]["spots_per_image"]
+    assert isinstance(per_image, list) and isinstance(per_image[0], list)
+    # By resolution only where the geometry reads in full, as here it does not;
+    # where it does, fifty bins equal in 1/d^2.
+    by_d = one["steps"][0].get("spots_by_resolution")
+    assert by_d is None or len(by_d["spots"]) == 50
 
     second = subprocess.run(
         [FIND, "-e", "first.rflx", master, "-o", "second.rflx"],

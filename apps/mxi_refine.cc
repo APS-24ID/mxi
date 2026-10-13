@@ -158,6 +158,7 @@ int run_program(int argc, char **argv) {
   double t_write = 0.0;
   const std::set<std::string> known = {"--static",
                                        "--verbose",
+                                       "--no-cell-esd",
                                        "--no-crystal",
                                        "--no-detector",
                                        "--beam",
@@ -219,6 +220,9 @@ int run_program(int argc, char **argv) {
 
   RefineOptions options;
   options.crystal = !args.has("--no-crystal");
+  // The cell's e.s.d.s, the scan-static pass's covariance carried to the cell:
+  // on by default, off to time or to skip.
+  options.cell_esd = !args.has("--no-cell-esd");
   options.detector = !args.has("--no-detector");
   options.beam = args.has("--beam");
   // Several sweeps refine a crystal each by default, as DIALS refines them:

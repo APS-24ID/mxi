@@ -186,7 +186,9 @@ public:
                    const std::string &y_title, const json::Array &traces,
                    bool reverse_x = false, double y_span = 0.0,
                    const json::Object &x_axis = {}, bool y_log = false,
-                   const std::string &y2_title = "") {
+                   const std::string &y2_title = "",
+                   const json::Object &y_axis = {},
+                   const json::Object &y2_axis = {}) {
     const std::string id = "plot" + std::to_string(++count_);
     json::Object layout;
     layout["title"] = json::Value(unentity(title));
@@ -201,13 +203,18 @@ public:
     // flattened the rest (Graeme).
     if (y_log)
       y["type"] = json::Value(std::string("log"));
+    for (const auto &[k, v] : y_axis)
+      y[k] = v;
     // A second axis on the right, for the traces marked y2: multiplicity
     // beside completeness.
-    if (!y2_title.empty())
-      layout["yaxis2"] = json::Value(
-          json::Object{{"title", json::Value(unentity(y2_title))},
-                       {"overlaying", json::Value(std::string("y"))},
-                       {"side", json::Value(std::string("right"))}});
+    if (!y2_title.empty()) {
+      json::Object y2{{"title", json::Value(unentity(y2_title))},
+                      {"overlaying", json::Value(std::string("y"))},
+                      {"side", json::Value(std::string("right"))}};
+      for (const auto &[k, v] : y2_axis)
+        y2[k] = v;
+      layout["yaxis2"] = json::Value(std::move(y2));
+    }
     if (y_span > 0.0) {
       double lo = HUGE_VAL, hi = -HUGE_VAL;
       for (const json::Value &t : traces)
@@ -252,6 +259,13 @@ json::Value trace(const json::Array &x, const json::Array &y,
   if (type == "scatter")
     t["mode"] = json::Value(mode);
   return json::Value(std::move(t));
+}
+
+// A trace whose points at the axis's limits are drawn whole, not cut by it.
+json::Value unclipped(json::Value t) {
+  json::Object o = t.as_object();
+  o["cliponaxis"] = json::Value(false);
+  return json::Value(std::move(o));
 }
 
 // A trace drawn against the right-hand axis.
@@ -635,11 +649,17 @@ std::string section_scale(const json::Value &s, Figures &f,
                 "d<sub>min</sub> (&Aring;)", "&lang;I/&sigma;&rang;",
                 {trace(d, column(m, "i_over_sigma"), "&lang;I/&sigma;&rang;")},
                 true);
-    o << f.plot("Completeness and multiplicity by resolution",
-                "d<sub>min</sub> (&Aring;)", "completeness (%)",
-                {trace(d, column(m, "completeness"), "completeness (%)"),
-                 on_right(trace(d, column(m, "multiplicity"), "multiplicity"))},
-                true, 0.0, {}, false, "multiplicity");
+    o << f.plot(
+        "Completeness and multiplicity by resolution",
+        "d<sub>min</sub> (&Aring;)", "completeness (%)",
+        {unclipped(trace(d, column(m, "completeness"), "completeness (%)")),
+         on_right(trace(d, column(m, "multiplicity"), "multiplicity"))},
+        true, 0.0, {}, false, "multiplicity",
+        // Completeness 0 to 100 per cent, multiplicity from zero:
+        // easier read than plotly's own ranges (Graeme).
+        {{"range",
+          json::Value(json::Array{json::Value(0.0), json::Value(100.0)})}},
+        {{"rangemode", json::Value(std::string("tozero"))}});
     o << f.plot("R factors by resolution", "d<sub>min</sub> (&Aring;)",
                 "R (log scale)",
                 {trace(d, column(m, "rmerge"), "R merge"),

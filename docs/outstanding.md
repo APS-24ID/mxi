@@ -44,7 +44,7 @@ where something is missing.
   Not repeated on ferritin: there partials are a few per cent low, and suggest
   the sigma_m integrated with (item 3). So insulin's, not the integrator's in
   general -- a question for more data sets.
-* **2.** **correctness -- Gap-crossing reflections are about 3 per cent low**, 3.4 by
+* **2.** **correctness -- Reflections cut by a gap come out a few per cent high** (by gaps masked on purpose: +2 at a tenth cut, +6 at a third; a third less at --grid-points 6, now the default); with real gaps, mixed. First recorded as gap-crossing reflections about 3 per cent low, 3.4 by
    symmetry equivalents in scaling; the suspect is profile learning from
    reflections that are themselves cut. `docs/integration.md`, open questions.
   `mxeq equivalents` on the 300 image sweep: 80 to 95 per cent of the profile on
@@ -69,14 +69,6 @@ where something is missing.
   mixed signs -- low at 0.80 to 0.95, high
   below 0.80 -- are something more, the detector's own at its gaps perhaps:
   to look at with a module boundary's pixels.
-* **3.** **correctness -- sigma_m is 0.129 degrees here against DIALS' 0.089** on the
-   same 300 image sweep; it sets how large the boxes are. Not yet investigated.
-  The partials put it at 0.082 to 0.086 degrees (`mxeq equivalents`, item 1).
-  Not background in the spots: with `mxi_find --subtract-background` and the
-  profile model subtracting what the shoeboxes record, sigma_m stays 0.1286
-  (sigma_b 0.0273 to 0.0270).
-  Not on ferritin: integrated with 0.0920 degrees, its partials suggest 0.0931,
-  and are a few per cent low rather than high.
 * **4.** **correctness -- The background is about one per cent high at low
    resolution.** A guard ring around the foreground would likely fix it.
    `docs/integration.md`.
@@ -150,10 +142,6 @@ where something is missing.
 
 * **12.** **correctness -- Outlier rejection is milder than DIALS'**: 11714
     reflections kept against 9580 on the same sweep, RMSD 0.30 px against 0.19.
-* **13.** **capability -- e.s.d.s for the cell**: now from the covariance at
-    convergence, carried to the cell (RefineResult::cell_esd, mxi_refine,
-    `docs/output.md`); the scan-varying pass's per-point cells have none of
-    their own -- the scan-static pass's are printed, as DIALS does.
 * **14.** **capability -- The cell is not constrained to the lattice's symmetry**:
     77.93 77.90 77.89 A after `mxi_symmetry`, where DIALS reports 77.898.
     `docs/symmetry.md`.
@@ -321,6 +309,13 @@ where something is missing.
     `docs/spots_notes.md`, `docs/spotfinder.md` -- which could be one.
 
 ## Closed
+
+* **13.** e.s.d.s for the cell: from the covariance at convergence, the
+    scan-static pass's, one factorisation (RefineResult::cell_esd).
+* **3.** sigma_m too wide on insulin: not so. At 0.086 rather than 0.128
+    degrees insulin merged worse, R merge 0.035 to 0.038 (October); the
+    partials' small excess, item 1, is a few dozen observations at a scan's
+    ends.
 
 * **61.** Strong reflections on a near-empty background: the fit's weights
     on 0.05 again, its variance the fit's own on 0.001 (`docs/integration.md`,

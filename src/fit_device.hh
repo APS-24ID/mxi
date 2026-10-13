@@ -41,6 +41,8 @@ namespace fitdev {
 constexpr std::uint8_t kValid = 1u << 0, kBackground = 1u << 1,
                        kForeground = 1u << 2;
 constexpr float kLeastVariance = 0.001f;
+//: The least for a pixel's weight, as reference.cc's g_weight_floor (item 61).
+constexpr float kWeightFloor = 0.05f;
 constexpr int kMaxSide = 17; //: grids up to n = 8
 constexpr int kMaxSub = 7;   //: subdivisions up to 7 x 7
 constexpr float kDegrees = 57.29577951308232f;
@@ -332,21 +334,26 @@ FIT_HD inline FitF fit_profile(const Setup &setup, const BoxF &box,
   float weight = 0.0f, weight2 = 0.0f; // the last round's sum(p/v), sum(p^2/v)
   const int rounds = setup.iterations > 1 ? setup.iterations : 1;
   for (int round = 0; round < rounds; ++round) {
-    float numerator = 0.0f, denominator = 0.0f, w = 0.0f;
+    float numerator = 0.0f, denominator = 0.0f, w = 0.0f, sandwich = 0.0f;
     for (int i = 0; i < voxels; ++i) {
       if (!(mask[i] & kForeground) || !(mask[i] & kValid))
         continue;
       const float expected = b + (scale > 0.0f ? scale : 0.0f) * profile[i];
       const float v =
           setup.gain * (expected > kLeastVariance ? expected : kLeastVariance);
-      numerator += profile[i] * (data[i] - b) / v;
-      denominator += profile[i] * profile[i] / v;
-      w += profile[i] / v;
+      const float k =
+          1.0f /
+          (setup.gain * (expected > kWeightFloor ? expected : kWeightFloor));
+      const float p = profile[i];
+      numerator += p * (data[i] - b) * k;
+      denominator += p * p * k;
+      w += p * k;
+      sandwich += p * p * k * k * v;
     }
     if (!(denominator > 0.0f))
       return out;
     scale = numerator / denominator;
-    variance = 1.0f / denominator;
+    variance = sandwich / (denominator * denominator);
     weight = w;
     weight2 = denominator;
     out.iterations = round + 1;

@@ -16,6 +16,13 @@ namespace {
 // A pixel's least variance in the fit, counts: 0.001 since October, 0.05
 // before (docs/outstanding.md, item 61). Settable for comparison.
 double g_least_variance = 0.001;
+// The least a pixel's variance can be for its WEIGHT in the fit: 0.05. The
+// fit's weights need not be the inverse variances, only robust; at 0.001 a
+// near-empty background let a strong spot's far tail pixels, fifty times
+// the weight, pull its fit about -- Graeme's small-molecule set, R merge
+// 0.036 to 0.069 (item 61). The variance reported is the fit's true one
+// whatever the weights: sum(p^2 w^2 V) / sum(p^2 w)^2, V on the floor above.
+double g_weight_floor = 0.05;
 } // namespace
 
 namespace {
@@ -661,6 +668,7 @@ std::vector<double> profile_on_pixels(const Experiment &e, const Shoebox &box,
 }
 
 void set_least_variance(double counts) { g_least_variance = counts; }
+void set_weight_floor(double counts) { g_weight_floor = counts; }
 double least_variance() { return g_least_variance; }
 
 ProfileFit fit_on_pixels(const Shoebox &box,
@@ -720,7 +728,7 @@ ProfileFit fit_on_pixels(const Shoebox &box,
   double variance = 0.0;
   double profile_over_v = 0.0, profile2_over_v = 0.0; // the last round's
   for (int round = 0; round < std::max(iterations, 1); ++round) {
-    double numerator = 0.0, denominator = 0.0, weight = 0.0;
+    double numerator = 0.0, denominator = 0.0, weight = 0.0, sandwich = 0.0;
     for (std::size_t i = 0; i < box.size(); ++i) {
       if ((box.mask[i] & shoebox_mask::kForeground) == 0)
         continue;
@@ -728,18 +736,21 @@ ProfileFit fit_on_pixels(const Shoebox &box,
         continue;
       const double b = static_cast<double>(box.background[i]);
       const double expected = b + std::max(scale, 0.0) * pixel_profile[i];
+      const double w = 1.0 / std::max(gain * expected, gain * g_weight_floor);
       const double v = std::max(gain * expected, gain * g_least_variance);
       const double residual = static_cast<double>(box.data[i]) - b;
-      numerator += pixel_profile[i] * residual / v;
-      denominator += pixel_profile[i] * pixel_profile[i] / v;
-      weight += pixel_profile[i] / v;
+      const double p = pixel_profile[i];
+      numerator += p * residual * w;
+      denominator += p * p * w;
+      weight += p * w;
+      sandwich += p * p * w * w * v;
     }
     if (!(denominator > 0.0)) {
       out.why = FitFailure::degenerate;
       return out;
     }
     scale = numerator / denominator;
-    variance = 1.0 / denominator;
+    variance = sandwich / (denominator * denominator);
     profile_over_v = weight;
     profile2_over_v = denominator;
     out.iterations = round + 1;
@@ -1090,6 +1101,7 @@ ProfileFit fit_profile(const std::vector<double> &reference,
   for (int round = 0; round < std::max(iterations, 1); ++round) {
     double numerator = 0.0;
     double denominator = 0.0;
+    double sandwich = 0.0; // sum(p^2 w^2 V): the variance whatever the weights
     for (std::size_t i = 0; i < t.data.size(); ++i) {
       // A grid point no pixel reached is not a measurement and cannot be
       // fitted to. Counting it as an observed zero pulls every intensity down.
@@ -1123,14 +1135,19 @@ ProfileFit fit_profile(const std::vector<double> &reference,
       // expected count is not a Poisson mean whatever else is true.
       const double expected =
           t.background[i] + std::max(scale, 0.0) * reference[i];
+      // The weight on the 0.05 floor this was written for -- lowered with the
+      // variance's in October, it had the same trouble (item 61) -- and the
+      // variance on its own.
+      const double w = 1.0 / std::max(gain * expected, gain * g_weight_floor);
       const double v = std::max(gain * expected, gain * g_least_variance);
-      numerator += reference[i] * (t.data[i] - t.background[i]) / v;
-      denominator += reference[i] * reference[i] / v;
+      numerator += reference[i] * (t.data[i] - t.background[i]) * w;
+      denominator += reference[i] * reference[i] * w;
+      sandwich += reference[i] * reference[i] * w * w * v;
     }
     if (!(denominator > 0.0))
       return out;
     scale = numerator / denominator;
-    variance = 1.0 / denominator;
+    variance = sandwich / (denominator * denominator);
     out.iterations = round + 1;
   }
 

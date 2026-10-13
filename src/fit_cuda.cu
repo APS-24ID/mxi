@@ -150,27 +150,32 @@ __global__ void fit_kernel(Setup setup, const PanelF *panels, const BoxF *boxes,
   int iterations = 0;
   const int rounds = setup.iterations > 1 ? setup.iterations : 1;
   for (int round = 0; round < rounds; ++round) {
-    float num = 0.0f, den = 0.0f, wt = 0.0f;
+    float num = 0.0f, den = 0.0f, wt = 0.0f, sw = 0.0f;
     for (int i = t; i < voxels; i += kThreads) {
       if (!(m[i] & kForeground) || !(m[i] & kValid))
         continue;
       const float expected = bg + (scale > 0.0f ? scale : 0.0f) * profile[i];
       const float v =
           setup.gain * (expected > kLeastVariance ? expected : kLeastVariance);
-      num += profile[i] * (d[i] - bg) / v;
-      den += profile[i] * profile[i] / v;
-      wt += profile[i] / v;
+      const float k =
+          1.0f / (setup.gain * (expected > kWeightFloor ? expected : kWeightFloor));
+      const float p = profile[i];
+      num += p * (d[i] - bg) * k;
+      den += p * p * k;
+      wt += p * k;
+      sw += p * p * k * k * v;
     }
     const float numerator = block_sum(num, scratch),
                 denominator = block_sum(den, scratch),
-                weighted = block_sum(wt, scratch);
+                weighted = block_sum(wt, scratch),
+                sandwich = block_sum(sw, scratch);
     if (!(denominator > 0.0f)) {
       if (t == 0)
         out[b] = FitF{};
       return;
     }
     scale = numerator / denominator;
-    variance = 1.0f / denominator;
+    variance = sandwich / (denominator * denominator);
     weight = weighted;
     weight2 = denominator;
     iterations = round + 1;

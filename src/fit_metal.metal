@@ -12,6 +12,7 @@ using namespace metal;
 
 constant uchar kValid = 1, kBackground = 2, kForeground = 4;
 constant float kLeastVariance = 0.001f;
+constant float kWeightFloor = 0.05f; // as fit_device.hh (item 61)
 constant float kDegrees = 57.29577951308232f;
 #define K_MAX_SIDE 17
 #define K_MAX_SUB 7
@@ -366,26 +367,30 @@ kernel void fit_kernel(constant Setup &setup [[buffer(0)]],
   int iterations = 0;
   const int rounds = setup.iterations > 1 ? setup.iterations : 1;
   for (int round = 0; round < rounds; ++round) {
-    float num = 0.0f, den = 0.0f, wt = 0.0f;
+    float num = 0.0f, den = 0.0f, wt = 0.0f, sw = 0.0f;
     for (int i = int(t); i < voxels; i += K_THREADS) {
       if ((m[i] & kForeground) == 0 || (m[i] & kValid) == 0)
         continue;
       const float expected = bg + max(fit_scale, 0.0f) * profile[i];
       const float v = setup.gain * max(expected, kLeastVariance);
-      num += profile[i] * (d[i] - bg) / v;
-      den += profile[i] * profile[i] / v;
-      wt += profile[i] / v;
+      const float k = 1.0f / (setup.gain * max(expected, kWeightFloor));
+      const float p = profile[i];
+      num += p * (d[i] - bg) * k;
+      den += p * p * k;
+      wt += p * k;
+      sw += p * p * k * k * v;
     }
     const float numerator = block_sum(num, scratch, t);
     const float denominator = block_sum(den, scratch, t);
     const float weighted = block_sum(wt, scratch, t);
+    const float sandwich = block_sum(sw, scratch, t);
     if (!(denominator > 0.0f)) {
       if (t == 0)
         out[b] = FitF{0, 0, 0.0f, 0.0f, 0.0f, 1.0f};
       return;
     }
     fit_scale = numerator / denominator;
-    variance = 1.0f / denominator;
+    variance = sandwich / (denominator * denominator);
     weight = weighted;
     weight2 = denominator;
     iterations = round + 1;

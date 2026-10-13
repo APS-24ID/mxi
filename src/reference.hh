@@ -298,6 +298,9 @@ ProfileFit fit_profile(const std::vector<double> &reference,
 //: A pixel's least variance in the CPU fit, in counts: 0.001 by default (0.05
 //: before October). The device's fit keeps its own, 0.001.
 void set_least_variance(double counts);
+//: The least a pixel's variance can be for its weight in the CPU fit: 0.05
+//: (item 61); the device's the same, built in.
+void set_weight_floor(double counts);
 double least_variance();
 
 //: Fit `pixel_profile` to the shoebox's own pixels.

@@ -50,7 +50,9 @@ was found.
 
 STATUS: written 4 October 2026, 325 commits; several sweeps, the cell
 regularised and mxi_export added 6 October, 349 commits; several crystals,
-sweeps carried through and the variances 12 October, 414 commits. For a new session to
+sweeps carried through and the variances 12 October, 414 commits; the
+programs' output, mxi_show and mxi_report, compression and the fit's weights
+13 October, 434 commits. For a new session to
 pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in
 flight and how the work is done here. People follow this project: keep the
@@ -122,7 +124,8 @@ reflection at a time, and `mxeq observations`, every observation of one;
   default; the search keyed on images too after it took minutes on ten turns.
 * **The variances** (`docs/integration.md`, "The fitted variance";
   `docs/scaling.md`, "Variances from the model"): the fitted variance's
-  background term through the fit's weights; a pixel's least variance 0.001;
+  background term through the fit's weights; a pixel's least variance 0.001
+  for the fit's variance, 0.05 for its weights (item 61);
   summation's from expected counts; each variance with no signal written, and
   scaling's built on the model's intensity. Graeme's ten-turn insulin: outer
   shell merged I/sigma -5.7 to +3.8. Confirmed on Metal (Graeme).
@@ -138,6 +141,18 @@ scan-varying cell's range, symmetry's elements by order and axis, the scale by
 image, the MTZ's summary, spots by resolution and ice rings. Mind the names:
 `src/summary.*` is integration's summary tables -- the processing's summary
 was once written over them, unchecked, and restored.
+
+**Done 13 October, to 434:** mxi_report (`docs/output.md`), a plot a sweep,
+refinement's own cell over the scan; the cell's e.s.d.s from one
+factorisation, scan-static only -- the first version inverted the normal
+matrix a column at a time and made Graeme's four small-molecule sweeps very
+slow; the fit's weights apart from its variance (item 61, closed: the 0.001
+floor had wrecked strong reflections on a near-empty background --
+R merge 0.036 to 0.069 -- found only on Graeme's data); `mxi_scale
+--no-model-variances`; .rflx numbers bitshuffle-LZ4 (`docs/rflx.md`), the spot
+finder's file 14 MB to 2.4; item 4 measured again -- the background's bias a
+constant fraction, not curvature. Graeme plans a regression system over full
+data sets for every change set.
 
 **Paused: the backstop** (`docs/backstop.md`, "Where it stands"; items 52, 53).
 Against DIALS on ferritin the innermost shell agreed worst; the cause, the

@@ -9,31 +9,6 @@ where something is missing.
 
 ## Integration
 
-* **61.** **correctness -- Strong reflections on a near-empty background.**
-    Graeme's four-sweep small-molecule set (P422, 6.85 6.85 6.92 A) merges far
-    worse than before: R merge 0.036 to 0.069, low resolution 0.028 to 0.074,
-    the error model a 0.93 b 0.042 to a 0.16 b 0.50 (at its bound). Not the
-    model's variances, the grid, neighbour masking or cosym (each set aside:
-    no change; cosym left every sweep h,k,l). Suspected: a pixel's least
-    variance in the fit, 0.05 to 0.001 counts in October -- with almost no
-    background a tail pixel's weight rises up to fifty-fold, and a reference
-    broader than the spot (item 2) pulls a strong fit about. On the two
-    crystals (0.02 counts a pixel) the fitted/summed ratio's spread for strong
-    reflections is 3 to 10 times wider at 0.001: 0.89 against 0.32 per cent
-    at 1000 to 10000 counts. `mxi_integrate --least-variance 0.05` (the CPU
-    fit's) to test it on his data.
-  Confirmed by Graeme: R merge 0.037, low resolution 0.029, <I/sigma> 53.2.
-  Mended (13 October): the fit's weights and its variance apart. The weights
-  on a floor of 0.05 again (`--weight-floor`), robust; the variance the fit's
-  true one whatever its weights, sum(p^2 w^2 V) / sum(p^2 w)^2, V on 0.001
-  (`--least-variance`) -- the same as before wherever the expected count
-  passes 0.05. The CPU fit, fit_profile (whose own comment had said why 0.05:
-  fits failing on a background of a ten-thousandth of a count) and the device
-  fits, CUDA and Metal not built here. On the two crystals: the fitted
-  intensities the old floor's to 1e-15, strong reflections' fitted/summed
-  spread 0.32 per cent again, and the weak sigma still calibrated, 0.76 1.06
-  1.06 1.01 1.00 1.00 by intensity sextile after scaling.
-
 * **55.** **understood -- Summation 2 to 3 per cent below DIALS's on the two
     crystals**: the foreground's extent. A 3 sigma ellipsoid holds 97.1 per
     cent of a three-dimensional Gaussian, and mxi's sigma_b is some 6 per cent
@@ -208,7 +183,8 @@ where something is missing.
 
 * **54.** **correctness -- Weak reflections' sigma, the last of it.** The
     fitted variance's background term carried through the fit's weights, and
-    a pixel's least variance 0.001 counts rather than 0.05: insulin's weakest
+    a pixel's least variance 0.001 counts rather than 0.05 (since 13 October
+    the variance's only, the weights' 0.05 again: item 61): insulin's weakest
     scaled sextile 0.66 to 0.95, the two crystals' 0.26 to 0.42 and 0.58 to
     0.80, and with scaling's variances from the model 0.79 and 1.01. Left:
     the very weakest of the weakest crystal, 0.79. `docs/integration.md`,
@@ -345,6 +321,11 @@ where something is missing.
     `docs/spots_notes.md`, `docs/spotfinder.md` -- which could be one.
 
 ## Closed
+
+* **61.** Strong reflections on a near-empty background: the fit's weights
+    on 0.05 again, its variance the fit's own on 0.001 (`docs/integration.md`,
+    "The weights apart from the variance"). Graeme's small-molecule set as it
+    was: R merge 0.037, 0.029 at low resolution.
 
 * **27.** mxi_report: an HTML report of the processing a .rflx records, each
     step's figures, tables and plots, after dials.scale's (`docs/output.md`).

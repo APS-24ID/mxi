@@ -212,6 +212,10 @@ two 0.4 and 1.4 to 1.0 and 2.4; insulin -0.05 to -0.17 to within 0.06. The
 calibration by mean intensity sextile, the two crystals 0.42 0.80 1.06 1.05
 0.93 0.98 to 0.79 1.01 1.02 0.98 0.98 0.99; insulin 0.99 to 1.21 as it was.
 
+`mxi_scale --no-model-variances` keeps each variance as integrated, for
+comparison: on insulin the two agree, R merge 0.035 and CC half 0.987 either
+way.
+
 ## The scale's uncertainty, before the error model
 
 The covariance of the parameters is the inverse of the normal matrix of the

@@ -5,8 +5,8 @@ src/rflx.cc -- the tree, the tables and the file; mxi_convert; mxeq reading
 .rflx; every program reading it, and writing it unless told the pair. On the
 insulin sweep the chain from images to MTZ on .rflx alone writes, step by step,
 exactly what the pair chain writes, and the same MTZ but for the time it was
-written; uncompressed and written directly, each step takes the pair chain's
-time to within the noise.
+written; each step takes the pair chain's time to within the noise -- written
+uncompressed then, bitshuffle-LZ4 now, which costs 25 ms for 12 MB.
 
 mxi's primary file format becomes `.rflx`: one HDF5 file holding the experiment
 list, the reflection table, or both, in the layout specified by dxtbx-h5
@@ -65,13 +65,10 @@ checklist (its section 8) as reader and writer. The points mxi depends on:
   now -- several sweeps in one table. Written by every program that has
   reflections: all but mxi_import.
 * `dials_type` on every column, which the format allows and a reader may use.
-* No compression in the programs' own files, read by the next step: gzip on one
-  thread made Graeme's benchmark, the 16M sweep from images to scaled data,
-  half again as long, 36 s to 54, and uncompressed HDF5 writes as fast as
-  msgpack (strong.refl's 14.7 MB in 0.07 s; gzip took 0.17 s for 2.1 MB).
-  mxi_convert compresses, for files kept or sent, as dxtbx-h5 writes -- gzip at
-  level 1 and shuffle from 256 elements, which every HDF5 reads, where LZ4
-  needs a plugin -- unless told `--no-compress`.
+* Numbers bitshuffle-LZ4 (below, "Compression"), since 13 October; before,
+  none in the programs' files -- gzip on one thread had made Graeme's
+  benchmark, the 16M sweep from images to scaled data, half again as long, 36
+  s to 54 -- and gzip with shuffle in mxi_convert's.
 * Nothing under `/dials`, and no `/images` links.
 
 ### What mxi reads

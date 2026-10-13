@@ -154,6 +154,11 @@ finder's file 14 MB to 2.4; item 4 measured again -- the background's bias a
 constant fraction, not curvature. Graeme plans a regression system over full
 data sets for every change set.
 
+**The cell's e.s.d.s are mxi_scale's, from two-theta** (Graeme, 13 October;
+`docs/scaling.md`): refinement's covariance e.s.d.s are removed. Each centroid's
+variance is floored at a pixel's, size^2 / 12 -- without it strong low-resolution
+spots, their counting variances absurdly small, pulled insulin's a 0.02 A off.
+
 **Paused: the backstop** (`docs/backstop.md`, "Where it stands"; items 52, 53).
 Against DIALS on ferritin the innermost shell agreed worst; the cause, the
 reflections beside the backstop -- its shadow attenuating signal and background

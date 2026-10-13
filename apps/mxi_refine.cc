@@ -158,7 +158,6 @@ int run_program(int argc, char **argv) {
   double t_write = 0.0;
   const std::set<std::string> known = {"--static",
                                        "--verbose",
-                                       "--no-cell-esd",
                                        "--no-crystal",
                                        "--no-detector",
                                        "--beam",
@@ -220,9 +219,6 @@ int run_program(int argc, char **argv) {
 
   RefineOptions options;
   options.crystal = !args.has("--no-crystal");
-  // The cell's e.s.d.s, the scan-static pass's covariance carried to the cell:
-  // on by default, off to time or to skip.
-  options.cell_esd = !args.has("--no-cell-esd");
   options.detector = !args.has("--no-detector");
   options.beam = args.has("--beam");
   // Several sweeps refine a crystal each by default, as DIALS refines them:
@@ -344,8 +340,7 @@ int run_program(int argc, char **argv) {
     // Each crystal: the cell with the scan-static pass's e.s.d.s, as DIALS
     // prints it; scan-varying, how far the cell and the orientation move
     // over the scan -- the check the tutorial makes in dials.report.
-    const std::vector<std::array<double, 6>> &esd = two.static_pass.cell_esd;
-    std::vector<json::Value> t_exp, t_cell, t_esd, t_lo, t_hi, t_turn;
+    std::vector<json::Value> t_exp, t_cell, t_lo, t_hi, t_turn;
     // Each crystal's cell at every scan point, as refinement left it: the
     // report draws these, not the file's later crystals, which symmetry
     // constrains (Graeme: a cubic cell's angles all 90.000 by then).
@@ -356,8 +351,8 @@ int run_program(int argc, char **argv) {
       const Crystal &x = *experiments[i].crystal;
       const UnitCell c = x.cell();
       const std::array<double, 6> v = {c.a, c.b, c.c, c.alpha, c.beta, c.gamma};
-      const std::array<double, 6> e =
-          i < esd.size() ? esd[i] : std::array<double, 6>{0, 0, 0, 0, 0, 0};
+      // No e.s.d.s here: the cell's are mxi_scale's, from two-theta (Graeme).
+      const std::array<double, 6> e = {0, 0, 0, 0, 0, 0};
       std::printf("Unit cell%s: %s %s %s A, %s %s %s deg; volume %.0f A^3\n",
                   experiments.size() > 1
                       ? (" [" + std::to_string(i) + "]").c_str()
@@ -438,7 +433,6 @@ int run_program(int argc, char **argv) {
       }
       t_exp.push_back(json::Value(static_cast<long>(i)));
       t_cell.push_back(json::Value(std::move(jc)));
-      t_esd.push_back(json::Value(std::move(je)));
       t_lo.push_back(json::Value(std::move(jlo)));
       t_hi.push_back(json::Value(std::move(jhi)));
       t_turn.push_back(json::Value(turned));
@@ -477,10 +471,10 @@ int run_program(int argc, char **argv) {
     summary.set("scan_varying", json::Value(two.varied ? 1L : 0L));
     if (!over_scan.empty())
       summary.set("cell_over_scan", json::Value(std::move(over_scan)));
-    summary.table("crystals",
-                  {"experiment", "cell", "cell_esd", "scan_min", "scan_max",
-                   "orientation_turn_deg"},
-                  {t_exp, t_cell, t_esd, t_lo, t_hi, t_turn});
+    summary.table(
+        "crystals",
+        {"experiment", "cell", "scan_min", "scan_max", "orientation_turn_deg"},
+        {t_exp, t_cell, t_lo, t_hi, t_turn});
     {
       std::vector<json::Value> p_pass, p_cycle, p_n, p_rej, p_x, p_y, p_z;
       const auto add = [&](const char *pass, const RefineResult &r) {

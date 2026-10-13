@@ -628,6 +628,12 @@ std::string section_scale(const json::Value &s, Figures &f,
   std::ostringstream o;
   if (is_table(s["merging_summary"]))
     o << merging_summary(s["merging_summary"]);
+  if (s["two_theta_cell"].is_array())
+    o << "<p class=\"result\">Cell from two-theta: "
+      << cell_text(s["two_theta_cell"], s["two_theta_cell_esd"]) << "; "
+      << text_of(s["two_theta_reflections"]) << " reflections, "
+      << text_of(s["two_theta_system"]) << ", RMSD "
+      << number(s["two_theta_rmsd_deg"].as_number(), 4) << "&deg;</p>";
   o << "<p class=\"result\">Error model a = "
     << number(s["error_model_a"].as_number(), 4)
     << ", b = " << number(s["error_model_b"].as_number(), 4) << "; "

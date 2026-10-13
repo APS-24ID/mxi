@@ -189,6 +189,26 @@ crystals' whole background. Both mended, the same two crystals scale with a =
 0.98; insulin's sweep 0.95 1.06 1.09 1.13 1.23 1.20, where it was 0.66 0.92
 1.04 1.13 1.27 1.23. CC half as it was.
 
+## The cell from two-theta
+
+The cell's e.s.d.s are scaling's, as dials.two_theta_refine gives them: the
+cell alone, refined against the scattering angle of every scaled reflection's
+observed centroid (I/sigma 3 or more, not an outlier) -- an angle that depends
+on the cell, the wavelength and where the spot fell, not on the orientation --
+one cell over every crystal, constrained to the space group's crystal system,
+its e.s.d.s from (J^T W J)^-1 chi^2 / (n - p) (`src/two_theta.cc`). Each
+centroid's variance at least a pixel's own, size^2 / 12: counting statistics
+alone put strong spots' at a tenth of a micron, and those, mostly at low
+resolution where an angle says least about the cell, took 43 per cent of the
+weight -- insulin's a 77.931 A, chi^2 89 times its degrees of freedom; floored,
+77.9109(3), the median of each reflection's own (77.9106) and chi^2 2.6. The
+e.s.d.s are statistical: an error in the distance or the wavelength is not in
+them. Reported, printed and in the summary and report; the crystals' own cells
+are not changed by it. Refinement's covariance e.s.d.s, which fitted the
+orientation, the detector and the cell together on the strong spots, are gone
+(Graeme). Planted cells, cubic and monoclinic, are recovered, and the cubic
+e.s.d. is its scatter over 200 trials to 20 per cent (`tests/test_two_theta.cc`).
+
 ## Variances from the model
 
 An observation's variance from integration moves with its own noise -- a low

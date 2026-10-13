@@ -310,8 +310,9 @@ where something is missing.
 
 ## Closed
 
-* **13.** e.s.d.s for the cell: from the covariance at convergence, the
-    scan-static pass's, one factorisation (RefineResult::cell_esd).
+* **13.** e.s.d.s for the cell: from two-theta in mxi_scale, as
+    dials.two_theta_refine (`docs/scaling.md`, "The cell from two-theta");
+    refinement's covariance e.s.d.s, which came first, are gone.
 * **3.** sigma_m too wide on insulin: not so. At 0.086 rather than 0.128
     degrees insulin merged worse, R merge 0.035 to 0.038 (October); the
     partials' small excess, item 1, is a few dozen observations at a scan's

@@ -53,6 +53,9 @@
 namespace mxi {
 
 struct RefineOptions {
+  //: Whether to carry the covariance at convergence to the cell's e.s.d.s
+  //: (RefineResult::cell_esd): a factorisation of the normal matrix.
+  bool cell_esd = true;
   bool crystal = true;
   bool detector = true;
   bool beam = false;

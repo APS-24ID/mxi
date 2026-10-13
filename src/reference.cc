@@ -13,7 +13,9 @@ namespace {
 //: The least variance a measurement can have, in counts. A point with no
 //: signal still carries the background's noise; anything smaller is a weight
 //: this fit has no business trusting.
-constexpr double kLeastVariance = 0.001;
+// A pixel's least variance in the fit, counts: 0.001 since October, 0.05
+// before (docs/outstanding.md, item 61). Settable for comparison.
+double g_least_variance = 0.001;
 } // namespace
 
 namespace {
@@ -658,6 +660,9 @@ std::vector<double> profile_on_pixels(const Experiment &e, const Shoebox &box,
   return out;
 }
 
+void set_least_variance(double counts) { g_least_variance = counts; }
+double least_variance() { return g_least_variance; }
+
 ProfileFit fit_on_pixels(const Shoebox &box,
                          const std::vector<double> &pixel_profile, double gain,
                          int iterations) {
@@ -723,7 +728,7 @@ ProfileFit fit_on_pixels(const Shoebox &box,
         continue;
       const double b = static_cast<double>(box.background[i]);
       const double expected = b + std::max(scale, 0.0) * pixel_profile[i];
-      const double v = std::max(gain * expected, gain * kLeastVariance);
+      const double v = std::max(gain * expected, gain * g_least_variance);
       const double residual = static_cast<double>(box.data[i]) - b;
       numerator += pixel_profile[i] * residual / v;
       denominator += pixel_profile[i] * pixel_profile[i] / v;
@@ -795,7 +800,7 @@ ProfileFit fit_on_pixels(const Shoebox &box,
         p2 += pixel_profile[i] * pixel_profile[i];
       }
       if (p2 > 0.0) {
-        const double b0 = std::max(mean_background, kLeastVariance);
+        const double b0 = std::max(mean_background, g_least_variance);
         out.variance_background = gain * b0 * profile_sum * profile_sum / p2;
         if (background_pixels > 0.0) {
           const double carried = profile_sum * p1 / p2;
@@ -1118,7 +1123,7 @@ ProfileFit fit_profile(const std::vector<double> &reference,
       // expected count is not a Poisson mean whatever else is true.
       const double expected =
           t.background[i] + std::max(scale, 0.0) * reference[i];
-      const double v = std::max(gain * expected, gain * kLeastVariance);
+      const double v = std::max(gain * expected, gain * g_least_variance);
       numerator += reference[i] * (t.data[i] - t.background[i]) / v;
       denominator += reference[i] * reference[i] / v;
     }

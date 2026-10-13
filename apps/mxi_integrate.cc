@@ -913,6 +913,7 @@ int run_program(int argc, char **argv) {
   const std::set<std::string> known = {"-o",
                                        "--verbose",
                                        "--progress-from",
+                                       "--least-variance",
                                        "--sigma-b",
                                        "--sigma-m",
                                        "--n-sigma",
@@ -965,6 +966,8 @@ int run_program(int argc, char **argv) {
   takes_value.erase("--postrefine");
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   set_verbose(args.has("--verbose"));
+  if (args.has("--least-variance"))
+    set_least_variance(args.number("--least-variance", 0.001));
   // One .rflx stands for the experiment list and the reflections
   // (docs/rflx.md).
   args.positional = rflx::as_pair(args.positional);
@@ -2135,6 +2138,9 @@ int run_program(int argc, char **argv) {
     // boxes at a time; --gpu-emulate the same on the CPU. One pass only.
     const bool emulate_gpu = args.has("--gpu-emulate");
     bool use_gpu = emulate_gpu || args.has("-g") || args.has("--gpu");
+    if ((use_gpu || emulate_gpu) && args.has("--least-variance"))
+      std::printf("--least-variance is the CPU fit's: the device's keeps "
+                  "0.001\n");
     if (use_gpu && !single_pass) {
       std::printf("--gpu fits in one pass only; with --two-pass the fitting is "
                   "on the CPU\n");

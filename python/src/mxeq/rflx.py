@@ -18,6 +18,12 @@ HDF5_SIGNATURE = b"\x89HDF\r\n\x1a\n"
 RESERVED = {"__type__", "__keys__", "__len__"}
 
 
+try:  # bitshuffle-LZ4, HDF5 filter 32008, which .rflx numbers are stored with
+    import hdf5plugin  # noqa: F401
+except ImportError:  # pragma: no cover - then only uncompressed files read
+    pass
+
+
 def is_hdf5(path: str) -> bool:
     with open(path, "rb") as f:
         return f.read(8) == HDF5_SIGNATURE

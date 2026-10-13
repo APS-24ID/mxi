@@ -81,6 +81,19 @@ groups, joined in order, each row's experiment by its `id`. The earlier layouts
 the HANDOVER describes (its section 6), and DIALS's own HDF5 `.refl`, are not
 read: those, if wanted, come later and deliberately, through the converter.
 
+## Compression
+
+Numbers -- integers and floating point, datasets of 256 elements or more,
+chunked by rows -- are bitshuffle-LZ4, HDF5 filter 32008, in every file the
+programs write: 25 ms for 12 MB, where gzip on one thread had made the 16M
+sweep's chain half again as long. Measured on insulin: integers compress most,
+flags some 130-fold, shoebox masks 8, Miller indices 5; floating point that is
+counts, shoebox pixels 4.2 and the spot finder's zero backgrounds 150; floating
+point that is measured, positions and variances, 1.1 to 1.2. The spot finder's
+file 14.2 MB to 2.4, indexing's 16.5 to 4.1, integration's 9.0 to 6.7. A
+reader needs the filter: h5py with hdf5plugin (mxeq imports it), DIALS's HDF5.
+`mxi_convert --no-compress` writes no filter at all, for one without.
+
 ## The processing's summary
 
 A top-level `summary` group, in the experiment list's encoding:

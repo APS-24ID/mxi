@@ -3,6 +3,12 @@
 
 #include "rflx.hh"
 
+#ifdef MXI_HAVE_BITSHUFFLE
+extern "C" {
+#include "bshuf_h5filter.h"
+}
+#endif
+
 #include <hdf5.h>
 
 #include <algorithm>
@@ -29,6 +35,12 @@ namespace {
 // run in phases these do not.
 std::mutex &lock() {
   static std::mutex m;
+#ifdef MXI_HAVE_BITSHUFFLE
+  // bitshuffle-LZ4, HDF5 filter 32008, registered once: written for integer
+  // datasets, and read back the same way.
+  static const int registered = bshuf_register_h5filter();
+  (void)registered;
+#endif
   return m;
 }
 
@@ -206,7 +218,7 @@ std::size_t elements(const Shape &s) {
   return n;
 }
 
-hid_t creation(const std::vector<hsize_t> &dims);
+hid_t creation(const std::vector<hsize_t> &dims, hid_t type);
 
 // Writes a rectangular value, or a scalar, or null, under `name` in `parent`,
 // as dxtbx-h5's encoder decides: an attribute for 1 to 64 elements whose
@@ -259,7 +271,8 @@ void write_leaf(hid_t parent, const std::string &name, const json::Value &v,
                                 H5P_DEFAULT, H5P_DEFAULT),
                      "creating attribute " + name);
   else {
-    H dcpl(s.dims.empty() ? H5Pcreate(H5P_DATASET_CREATE) : creation(s.dims),
+    H dcpl(s.dims.empty() ? H5Pcreate(H5P_DATASET_CREATE)
+                          : creation(s.dims, type.id),
            H5Pclose);
     target = checked(H5Dcreate2(parent, name.c_str(), type.id, sp.id,
                                 H5P_DEFAULT, dcpl.id, H5P_DEFAULT),
@@ -681,11 +694,21 @@ hid_t native_for(const std::string &type) {
 // 54, and HDF5 uncompressed writes as fast as msgpack. mxi_convert compresses,
 // for files kept or sent (docs/rflx.md).
 bool g_compress = false;
+// No filters at all, not even bitshuffle-LZ4: for a reader without filter
+// 32008 (mxi_convert --no-compress).
+bool g_uncompressed = false;
 
-// A dataset's creation properties: when compressing, gzip at level 1 with the
-// shuffle filter for 256 elements or more, as dxtbx-h5 writes (HANDOVER 3.3),
-// chunked by rows; otherwise contiguous, HDF5's fastest to write and read.
-hid_t creation(const std::vector<hsize_t> &dims) {
+// A dataset's creation properties, for 256 elements or more, chunked by rows:
+// numbers bitshuffle-LZ4 always (HDF5 filter 32008, as DECTRIS and DIALS read
+// it) -- fast enough for every program's file, where gzip on one thread had
+// cost the 16M sweep's chain half again its time: 25 ms for 12 MB. Integers
+// compress most, flags 130-fold, masks 8, Miller indices 5; floating point
+// that is measured, positions and variances, hardly, 1.1 to 1.2; floating
+// point that is counts, shoebox pixels 4.2 and their zero backgrounds 150 --
+// the spot finder's file 14 MB to 3 (Graeme, October 2026). Anything else
+// gzip at level 1 with the shuffle filter when compressing (mxi_convert), as
+// dxtbx-h5 writes (HANDOVER 3.3); otherwise contiguous.
+hid_t creation(const std::vector<hsize_t> &dims, hid_t type) {
   std::size_t n = 1, row = 1;
   for (std::size_t k = 0; k < dims.size(); ++k) {
     n *= static_cast<std::size_t>(dims[k]);
@@ -693,12 +716,29 @@ hid_t creation(const std::vector<hsize_t> &dims) {
       row *= static_cast<std::size_t>(dims[k]);
   }
   const hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
-  if (g_compress && n >= 256) {
+  if (n < 256 || g_uncompressed)
+    return dcpl;
+  const auto chunked = [&]() {
     std::vector<hsize_t> chunk = dims;
     const std::size_t rows =
         std::max<std::size_t>(1, 65536 / std::max<std::size_t>(row, 1));
     chunk[0] = std::min<hsize_t>(dims[0], rows);
     H5Pset_chunk(dcpl, static_cast<int>(chunk.size()), chunk.data());
+  };
+#ifdef MXI_HAVE_BITSHUFFLE
+  const H5T_class_t kind = H5Tget_class(type);
+  if (kind == H5T_INTEGER || kind == H5T_FLOAT) {
+    chunked();
+    // Block size chosen by bitshuffle, LZ4 after the shuffle.
+    const unsigned options[2] = {0, BSHUF_H5_COMPRESS_LZ4};
+    H5Pset_filter(dcpl, BSHUF_H5FILTER, H5Z_FLAG_MANDATORY, 2, options);
+    return dcpl;
+  }
+#else
+  (void)type;
+#endif
+  if (g_compress) {
+    chunked();
     H5Pset_shuffle(dcpl);
     H5Pset_deflate(dcpl, 1);
   }
@@ -710,7 +750,7 @@ void write_dataset(hid_t group, const std::string &name,
                    hid_t memory_type, const void *data) {
   H space(H5Screate_simple(static_cast<int>(dims.size()), dims.data(), nullptr),
           H5Sclose);
-  H dcpl(creation(dims), H5Pclose);
+  H dcpl(creation(dims, file_type), H5Pclose);
   H d(checked(H5Dcreate2(group, name.c_str(), file_type, space.id, H5P_DEFAULT,
                          dcpl.id, H5P_DEFAULT),
               "creating column " + name),
@@ -1071,6 +1111,11 @@ std::vector<std::string> as_pair(const std::vector<std::string> &inputs) {
   if (inputs.size() == 1 && is_hdf5(inputs[0]))
     return {inputs[0], inputs[0]};
   return inputs;
+}
+
+void set_uncompressed(bool on) {
+  const std::lock_guard<std::mutex> guard(lock());
+  g_uncompressed = on;
 }
 
 std::optional<json::Value> read_summary(const std::string &path) {

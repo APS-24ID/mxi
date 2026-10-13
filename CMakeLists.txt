@@ -286,6 +286,9 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bitshuffle/LICENSE")
 else()
     message(STATUS "spotfinder: building")
     include(cmake/spots.cmake)
+    # The .rflx writer's bitshuffle-LZ4 for integer datasets (docs/rflx.md).
+    target_link_libraries(mxi PUBLIC bitshuffle)
+    target_compile_definitions(mxi PRIVATE MXI_HAVE_BITSHUFFLE)
 endif()
 
 # Profile fitting on a device, for mxi_integrate --gpu: CUDA's kernel where the

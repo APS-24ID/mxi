@@ -38,9 +38,9 @@ const char *kUsage =
     "                         rewritten\n"
     "  --output-expt PATH     from a .rflx, the .expt (its name as .expt)\n"
     "  --output-refl PATH     from a .rflx, the .refl (its name as .refl)\n"
-    "  --no-compress          a .rflx written uncompressed, as the programs\n"
-    "                         write theirs; by default gzip and shuffle, as\n"
-    "                         dxtbx-h5 writes, for a file kept or sent\n"
+    "  --no-compress          a .rflx with no filter at all, for a reader\n"
+    "                         without bitshuffle-LZ4 (HDF5 filter 32008),\n"
+    "                         which numbers are stored with otherwise\n"
     "  --drop-sweeps          the pair without each sweep's crystal-less\n"
     "                         experiment, its spots' id -1, as dials.index\n"
     "                         leaves unindexed spots; by default kept, as\n"
@@ -84,6 +84,7 @@ int main(int argc, char **argv) {
   }
   const std::string output = args.value("-o", args.value("--output", ""));
   const bool compress = !args.has("--no-compress");
+  rflx::set_uncompressed(!compress);
   try {
     std::vector<std::string> hdf5, other;
     for (const std::string &p : args.positional)

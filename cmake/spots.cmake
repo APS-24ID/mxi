@@ -207,17 +207,20 @@ if(NOT MSVC)
 endif()
 
 # bitshuffle has no CMake build of its own -- it is packaged for Python -- so the
-# four C files that make up the library are compiled here. bshuf_h5filter.c and
-# the plugin sources are deliberately left out: they need HDF5, and nothing here
-# goes through HDF5's filter pipeline.
+# C files that make up the library are compiled here. bshuf_h5filter.c with
+# them: the .rflx writer compresses its integer datasets with bitshuffle-LZ4,
+# HDF5 filter 32008, through HDF5's filter pipeline (docs/rflx.md). The plugin
+# sources, for loading the filter into another program's HDF5, are not needed.
 add_library(bitshuffle STATIC
     third_party/bitshuffle/src/bitshuffle.c
     third_party/bitshuffle/src/bitshuffle_core.c
     third_party/bitshuffle/src/iochain.c
+    third_party/bitshuffle/src/bshuf_h5filter.c
     third_party/bitshuffle/lz4/lz4.c)
 set_target_properties(bitshuffle PROPERTIES C_STANDARD 99)
 target_include_directories(bitshuffle SYSTEM PUBLIC
     third_party/bitshuffle/src third_party/bitshuffle/lz4)
+target_include_directories(bitshuffle SYSTEM PRIVATE ${HDF5_C_INCLUDE_DIRS})
 
 # bitshuffle chooses its SIMD path at compile time, from what the compiler says
 # the target has: __SSE2__, __AVX2__, or __ARM_NEON with __aarch64__. Two of those

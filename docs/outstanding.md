@@ -9,6 +9,20 @@ where something is missing.
 
 ## Integration
 
+* **61.** **correctness -- Strong reflections on a near-empty background.**
+    Graeme's four-sweep small-molecule set (P422, 6.85 6.85 6.92 A) merges far
+    worse than before: R merge 0.036 to 0.069, low resolution 0.028 to 0.074,
+    the error model a 0.93 b 0.042 to a 0.16 b 0.50 (at its bound). Not the
+    model's variances, the grid, neighbour masking or cosym (each set aside:
+    no change; cosym left every sweep h,k,l). Suspected: a pixel's least
+    variance in the fit, 0.05 to 0.001 counts in October -- with almost no
+    background a tail pixel's weight rises up to fifty-fold, and a reference
+    broader than the spot (item 2) pulls a strong fit about. On the two
+    crystals (0.02 counts a pixel) the fitted/summed ratio's spread for strong
+    reflections is 3 to 10 times wider at 0.001: 0.89 against 0.32 per cent
+    at 1000 to 10000 counts. `mxi_integrate --least-variance 0.05` (the CPU
+    fit's) to test it on his data.
+
 * **55.** **understood -- Summation 2 to 3 per cent below DIALS's on the two
     crystals**: the foreground's extent. A 3 sigma ellipsoid holds 97.1 per
     cent of a three-dimensional Gaussian, and mxi's sigma_b is some 6 per cent

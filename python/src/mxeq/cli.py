@@ -519,6 +519,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Regression runs have a parser of their own (mxeq.regress).
+    words = list(sys.argv[1:] if argv is None else argv)
+    if words[:1] == ["regress"]:
+        from . import regress
+
+        return regress.main(words[1:])
     # Reports are long by design and `mxeq check ... | head` is the normal way
     # to read one. Python's default SIGPIPE handling turns that into a
     # traceback on stderr; restoring the Unix default makes it do nothing,

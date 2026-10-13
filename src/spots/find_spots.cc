@@ -67,39 +67,68 @@ mxi::Summary &find_summary(const std::string &input = "") {
   return step;
 }
 
-// Spots by resolution, from the experiment's geometry, in ten shells of equal
-// reciprocal volume; and the ice rings, where the spots crowd one -- three
-// times the share a uniform spread puts in its band, and twenty spots or more.
+// Spots by resolution, from each sweep's own geometry: bins of equal width in
+// 1/d^2, as dials.report draws them -- shells of equal reciprocal volume put
+// nearly every strong spot in the first two (Graeme's 4 x 3600 images). This
+// sweep's in ten, printed; every sweep's so far in fifty, the summary's.
+// And the ice rings, where the spots crowd one -- three times the share a
+// uniform spread puts in its band, and twenty spots or more.
+struct Shells {
+  std::vector<double> d_max, d_min;
+  std::vector<std::size_t> count;
+};
+Shells shells_of(const std::vector<double> &dstar, std::size_t bins) {
+  Shells out;
+  double top = 0.0;
+  for (double x : dstar)
+    top = std::max(top, x * x);
+  if (!(top > 0.0))
+    return out;
+  out.count.assign(bins, 0);
+  for (double x : dstar)
+    ++out.count[std::min<std::size_t>(
+        bins - 1,
+        static_cast<std::size_t>(x * x / top * static_cast<double>(bins)))];
+  for (std::size_t k = 0; k < bins; ++k) {
+    const double lo = top * static_cast<double>(k) / static_cast<double>(bins),
+                 hi = top * static_cast<double>(k + 1) /
+                      static_cast<double>(bins);
+    out.d_max.push_back(lo > 0.0 ? 1.0 / std::sqrt(lo) : 0.0);
+    out.d_min.push_back(1.0 / std::sqrt(hi));
+  }
+  return out;
+}
+
 void report_resolution(const std::vector<double> &dstar) {
   if (dstar.size() < 10)
     return;
+  static std::vector<double> every; // every sweep's, so far
+  every.insert(every.end(), dstar.begin(), dstar.end());
+  const Shells mine = shells_of(dstar, 10);
+  std::printf("Spots by resolution\n  %8s %8s %8s\n", "d max", "d min",
+              "spots");
+  for (std::size_t k = 0; k < mine.count.size(); ++k) {
+    if (mine.d_max[k] > 0.0)
+      std::printf("  %8.2f %8.2f %8zu\n", mine.d_max[k], mine.d_min[k],
+                  mine.count[k]);
+    else
+      std::printf("  %8s %8.2f %8zu\n", "inf", mine.d_min[k], mine.count[k]);
+  }
+  std::printf("\n");
+  const Shells all = shells_of(every, 50);
+  std::vector<mxi::json::Value> c_max, c_min, c_n;
+  for (std::size_t k = 0; k < all.count.size(); ++k) {
+    c_max.push_back(mxi::json::Value(all.d_max[k]));
+    c_min.push_back(mxi::json::Value(all.d_min[k]));
+    c_n.push_back(mxi::json::Value(static_cast<long>(all.count[k])));
+  }
+  find_summary().table("spots_by_resolution", {"d_max", "d_min", "spots"},
+                       {c_max, c_min, c_n});
   const auto [lo_it, hi_it] = std::minmax_element(dstar.begin(), dstar.end());
   const double lo = *lo_it, hi = *hi_it;
   const double v_lo = lo * lo * lo, v_hi = hi * hi * hi;
   if (!(v_hi > v_lo))
     return;
-  std::vector<std::size_t> shell(10, 0);
-  for (double d : dstar) {
-    const double f = (d * d * d - v_lo) / (v_hi - v_lo);
-    ++shell[std::min<std::size_t>(9, static_cast<std::size_t>(f * 10.0))];
-  }
-  std::printf("Spots by resolution\n  %8s %8s %8s\n", "d max", "d min",
-              "spots");
-  std::vector<mxi::json::Value> c_max, c_min, c_n;
-  for (std::size_t k = 0; k < 10; ++k) {
-    const double a =
-        std::cbrt(v_lo + (v_hi - v_lo) * static_cast<double>(k) / 10.0);
-    const double b =
-        std::cbrt(v_lo + (v_hi - v_lo) * static_cast<double>(k + 1) / 10.0);
-    const double d_max = a > 0.0 ? 1.0 / a : 0.0, d_min = 1.0 / b;
-    std::printf("  %8.2f %8.2f %8zu\n", d_max, d_min, shell[k]);
-    c_max.push_back(mxi::json::Value(d_max));
-    c_min.push_back(mxi::json::Value(d_min));
-    c_n.push_back(mxi::json::Value(static_cast<long>(shell[k])));
-  }
-  std::printf("\n");
-  find_summary().table("spots_by_resolution", {"d_max", "d_min", "spots"},
-                       {c_max, c_min, c_n});
   // Hexagonal ice, as dials.find_spots' powder-ring filter has them; a band
   // of 0.004 in d*^2 about each.
   static const double ice[] = {3.897, 3.669, 3.441, 2.671, 2.249,
@@ -1186,19 +1215,23 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
       for (const std::string &line : spots::spot_histogram(per_image, first))
         std::fprintf(stdout, "%s\n", line.c_str());
       std::fprintf(stdout, "\n");
+      // Each sweep's, a list a sweep: the summary keeps them all.
+      static mxi::json::Array per_sweep, firsts;
       mxi::json::Array each;
       for (std::size_t n : per_image)
         each.push_back(mxi::json::Value(static_cast<long>(n)));
-      find_summary().set("first_image", mxi::json::Value(first));
-      find_summary().set("spots_per_image", mxi::json::Value(std::move(each)));
+      per_sweep.push_back(mxi::json::Value(std::move(each)));
+      firsts.push_back(mxi::json::Value(first));
+      find_summary().set("first_image", mxi::json::Value(firsts));
+      find_summary().set("spots_per_image", mxi::json::Value(per_sweep));
     }
     // By resolution, if the experiment's geometry can be read in full.
     if (!options.experiments.empty()) {
       try {
         const mxi::ExperimentList list =
             mxi::read_experiments(options.experiments);
-        if (!list.empty() && list[0].detector.size() > 0) {
-          const mxi::Experiment &e = list[0];
+        if (index < list.size() && list[index].detector.size() > 0) {
+          const mxi::Experiment &e = list[index];
           const mxi::Vec3 s0 = e.beam.s0();
           std::vector<double> dstar;
           dstar.reserve(labeller.spots().size());

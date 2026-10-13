@@ -178,9 +178,14 @@ std::string unentity(std::string s) {
 // A plotly figure.
 class Figures {
 public:
+  //: `y_span`: the least the y axis shows, centred on the data -- a cell
+  //: constant over the scan is a flat line, not its rounding drawn large
+  //: (Graeme: the angles, all 90.000, looked wild). `x_axis`: more of the x
+  //: axis's layout, ticks for one.
   std::string plot(const std::string &title, const std::string &x_title,
                    const std::string &y_title, const json::Array &traces,
-                   bool reverse_x = false) {
+                   bool reverse_x = false, double y_span = 0.0,
+                   const json::Object &x_axis = {}) {
     const std::string id = "plot" + std::to_string(++count_);
     json::Object layout;
     layout["title"] = json::Value(unentity(title));
@@ -188,7 +193,24 @@ public:
     x["title"] = json::Value(unentity(x_title));
     if (reverse_x)
       x["autorange"] = json::Value(std::string("reversed"));
+    for (const auto &[k, v] : x_axis)
+      x[k] = v;
     y["title"] = json::Value(unentity(y_title));
+    if (y_span > 0.0) {
+      double lo = HUGE_VAL, hi = -HUGE_VAL;
+      for (const json::Value &t : traces)
+        if (t["y"].is_array())
+          for (const json::Value &v : t["y"].as_array())
+            if (v.is_number()) {
+              lo = std::min(lo, v.as_number());
+              hi = std::max(hi, v.as_number());
+            }
+      if (hi >= lo && hi - lo < y_span) {
+        const double mid = 0.5 * (hi + lo);
+        y["range"] = json::Value(json::Array{json::Value(mid - 0.5 * y_span),
+                                             json::Value(mid + 0.5 * y_span)});
+      }
+    }
     layout["xaxis"] = json::Value(std::move(x));
     layout["yaxis"] = json::Value(std::move(y));
     layout["margin"] = json::Value(json::Object{{"t", json::Value(40L)}});
@@ -263,20 +285,58 @@ std::string cell_text(const json::Value &cell, const json::Value &esd) {
 
 std::string section_find(const json::Value &s, Figures &f) {
   std::ostringstream o;
-  if (s["spots_per_image"].is_array()) {
-    const json::Array &n = s["spots_per_image"].as_array();
-    const long first = s["first_image"].is_number()
-                           ? static_cast<long>(s["first_image"].as_number())
-                           : 1;
-    o << f.plot("Spots per image", "image", "spots",
-                {trace(counting(n.size(), first), n, "spots", "lines")});
+  // Spots per image: a list a sweep, or, written before October's 13th, one.
+  const json::Value &per = s["spots_per_image"];
+  if (per.is_array() && !per.as_array().empty()) {
+    json::Array traces;
+    const json::Array &list = per.as_array();
+    const bool several = list.front().is_array();
+    const std::size_t n = several ? list.size() : 1;
+    for (std::size_t k = 0; k < n; ++k) {
+      const json::Array counts = several ? list[k].as_array() : list;
+      const json::Value &firsts = s["first_image"];
+      const long first =
+          firsts.is_array() && k < firsts.as_array().size()
+              ? static_cast<long>(firsts.as_array()[k].as_number())
+              : (firsts.is_number() ? static_cast<long>(firsts.as_number())
+                                    : 1);
+      traces.push_back(trace(counting(counts.size(), first), counts,
+                             n > 1 ? "sweep " + std::to_string(k) : "spots",
+                             "lines"));
+    }
+    o << f.plot("Spots per image", "image", "spots", traces);
   }
+  // By resolution: drawn against 1/d^2, its ticks labelled in d.
   const json::Value &r = s["spots_by_resolution"];
-  if (is_table(r))
-    o << f.plot("Spots by resolution", "d<sub>min</sub> (&Aring;)", "spots",
-                {trace(column(r, "d_min"), column(r, "spots"), "spots",
-                       "markers", "bar")},
-                true);
+  if (is_table(r)) {
+    const json::Array dmax = column(r, "d_max"), dmin = column(r, "d_min"),
+                      n = column(r, "spots");
+    json::Array x;
+    double top = 0.0;
+    for (std::size_t k = 0; k < dmin.size(); ++k) {
+      const double a = dmax[k].as_number() > 0.0
+                           ? 1.0 / (dmax[k].as_number() * dmax[k].as_number())
+                           : 0.0;
+      const double b = 1.0 / (dmin[k].as_number() * dmin[k].as_number());
+      x.push_back(json::Value(0.5 * (a + b)));
+      top = std::max(top, b);
+    }
+    json::Array ticks, labels;
+    for (double d : {10.0, 5.0, 4.0, 3.0, 2.5, 2.0, 1.8, 1.6, 1.5, 1.4, 1.3,
+                     1.2, 1.1, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5})
+      if (1.0 / (d * d) <= top) {
+        ticks.push_back(json::Value(1.0 / (d * d)));
+        char text[16];
+        std::snprintf(text, sizeof text, "%g", d);
+        labels.push_back(json::Value(std::string(text)));
+      }
+    json::Object axis;
+    axis["tickvals"] = json::Value(ticks);
+    axis["ticktext"] = json::Value(labels);
+    o << f.plot("Spots by resolution",
+                "d (&Aring;), on a scale of 1/d<sup>2</sup>", "spots",
+                {trace(x, n, "spots", "markers", "bar")}, false, 0.0, axis);
+  }
   return o.str();
 }
 
@@ -372,8 +432,9 @@ std::string section_refine(const json::Value &s, Figures &f,
     }
     if (!lengths.empty()) {
       o << f.plot("The cell over the scan: lengths", "image", "&Aring;",
-                  lengths);
-      o << f.plot("The cell over the scan: angles", "image", "degrees", angles);
+                  lengths, false, 0.01);
+      o << f.plot("The cell over the scan: angles", "image", "degrees", angles,
+                  false, 0.1);
     }
   }
   return o.str();

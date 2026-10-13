@@ -139,9 +139,28 @@ std::optional<IntegrationSummary> summarise_table(const Table &t) {
 // A joined run's processing summary: the input's steps, then integration's
 // over every sweep's reflections together, its tables printed as well.
 json::Value joined_summary(const std::string &input, const Table &joined,
-                           std::size_t runs) {
+                           const std::vector<Table> &runs_tables) {
+  const std::size_t runs = runs_tables.size();
   Summary step("mxi_integrate", input);
   step.set("runs", json::Value(static_cast<long>(runs)));
+  // Each sweep's own summaries, as its run printed them, beside all
+  // together's (Graeme: four runs, one graph).
+  {
+    json::Array each;
+    for (std::size_t k = 0; k < runs; ++k) {
+      if (const auto s = summarise_table(runs_tables[k])) {
+        Summary one("", "");
+        add_integration_tables(one, *s);
+        json::Value doc = one.document();
+        json::Object own = Summary::steps(doc).back().as_object();
+        own.erase("program");
+        own.erase("time");
+        own["sweep"] = json::Value(static_cast<long>(k));
+        each.push_back(json::Value(std::move(own)));
+      }
+    }
+    step.set("each_sweep", json::Value(std::move(each)));
+  }
   step.set("reflections", json::Value(static_cast<long>(joined.nrows)));
   if (const auto s = summarise_table(joined)) {
     std::printf("\n=== All %zu together ===\n", runs);
@@ -671,7 +690,7 @@ int integrate_sweeps(const Arguments &args, const char *program,
         joined.identifiers[i] = ident.as_string();
     }
     const json::Value joined_document =
-        joined_summary(args.positional[0], joined, tables.size());
+        joined_summary(args.positional[0], joined, tables);
     rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_integrate",
                         &joined_document);
     tidy();
@@ -891,7 +910,7 @@ int integrate_several(const Arguments &args, const char *program,
     }
     const Table joined = concat_rows_with_shoeboxes(tables);
     const json::Value joined_document =
-        joined_summary(args.positional[0], joined, tables.size());
+        joined_summary(args.positional[0], joined, tables);
     rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_integrate",
                         &joined_document);
     tidy();

@@ -322,38 +322,6 @@ int run_program(int argc, char **argv) {
         std::printf("; relative B %.3f to %.3f A^2", bmin, bmax);
       std::printf("\n");
     }
-    // The scale by image: each tenth of each sweep's rotation, the mean
-    // inverse scale over its observations -- decay, or a beam's drop, at a
-    // glance.
-    std::vector<std::vector<double>> by_tenth(run.model.sweeps(),
-                                              std::vector<double>(10, 0.0));
-    {
-      std::vector<std::vector<std::size_t>> count(
-          run.model.sweeps(), std::vector<std::size_t>(10, 0));
-      for (std::size_t i = 0; i < data.size(); ++i) {
-        const ScaleObservation &o = data.observation[i];
-        if (o.sweep >= by_tenth.size())
-          continue;
-        const std::size_t t = std::min<std::size_t>(
-            9, static_cast<std::size_t>(std::fmax(0.0, o.rotation) * 10.0));
-        by_tenth[o.sweep][t] += run.g[i];
-        ++count[o.sweep][t];
-      }
-      for (std::size_t w = 0; w < by_tenth.size(); ++w) {
-        std::printf("  scale by image, a tenth of the scan each%s:",
-                    by_tenth.size() > 1
-                        ? (" (experiment " + std::to_string(w) + ")").c_str()
-                        : "");
-        for (std::size_t t = 0; t < 10; ++t) {
-          by_tenth[w][t] =
-              count[w][t] > 0
-                  ? by_tenth[w][t] / static_cast<double>(count[w][t])
-                  : 0.0;
-          std::printf(" %.3f", by_tenth[w][t]);
-        }
-        std::printf("\n");
-      }
-    }
     if (run.i_mid == 0.0)
       std::printf("Intensities: profile fitted\n");
     else if (std::isinf(run.i_mid))
@@ -531,14 +499,7 @@ int run_program(int argc, char **argv) {
       if (res.d_min_significance > 0.0)
         summary.set("resolution_cc_half_significance",
                     json::Value(res.d_min_significance));
-      json::Array scale_rows;
-      for (const std::vector<double> &w : by_tenth) {
-        json::Array a;
-        for (double v : w)
-          a.push_back(json::Value(v));
-        scale_rows.push_back(json::Value(std::move(a)));
-      }
-      summary.set("scale_by_tenth_of_scan", json::Value(std::move(scale_rows)));
+
       const auto shells_table =
           [&](const std::vector<const MergingShell *> &rows,
               const std::vector<std::string> &labels) {

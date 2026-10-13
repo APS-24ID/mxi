@@ -342,6 +342,10 @@ int run_program(int argc, char **argv) {
     // over the scan -- the check the tutorial makes in dials.report.
     const std::vector<std::array<double, 6>> &esd = two.static_pass.cell_esd;
     std::vector<json::Value> t_exp, t_cell, t_esd, t_lo, t_hi, t_turn;
+    // Each crystal's cell at every scan point, as refinement left it: the
+    // report draws these, not the file's later crystals, which symmetry
+    // constrains (Graeme: a cubic cell's angles all 90.000 by then).
+    json::Array over_scan;
     for (std::size_t i = 0; i < experiments.size(); ++i) {
       if (!experiments[i].crystal)
         continue;
@@ -368,10 +372,21 @@ int run_program(int argc, char **argv) {
         std::array<double, 6> lo, hi;
         lo.fill(HUGE_VAL);
         hi.fill(-HUGE_VAL);
-        for (const Mat3 &A : x.A_points) {
+        json::Array s_image, s_a, s_b, s_c, s_alpha, s_beta, s_gamma;
+        for (std::size_t point = 0; point < x.A_points.size(); ++point) {
+          const Mat3 &A = x.A_points[point];
           Crystal at = x;
           at.A = A;
           const UnitCell p = at.cell();
+          s_image.push_back(
+              json::Value(static_cast<double>(experiments[i].scan.first_image) +
+                          static_cast<double>(point) - 0.5));
+          s_a.push_back(json::Value(p.a));
+          s_b.push_back(json::Value(p.b));
+          s_c.push_back(json::Value(p.c));
+          s_alpha.push_back(json::Value(p.alpha));
+          s_beta.push_back(json::Value(p.beta));
+          s_gamma.push_back(json::Value(p.gamma));
           const std::array<double, 6> q = {p.a,     p.b,    p.c,
                                            p.alpha, p.beta, p.gamma};
           for (std::size_t k = 0; k < 6; ++k) {
@@ -379,6 +394,16 @@ int run_program(int argc, char **argv) {
             hi[k] = std::max(hi[k], q[k]);
           }
         }
+        json::Object scan_cell;
+        scan_cell["experiment"] = json::Value(static_cast<long>(i));
+        scan_cell["image"] = json::Value(std::move(s_image));
+        scan_cell["a"] = json::Value(std::move(s_a));
+        scan_cell["b"] = json::Value(std::move(s_b));
+        scan_cell["c"] = json::Value(std::move(s_c));
+        scan_cell["alpha"] = json::Value(std::move(s_alpha));
+        scan_cell["beta"] = json::Value(std::move(s_beta));
+        scan_cell["gamma"] = json::Value(std::move(s_gamma));
+        over_scan.push_back(json::Value(std::move(scan_cell)));
         // The orientation: A = U B, B the Cholesky factor of A^T A, so U =
         // A B^-1; the turn from the first scan point's U to the last's.
         const auto orientation = [](const Mat3 &A) {
@@ -446,6 +471,8 @@ int run_program(int argc, char **argv) {
                                         json::Value(result.rmsd_y),
                                         json::Value(result.rmsd_z)}));
     summary.set("scan_varying", json::Value(two.varied ? 1L : 0L));
+    if (!over_scan.empty())
+      summary.set("cell_over_scan", json::Value(std::move(over_scan)));
     summary.table("crystals",
                   {"experiment", "cell", "cell_esd", "scan_min", "scan_max",
                    "orientation_turn_deg"},

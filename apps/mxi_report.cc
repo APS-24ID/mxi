@@ -293,13 +293,17 @@ std::string cell_text(const json::Value &cell, const json::Value &esd) {
 
 std::string section_find(const json::Value &s, Figures &f) {
   std::ostringstream o;
-  // Spots per image: a list a sweep, or, written before October's 13th, one.
+  if (is_table(s["each_sweep"]))
+    o << "<h4>Each sweep</h4>" << html_table(s["each_sweep"]);
+  // Spots per image, a plot a sweep, two to a row (Graeme: four lines on one
+  // plot read as none). A single list, as files before October's 13th have,
+  // a plot alone.
   const json::Value &per = s["spots_per_image"];
   if (per.is_array() && !per.as_array().empty()) {
-    json::Array traces;
     const json::Array &list = per.as_array();
     const bool several = list.front().is_array();
     const std::size_t n = several ? list.size() : 1;
+    o << "<div class=\"pair\">";
     for (std::size_t k = 0; k < n; ++k) {
       const json::Array counts = several ? list[k].as_array() : list;
       const json::Value &firsts = s["first_image"];
@@ -308,14 +312,14 @@ std::string section_find(const json::Value &s, Figures &f) {
               ? static_cast<long>(firsts.as_array()[k].as_number())
               : (firsts.is_number() ? static_cast<long>(firsts.as_number())
                                     : 1);
-      traces.push_back(trace(counting(counts.size(), first), counts,
-                             n > 1 ? "sweep " + std::to_string(k) : "spots",
-                             "lines"));
+      o << f.plot(
+          n > 1 ? "Spots per image, sweep " + std::to_string(k)
+                : std::string("Spots per image"),
+          "image", "spots",
+          {trace(counting(counts.size(), first), counts, "spots", "lines")});
     }
-    o << f.plot("Spots per image", "image", "spots", traces);
+    o << "</div>";
   }
-  if (is_table(s["each_sweep"]))
-    o << "<h4>Each sweep</h4>" << html_table(s["each_sweep"]);
   // By resolution: drawn against 1/d^2, its ticks labelled in d.
   const json::Value &r = s["spots_by_resolution"];
   if (is_table(r)) {
@@ -343,7 +347,7 @@ std::string section_find(const json::Value &s, Figures &f) {
     json::Object axis;
     axis["tickvals"] = json::Value(ticks);
     axis["ticktext"] = json::Value(labels);
-    o << f.plot("Spots by resolution",
+    o << f.plot("Spots by resolution, every sweep",
                 "d (&Aring;), on a scale of 1/d<sup>2</sup>", "spots",
                 {trace(x, n, "spots", "markers", "bar")}, false, 0.0, axis);
   }
@@ -410,42 +414,60 @@ std::string section_refine(const json::Value &s, Figures &f,
                  trace(x, column(k, "rmsd_y_px"), "y (px)"),
                  trace(x, column(k, "rmsd_z_images"), "z (images)")});
   }
-  // The cell over the scan, each scan-varying crystal's.
-  if (list) {
-    json::Array lengths, angles;
+  // The cell over the scan, a crystal at a time, lengths beside angles: as
+  // refinement left it, which its step records -- the file's own crystals
+  // have since been constrained by symmetry, a cubic cell's angles 90.000.
+  // Files written before October's 13th have only the file's.
+  struct Series {
+    std::string tag;
+    json::Array x, a, b, c, alpha, beta, gamma;
+  };
+  std::vector<Series> series;
+  const json::Value &over = s["cell_over_scan"];
+  if (over.is_array()) {
+    for (const json::Value &one : over.as_array())
+      series.push_back(
+          {"experiment " + text_of(one["experiment"]), column(one, "image"),
+           column(one, "a"), column(one, "b"), column(one, "c"),
+           column(one, "alpha"), column(one, "beta"), column(one, "gamma")});
+  } else if (list) {
     for (std::size_t i = 0; i < list->size(); ++i) {
       const Experiment &e = (*list)[i];
       if (!e.crystal || e.crystal->A_points.size() < 2)
         continue;
-      json::Array x, a, b, cc, al, be, ga;
+      Series one;
+      one.tag = "experiment " + std::to_string(i) + ", as the file has it";
       for (std::size_t p = 0; p < e.crystal->A_points.size(); ++p) {
         Crystal at = *e.crystal;
         at.A = e.crystal->A_points[p];
         const UnitCell u = at.cell();
-        x.push_back(json::Value(static_cast<double>(e.scan.first_image) +
-                                static_cast<double>(p) - 0.5));
-        a.push_back(json::Value(u.a));
-        b.push_back(json::Value(u.b));
-        cc.push_back(json::Value(u.c));
-        al.push_back(json::Value(u.alpha));
-        be.push_back(json::Value(u.beta));
-        ga.push_back(json::Value(u.gamma));
+        one.x.push_back(json::Value(static_cast<double>(e.scan.first_image) +
+                                    static_cast<double>(p) - 0.5));
+        one.a.push_back(json::Value(u.a));
+        one.b.push_back(json::Value(u.b));
+        one.c.push_back(json::Value(u.c));
+        one.alpha.push_back(json::Value(u.alpha));
+        one.beta.push_back(json::Value(u.beta));
+        one.gamma.push_back(json::Value(u.gamma));
       }
-      const std::string tag =
-          list->size() > 1 ? " [" + std::to_string(i) + "]" : "";
-      lengths.push_back(trace(x, a, "a" + tag, "lines"));
-      lengths.push_back(trace(x, b, "b" + tag, "lines"));
-      lengths.push_back(trace(x, cc, "c" + tag, "lines"));
-      angles.push_back(trace(x, al, "&alpha;" + tag, "lines"));
-      angles.push_back(trace(x, be, "&beta;" + tag, "lines"));
-      angles.push_back(trace(x, ga, "&gamma;" + tag, "lines"));
+      series.push_back(std::move(one));
     }
-    if (!lengths.empty()) {
-      o << f.plot("The cell over the scan: lengths", "image", "&Aring;",
-                  lengths, false, 0.01);
-      o << f.plot("The cell over the scan: angles", "image", "degrees", angles,
+  }
+  if (!series.empty()) {
+    o << "<h4>The cell over the scan</h4><div class=\"pair\">";
+    for (const Series &one : series) {
+      o << f.plot("Cell lengths, " + one.tag, "image", "&Aring;",
+                  {trace(one.x, one.a, "a", "lines"),
+                   trace(one.x, one.b, "b", "lines"),
+                   trace(one.x, one.c, "c", "lines")},
+                  false, 0.01);
+      o << f.plot("Cell angles, " + one.tag, "image", "degrees",
+                  {trace(one.x, one.alpha, "&alpha;", "lines"),
+                   trace(one.x, one.beta, "&beta;", "lines"),
+                   trace(one.x, one.gamma, "&gamma;", "lines")},
                   false, 0.1);
     }
+    o << "</div>";
   }
   return o.str();
 }
@@ -455,22 +477,32 @@ std::string section_integrate(const json::Value &s, Figures &f) {
   const json::Value &p = s["profile_model"];
   if (is_table(p))
     o << "<h4>Profile model</h4>" << html_table(p);
-  const json::Value &r = s["by_resolution"];
-  // Each sweep's, integrated a run each and joined: a line each beside all
-  // together, and each one's overall row.
+  // Two plots of one summary by resolution: <I/sigma> fitted and summed;
+  // profile correlation and background.
+  const auto pair_of = [&](const json::Value &r, const std::string &whose) {
+    const json::Array d = column(r, "d_min");
+    std::string out;
+    out += f.plot("&lang;I/&sigma;&rang; by resolution" + whose,
+                  "d<sub>min</sub> (&Aring;)", "&lang;I/&sigma;&rang;",
+                  {trace(d, column(r, "isigma_prf"), "profile fitted"),
+                   trace(d, column(r, "isigma_sum"), "summed")},
+                  true);
+    out += f.plot("Profile correlation and background" + whose,
+                  "d<sub>min</sub> (&Aring;)", "",
+                  {trace(d, column(r, "cc_prf"), "profile CC"),
+                   trace(d, column(r, "ibg"), "background (counts/px)")},
+                  true);
+    return out;
+  };
+  // Each sweep's own, a run each and joined (Graeme: four runs, one plot):
+  // its two plots and its overall row; then all together.
   const json::Value &each = s["each_sweep"];
-  if (each.is_array() && !each.as_array().empty() && is_table(r)) {
-    json::Array traces;
-    traces.push_back(
-        trace(column(r, "d_min"), column(r, "isigma_prf"), "all together"));
+  if (each.is_array() && !each.as_array().empty()) {
+    o << "<div class=\"pair\">";
     for (const json::Value &sw : each.as_array())
       if (is_table(sw["by_resolution"]))
-        traces.push_back(trace(column(sw["by_resolution"], "d_min"),
-                               column(sw["by_resolution"], "isigma_prf"),
-                               "sweep " + text_of(sw["sweep"])));
-    o << f.plot("&lang;I/&sigma;&rang; fitted by resolution, each sweep",
-                "d<sub>min</sub> (&Aring;)", "&lang;I/&sigma;&rang;", traces,
-                true);
+        o << pair_of(sw["by_resolution"], ", sweep " + text_of(sw["sweep"]));
+    o << "</div>";
     const json::Value &first = each.as_array().front()["overall"];
     if (is_table(first)) {
       o << "<h4>Each sweep, overall</h4><table><thead><tr><th>sweep</th>";
@@ -491,19 +523,13 @@ std::string section_integrate(const json::Value &s, Figures &f) {
       o << "</tbody></table>";
     }
   }
+  const json::Value &r = s["by_resolution"];
   if (is_table(r)) {
-    const json::Array d = column(r, "d_min");
-    o << f.plot("&lang;I/&sigma;&rang; by resolution",
-                "d<sub>min</sub> (&Aring;)", "&lang;I/&sigma;&rang;",
-                {trace(d, column(r, "isigma_prf"), "profile fitted"),
-                 trace(d, column(r, "isigma_sum"), "summed")},
-                true);
-    o << f.plot("Profile correlation and background by resolution",
-                "d<sub>min</sub> (&Aring;)", "",
-                {trace(d, column(r, "cc_prf"), "profile CC"),
-                 trace(d, column(r, "ibg"), "background (counts/px)")},
-                true);
-    o << "<h4>By resolution</h4>" << html_table(r);
+    const bool several = each.is_array() && !each.as_array().empty();
+    o << "<div class=\"pair\">" << pair_of(r, several ? ", every sweep" : "")
+      << "</div>";
+    o << "<h4>By resolution" << (several ? ", every sweep" : "") << "</h4>"
+      << html_table(r);
   }
   if (is_table(s["overall"]))
     o << "<h4>Overall</h4>" << html_table(s["overall"]);
@@ -627,7 +653,10 @@ std::string section_scale(const json::Value &s, Figures &f,
         if (static_cast<std::size_t>(id.integer(r)) != e ||
             ((flags.integer(r) >> 26) & 1) == 0 || !(V.reals[r] > 0.0))
           continue;
-        const double frame = z.reals[r * 3 + 2];
+        // Images into the sweep: z counts from the scan's first image less one,
+        // not from zero -- a sweep starting at image 151 had fallen into one
+        // block.
+        const double frame = z.reals[r * 3 + 2] - (first - 1.0);
         const std::size_t b = std::min<std::size_t>(
             blocks - 1,
             static_cast<std::size_t>(std::fmax(0.0, frame) / n * blocks));
@@ -722,7 +751,7 @@ int run_program(int argc, char **argv) {
     const std::vector<json::Value> steps = Summary::steps(*summary);
     Figures figures;
     std::ostringstream body;
-    body << "<h1>mxi processing report</h1><p>" << escape(input) << "</p>";
+    body << "<h1>mxi processing report: " << escape(input) << "</h1>";
     // How the data were processed: the steps in order.
     body << "<h2>The processing</h2><table><thead><tr><th>step</th>"
             "<th>program</th><th>when</th></tr></thead><tbody>";

@@ -15,10 +15,12 @@
 #include <vector>
 
 #include "args.hh"
+#include "derivatives.hh"
 #include "expt.hh"
 #include "processing.hh"
 #include "refl.hh"
 #include "rflx.hh"
+#include "scale_model.hh"
 #include "symmetry.hh"
 
 namespace mxi {
@@ -327,7 +329,33 @@ std::string cell_text(const json::Value &cell, const json::Value &esd) {
 
 // --- The steps -------------------------------------------------------------
 
-std::string section_find(const json::Value &s, Figures &f) {
+// Images to a degree of rotation, at least one: plots along a scan have a
+// point a degree (Graeme: fifty blocks a sweep drew nothing on 3600 degrees).
+std::size_t images_per_degree(double width) {
+  const double w = std::fabs(width);
+  return w > 0.0 ? std::max<std::size_t>(
+                       1, static_cast<std::size_t>(std::lround(1.0 / w)))
+                 : 1;
+}
+
+// Means of consecutive runs of `k` values, at their middle image.
+std::pair<json::Array, json::Array> per_run(const json::Array &values,
+                                            long first, std::size_t k) {
+  json::Array xs, ys;
+  for (std::size_t i = 0; i < values.size(); i += k) {
+    const std::size_t to = std::min(values.size(), i + k);
+    double sum = 0.0;
+    for (std::size_t j = i; j < to; ++j)
+      sum += values[j].as_number();
+    xs.push_back(json::Value(static_cast<double>(first) +
+                             0.5 * static_cast<double>(i + to - 1)));
+    ys.push_back(json::Value(sum / static_cast<double>(to - i)));
+  }
+  return {xs, ys};
+}
+
+std::string section_find(const json::Value &s, Figures &f,
+                         const ExperimentList *experiments) {
   std::ostringstream o;
   if (is_table(s["each_sweep"]))
     o << "<h4>Each sweep</h4>" << html_table(s["each_sweep"]);
@@ -348,11 +376,18 @@ std::string section_find(const json::Value &s, Figures &f) {
               ? static_cast<long>(firsts.as_array()[k].as_number())
               : (firsts.is_number() ? static_cast<long>(firsts.as_number())
                                     : 1);
-      o << f.plot(
-          n > 1 ? "Spots per image, sweep " + std::to_string(k)
-                : std::string("Spots per image"),
-          "image", "spots",
-          {trace(counting(counts.size(), first), counts, "spots", "lines")});
+      o << f.plot(n > 1 ? "Spots per image, sweep " + std::to_string(k)
+                        : std::string("Spots per image"),
+                  "image", "spots", [&] {
+                    // A point a degree: each degree's images' mean.
+                    const std::size_t k =
+                        images_per_degree(experiments && !experiments->empty()
+                                              ? (*experiments)[0].scan.osc_width
+                                              : 0.0);
+                    const auto [xs, ys] = per_run(counts, first, k);
+                    return json::Array{
+                        trace(xs, ys, "spots, a degree's mean", "lines")};
+                  }());
     }
     o << "</div>";
   }
@@ -488,6 +523,24 @@ std::string section_refine(const json::Value &s, Figures &f,
       }
       series.push_back(std::move(one));
     }
+  }
+  // A point a degree: every k-th scan point, and the last.
+  {
+    const std::size_t k = images_per_degree(
+        list && !list->empty() ? (*list)[0].scan.osc_width : 0.0);
+    if (k > 1)
+      for (Series &one : series) {
+        json::Array *columns[] = {&one.x,     &one.a,    &one.b,    &one.c,
+                                  &one.alpha, &one.beta, &one.gamma};
+        for (json::Array *c : columns) {
+          json::Array kept;
+          for (std::size_t m = 0; m < c->size(); m += k)
+            kept.push_back((*c)[m]);
+          if (!c->empty() && (c->size() - 1) % k != 0)
+            kept.push_back(c->back());
+          *c = std::move(kept);
+        }
+      }
   }
   if (!series.empty()) {
     o << "<h4>The cell over the scan</h4><div class=\"pair\">";
@@ -629,7 +682,8 @@ std::string merging_summary(const json::Value &t) {
 }
 
 std::string section_scale(const json::Value &s, Figures &f,
-                          const ExperimentList *list, const Table *table) {
+                          const ExperimentList *list, const Table *table,
+                          const json::Value *doc) {
   std::ostringstream o;
   if (is_table(s["merging_summary"]))
     o << merging_summary(s["merging_summary"]);
@@ -714,8 +768,103 @@ std::string section_scale(const json::Value &s, Figures &f,
                : "The sigmas' calibration by intensity")
       << "</h4>" << html_table(t);
   }
-  // By image, from the reflections: each sweep's mean scale and <I/sigma>
-  // over fifty blocks of its images.
+  // The scale model mxi_scale stored (mxi_physical): C and B over each
+  // sweep, a point a degree, and the absorption surface a lattice.
+  if (doc && list && (*doc)["scaling_model"].is_array() &&
+      (*doc)["experiment"].is_array()) {
+    const json::Array &models = (*doc)["scaling_model"].as_array();
+    const json::Array &exps = (*doc)["experiment"].as_array();
+    json::Array c_traces, b_traces;
+    std::vector<std::pair<std::string, const json::Value *>> surfaces;
+    const auto spline = [](const json::Array &p, double t) {
+      const SplineWeights w = spline_weights(p.size(), t);
+      double v = 0.0;
+      for (std::size_t j = 0; j < w.count; ++j)
+        v += w.weight[j] * p[w.index[j]].as_number();
+      return v;
+    };
+    for (std::size_t e = 0; e < exps.size() && e < list->size(); ++e) {
+      if (!exps[e]["scaling_model"].is_number())
+        continue;
+      const auto mi =
+          static_cast<std::size_t>(exps[e]["scaling_model"].as_number());
+      if (mi >= models.size())
+        continue;
+      const json::Value &m = models[mi];
+      if (!m["__id__"].is_string() || m["__id__"].as_string() != "mxi_physical")
+        continue;
+      const Scan &scan = (*list)[e].scan;
+      const auto n = static_cast<std::size_t>(scan.num_images());
+      const std::size_t k = images_per_degree(scan.osc_width);
+      const json::Array &cp = m["scale"]["parameters"].as_array();
+      const json::Array &bp = m["decay"]["parameters"].as_array();
+      json::Array xs, cs, bs;
+      for (std::size_t i = 0; n > 0; i += k) {
+        const std::size_t at = std::min(i, n);
+        const double t = static_cast<double>(at) / static_cast<double>(n);
+        xs.push_back(json::Value(static_cast<double>(scan.first_image) +
+                                 static_cast<double>(at) - 0.5));
+        cs.push_back(json::Value(cp.empty() ? 1.0 : spline(cp, t)));
+        bs.push_back(json::Value(bp.empty() ? 0.0 : spline(bp, t)));
+        if (at == n)
+          break;
+      }
+      const std::string tag = "experiment " + std::to_string(e);
+      c_traces.push_back(trace(xs, cs, tag, "lines"));
+      if (!bp.empty())
+        b_traces.push_back(trace(xs, bs, tag, "lines"));
+      if (m["absorption"]["lmax"].is_number() &&
+          m["absorption"]["lmax"].as_number() > 0)
+        surfaces.push_back({tag, &m["absorption"]});
+    }
+    if (!c_traces.empty()) {
+      o << "<h4>The scale model</h4><div class=\"pair\">";
+      o << f.plot("The scale C over the scan", "image", "C", c_traces);
+      if (!b_traces.empty())
+        o << f.plot("The relative B over the scan", "image",
+                    "B (&Aring;<sup>2</sup>)", b_traces);
+      // The absorption surface, S = 1 + sum a_k Y_k at each direction of the
+      // crystal frame, five degrees a step.
+      for (const auto &[tag, a] : surfaces) {
+        const int lmax = static_cast<int>((*a)["lmax"].as_number());
+        const json::Array &ap = (*a)["parameters"].as_array();
+        json::Array azimuth, polar, rows;
+        for (int az = -180; az <= 180; az += 5)
+          azimuth.push_back(json::Value(static_cast<double>(az)));
+        std::vector<double> y;
+        for (int pol = 0; pol <= 180; pol += 5) {
+          polar.push_back(json::Value(static_cast<double>(pol)));
+          json::Array row;
+          for (int az = -180; az <= 180; az += 5) {
+            const double th = pol * M_PI / 180.0, ph = az * M_PI / 180.0;
+            real_spherical_harmonics(lmax,
+                                     Vec3{std::sin(th) * std::cos(ph),
+                                          std::sin(th) * std::sin(ph),
+                                          std::cos(th)},
+                                     &y);
+            double v = 1.0;
+            for (std::size_t q = 0; q < y.size() && q < ap.size(); ++q)
+              v += ap[q].as_number() * y[q];
+            row.push_back(json::Value(v));
+          }
+          rows.push_back(json::Value(std::move(row)));
+        }
+        json::Object heat;
+        heat["type"] = json::Value(std::string("heatmap"));
+        heat["x"] = json::Value(std::move(azimuth));
+        heat["y"] = json::Value(std::move(polar));
+        heat["z"] = json::Value(std::move(rows));
+        heat["colorscale"] = json::Value(std::string("Viridis"));
+        heat["name"] = json::Value(tag);
+        o << f.plot("The absorption surface, " + tag,
+                    "azimuth (&deg;), crystal frame", "polar angle (&deg;)",
+                    {json::Value(std::move(heat))});
+      }
+      o << "</div>";
+    }
+  }
+  // By image, from the reflections: each sweep's mean scale and <I/sigma>,
+  // a point a degree of its rotation.
   if (list && table && table->has("inverse_scale_factor") &&
       table->has("intensity.scale.value") &&
       table->has("intensity.scale.variance") && table->has("xyzobs.px.value") &&
@@ -732,7 +881,9 @@ std::string section_scale(const json::Value &s, Figures &f,
         continue;
       const double first = static_cast<double>(x.scan.first_image);
       const double n = static_cast<double>(x.scan.num_images());
-      const std::size_t blocks = 50;
+      const std::size_t blocks = std::max<std::size_t>(
+          1,
+          static_cast<std::size_t>(std::ceil(n * std::fabs(x.scan.osc_width))));
       std::vector<double> sg(blocks, 0.0), si(blocks, 0.0);
       std::vector<std::size_t> count(blocks, 0);
       for (std::size_t r = 0; r < table->nrows; ++r) {
@@ -833,6 +984,13 @@ int run_program(int argc, char **argv) {
       table = read_reflections(input);
     } catch (const std::exception &) {
     }
+    // The experiment list as stored: the scale model is in it, not in the
+    // parsed list.
+    std::optional<json::Value> doc;
+    try {
+      doc = rflx::read_experiments(input);
+    } catch (const std::exception &) {
+    }
 
     const std::vector<json::Value> steps = Summary::steps(*summary);
     Figures figures;
@@ -892,7 +1050,7 @@ int run_program(int argc, char **argv) {
            << text_of(s["time"]) << "</span></h2>";
       body << figures_list(s);
       if (program == "mxi_find")
-        body << section_find(s, figures);
+        body << section_find(s, figures, list ? &*list : nullptr);
       else if (program == "mxi_index")
         body << section_index(s, figures);
       else if (program == "mxi_refine")
@@ -903,7 +1061,7 @@ int run_program(int argc, char **argv) {
         body << section_symmetry(s);
       else if (program == "mxi_scale")
         body << section_scale(s, figures, list ? &*list : nullptr,
-                              table ? &*table : nullptr);
+                              table ? &*table : nullptr, doc ? &*doc : nullptr);
       else
         body << section_generic(s);
     }

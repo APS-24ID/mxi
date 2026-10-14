@@ -59,3 +59,31 @@ def test_the_tiers_are_in_order_and_a_named_data_set_runs_whatever_its_tier():
         regress.choose({"x": {"tier": "fast"}})  # not a tier
     with pytest.raises(SystemExit):
         regress.choose(sets, names=["nope"])
+
+
+def test_clean_keeps_the_recent_and_the_tagged_and_every_runs_figures(
+    tmp_path, monkeypatch, capsys
+):
+    import types
+
+    monkeypatch.setenv("MXI_REGRESSION", str(tmp_path))
+    db = regress.database()
+    for k, tag in enumerate([None, "reference", None, None]):
+        run = f"2026101{k}-000000"
+        db.execute(
+            "INSERT INTO runs VALUES (?, ?, NULL, ?, 0, 'h', 'p', 'b', ?)",
+            (run, f"2026-10-1{k}T00:00:00", f"c{k}" * 6, tag),
+        )
+        db.execute("INSERT INTO metrics VALUES (?, 'x', 'time.total', 1.0)", (run,))
+        (tmp_path / "runs" / run / "x").mkdir(parents=True)
+        (tmp_path / "runs" / run / "x" / "big").write_bytes(b"0" * 1000)
+    db.commit()
+    args = types.SimpleNamespace(keep_runs=1, keep_builds=0, yes=False)
+    regress.cmd_clean(args)  # says what, removes nothing
+    assert len(list((tmp_path / "runs").iterdir())) == 4
+    args.yes = True
+    regress.cmd_clean(args)
+    left = sorted(d.name for d in (tmp_path / "runs").iterdir())
+    assert left == ["20261011-000000", "20261013-000000"]  # tagged, newest
+    figures = db.execute("SELECT COUNT(*) FROM metrics").fetchone()[0]
+    assert figures == 4  # every run's figures stay

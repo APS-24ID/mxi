@@ -29,7 +29,15 @@ compared with the last, finds such things the day they happen.
                      tag), steps (status, wall and CPU seconds, peak memory),
                      metrics (every figure)
 
-`mxeq regress init` writes commented examples of the two files.
+`mxeq regress init` writes commented examples of the two files, and never
+overwrites one that exists.
+
+`clean` removes what is large and old (Graeme): the files of every run but the
+most recent five (`--keep-runs`) and the tagged ones -- every run's figures
+stay in the history, so `list` and `compare` go on working -- and every build
+but those the kept runs used and the newest two (`--keep-builds`), each
+worktree removed through git and the repository's records pruned. Without
+`--yes` it only says what it would remove and how much.
 
 ## The commands
 
@@ -38,6 +46,7 @@ compared with the last, finds such things the day they happen.
     mxeq regress list
     mxeq regress compare [RUN] [--against previous|reference|RUN]
     mxeq regress tag RUN reference
+    mxeq regress clean [--keep-runs N] [--keep-builds N] [--yes]
 
 Tiers are in order, quick < full < slow, a data set with none full: `run`
 takes quick and full, `--quick` the quick ones, `--slow` all three (the

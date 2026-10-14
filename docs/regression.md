@@ -38,8 +38,10 @@ compared with the last, finds such things the day they happen.
     mxeq regress compare [RUN] [--against previous|reference|RUN]
     mxeq regress tag RUN reference
 
-`run` takes the chain, mxi_import to mxi_scale and mxi_report, a step at a
-time, stopping at a failure, which is recorded as such. Each step's peak memory
+`run` first runs each program once with --help, untimed: macOS checks a
+binary the first time it runs, some 2 s over the chain that would otherwise
+count against the first data set (Graeme). Then it takes the chain, mxi_import
+to mxi_scale and mxi_report, a step at a time, stopping at a failure, which is recorded as such. Each step's peak memory
 and CPU time are its own, from wait4 (kB on Linux, bytes on macOS, kept in MB). Each data set's
 total, import to scale without the report -- images to scaled data, the
 figure quoted for mxi -- is printed and kept as `time.total`, its CPU time as

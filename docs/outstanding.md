@@ -9,6 +9,27 @@ where something is missing.
 
 ## Integration
 
+* **62.** **parked -- Graeme's 6S0R set** (P 1 21 1, 50.2 183.9 110.0 A, beta
+    94.2; 2026-10-14). Strong reflections out by about a tenth of their
+    intensity -- raw calibration 79 for the strongest sixth, 1.2 to 1.6 for
+    the weakest -- in DIALS too: dials.scale's error model a = 3.36, b = 0.016,
+    its anomalous slope 0.158; mxi's a = 4.9 to 5.3, slope 0.32, its control
+    0.32. Graeme's suspicion: egregious spot overlaps (every one of mxi's
+    1759021 boxes meets another). Three threads: (i) mxi's sigma_m 0.565
+    degrees against DIALS's 0.316 -- the known overestimate, item 63 --
+    though integrating with DIALS's changed the error model little (a 4.86);
+    (ii) the error model's form, item 64; (iii) mxi only, the shell 2.40 to
+    2.34 A at CC half 0.03 in every run between neighbours of 0.55 to 0.7,
+    and one intensity bin of the error model's fit 40 times its neighbours'
+    mean square -- a handful of wild observations outlier rejection does not
+    catch; DIALS shows no dip there. A diagnostic listing a shell's worst
+    observations, where they lie on the detector, would find them.
+* **63.** **correctness -- sigma_m comes out larger than DIALS's.** 6S0R 0.565
+    degrees against 0.316, insulin 0.128 against 0.089 (item 3, closed as
+    harmless for insulin, where 0.086 merged worse). Larger boxes, more
+    overlaps, on crowded data. The estimator against DIALS's, line for line,
+    is the place to start.
+
 * **55.** **understood -- Summation 2 to 3 per cent below DIALS's on the two
     crystals**: the foreground's extent. A 3 sigma ellipsoid holds 97.1 per
     cent of a three-dimensional Gaussian, and mxi's sigma_b is some 6 per cent
@@ -151,6 +172,13 @@ where something is missing.
 
 ## Symmetry
 
+* **66.** **capability -- cosym refusing a poor fit.** Crystals indexed
+    together no longer go to cosym (their orientations agree); crystals
+    indexed apart still do, and on a lattice all but of higher symmetry its
+    best guess can be wrong -- the small-molecule set's cosines 0.42 and 0.40
+    before. Below some cosine it should leave the experiment as it is and
+    say so.
+
 * **59.** **capability -- cosym for many partial data sets.** Whole sweeps
     give every entry of cosym's correlation matrix, and its leading
     eigenvectors are the fit; many small wedges, as the paper's examples, will
@@ -167,6 +195,22 @@ where something is missing.
 * **20.** **capability -- No obliquity (delta) column** in the table of subgroups.
 
 ## Scaling
+
+* **64.** **decision -- The error model's form.** sigma'^2 = a^2 (sigma^2 +
+    b^2 I^2), one a for every reflection, fitted (as dials.scale) on groups
+    with <I> above 25. Where the excess scatter grows with the signal but not
+    as I^2 -- 6S0R -- a takes it, and the weak reflections, whose sigmas were
+    nearly right, get theirs inflated with it: final calibration 0.05 to
+    0.08, the anomalous slope 0.32. mxi integrates each variance with no
+    signal, so a_bg^2 V_bg + a_sig^2 V_signal + b^2 I^2, fitted by the same
+    regression with the weak bins in, would keep the weak sigmas and inflate
+    the strong. Proposed to Graeme; not built.
+* **65.** **decision -- Merged sigmas at high multiplicity.** The ten-turn
+    insulin's anomalous slope 1.516 against its random-halves control 1.375:
+    the merged sigmas some 37 per cent small at multiplicity 200, errors
+    shared among a reflection's observations not averaging away. One remedy:
+    each merged sigma the larger of the propagated and that from the
+    observations' own scatter. A policy, not built.
 
 
 * **54.** **correctness -- Weak reflections' sigma, the last of it.** The

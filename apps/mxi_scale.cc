@@ -484,7 +484,53 @@ int run_program(int argc, char **argv) {
     const json::Value document = experiments_to_json(written);
     // The summary: the model, the error model, the merging statistics and
     // the resolution -- what a crystallographer judges the data by.
+    // How well the sigmas describe the scatter: each observation against its
+    // equivalents' mean without it, before the error model and after; 1 where
+    // right, the robust column apart from the plain where a few observations
+    // are wild (docs/scaling.md, "The calibration").
+    const std::vector<CalibrationRow> by_d =
+        calibration(run.data, run.g, true, 10);
+    const std::vector<CalibrationRow> by_i =
+        calibration(run.data, run.g, false, 6);
+    const auto say = [](const char *title,
+                        const std::vector<CalibrationRow> &rows,
+                        bool resolution) {
+      if (rows.empty())
+        return;
+      std::printf("\nThe sigmas' calibration %s: (I - <I> of the others) / "
+                  "sigma, its variance -- 1 where right\n",
+                  title);
+      std::printf(
+          "  %9s %9s %8s %9s %9s %9s %9s\n", resolution ? "d_max" : "<I> from",
+          resolution ? "d_min" : "to", "n", "raw", "robust", "final", "robust");
+      for (const CalibrationRow &r : rows)
+        std::printf("  %9.2f %9.2f %8zu %9.3f %9.3f %9.3f %9.3f\n", r.lo, r.hi,
+                    r.n, r.raw_ms, r.raw_robust, r.final_ms, r.final_robust);
+    };
+    say("by resolution", by_d, true);
+    say("by intensity", by_i, false);
     Summary summary("mxi_scale", args.positional[0]);
+    for (const auto &[name, rows] :
+         {std::pair<const char *, const std::vector<CalibrationRow> *>{
+              "calibration_by_resolution", &by_d},
+          {"calibration_by_intensity", &by_i}}) {
+      if (rows->empty())
+        continue;
+      std::vector<json::Value> c_lo, c_hi, c_n, c_rm, c_rr, c_fm, c_fr;
+      for (const CalibrationRow &r : *rows) {
+        c_lo.push_back(json::Value(r.lo));
+        c_hi.push_back(json::Value(r.hi));
+        c_n.push_back(json::Value(static_cast<long>(r.n)));
+        c_rm.push_back(json::Value(r.raw_ms));
+        c_rr.push_back(json::Value(r.raw_robust));
+        c_fm.push_back(json::Value(r.final_ms));
+        c_fr.push_back(json::Value(r.final_robust));
+      }
+      summary.table(
+          name,
+          {"from", "to", "n", "raw", "raw_robust", "final", "final_robust"},
+          {c_lo, c_hi, c_n, c_rm, c_rr, c_fm, c_fr});
+    }
     // The cell from two-theta, as dials.two_theta_refine refines it: the
     // cell alone against every scaled reflection's observed scattering angle,
     // constrained to the space group's crystal system -- the cell's e.s.d.s,

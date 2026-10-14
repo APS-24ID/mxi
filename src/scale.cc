@@ -878,6 +878,94 @@ void apply_error_model(ScaleData &data, const ErrorModel &model) {
   }
 }
 
+std::vector<CalibrationRow> calibration(const ScaleData &data,
+                                        const std::vector<double> &g,
+                                        bool by_resolution, int bins) {
+  const std::size_t groups = data.unique.size();
+  std::vector<std::vector<std::size_t>> members(groups);
+  for (std::size_t i = 0; i < data.size(); ++i)
+    if (!data.outlier[i] && g[i] > 0.0)
+      members[data.group[i]].push_back(i);
+  struct Dev {
+    double key, raw, final;
+  };
+  std::vector<Dev> devs;
+  for (std::size_t h = 0; h < groups; ++h) {
+    const std::vector<std::size_t> &m = members[h];
+    if (m.size() < 2)
+      continue;
+    double W[2] = {0, 0}, S[2] = {0, 0};
+    for (std::size_t i : m) {
+      const double x = data.intensity[i] / g[i];
+      const double v[2] = {data.variance_before[i] + data.scale_term_at(i),
+                           data.variance[i]};
+      for (int k = 0; k < 2; ++k)
+        if (v[k] > 0.0) {
+          const double w = g[i] * g[i] / v[k];
+          W[k] += w;
+          S[k] += w * x;
+        }
+    }
+    const double mean_final = W[1] > 0.0 ? S[1] / W[1] : 0.0;
+    for (std::size_t i : m) {
+      const double x = data.intensity[i] / g[i];
+      const double v[2] = {data.variance_before[i] + data.scale_term_at(i),
+                           data.variance[i]};
+      double d[2] = {0, 0};
+      bool ok = true;
+      for (int k = 0; k < 2; ++k) {
+        const double w = v[k] > 0.0 ? g[i] * g[i] / v[k] : 0.0;
+        const double rest = W[k] - w;
+        if (!(v[k] > 0.0) || !(rest > 0.0)) {
+          ok = false;
+          break;
+        }
+        const double others = (S[k] - w * x) / rest;
+        d[k] = (x - others) / std::sqrt(v[k] / (g[i] * g[i]) + 1.0 / rest);
+      }
+      if (ok)
+        devs.push_back({by_resolution ? data.d[i] : mean_final, d[0], d[1]});
+    }
+  }
+  std::vector<CalibrationRow> out;
+  if (devs.size() < static_cast<std::size_t>(bins) * 10)
+    return out;
+  // Equal counts a bin: resolution from low to high, intensity from weak up.
+  std::sort(devs.begin(), devs.end(), [&](const Dev &a, const Dev &b) {
+    return by_resolution ? a.key > b.key : a.key < b.key;
+  });
+  const auto robust = [](std::vector<double> x) {
+    std::nth_element(x.begin(), x.begin() + x.size() / 2, x.end());
+    const double median = x[x.size() / 2];
+    for (double &v : x)
+      v = std::abs(v - median);
+    std::nth_element(x.begin(), x.begin() + x.size() / 2, x.end());
+    const double mad = 1.4826 * x[x.size() / 2];
+    return mad * mad;
+  };
+  for (int b = 0; b < bins; ++b) {
+    const std::size_t from = devs.size() * static_cast<std::size_t>(b) / bins,
+                      to = devs.size() * static_cast<std::size_t>(b + 1) / bins;
+    CalibrationRow r;
+    r.lo = devs[from].key;
+    r.hi = devs[to - 1].key;
+    r.n = to - from;
+    std::vector<double> raw, fin;
+    for (std::size_t k = from; k < to; ++k) {
+      r.raw_ms += devs[k].raw * devs[k].raw;
+      r.final_ms += devs[k].final * devs[k].final;
+      raw.push_back(devs[k].raw);
+      fin.push_back(devs[k].final);
+    }
+    r.raw_ms /= static_cast<double>(r.n);
+    r.final_ms /= static_cast<double>(r.n);
+    r.raw_robust = robust(raw);
+    r.final_robust = robust(fin);
+    out.push_back(r);
+  }
+  return out;
+}
+
 bool model_variances(ScaleData &data, const std::vector<double> &g) {
   if (!data.has_background || data.variance_background.size() != data.size())
     return false;

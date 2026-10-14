@@ -46,7 +46,7 @@ Lattices lattices_of(const ExperimentList &whole) {
   return l;
 }
 
-Table lattice_rows(const Table &table, const Lattices &lattices) {
+Table lattice_rows(Table table, const Lattices &lattices) {
   if (!lattices.any_crystal_less())
     return table;
   std::vector<long> renumber;
@@ -64,12 +64,19 @@ Table lattice_rows(const Table &table, const Lattices &lattices) {
         renumber[static_cast<std::size_t>(i)] >= 0)
       rows.push_back(r);
   }
-  Table out = select_rows_with_shoeboxes(table, rows);
+  // Every row a lattice's -- the usual case, the sweep as imported carried as
+  // a crystal-less experiment with none of the rows -- and the table moved in
+  // is the view, its ids renumbered in place: a selection here copied the whole
+  // table (Graeme's 36000-image sweep, symmetry 22 GB).
+  const auto names = table.identifiers; // before any move
+  Table out = rows.size() == table.nrows
+                  ? std::move(table)
+                  : select_rows_with_shoeboxes(table, rows);
   Column &ids = out.modify_int_column("id", "int", 1);
   for (std::int64_t &i : ids.ints)
     i = renumber[static_cast<std::size_t>(i)];
   out.identifiers.clear();
-  for (const auto &[i, name] : table.identifiers)
+  for (const auto &[i, name] : names)
     if (i < renumber.size() && renumber[i] >= 0)
       out.identifiers[static_cast<std::size_t>(
           renumber[static_cast<std::size_t>(i)])] = name;
@@ -142,11 +149,11 @@ ExperimentList whole_again(const ExperimentList &whole,
   return out;
 }
 
-Table rows_again(const Table &lattice_rows, const Table &crystal_less_rows,
+Table rows_again(Table lattice_rows, const Table &crystal_less_rows,
                  const Lattices &lattices, const ExperimentList &whole) {
   if (!lattices.any_crystal_less())
     return lattice_rows;
-  Table back = lattice_rows;
+  Table back = std::move(lattice_rows);
   Column &ids = back.modify_int_column("id", "int", 1);
   for (std::int64_t &i : ids.ints)
     i = static_cast<std::int64_t>(
@@ -155,6 +162,16 @@ Table rows_again(const Table &lattice_rows, const Table &crystal_less_rows,
   // have and theirs do not, as zeros -- an unindexed spot has no prediction --
   // and what theirs have and the lattices' do not, dropped: the lattices'
   // are what a program wrote. Their shoeboxes, if any, kept as they were.
+  // No crystal-less rows to put back -- the usual case -- and the lattices'
+  // table is the one written, its ids renumbered in place: concatenated with
+  // nothing, it was copied.
+  if (crystal_less_rows.nrows == 0) {
+    back.identifiers.clear();
+    for (std::size_t i = 0; i < whole.size(); ++i)
+      if (!whole[i].identifier.empty())
+        back.identifiers[i] = whole[i].identifier;
+    return back;
+  }
   Table rest;
   rest.nrows = crystal_less_rows.nrows;
   rest.version = crystal_less_rows.version;

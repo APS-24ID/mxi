@@ -178,10 +178,14 @@ int run_program(int argc, char **argv) {
     // The lattices; each sweep's own crystal-less experiment carried through
     // (docs/multi-lattice.md, stage 2).
     const ExperimentList whole = read_experiments(args.positional[0]);
-    const Table whole_table = read_reflections(args.positional[1]);
+    Table whole_table = read_reflections(args.positional[1]);
     const Lattices views = lattices_of(whole);
     ExperimentList experiments = views.list;
-    Table reflections = lattice_rows(whole_table, views);
+    // The crystal-less rows apart, the rest moved, not copied: one table
+    // held, not three (Graeme: symmetry 22 GB, scaling 26, on 36000
+    // images).
+    const Table crystal_less = crystal_less_rows(whole_table, views);
+    Table reflections = lattice_rows(std::move(whole_table), views);
     phase("reading");
     // One sweep or several of one crystal, each scaled by a model of its own
     // sharing the merged intensities; each must have a crystal, and they
@@ -512,10 +516,14 @@ int run_program(int argc, char **argv) {
     // dials.scale's columns and flags, so that dials.merge and dials.export
     // take the table on.
     write_scaling(reflections, data, run.g, run.g_variance);
+    // The cell from two-theta, from the view before it is moved into the
+    // table written.
+    const TwoThetaResult two_theta =
+        two_theta_refine(experiments, reflections, group);
     const rflx::Outputs out = rflx::outputs(args, "scaled");
     const ExperimentList written = whole_again(whole, views, experiments);
-    Table written_table = rows_again(
-        reflections, crystal_less_rows(whole_table, views), views, written);
+    Table written_table =
+        rows_again(std::move(reflections), crystal_less, views, written);
     const json::Value document = experiments_to_json(written);
     // The summary: the model, the error model, the merging statistics and
     // the resolution -- what a crystallographer judges the data by.
@@ -546,8 +554,7 @@ int run_program(int argc, char **argv) {
     // constrained to the space group's crystal system -- the cell's e.s.d.s,
     // where refinement's covariance had given them (docs/scaling.md).
     {
-      const TwoThetaResult tt =
-          two_theta_refine(experiments, reflections, group);
+      const TwoThetaResult &tt = two_theta;
       if (tt.valid) {
         const UnitCell &c = tt.cell;
         std::printf("Cell from two-theta, %zu reflections, %s, RMSD %.4f deg: "

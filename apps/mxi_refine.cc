@@ -242,10 +242,14 @@ int run_program(int argc, char **argv) {
     // unindexed spots carried through, the sweep's shared models refined
     // into them (docs/multi-lattice.md, stage 2).
     const ExperimentList whole = read_experiments(args.positional[0]);
-    const Table whole_table = read_reflections(args.positional[1]);
+    Table whole_table = read_reflections(args.positional[1]);
     const Lattices views = lattices_of(whole);
     ExperimentList experiments = views.list;
-    Table reflections = lattice_rows(whole_table, views);
+    // The crystal-less rows apart, the rest moved, not copied: one table
+    // held, not three (Graeme: symmetry 22 GB, scaling 26, on 36000
+    // images).
+    const Table crystal_less = crystal_less_rows(whole_table, views);
+    Table reflections = lattice_rows(std::move(whole_table), views);
     t_read = now_wall() - t_read_start;
     // Scan-varying by default -- nearly every real crystal moves -- one control
     // point per 10 degrees of each sweep's own scan; static if asked, or on a
@@ -499,8 +503,8 @@ int run_program(int argc, char **argv) {
     }
     const double t_write_start = now_wall();
     const ExperimentList written = whole_again(whole, views, experiments);
-    Table written_table = rows_again(
-        reflections, crystal_less_rows(whole_table, views), views, written);
+    Table written_table =
+        rows_again(std::move(reflections), crystal_less, views, written);
     const json::Value document = experiments_to_json(written);
     const json::Value summary_document = summary.document();
     rflx::write_outputs(out, &document, &written_table, "mxi_refine",

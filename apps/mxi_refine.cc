@@ -32,8 +32,9 @@ void usage() {
       "  --jacobian-threads N  threads for the Jacobian; 0 is one per core "
       "(0)\n"
       "  --no-detector     hold the detector fixed\n"
-      "  --beam            refine the beam direction too (off: correlated\n"
-      "                    with the detector on a single sweep)\n"
+      "  --no-beam         hold the beam direction fixed (refined by default;\n"
+      "                    on a single sweep it is correlated with the\n"
+      "                    detector)\n"
       "  --shared-crystal  several sweeps: one crystal for them all, where by\n"
       "                    default each refines its own (--separate, as was)\n"
       "  --conditional-depth  mean depth given absorption, not eqn (6)\n"
@@ -45,7 +46,8 @@ void usage() {
       "  --static          a crystal that does not move: one A for the scan\n"
       "  --unit-weights    ignore the centroid variances\n"
       "  --strong-only     build the model from the stronger half only\n"
-      "  --analytic        analytical derivatives, not finite differences\n"
+      "  --numerical       finite differences, not the analytical derivatives\n"
+      "                    (the default), for testing\n"
       "  --timing          where the time went, by phase\n"
       "  --normal-threads N  threads for the normal equations; 0 is one per\n"
       "                   core (0). A reduction, so a threaded run differs "
@@ -161,6 +163,7 @@ int run_program(int argc, char **argv) {
                                        "--no-crystal",
                                        "--no-detector",
                                        "--beam",
+                                       "--no-beam",
                                        "--separate",
                                        "--shared-crystal",
                                        "--macrocycles",
@@ -174,6 +177,7 @@ int run_program(int argc, char **argv) {
                                        "--strong-only",
                                        "--z-weight",
                                        "--analytic",
+                                       "--numerical",
                                        "--min-volume",
                                        "--detector-in-scan-varying",
                                        "--jacobian-threads",
@@ -220,7 +224,9 @@ int run_program(int argc, char **argv) {
   RefineOptions options;
   options.crystal = !args.has("--no-crystal");
   options.detector = !args.has("--no-detector");
-  options.beam = args.has("--beam");
+  // The beam and analytical derivatives by default (Graeme); --beam and
+  // --analytic still taken, from older scripts.
+  options.beam = !args.has("--no-beam");
   // Several sweeps refine a crystal each by default, as DIALS refines them:
   // indexing put them in one basis, and one matrix cannot fit sweeps no
   // goniometer quite returns between. --separate was the way to ask for this
@@ -228,7 +234,7 @@ int run_program(int argc, char **argv) {
   options.shared_crystal = args.has("--shared-crystal");
   options.unit_weights = args.has("--unit-weights");
   options.strong_only = args.has("--strong-only");
-  options.analytic = args.has("--analytic");
+  options.analytic = !args.has("--numerical");
   options.macrocycles = static_cast<int>(args.number("--macrocycles", 3));
   options.outlier_sigma = args.number("--outlier-sigma", 4.0);
   options.z_weight = args.number("--z-weight", 1.0);

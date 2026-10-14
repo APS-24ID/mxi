@@ -41,10 +41,10 @@ const char *kUsage =
     "  --no-compress          a .rflx with no filter at all, for a reader\n"
     "                         without bitshuffle-LZ4 (HDF5 filter 32008),\n"
     "                         which numbers are stored with otherwise\n"
-    "  --drop-sweeps          the pair without each sweep's crystal-less\n"
-    "                         experiment, its spots' id -1, as dials.index\n"
-    "                         leaves unindexed spots; by default kept, as\n"
-    "                         the .rflx has them\n";
+    "  --keep-sweeps          to the pair, keep each sweep's experiment\n"
+    "                         with no crystal; by default, once any has a\n"
+    "                         crystal, they are left out and their spots'\n"
+    "                         id is -1, as DIALS has it\n";
 
 std::string with_extension(const std::string &path, const std::string &ext) {
   return std::filesystem::path(path).replace_extension(ext).string();
@@ -68,6 +68,7 @@ int main(int argc, char **argv) {
                                        "--no-compress",
                                        "--keep-sweeps",
                                        "--drop-sweeps",
+                                       "--keep-sweeps",
                                        "--help"};
   const std::set<std::string> takes_value = {"-o", "--output", "--output-expt",
                                              "--output-refl"};
@@ -123,20 +124,24 @@ int main(int argc, char **argv) {
         std::printf("Wrote %s\n", output.c_str());
         return 0;
       }
-      // The pair as the .rflx has it, each sweep's crystal-less experiment
-      // with it -- DIALS reads it, and dials.split_experiments can take the
-      // crystal-less one off to be indexed (Graeme). --drop-sweeps leaves
-      // them out, the ids numbered to match, unindexed spots -1, as
-      // dials.index leaves them (docs/multi-lattice.md, stage 2).
+      // The pair as DIALS has it: each sweep's crystal-less experiment left
+      // out, the ids numbered to match, unindexed spots -1, as dials.index
+      // leaves them -- the default (Graeme: with them in, the files would not
+      // go straight into DIALS); --keep-sweeps keeps them. Before indexing,
+      // when no experiment has a crystal, all are kept: there is nothing else.
       std::optional<Table> table = reflections;
       std::optional<json::Value> list = experiments;
-      if (list && args.has("--drop-sweeps")) {
+      bool any_crystal = false;
+      if (list)
+        for (const json::Value &e : (*list)["experiment"].as_array())
+          any_crystal = any_crystal || e["crystal"].is_number();
+      if (list && any_crystal && !args.has("--keep-sweeps")) {
         const std::size_t before = (*list)["experiment"].as_array().size();
         list = dials_form(*list, table ? &*table : nullptr);
         const std::size_t after = (*list)["experiment"].as_array().size();
         if (after < before)
           std::printf("%zu crystal-less experiment%s left out, their spots' "
-                      "id -1 (--drop-sweeps)\n",
+                      "id -1 (--keep-sweeps keeps them)\n",
                       before - after, before - after == 1 ? "" : "s");
       }
       if (list) {

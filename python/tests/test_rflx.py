@@ -387,3 +387,50 @@ def test_numbers_are_bitshuffle_lz4_unless_mxi_convert_is_told_not(tmp_path):
         same_table(
             refl.load(str(tmp_path / name)), refl.load(str(tmp_path / "scaled.rflx"))
         )
+
+
+@needs
+@pytest.mark.skipif(not IMPORT, reason="set MXI_IMPORT")
+def test_to_dials_a_sweeps_crystal_less_experiment_is_left_out_unless_kept(tmp_path):
+    # Graeme: with each sweep's crystal-less experiment in, the DIALS files would
+    # not go straight into DIALS. Out by default once any has a crystal, its
+    # spots' id -1; --keep-sweeps keeps it; with no crystal anywhere, all kept.
+    import numpy as np
+
+    sweep = imported(tmp_path)
+    lattice = dict(sweep["experiment"][0], identifier="lattice", crystal=0)
+    sweep["experiment"].append(lattice)
+    sweep["crystal"] = [
+        {
+            "__id__": "crystal",
+            "real_space_a": [50.0, 0.0, 0.0],
+            "real_space_b": [0.0, 60.0, 0.0],
+            "real_space_c": [0.0, 0.0, 70.0],
+            "space_group_hall_symbol": " P 1",
+        }
+    ]
+    json.dump(sweep, open(tmp_path / "two.expt", "w"))
+    table = refl.load(str(DATA / "dials_strong.refl"))
+    n = len(table.columns["id"])
+    table.columns["id"] = np.where(np.arange(n) % 2 == 0, 0, 1).astype(np.int32)
+    table.identifiers = {0: sweep["experiment"][0]["identifier"], 1: "lattice"}
+    refl.write(str(tmp_path / "two.refl"), table)
+    convert(tmp_path, "two.expt", "two.refl", "-o", "two.rflx")
+
+    convert(tmp_path, "two.rflx")
+    out = json.load(open(tmp_path / "two.expt"))
+    ids = refl.load(str(tmp_path / "two.refl")).columns["id"]
+    assert [e.get("crystal") for e in out["experiment"]] == [0]
+    assert sorted(set(np.asarray(ids).tolist())) == [-1, 0]
+
+    convert(
+        tmp_path,
+        "two.rflx",
+        "--keep-sweeps",
+        "--output-expt",
+        "kept.expt",
+        "--output-refl",
+        "kept.refl",
+    )
+    kept = json.load(open(tmp_path / "kept.expt"))
+    assert len(kept["experiment"]) == 2

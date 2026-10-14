@@ -397,8 +397,8 @@ def cmd_init(args) -> int:
         ("build.toml", EXAMPLE_BUILD),
     ):
         path = home() / name
-        if path.exists():
-            print(f"{path} exists: left as it is")
+        if path.exists():  # never overwritten: it may hold the user's edits
+            print(f"{path} exists, so left as it is (not overwritten)")
         else:
             path.write_text(text)
             print(f"wrote {path}")
@@ -521,6 +521,92 @@ def cmd_run(args) -> int:
         f"run {run_id} done: {len(chosen) - failed} of {len(chosen)} data sets ran through"
     )
     return 1 if failed else 0
+
+
+def _size(path: Path) -> int:
+    total = 0
+    for root, _, files in os.walk(path):
+        for f in files:
+            try:
+                total += os.lstat(os.path.join(root, f)).st_size
+            except OSError:
+                pass
+    return total
+
+
+def _human(n: float) -> str:
+    for unit in ("B", "kB", "MB", "GB", "TB"):
+        if n < 1024 or unit == "TB":
+            return f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} TB"
+
+
+def cmd_clean(args) -> int:
+    """Remove the files of old runs and old builds, which are large; the
+    figures stay in the history, so list and compare go on working. Without
+    --yes, only says what it would remove (Graeme: they are huge)."""
+    db = database()
+    runs = [
+        r for r in db.execute("SELECT id, commit_id, tag FROM runs ORDER BY started")
+    ]
+    kept = {r[0] for r in runs[-args.keep_runs :]} if args.keep_runs > 0 else set()
+    kept |= {r[0] for r in runs if r[2]}  # tagged runs keep their files
+    remove = []
+    run_dir = home() / "runs"
+    if run_dir.exists():
+        for d in sorted(run_dir.iterdir()):
+            if d.is_dir() and d.name not in kept:
+                remove.append(("run", d))
+    # Builds: those kept runs used, and the newest few, stay.
+    wanted = {(r[1] or "")[:12] for r in runs if r[0] in kept}
+    build_dir = home() / "builds"
+    builds = []
+    if build_dir.exists():
+        builds = sorted(
+            (d for d in build_dir.iterdir() if d.is_dir()),
+            key=lambda d: d.stat().st_mtime,
+        )
+    newest = (
+        {d.name for d in builds[-args.keep_builds :]} if args.keep_builds > 0 else set()
+    )
+    for d in builds:
+        if d.name not in wanted and d.name not in newest:
+            remove.append(("build", d))
+    if not remove:
+        print("nothing to remove")
+        return 0
+    total = 0
+    for kind, d in remove:
+        n = _size(d)
+        total += n
+        print(f"  {kind:5s} {d.name:32s} {_human(n):>10s}")
+    print(
+        f"{len(remove)} to remove, {_human(total)}"
+        + ("" if args.yes else "; run again with --yes to remove them")
+    )
+    if not args.yes:
+        return 0
+    source = None
+    try:
+        source = Path(read_toml(home() / "build.toml")["source"]).expanduser()
+    except (SystemExit, Exception):
+        pass
+    for kind, d in remove:
+        tree = d / "src"
+        if kind == "build" and source is not None and tree.exists():
+            # The worktree, through git: the repository's own record of it too.
+            subprocess.run(
+                ["git", "-C", str(source), "worktree", "remove", "--force", str(tree)],
+                capture_output=True,
+            )
+        shutil.rmtree(d, ignore_errors=True)
+    if source is not None:
+        subprocess.run(
+            ["git", "-C", str(source), "worktree", "prune"], capture_output=True
+        )
+    print(f"removed {len(remove)}, {_human(total)}")
+    return 0
 
 
 def cmd_list(args) -> int:
@@ -667,6 +753,24 @@ def main(argv: list[str] | None = None) -> int:
     )
     speed.add_argument("--tier", choices=TIERS, help="only the data sets of this tier")
     sub.add_parser("list", help="the runs so far")
+    cl = sub.add_parser(
+        "clean",
+        help="remove old runs' files and old builds " "(says what, unless --yes)",
+    )
+    cl.add_argument(
+        "--keep-runs",
+        type=int,
+        default=5,
+        help="the most recent runs whose files stay (5); tagged "
+        "runs' always stay; every run's figures stay",
+    )
+    cl.add_argument(
+        "--keep-builds",
+        type=int,
+        default=2,
+        help="the newest builds that stay (2), besides those the " "kept runs used",
+    )
+    cl.add_argument("--yes", action="store_true", help="remove them")
     c = sub.add_parser("compare", help="a run against an earlier one")
     c.add_argument("run", nargs="?", help="the run (the latest)")
     c.add_argument("--against", help="a run, 'previous' (the default) or 'reference'")
@@ -681,6 +785,7 @@ def main(argv: list[str] | None = None) -> int:
         "run": cmd_run,
         "list": cmd_list,
         "compare": cmd_compare,
+        "clean": cmd_clean,
         "tag": cmd_tag,
     }[args.command](args)
 

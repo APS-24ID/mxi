@@ -144,6 +144,20 @@ int main(int argc, char **argv) {
                       "id -1 (--keep-sweeps keeps them)\n",
                       before - after, before - after == 1 ? "" : "s");
       }
+      // mxi's own scale model, mxi_physical, is not DIALS's physical model and
+      // DIALS cannot read it: out of the .expt, the experiments' pointers too.
+      if (list && (*list)["scaling_model"].is_array()) {
+        bool mxi_model = false;
+        for (const json::Value &m : (*list)["scaling_model"].as_array())
+          mxi_model = mxi_model || (m["__id__"].is_string() &&
+                                    m["__id__"].as_string() == "mxi_physical");
+        if (mxi_model) {
+          list->as_object()["scaling_model"] = json::Value(json::Array{});
+          for (json::Value &e : list->as_object()["experiment"].as_array())
+            e.as_object().erase("scaling_model");
+          std::printf("mxi's scale model left out: DIALS does not read it\n");
+        }
+      }
       if (list) {
         const std::string out =
             args.value("--output-expt", with_extension(in, ".expt"));

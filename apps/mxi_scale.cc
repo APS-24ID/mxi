@@ -524,7 +524,87 @@ int run_program(int argc, char **argv) {
     const ExperimentList written = whole_again(whole, views, experiments);
     Table written_table =
         rows_again(std::move(reflections), crystal_less, views, written);
-    const json::Value document = experiments_to_json(written);
+    json::Value document = experiments_to_json(written);
+    // The scale model, as dials.scale writes its scaling_model (outstanding
+    // item 26): one entry a lattice, the experiment pointing at it. mxi's own
+    // type, mxi_physical -- the same three corrections as DIALS's physical
+    // model, but cubic B-splines where DIALS smooths with Gaussians, so its
+    // numbers in DIALS's type would be read wrongly; everything needed to
+    // evaluate g for an observation without mxi (docs/scaling.md).
+    // Only into a .rflx: a .expt is DIALS's, which cannot read mxi_physical
+    // (mxi_convert leaves it out too).
+    if (!out.rflx.empty()) {
+      const std::size_t np = run.model.size();
+      const bool have_esd =
+          run.covariance.ok && run.covariance.matrix.size() == np * np;
+      const auto block = [&](std::size_t from, std::size_t count) {
+        json::Array values, esds;
+        for (std::size_t k = 0; k < count; ++k) {
+          values.push_back(json::Value(run.model.parameters[from + k]));
+          esds.push_back(json::Value(
+              have_esd
+                  ? std::sqrt(std::fmax(
+                        run.covariance.matrix[(from + k) * np + from + k], 0.0))
+                  : 0.0));
+        }
+        json::Object out;
+        out["n_parameters"] = json::Value(static_cast<long>(count));
+        out["parameters"] = json::Value(std::move(values));
+        out["est_standard_devs"] = json::Value(std::move(esds));
+        return json::Value(std::move(out));
+      };
+      json::Object error;
+      error["a"] = json::Value(run.error_model.a);
+      error["b"] = json::Value(run.error_model.b);
+      error["a_background"] = json::Value(
+          run.error_model.split ? run.error_model.a_bg : run.error_model.a);
+      error["split"] = json::Value(run.error_model.split ? 1L : 0L);
+      error["formula"] = json::Value(std::string(
+          "sigma'^2 = a_background^2 V_background + a^2 (V_signal + V_scale) "
+          "+ a^2 b^2 I^2; one a for both when not split"));
+      json::Array models;
+      json::Array &exps = document.as_object()["experiment"].as_array();
+      for (std::size_t w = 0; w < run.model.sweeps() && w < experiments.size();
+           ++w) {
+        const ScaleModelShape &shape = run.model.shape(w);
+        json::Object m;
+        m["__id__"] = json::Value(std::string("mxi_physical"));
+        m["is_scaled"] = json::Value(true);
+        m["scale"] = block(run.model.first_scale(w), shape.scale_points);
+        m["decay"] = block(run.model.first_decay(w), shape.decay_points);
+        json::Value abs =
+            block(run.model.first_absorption(w), harmonic_count(shape.lmax));
+        abs.as_object()["lmax"] = json::Value(static_cast<long>(shape.lmax));
+        m["absorption"] = std::move(abs);
+        m["error_model"] = json::Value(error);
+        json::Object how;
+        how["g"] = json::Value(std::string(
+            "g = C(t) exp(B(t) / 2d^2) (1 + sum_k a_k Y_k); the intensity "
+            "scaled is I lp / (qe partiality) / g"));
+        how["t"] =
+            json::Value(std::string("the observation's place in its scan, (z - "
+                                    "(first image - 1)) / images, "
+                                    "z from xyzcal.px; C and B both at t"));
+        how["spline"] = json::Value(std::string(
+            "uniform cubic B-spline of n points on [0, 1], n + 1 segments: "
+            "segment i = floor(t (n + 1)), f = t (n + 1) - i, draws on "
+            "P[clamp(i + k - 2, 0, n - 1)], k = 0..3, with weights "
+            "(1 - 3f + 3f^2 - f^3)/6, (4 - 6f^2 + 3f^3)/6, "
+            "(1 + 3f + 3f^2 - 3f^3)/6, f^3/6; one point: constant"));
+        how["harmonics"] = json::Value(std::string(
+            "real spherical harmonics, l = 1..lmax, m = -l..l, orthonormal, "
+            "no Condon-Shortley sign; Y_k the mean of their values at s1 "
+            "and at -s0, each in the crystal frame"));
+        m["configuration"] = json::Value(std::move(how));
+        const std::size_t at =
+            w < views.position.size() ? views.position[w] : w;
+        if (at < exps.size())
+          exps[at].as_object()["scaling_model"] =
+              json::Value(static_cast<long>(models.size()));
+        models.push_back(json::Value(std::move(m)));
+      }
+      document.as_object()["scaling_model"] = json::Value(std::move(models));
+    }
     // The summary: the model, the error model, the merging statistics and
     // the resolution -- what a crystallographer judges the data by.
     Summary summary("mxi_scale", args.positional[0]);

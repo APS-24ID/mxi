@@ -227,6 +227,23 @@ crystals: a_bg 0.91, a 1.11; the weakest sixth 0.84 to 1.01, the anomalous slope
 and its control 0.97 and 0.96 to 1.00 and 0.99. Under --verbose the fit is
 printed a bin at a time.
 
+## The scale model, written
+
+`mxi_scale` writes its model into the scaled experiments, as dials.scale writes
+its `scaling_model` (outstanding 26): an entry a lattice, the experiment's
+`scaling_model` its index. mxi's own type, `mxi_physical`: the same three
+corrections as DIALS's physical model, but cubic B-splines where DIALS smooths
+with Gaussians, so its numbers would be read wrongly as DIALS's. Each entry:
+`scale`, `decay` and `absorption` (with `lmax`), each `n_parameters`,
+`parameters` and `est_standard_devs` (from the covariance); the run's
+`error_model` (`a`, `a_background`, `b`, `split`); and `configuration`, which
+says in words how to evaluate g: t the observation's place in its scan from
+`xyzcal.px`, the spline's segments and weights, the harmonics' order and frame.
+Evaluated from the entry alone, g matches every scaled reflection's
+`inverse_scale_factor` to 1e-9 (tests/test_scaling_model.py). `mxi_convert`
+leaves it out of DIALS files, which DIALS could not read, and a program told
+to write the DIALS pair writes none.
+
 ## The calibration
 
 After the merging statistics, how well the sigmas describe the scatter: each

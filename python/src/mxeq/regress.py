@@ -228,7 +228,18 @@ def run_dataset(name: str, spec: dict, bin_dir: Path, where: Path) -> list[tuple
             else [given]
         )
         words += ["-o", written, *[str(w) for w in options.get(step, [])]]
-        code, wall, cpu, rss = run_step(words, where, where / f"{step}.log")
+        captured = where / f"{step}.log"
+        code, wall, cpu, rss = run_step(words, where, captured)
+        # Every mxi program but the report mirrors itself to mxi_<program>.log:
+        # on success that is the log, and the runner's copy goes (Graeme:
+        # symmetry.log the same as mxi_symmetry.log). On failure both stay --
+        # the runner's has whatever the system said, a kill for memory say,
+        # which the program could not. The report's capture is its log.
+        own = where / f"{program}.log"
+        if code == 0 and own.exists() and own.stat().st_size > 0:
+            captured.unlink(missing_ok=True)
+        elif not own.exists():
+            captured.rename(own)
         rows.append((step, code, wall, cpu, rss))
         print(
             f"  {name:20s} {step:10s} {'ok' if code == 0 else 'FAILED':6s} {wall:7.1f} s",

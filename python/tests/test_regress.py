@@ -137,3 +137,25 @@ def test_show_prints_a_runs_steps_total_and_figures(tmp_path, monkeypatch, capsy
     out = capsys.readouterr().out
     assert "run r" in out and "find" in out and "total" in out
     assert out.index("overall.rmerge") < out.index("high.rmerge")
+
+
+def test_a_steps_log_is_the_programs_own_and_both_are_kept_on_failure(tmp_path):
+    # Stand-ins for the programs: each mirrors itself to mxi_<program>.log, as
+    # mxi's do; the spot finder fails.
+    import stat
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for _, program, _, _ in regress.STEPS:
+        fails = program == "mxi_find"
+        (bin_dir / program).write_text(
+            "#!/bin/sh\n"
+            f"echo ran > {program}.log\n"
+            "echo ran\n" + ("exit 3\n" if fails else "exit 0\n")
+        )
+        (bin_dir / program).chmod(stat.S_IRWXU)
+    where = tmp_path / "run" / "x"
+    rows = regress.run_dataset("x", {"images": ["/none"]}, bin_dir, where)
+    assert [r[0] for r in rows] == ["import", "find"]  # stopped at the failure
+    logs = sorted(f.name for f in where.glob("*.log"))
+    assert logs == ["find.log", "mxi_find.log", "mxi_import.log"]

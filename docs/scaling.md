@@ -258,6 +258,19 @@ Printed under the slope ("random halves"), in the summary
 1.003 and 1.006; the two crystals: 0.969 and 0.961 -- no signal in either, and
 the sigmas right.
 
+## The normal equations, a group at a time
+
+An observation's row in the fit is d_i - g_i G, d_i its own few parameters'
+derivatives (scale, decay, absorption: some thirty) and G those of its group's
+merged intensity, which touches every parameter any of the group's observations
+does. Summed over a group, sum w m^2 (d_i - g_i G)(d_i - g_i G)^T = m^2 (sum w
+d_i d_i^T - den G G^T), sum w g_i d_i being den G: each observation's own
+parameters, then G G^T once a group. Formed an observation at a time, every row
+was dense at high multiplicity -- Graeme's 36000 images, multiplicity 374 over
+ten turns, 448 parameters: three fits of 22 to 30 s each, twice over with
+--d-min-auto, of mxi_scale's 188. The same sum rearranged: the inverse scales
+agree with the old to 2e-15, insulin replicated twentyfold and the two crystals.
+
 ## The cell from two-theta
 
 The cell's e.s.d.s are scaling's, as dials.two_theta_refine gives them: the

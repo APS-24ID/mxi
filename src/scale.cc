@@ -1,6 +1,7 @@
 #include "scale.hh"
 
 #include "parallel.hh"
+#include "processing.hh"
 #include "timing.hh"
 
 #include <algorithm>
@@ -846,6 +847,31 @@ ErrorModel refine_error_model(const ScaleData &data,
   }
   double alpha = 0.0, beta = 0.0;
   const double det = Spp * Sqq - Spq * Spq;
+  // The fit, bin by bin, under --verbose: what drove a and b.
+  const auto show = [&](double al, double be) {
+    if (!verbose())
+      return;
+    std::vector<double> mean_ih(nbins, 0.0);
+    for (std::size_t k = 0; k < use.size(); ++k) {
+      const std::size_t h = data.group[use[k]];
+      mean_ih[bin[k]] += s.num[h] / s.den[h];
+    }
+    detail("  the error model's fit, a bin at a time: y the deviations' mean "
+           "square, p the variance as given, q the intensity squared\n");
+    detail("  %4s %8s %10s %12s %12s %12s %12s %8s\n", "bin", "n", "<I>", "y",
+           "p", "q", "fit", "y/fit");
+    for (int j = 0; j < nbins; ++j) {
+      if (count[j] == 0)
+        continue;
+      const double c = static_cast<double>(count[j]);
+      const double fit = al * sp[j] / c + be * sq[j] / c;
+      detail("  %4d %8zu %10.1f %12.4g %12.4g %12.4g %12.4g %8.3f%s\n", j,
+             count[j], mean_ih[j] / c, sy[j] / c, sp[j] / c, sq[j] / c, fit,
+             fit > 0.0 ? (sy[j] / c) / fit : 0.0,
+             count[j] < 10 ? "  (too few: not fitted)" : "");
+    }
+    detail("  a^2 = %.5g, a^2 b^2 = %.5g\n", al, be);
+  };
   if (det > 0.0) {
     alpha = (Spy * Sqq - Sqy * Spq) / det;
     beta = (Sqy * Spp - Spy * Spq) / det;
@@ -854,6 +880,7 @@ ErrorModel refine_error_model(const ScaleData &data,
     beta = 0.0;
     alpha = Spp > 0.0 ? Spy / Spp : 1.0;
   }
+  show(alpha, beta);
   if (alpha > 0.0) {
     em.a = std::sqrt(alpha);
     em.b = std::min(std::sqrt(beta / alpha), 0.5);

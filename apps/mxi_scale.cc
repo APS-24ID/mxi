@@ -97,7 +97,8 @@ int run_program(int argc, char **argv) {
                                        "-o",
                                        "--output-expt",
                                        "--d-max",
-                                       "--no-model-variances"};
+                                       "--no-model-variances",
+                                       "--verbose"};
   const std::set<std::string> takes_value = {"--l-max",
                                              "--absorption-level",
                                              "--cc-half-limit",
@@ -110,6 +111,7 @@ int run_program(int argc, char **argv) {
                                              "--output-expt",
                                              "--d-max"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
+  set_verbose(args.has("--verbose"));
   // One .rflx stands for the experiment list and the reflections
   // (docs/rflx.md).
   args.positional = rflx::as_pair(args.positional);

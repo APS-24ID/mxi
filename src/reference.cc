@@ -990,6 +990,10 @@ bool add_reference(ReferenceProfiles *reference, std::size_t region,
   if (!(sum > 0.0))
     return false;
   std::vector<double> &into = reference->profile[region];
+  // A cell made on first use: integration's partial sets start empty and
+  // hold only the cells their reflections reach (mxi_integrate, learning).
+  if (into.empty())
+    into.assign(t.data.size(), 0.0);
   for (std::size_t i = 0; i < t.data.size(); ++i) {
     into[i] += (t.data[i] - t.background[i]) / sum;
   }

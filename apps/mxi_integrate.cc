@@ -2651,14 +2651,20 @@ int run_program(int argc, char **argv) {
           // The cells each box's transform computes, kept for its fit.
           cells_of.assign(single_pass ? count : 0, PixelCells{});
           // Each lattice's own, learned from its own reflections alone.
+          // Each partial set's cells empty, made as a reflection reaches one:
+          // a chunk's reflections touch only the scan blocks about its frames.
+          // Every partial a full copy, zeroed and summed back each chunk, had
+          // cost cells x 16 x chunks -- on 3600 degrees, 9000 cells of 13^3,
+          // 2.5 GB copied 563 times: 112 of 238 s (Graeme's 36000 images).
           std::vector<std::vector<ReferenceProfiles>> partial(n_lattices);
           for (std::size_t l = 0; l < n_lattices; ++l) {
-            partial[l].assign(blocks, references[l]);
-            for (ReferenceProfiles &r : partial[l]) {
-              for (std::vector<double> &p : r.profile)
-                std::fill(p.begin(), p.end(), 0.0);
-              std::fill(r.spots.begin(), r.spots.end(), 0);
-            }
+            std::vector<std::vector<double>> data;
+            std::swap(data, references[l].profile);
+            ReferenceProfiles shell = references[l]; // no profile data
+            std::swap(data, references[l].profile);
+            shell.profile.assign(references[l].profile.size(), {});
+            std::fill(shell.spots.begin(), shell.spots.end(), 0);
+            partial[l].assign(blocks, shell);
           }
           std::atomic<std::size_t> learned{0};
           in_parallel(blocks, [&](std::size_t b) {
@@ -2701,6 +2707,8 @@ int run_program(int argc, char **argv) {
             ReferenceProfiles &own = references[l];
             for (const ReferenceProfiles &r : partial[l]) {
               for (std::size_t g = 0; g < own.profile.size(); ++g) {
+                if (r.profile[g].empty())
+                  continue; // untouched: nothing to add
                 for (std::size_t k = 0; k < own.profile[g].size(); ++k)
                   own.profile[g][k] += r.profile[g][k];
                 own.spots[g] += r.spots[g];

@@ -267,6 +267,7 @@ def figures(summary: dict) -> dict[str, float]:
             "cc_half",
             "cc_anom",
             "anom_slope",
+            "anom_slope_random",
         ):
             put(f"scale.{shell}.{k}", _row(m, shell, k))
     for k in (

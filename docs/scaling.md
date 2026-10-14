@@ -189,6 +189,21 @@ crystals' whole background. Both mended, the same two crystals scale with a =
 0.98; insulin's sweep 0.95 1.06 1.09 1.13 1.23 1.20, where it was 0.66 0.92
 1.04 1.13 1.27 1.23. CC half as it was.
 
+## The anomalous slope and its control
+
+The anomalous slope -- the normal probability plot's slope of dI/sigma(dI) over
+the Friedel pairs, |x| < 0.9, as dials.scale -- is above 1 when there is
+anomalous signal or when the sigmas are too small, and alone cannot say which.
+Graeme's ten-turn insulin went from 1.04 to 1.52 when scaling's variances came
+from the model. So beside it, its control: the same slope over random halves
+of each pair's observations, I+ and I- pooled and dealt out again in their
+numbers -- the same counts and weights, no signal. Near 1 when the sigmas are
+right; the slope above it is the signal; both above 1, the sigmas too small.
+Printed under the slope ("random halves"), in the summary
+(`anom_slope_random`), the report and the regression figures. Insulin's sweep:
+1.003 and 1.006; the two crystals: 0.969 and 0.961 -- no signal in either, and
+the sigmas right.
+
 ## The cell from two-theta
 
 The cell's e.s.d.s are scaling's, as dials.two_theta_refine gives them: the

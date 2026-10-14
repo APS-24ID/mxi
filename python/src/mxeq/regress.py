@@ -306,6 +306,7 @@ SENSE = {
     "scale.high.rmerge": -1,
     "scale.high.rpim": -1,
     "time.": -1,
+    "cpu.": -1,
     "memory.": -1,
 }
 
@@ -322,7 +323,7 @@ def tolerance_of(name: str) -> tuple[float, float]:
     """Conservative to start (Graeme): the accuracy figures are the same run to
     run on one build, so any change at all is shown, and one past 1 per cent
     marked; times and memory past 10 per cent and half a second or 10 MB."""
-    if name.startswith("time."):
+    if name.startswith(("time.", "cpu.")):
         return 0.10, 0.5
     if name.startswith("memory."):
         return 0.10, 10.0
@@ -409,6 +410,25 @@ def cmd_run(args) -> int:
             db.execute(
                 "INSERT INTO metrics VALUES (?, ?, ?, ?)",
                 (run_id, name, f"memory.{step}", rss),
+            )
+        # The whole: images to scaled data, the figure quoted for mxi, without
+        # the report; and the CPU time, for how well the threads are used.
+        chain = [r for r in rows if r[0] != "report"]
+        if chain:
+            total = sum(r[2] for r in chain)
+            cpu = sum(r[3] for r in chain)
+            print(
+                f"  {name:20s} {'total':10s} {'':6s} {total:7.1f} s"
+                f"  (CPU {cpu:.1f} s)",
+                flush=True,
+            )
+            db.execute(
+                "INSERT INTO metrics VALUES (?, ?, ?, ?)",
+                (run_id, name, "time.total", total),
+            )
+            db.execute(
+                "INSERT INTO metrics VALUES (?, ?, ?, ?)",
+                (run_id, name, "cpu.total", cpu),
             )
         if rows and rows[-1][1] != 0:
             failed += 1
@@ -545,7 +565,7 @@ def cmd_compare(args) -> int:
             rel, floor = tolerance_of(name)
             change = y - x
             relative = abs(change) / max(abs(x), 1e-12)
-            timing = name.startswith(("time.", "memory."))
+            timing = name.startswith(("time.", "cpu.", "memory."))
             past = relative > rel and abs(change) > floor
             if timing and not past:
                 continue

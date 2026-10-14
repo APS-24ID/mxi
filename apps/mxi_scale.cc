@@ -413,6 +413,33 @@ int run_program(int argc, char **argv) {
     }
     phase("the suggested cut");
 
+    // Above the summary (Graeme): how well the sigmas describe the scatter:
+    // each observation against its
+    // equivalents' mean without it, before the error model and after; 1 where
+    // right, the robust column apart from the plain where a few observations
+    // are wild (docs/scaling.md, "The calibration").
+    const std::vector<CalibrationRow> by_d =
+        calibration(run.data, run.g, true, 10);
+    const std::vector<CalibrationRow> by_i =
+        calibration(run.data, run.g, false, 6);
+    const auto say = [](const char *title,
+                        const std::vector<CalibrationRow> &rows,
+                        bool resolution) {
+      if (rows.empty())
+        return;
+      std::printf("\nThe sigmas' calibration %s: (I - <I> of the others) / "
+                  "sigma, its variance -- 1 where right\n",
+                  title);
+      std::printf(
+          "  %9s %9s %8s %9s %9s %9s %9s\n", resolution ? "d_max" : "<I> from",
+          resolution ? "d_min" : "to", "n", "raw", "robust", "final", "robust");
+      for (const CalibrationRow &r : rows)
+        std::printf("  %9.2f %9.2f %8zu %9.3f %9.3f %9.3f %9.3f\n", r.lo, r.hi,
+                    r.n, r.raw_ms, r.raw_robust, r.final_ms, r.final_robust);
+    };
+    say("by resolution", by_d, true);
+    say("by intensity", by_i, false);
+
     // The summary dials.scale ends with: overall, the lowest shell and the
     // highest, and the data cut at the suggested limit.
     {
@@ -484,31 +511,6 @@ int run_program(int argc, char **argv) {
     const json::Value document = experiments_to_json(written);
     // The summary: the model, the error model, the merging statistics and
     // the resolution -- what a crystallographer judges the data by.
-    // How well the sigmas describe the scatter: each observation against its
-    // equivalents' mean without it, before the error model and after; 1 where
-    // right, the robust column apart from the plain where a few observations
-    // are wild (docs/scaling.md, "The calibration").
-    const std::vector<CalibrationRow> by_d =
-        calibration(run.data, run.g, true, 10);
-    const std::vector<CalibrationRow> by_i =
-        calibration(run.data, run.g, false, 6);
-    const auto say = [](const char *title,
-                        const std::vector<CalibrationRow> &rows,
-                        bool resolution) {
-      if (rows.empty())
-        return;
-      std::printf("\nThe sigmas' calibration %s: (I - <I> of the others) / "
-                  "sigma, its variance -- 1 where right\n",
-                  title);
-      std::printf(
-          "  %9s %9s %8s %9s %9s %9s %9s\n", resolution ? "d_max" : "<I> from",
-          resolution ? "d_min" : "to", "n", "raw", "robust", "final", "robust");
-      for (const CalibrationRow &r : rows)
-        std::printf("  %9.2f %9.2f %8zu %9.3f %9.3f %9.3f %9.3f\n", r.lo, r.hi,
-                    r.n, r.raw_ms, r.raw_robust, r.final_ms, r.final_robust);
-    };
-    say("by resolution", by_d, true);
-    say("by intensity", by_i, false);
     Summary summary("mxi_scale", args.positional[0]);
     for (const auto &[name, rows] :
          {std::pair<const char *, const std::vector<CalibrationRow> *>{

@@ -217,8 +217,9 @@ sigma of the difference -- 1 where the sigmas are right -- its variance in ten
 shells of resolution and six of mean intensity, equal counts a bin; with the
 variances before the error model ("raw") and after ("final"); and each as a
 mean square and robustly, (1.4826 MAD)^2, so a few wild observations show as
-the two apart. In the summary (`calibration_by_resolution`,
-`calibration_by_intensity`). The two insulin crystals: final 0.95 to 1.03
+the two apart. Printed above the summary of merging statistics; in the
+.rflx's summary (`calibration_by_resolution`, `calibration_by_intensity`);
+drawn by mxi_report, plain and robust, raw and final, on a log scale. The two insulin crystals: final 0.95 to 1.03
 nearly everywhere, plain and robust alike. Insulin's sweep before the error
 model: the strongest sixth 7.8 plain, 2.3 robust -- a tail of a few -- 1.10 and
 0.76 after. Written for Graeme's 6S0R set, whose error model came out a = 4.8

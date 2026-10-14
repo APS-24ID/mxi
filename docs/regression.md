@@ -33,10 +33,17 @@ compared with the last, finds such things the day they happen.
 
 ## The commands
 
-    mxeq regress run [--commit REV | --bin DIR] [--datasets A,B] [--tier T]
+    mxeq regress run [--commit REV | --bin DIR] [--datasets A,B]
+                     [--quick | --slow | --tier T]
     mxeq regress list
     mxeq regress compare [RUN] [--against previous|reference|RUN]
     mxeq regress tag RUN reference
+
+Tiers are in order, quick < full < slow, a data set with none full: `run`
+takes quick and full, `--quick` the quick ones, `--slow` all three (the
+36000-image set, ten minutes, only when asked), `--tier T` one tier alone, and
+`--datasets` the named ones whatever their tier. A tier not one of the three is
+an error.
 
 `run` first runs each program once with --help, untimed: macOS checks a
 binary the first time it runs, some 2 s over the chain that would otherwise

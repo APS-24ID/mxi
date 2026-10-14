@@ -40,3 +40,22 @@ def test_each_figure_knows_which_way_is_better():
     assert regress.sense_of("time.integrate") == -1
     assert regress.sense_of("cell.a") == 0  # a change is shown, not judged
     assert regress.tolerance_of("time.find") == (0.10, 0.5)
+
+
+def test_the_tiers_are_in_order_and_a_named_data_set_runs_whatever_its_tier():
+    sets = {
+        "a": {"tier": "quick"},
+        "b": {},  # full
+        "c": {"tier": "slow"},
+    }
+    assert set(regress.choose(sets, upto="quick")) == {"a"}
+    assert set(regress.choose(sets)) == {"a", "b"}  # the default
+    assert set(regress.choose(sets, upto="slow")) == {"a", "b", "c"}
+    assert set(regress.choose(sets, tier="slow")) == {"c"}
+    assert set(regress.choose(sets, names=["c"])) == {"c"}
+    import pytest
+
+    with pytest.raises(SystemExit):
+        regress.choose({"x": {"tier": "fast"}})  # not a tier
+    with pytest.raises(SystemExit):
+        regress.choose(sets, names=["nope"])

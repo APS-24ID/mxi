@@ -59,6 +59,11 @@ takes quick and full, `--quick` the quick ones, `--slow` all three (the
 `--datasets` the named ones whatever their tier. A tier not one of the three is
 an error.
 
+A step's log is the program's own, `mxi_<program>.log`: the runner keeps its
+capture of the output only when a step fails, for what the system said that the
+program could not (a kill for memory), and as the report's log, which writes
+none of its own.
+
 `run` first runs each program once with --help, untimed: macOS checks a
 binary the first time it runs, some 2 s over the chain that would otherwise
 count against the first data set (Graeme). Then it takes the chain, mxi_import

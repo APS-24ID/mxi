@@ -10,7 +10,18 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "BSD-3-Clause" }
 authors = [{ name = "Graeme Winter", email = "graeme.winter@gmail.com" }]
-dependencies = ["numpy>=1.22", "scipy>=1.8", "msgpack>=1.0", "gemmi>=0.6"]
+# h5py and hdf5plugin read .rflx, mxi's own files, whose numbers are stored
+# bitshuffle-LZ4 (HDF5 filter 32008); tomli is TOML for `mxeq regress` before
+# Python 3.11.
+dependencies = [
+    "numpy>=1.22",
+    "scipy>=1.8",
+    "msgpack>=1.0",
+    "gemmi>=0.6",
+    "h5py>=3.6",
+    "hdf5plugin>=4.0",
+    "tomli>=2.0; python_version < '3.11'",
+]
 
 [project.optional-dependencies]
 test = ["pytest>=7"]

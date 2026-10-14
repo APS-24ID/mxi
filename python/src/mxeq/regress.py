@@ -272,6 +272,7 @@ def figures(summary: dict) -> dict[str, float]:
             put(f"scale.{shell}.{k}", _row(m, shell, k))
     for k in (
         "error_model_a",
+        "error_model_a_background",
         "error_model_b",
         "resolution_cc_half",
         "observations",

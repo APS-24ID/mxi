@@ -885,15 +885,147 @@ ErrorModel refine_error_model(const ScaleData &data,
     em.a = std::sqrt(alpha);
     em.b = std::min(std::sqrt(beta / alpha), 0.5);
   }
+  em.a_bg = em.a;
+  // Split, where integration wrote each variance with no signal: one a for a
+  // background's variance, one for a signal's. One a for both had taken the
+  // strong reflections' excess -- 6S0R's, a tenth of their intensity -- into
+  // the weak ones' sigmas, whose variances were near right: final calibration
+  // 0.05 to 0.08 (outstanding item 64). Every group of two or more, the weak
+  // included, in twenty bins of merged intensity, equal counts.
+  if (data.has_background && data.variance_background.size() == data.size()) {
+    std::vector<std::size_t> all;
+    for (std::size_t i = 0; i < data.size(); ++i) {
+      const std::size_t h = data.group[i];
+      if (!data.outlier[i] && s.count[h] >= 2 && s.den[h] > 0.0 && g[i] > 0.0)
+        all.push_back(i);
+    }
+    if (all.size() >= 400) {
+      std::vector<double> cc(data.size(), 0.0), Vb(data.size(), 0.0),
+          Vs(data.size(), 0.0), Iq(data.size(), 0.0);
+      std::vector<double> SVb(data.unique.size(), 0.0),
+          SVs(data.unique.size(), 0.0), SIq(data.unique.size(), 0.0);
+      for (std::size_t i : all) {
+        const std::size_t h = data.group[i];
+        const double g2 = g[i] * g[i];
+        cc[i] = (g2 / data.variance[i]) / s.den[h];
+        const double bg = std::fmax(data.variance_background[i], 0.0);
+        Vb[i] = bg / g2;
+        Vs[i] = std::fmax(data.variance_before[i] + data.scale_term_at(i) - bg,
+                          0.0) /
+                g2;
+        const double Ih = s.num[h] / s.den[h];
+        Iq[i] = data.model_intensity.empty()
+                    ? Ih * Ih
+                    : data.b_intensity(i) * data.b_intensity(i) / g2;
+        SVb[h] += cc[i] * cc[i] * Vb[i];
+        SVs[h] += cc[i] * cc[i] * Vs[i];
+        SIq[h] += cc[i] * cc[i] * Iq[i];
+      }
+      std::sort(all.begin(), all.end(), [&](std::size_t x, std::size_t y) {
+        return s.num[data.group[x]] / s.den[data.group[x]] <
+               s.num[data.group[y]] / s.den[data.group[y]];
+      });
+      const int nb = 20;
+      double M[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, v[3] = {0, 0, 0};
+      struct Row {
+        std::size_t n;
+        double ih, y, pb, ps, q;
+      };
+      std::vector<Row> rows;
+      for (int j = 0; j < nb; ++j) {
+        const std::size_t from = all.size() * static_cast<std::size_t>(j) / nb,
+                          to =
+                              all.size() * static_cast<std::size_t>(j + 1) / nb;
+        Row r{to - from, 0, 0, 0, 0, 0};
+        for (std::size_t k = from; k < to; ++k) {
+          const std::size_t i = all[k], h = data.group[i];
+          const double dev = data.intensity[i] / g[i] - s.num[h] / s.den[h];
+          const double f = 1.0 - 2.0 * cc[i];
+          r.ih += s.num[h] / s.den[h];
+          r.y += dev * dev;
+          r.pb += Vb[i] * f + SVb[h];
+          r.ps += Vs[i] * f + SVs[h];
+          r.q += Iq[i] * f + SIq[h];
+        }
+        const double n = static_cast<double>(r.n);
+        r.ih /= n;
+        r.y /= n;
+        r.pb /= n;
+        r.ps /= n;
+        r.q /= n;
+        rows.push_back(r);
+        if (!(r.y > 0.0))
+          continue;
+        const double w = n / (r.y * r.y), x[3] = {r.pb, r.ps, r.q};
+        for (int a = 0; a < 3; ++a) {
+          v[a] += w * x[a] * r.y;
+          for (int b = 0; b < 3; ++b)
+            M[a][b] += w * x[a] * x[b];
+        }
+      }
+      // Solved by Cholesky; b at its bound refitted without it.
+      const auto solve = [](double A[3][3], double rhs[3], int n, double *out) {
+        std::vector<double> m(static_cast<std::size_t>(n * n)), r(rhs, rhs + n);
+        for (int a = 0; a < n; ++a)
+          for (int b = 0; b < n; ++b)
+            m[static_cast<std::size_t>(a * n + b)] = A[a][b];
+        if (!solve_spd(m.data(), r.data(), static_cast<std::size_t>(n)))
+          return false;
+        for (int a = 0; a < n; ++a)
+          out[a] = r[static_cast<std::size_t>(a)];
+        return true;
+      };
+      double x3[3] = {0, 0, 0};
+      bool ok = solve(M, v, 3, x3);
+      if (ok && !(x3[2] > 0.0)) {
+        x3[2] = 0.0;
+        ok = solve(M, v, 2, x3);
+      }
+      if (verbose()) {
+        detail("  the error model split, a bin at a time: y the deviations' "
+               "mean square, background's and signal's variances, intensity "
+               "squared\n");
+        detail("  %4s %8s %10s %12s %12s %12s %12s %12s %8s\n", "bin", "n",
+               "<I>", "y", "bg", "signal", "q", "fit", "y/fit");
+        for (std::size_t j = 0; j < rows.size(); ++j) {
+          const Row &r = rows[j];
+          const double fit = x3[0] * r.pb + x3[1] * r.ps + x3[2] * r.q;
+          detail(
+              "  %4zu %8zu %10.1f %12.4g %12.4g %12.4g %12.4g %12.4g %8.3f\n",
+              j, r.n, r.ih, r.y, r.pb, r.ps, r.q, fit,
+              fit > 0.0 ? r.y / fit : 0.0);
+        }
+        detail("  a_bg^2 = %.5g, a^2 = %.5g, a^2 b^2 = %.5g%s\n", x3[0], x3[1],
+               x3[2], ok && x3[0] > 0.0 && x3[1] > 0.0 ? "" : ": not kept");
+      }
+      if (ok && x3[0] > 0.0 && x3[1] > 0.0) {
+        em.split = true;
+        em.a_bg = std::sqrt(x3[0]);
+        em.a = std::sqrt(x3[1]);
+        em.b = std::min(std::sqrt(std::fmax(x3[2], 0.0) / x3[1]), 0.5);
+        em.used = all.size();
+      }
+    }
+  }
   return em;
 }
 
 void apply_error_model(ScaleData &data, const ErrorModel &model) {
+  const bool split = model.split && data.has_background &&
+                     data.variance_background.size() == data.size();
   for (std::size_t i = 0; i < data.size(); ++i) {
     const double I = data.b_intensity(i);
-    data.variance[i] = model.a * model.a *
-                       (data.variance_before[i] + data.scale_term_at(i) +
-                        model.b * model.b * I * I);
+    if (split) {
+      const double bg = std::fmax(data.variance_background[i], 0.0);
+      const double rest =
+          std::fmax(data.variance_before[i] + data.scale_term_at(i) - bg, 0.0);
+      data.variance[i] = model.a_bg * model.a_bg * bg +
+                         model.a * model.a * (rest + model.b * model.b * I * I);
+    } else {
+      data.variance[i] = model.a * model.a *
+                         (data.variance_before[i] + data.scale_term_at(i) +
+                          model.b * model.b * I * I);
+    }
   }
 }
 

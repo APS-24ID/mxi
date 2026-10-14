@@ -40,7 +40,10 @@ compared with the last, finds such things the day they happen.
 
 `run` takes the chain, mxi_import to mxi_scale and mxi_report, a step at a
 time, stopping at a failure, which is recorded as such. Each step's peak memory
-and CPU time are its own, from wait4 (kB on Linux, bytes on macOS, kept in MB).
+and CPU time are its own, from wait4 (kB on Linux, bytes on macOS, kept in MB). Each data set's
+total, import to scale without the report -- images to scaled data, the
+figure quoted for mxi -- is printed and kept as `time.total`, its CPU time as
+`cpu.total`.
 The figures come from the last .rflx's processing summary: spots; indexed
 fraction; refinement's RMSDs; integration's <I/sigma> and profile
 correlation; scaling's completeness, multiplicity, <I/sigma>, R merge, R pim,

@@ -411,6 +411,29 @@ Two numbers are defined so as to be read beside DIALS', and one is not:
   crossing one of its job boundaries into separate partial rows, and counts
   reflections running off the ends of the scan.
 
+## Time on long scans (14 October)
+
+Graeme's 36000 images, 7.4 million reflections: 238.5 s on 32 Linux threads,
+124.6 s on the M4 Max with Metal; learning profiles 112.2 s and 35.7, reading
+frames 67.2 and 49.0, profile fitting 17.6 and 9.2. Two causes, both of the
+scan's length and the threads' number, not of the work:
+
+* **Learning profiles.** Each chunk of 64 frames learned into sixteen partial
+  sets of profiles, one a block of threads, each a full copy of every cell,
+  zeroed, then summed back: on 3600 degrees 9000 cells of 13^3, 2.5 GB copied
+  563 times. Now the partial sets' cells are made as a reflection reaches one,
+  and only those are summed back -- the same sums in the same order, the output
+  the same to the bit. Insulin with 7500 cells (`--scan-blocks 300`): 4.7 s to
+  2.0 and a peak of 1149 MB to 448, on one thread.
+* **Reading frames.** Each chunk was read with H5Dread_chunk inside HDF5's
+  global lock, so 32 threads queued behind one: 1000 thread-seconds of
+  "fetching". Now the lock holds only the lookup (H5Dget_chunk_info_by_coord,
+  the chunk's address, size and filter mask), and the bytes are read with
+  pread on a descriptor of the reader's own, of the file the dataset is in --
+  through an external link, often not the master -- from its user block's end.
+  On one thread insulin's reading went 14.2 s to 2.8, H5Dread_chunk's own cost;
+  the frames, the spots and the integrated intensities the same to the bit.
+
 ## Conventions that caused bugs
 
 Each of these was once wrong here. They are the ones to check first when

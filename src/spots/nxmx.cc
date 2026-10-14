@@ -8,7 +8,9 @@
 // them, so the compressed bytes reach the threshold without HDF5's filter
 // pipeline ever running -- the same path the data took in, in reverse.
 
+#include <fcntl.h>
 #include <hdf5.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <cctype>
@@ -178,9 +180,30 @@ std::string_view algorithm_of(hid_t dcpl) {
   return {};
 }
 
+// A file descriptor of the data file's own, for its chunks' bytes read with
+// pread outside HDF5's lock; closed with it.
+struct OwnFd {
+  int fd = -1;
+  OwnFd() = default;
+  explicit OwnFd(int f) : fd(f) {}
+  OwnFd(const OwnFd &) = delete;
+  OwnFd &operator=(const OwnFd &) = delete;
+  OwnFd(OwnFd &&o) noexcept : fd(o.fd) { o.fd = -1; }
+  OwnFd &operator=(OwnFd &&o) noexcept {
+    std::swap(fd, o.fd);
+    return *this;
+  }
+  ~OwnFd() {
+    if (fd >= 0)
+      ::close(fd);
+  }
+};
+
 struct SourceDataset {
   Handle file;
   Handle dataset;
+  OwnFd raw;              //: the data file opened again, for pread
+  std::uint64_t base = 0; //: its user block: chunk addresses count from here
   std::uint64_t height = 0;
   std::uint64_t width = 0;
   unsigned bit_depth = 0;
@@ -194,43 +217,63 @@ public:
       : blocks_(std::move(blocks)), masked_(std::move(masked)) {}
 
   bool read(const std::string &key, Frame *frame) override {
-    const Guard guard(hdf5_mutex());
     frame->masked = masked_;
     const std::uint64_t index = std::strtoull(key.c_str(), nullptr, 10);
-    const Block &block = locate(index);
-    SourceDataset &source = open(block);
-
-    // The chunk holds one frame, so its coordinate is the frame's own index
-    // within the data file, and the other two are zero by construction.
-    hsize_t offset[3] = {
-        static_cast<hsize_t>(index - block.first + block.offset), 0, 0};
-
+    SourceDataset *source = nullptr;
+    hsize_t offset[3] = {0, 0, 0};
     unsigned mask = 0;
     haddr_t address = 0;
     hsize_t size = 0;
-    ok(H5Dget_chunk_info_by_coord(source.dataset.get(), offset, &mask, &address,
-                                  &size),
-       "H5Dget_chunk_info_by_coord");
-
-    // A chunk that was never allocated is a frame the writer never received.
-    // It reads back as the fill value, which is not something to analyse.
-    if (address == HADDR_UNDEF || size == 0)
-      return false;
-
-    frame->storage.resize(static_cast<std::size_t>(size));
-    std::uint32_t filters = 0;
-    ok(read_chunk(source.dataset.get(), offset, &filters, frame->storage.data(),
-                  frame->storage.size()),
-       "H5Dread_chunk");
-
-    frame->height = source.height;
-    frame->width = source.width;
-    frame->bit_depth = source.bit_depth;
+    {
+      // Under HDF5's lock only the lookup: where the chunk is, how long, which
+      // filters it skipped. Its bytes are read after, with pread on a file
+      // descriptor of this reader's own, in parallel: the whole read under the
+      // lock had 32 threads queue behind one, 1000 thread-seconds of
+      // "fetching" in 67 s of reading (Graeme's 36000 images).
+      const Guard guard(hdf5_mutex());
+      const Block &block = locate(index);
+      source = &open(block);
+      // The chunk holds one frame, so its coordinate is the frame's own index
+      // within the data file, and the other two are zero by construction.
+      offset[0] = static_cast<hsize_t>(index - block.first + block.offset);
+      ok(H5Dget_chunk_info_by_coord(source->dataset.get(), offset, &mask,
+                                    &address, &size),
+         "H5Dget_chunk_info_by_coord");
+      // A chunk that was never allocated is a frame the writer never received.
+      // It reads back as the fill value, which is not something to analyse.
+      if (address == HADDR_UNDEF || size == 0)
+        return false;
+      frame->storage.resize(static_cast<std::size_t>(size));
+      if (source->raw.fd < 0) {
+        // No descriptor of our own: through HDF5, under its lock, as before.
+        std::uint32_t filters = 0;
+        ok(read_chunk(source->dataset.get(), offset, &filters,
+                      frame->storage.data(), frame->storage.size()),
+           "H5Dread_chunk");
+        mask = filters;
+      }
+    }
+    if (source->raw.fd >= 0) {
+      auto *into = reinterpret_cast<char *>(frame->storage.data());
+      std::size_t done = 0;
+      const auto at = static_cast<off_t>(source->base + address);
+      while (done < size) {
+        const ssize_t got = ::pread(source->raw.fd, into + done, size - done,
+                                    at + static_cast<off_t>(done));
+        if (got <= 0)
+          throw std::runtime_error("reading a chunk of " +
+                                   std::to_string(size) + " bytes failed");
+        done += static_cast<std::size_t>(got);
+      }
+    }
+    frame->height = source->height;
+    frame->width = source->width;
+    frame->bit_depth = source->bit_depth;
     // Bit i of the mask means filter i was skipped for this chunk, which is how
     // a writer stores a payload it could not compress. The algorithm string
     // belongs to the source dataset, which this reader owns and which outlives
     // every frame it fills.
-    frame->algorithm = (filters & 1u) ? std::string_view() : source.algorithm;
+    frame->algorithm = (mask & 1u) ? std::string_view() : source->algorithm;
     frame->data = {
         reinterpret_cast<const std::uint8_t *>(frame->storage.data()),
         frame->storage.size()};
@@ -316,6 +359,29 @@ private:
         throw std::runtime_error("HDF5: opening " + block.dataset + " failed" +
                                  why);
       source.dataset = Handle(id, H5Dclose);
+    }
+    {
+      // The file the dataset's chunks are in, opened again for their bytes
+      // outside the lock, from its user block's end, where HDF5's addresses
+      // count from. Not block.filename: a master's dataset is often an external
+      // link to a data file (insulin's), and the chunk's address is in that.
+      const hid_t holder = H5Iget_file_id(source.dataset.get());
+      if (holder >= 0) {
+        const ssize_t n = H5Fget_name(holder, nullptr, 0);
+        std::string name(n > 0 ? static_cast<std::size_t>(n) : 0, '\0');
+        if (n > 0)
+          H5Fget_name(holder, name.data(), static_cast<std::size_t>(n) + 1);
+        const hid_t fcpl = H5Fget_create_plist(holder);
+        hsize_t userblock = 0;
+        if (fcpl >= 0) {
+          H5Pget_userblock(fcpl, &userblock);
+          H5Pclose(fcpl);
+        }
+        H5Fclose(holder);
+        source.base = userblock;
+        if (!name.empty())
+          source.raw = OwnFd(::open(name.c_str(), O_RDONLY));
+      }
     }
 
     const Handle dcpl(opened(H5Dget_create_plist(source.dataset.get()),

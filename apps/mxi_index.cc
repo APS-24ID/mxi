@@ -21,6 +21,7 @@
 #include "processing.hh"
 #include "refine.hh"
 #include "rflx.hh"
+#include "shoebox.hh"
 #include "timing.hh"
 #include "views.hh"
 
@@ -60,6 +61,10 @@ void usage() {
       "                    (dials/dials#1029)\n"
       "  --ambiguity-sigma S  ambiguous: within S of each lattice's own RMS\n"
       "                    scatter of a second lattice's point (3)\n"
+      "  --no-joint        several sweeps, each indexed on its own -- a "
+      "crystal\n"
+      "                    of its own, as dials.index joint=false: many\n"
+      "                    crystals, which share no matrix\n"
       "  --shared-crystal  several sweeps: one crystal throughout, where by\n"
       "                   default the last cycle refines each sweep's apart\n"
       "  --all-reflections  refine on everything, not the stronger half\n"
@@ -198,6 +203,140 @@ int report_lattices(const ExperimentList &sweep, Table &reflections,
 
 } // namespace
 
+int run_program(int argc, char **argv);
+
+// --no-joint: each sweep indexed on its own, as dials.index joint=false -- a
+// basis search, refinement and lattices of its own -- then the lists and tables
+// joined, one crystal or more a sweep (Graeme: many crystals, as in the
+// COWS_PIGS_PEOPLE tutorial, which share no matrix). A sweep that will not
+// index is carried without a crystal, its spots unindexed, the others going on.
+// Each sweep run through this program again, on files of its own, as
+// mxi_integrate runs several.
+int index_apart(const Arguments &args,
+                const std::set<std::string> &takes_value) {
+  const rflx::Outputs outputs = rflx::outputs(args, "indexed");
+  const std::string base = outputs.rflx.empty() ? outputs.refl : outputs.rflx;
+  const json::Value document = read_experiment_document(args.positional[0]);
+  const json::Array &experiments = document["experiment"].as_array();
+  const std::size_t n = experiments.size();
+  {
+    std::set<std::pair<long long, long long>> seen;
+    for (const json::Value &e : experiments) {
+      const auto key = std::make_pair(
+          e["imageset"].is_number()
+              ? static_cast<long long>(e["imageset"].as_number())
+              : -1,
+          e["scan"].is_number() ? static_cast<long long>(e["scan"].as_number())
+                                : -1);
+      if (!seen.insert(key).second) {
+        std::fprintf(stderr,
+                     "mxi_index: --no-joint wants a list of sweeps, one "
+                     "experiment each, as imported; these share a sweep\n");
+        return 2;
+      }
+    }
+  }
+  const Table strong = read_reflections(args.positional[1]);
+  if (!strong.has("id")) {
+    std::fprintf(stderr, "mxi_index: %s has no id column\n",
+                 args.positional[1].c_str());
+    return 1;
+  }
+  std::vector<std::string> made;
+  const auto tidy = [&] {
+    for (const std::string &f : made)
+      std::remove(f.c_str());
+  };
+  const auto run = [](std::vector<std::string> words) {
+    std::vector<char *> argv;
+    for (std::string &w : words)
+      argv.push_back(w.data());
+    argv.push_back(nullptr);
+    return run_program(static_cast<int>(words.size()), argv.data());
+  };
+  std::printf("Indexing %zu sweeps apart (--no-joint), each its own crystal\n",
+              n);
+  std::vector<json::Value> lists;
+  std::vector<Table> tables;
+  std::size_t failed = 0;
+  const Column &id = strong.at("id");
+  for (std::size_t i = 0; i < n; ++i) {
+    const std::string stem = base + ".sweep" + std::to_string(i);
+    const std::string in_expt = stem + ".in.expt", in_refl = stem + ".in.refl",
+                      got = stem + ".rflx";
+    made.insert(made.end(), {in_expt, in_refl, got});
+    json::dump_file(in_expt, slice_experiment_list(document, i));
+    std::vector<std::size_t> rows;
+    for (std::size_t r = 0; r < strong.nrows; ++r)
+      if (id.integer(r) == static_cast<std::int64_t>(i))
+        rows.push_back(r);
+    Table part = select_rows_with_shoeboxes(strong, rows);
+    for (std::int64_t &x : part.modify_int_column("id", "int", 1).ints)
+      x = 0;
+    part.identifiers.clear();
+    if (experiments[i]["identifier"].is_string())
+      part.identifiers[0] = experiments[i]["identifier"].as_string();
+    write_reflections(in_refl, part);
+    std::vector<std::string> words = {"mxi_index", in_expt, in_refl};
+    for (const auto &[flag, value] : args.options) {
+      if (flag == "-o" || flag == "--output-expt" || flag == "--output-refl" ||
+          flag == "--no-joint")
+        continue;
+      words.push_back(flag);
+      if (takes_value.count(flag))
+        words.push_back(value);
+    }
+    words.insert(words.end(), {"-o", got});
+    std::printf("\n=== Sweep %zu of %zu: experiment %zu ===\n", i + 1, n, i);
+    std::fflush(stdout);
+    if (run(words) == 0) {
+      lists.push_back(*rflx::read_experiments(got));
+      tables.push_back(read_reflections(got));
+    } else {
+      ++failed;
+      std::printf("Sweep %zu: not indexed -- carried without a crystal, its "
+                  "spots unindexed\n",
+                  i);
+      lists.push_back(read_experiment_document(in_expt));
+      tables.push_back(std::move(part));
+    }
+  }
+  // Joined: each table's ids moved past the experiments before it.
+  std::size_t offset = 0;
+  for (std::size_t k = 0; k < tables.size(); ++k) {
+    for (std::int64_t &x : tables[k].modify_int_column("id", "int", 1).ints)
+      if (x >= 0)
+        x += static_cast<std::int64_t>(offset);
+    offset += lists[k]["experiment"].as_array().size();
+  }
+  json::Value joined_expt = join_experiment_lists(lists);
+  for (const char *kind : {"beam", "detector", "goniometer"})
+    share_identical(&joined_expt, kind);
+  Table joined = concat_rows_with_shoeboxes(tables);
+  joined.identifiers.clear();
+  const json::Array &all = joined_expt["experiment"].as_array();
+  std::size_t crystals = 0;
+  for (std::size_t k = 0; k < all.size(); ++k) {
+    if (all[k]["identifier"].is_string())
+      joined.identifiers[k] = all[k]["identifier"].as_string();
+    if (all[k]["crystal"].is_number())
+      ++crystals;
+  }
+  Summary step("mxi_index", args.positional[0]);
+  step.set("apart", json::Value(1L));
+  step.set("sweeps", json::Value(static_cast<long>(n)));
+  step.set("lattices", json::Value(static_cast<long>(crystals)));
+  step.set("not_indexed", json::Value(static_cast<long>(failed)));
+  const json::Value summary_document = step.document();
+  rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_index",
+                      &summary_document);
+  tidy();
+  std::printf("\n%zu sweeps indexed apart: %zu lattices, %zu sweep%s not "
+              "indexed\n",
+              n, crystals, failed, failed == 1 ? "" : "s");
+  return failed == n ? 1 : 0;
+}
+
 int run_program(int argc, char **argv) {
   const std::set<std::string> known = {
       "--d-min",          "--max-cell",         "--grid",
@@ -207,7 +346,7 @@ int run_program(int argc, char **argv) {
       "--timing",         "--jacobian-threads", "--fft-threads",
       "--shared-crystal", "--max-lattices",     "--min-lattice-spots",
       "--ambiguous",      "--ambiguity-sigma",  "--keep-sweeps",
-      "--no-keep-sweeps"};
+      "--no-keep-sweeps", "--no-joint"};
   const std::set<std::string> takes_value = {"--d-min",
                                              "--max-cell",
                                              "--grid",
@@ -227,6 +366,13 @@ int run_program(int argc, char **argv) {
   // One .rflx stands for the experiment list and the reflections
   // (docs/rflx.md).
   args.positional = rflx::as_pair(args.positional);
+  // --no-joint, several sweeps: each indexed on its own. After the pair is
+  // made, so that one .rflx given asks it too.
+  if (args.has("--no-joint") && args.positional.size() == 2) {
+    const json::Value list = read_experiment_document(args.positional[0]);
+    if (list["experiment"].as_array().size() > 1)
+      return index_apart(args, takes_value);
+  }
   // 0 means one per core, 1 means none. Exposed because a threading change
   // that cannot be switched off cannot be measured against its absence.
   g_fft_threads = static_cast<std::size_t>(args.number("--fft-threads", 0.0));

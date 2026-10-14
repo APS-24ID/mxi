@@ -153,3 +153,19 @@ experiments of one crystal -- which runs every program's path for several sweeps
 and has a single-sweep answer to agree with; and the tests built on it. Then the
 real test, by Graeme: the four insulin sweeps of https://zenodo.org/records/8376818,
 each at its own orientation, the whole chain from their masters.
+
+## Sweeps of different crystals: mxi_index --no-joint
+
+By default several sweeps are indexed together, one basis searched for from
+all their spots, the last cycle refining each sweep's crystal apart: right for
+sweeps of one crystal. Sweeps of different crystals share no matrix -- Graeme's
+COWS_PIGS_PEOPLE tutorial, 36 crystals of three insulins -- and `--no-joint`,
+as dials.index joint=false, indexes each on its own: each sweep's experiment
+and spots written apart, mxi_index run on them with the options given, the
+lists and tables joined, each sweep's crystal-less experiment followed by its
+lattices, the ids moved past the experiments before. A sweep that will not
+index is carried without a crystal, its spots unindexed, the rest going on.
+mxi_symmetry then finds the crystals' orientations apart and runs cosym, which
+puts them in one setting. Insulin as four sweeps (mxi_import --split 4),
+indexed apart: four cells, cosym's cosines 0.999 to 1.000, I 2 3, R merge 0.040
+and CC half 0.986, as indexed together (0.040, 0.985).

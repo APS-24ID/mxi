@@ -207,9 +207,6 @@ where something is missing.
     unbuilt here.
 
 * **22.** **capability -- No free-set validation**, the check for overfitting.
-* **26.** **capability -- The scaling model is not written** to `scaled.expt`, as
-    dials.scale writes its `scaling_model`.
-
 ## New programs
 
 * **28.** **mxi_export**: MTZ and mmCIF.
@@ -336,6 +333,9 @@ where something is missing.
     `docs/spots_notes.md`, `docs/spotfinder.md` -- which could be one.
 
 ## Closed
+
+* **26.** The scale model written into the scaled experiments, mxi_physical
+    (`docs/scaling.md`, "The scale model, written").
 
 * **64.** The error model's form: split, a background's variance and a
     signal's each their own a (`docs/scaling.md`, "The error model, split").

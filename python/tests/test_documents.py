@@ -71,7 +71,8 @@ def test_every_program_named_is_built(document):
     built = _programs()
     assert built, "found no mxi_ programs in the build files"
     named = set(PROGRAM.findall((ROOT / document).read_text()))
-    unknown = named - built
+    # Names of mxi's that are not programs: mxi_physical, the scale model's type.
+    unknown = named - built - {"mxi_physical"}
     assert not unknown, f"{document} names programs the build does not make: {unknown}"
 
 

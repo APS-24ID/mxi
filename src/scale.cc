@@ -774,97 +774,89 @@ ErrorModel refine_error_model(const ScaleData &data,
   for (std::size_t i : use) {
     const double g2 = g[i] * g[i];
     A_of[i] = (data.variance_before[i] + data.scale_term_at(i)) / g2;
-    B_of[i] = data.b_intensity(i) * data.b_intensity(i) / g2;
+    // The fractional term's intensity the model's, or else the reflection's
+    // merged one -- not the observation's own, whose square overstates the
+    // truth's by its own variance.
+    const double Ih = s.num[data.group[i]] / s.den[data.group[i]];
+    B_of[i] = data.model_intensity.empty()
+                  ? Ih * Ih
+                  : data.b_intensity(i) * data.b_intensity(i) / g2;
     SA[data.group[i]] += c[i] * c[i] * A_of[i];
     SB[data.group[i]] += c[i] * c[i] * B_of[i];
   }
-  std::vector<double> P(use.size()), Q(use.size()), R(use.size()),
-      Aw(use.size()), Bw(use.size());
+  std::vector<double> P(use.size()), Q(use.size()), R(use.size());
   for (std::size_t k = 0; k < use.size(); ++k) {
     const std::size_t i = use[k], h = data.group[i];
     P[k] = A_of[i] * (1.0 - 2.0 * c[i]) + SA[h];
     Q[k] = B_of[i] * (1.0 - 2.0 * c[i]) + SB[h];
     R[k] = data.intensity[i] / g[i] - s.num[h] / s.den[h];
-    Aw[k] = A_of[i];
-    Bw[k] = B_of[i];
   }
-  const auto deviations = [&](double a, double b, std::vector<double> *out) {
-    out->assign(use.size(), 0.0);
-    const double b2 = b * b, a2 = a * a;
-    for_each_index(use.size(), [&](std::size_t k) {
-      const double var =
-          a2 * std::fmax(P[k] + b2 * Q[k], 1e-12 * (Aw[k] + b2 * Bw[k]));
-      (*out)[k] = R[k] / std::sqrt(var);
-    });
-  }; // Intensity bins for b: logarithmically spaced over the used intensities.
+  // Intensity bins for b: logarithmically spaced over the used intensities.
   double lo = HUGE_VAL, hi = 0.0;
   for (std::size_t i : use) {
-    const double v = std::fmax(data.b_intensity(i), 1e-3);
+    const double v =
+        std::fmax(s.num[data.group[i]] / s.den[data.group[i]], 1e-3);
     lo = std::fmin(lo, v);
     hi = std::fmax(hi, v);
   }
   const int nbins = 20;
   std::vector<int> bin(use.size());
   for (std::size_t k = 0; k < use.size(); ++k) {
-    const double v = std::fmax(data.b_intensity(use[k]), 1e-3);
+    // Binned by the reflection's merged intensity, as dials.scale: by the
+    // observation's own, one that scattered high joined a higher bin, and
+    // every bin's deviations read wide -- a = 1.18 for 1.0, b = 0.15 planted.
+    const std::size_t h = data.group[use[k]];
+    const double v = std::fmax(s.num[h] / s.den[h], 1e-3);
     bin[k] = hi > lo ? std::min(nbins - 1,
                                 static_cast<int>(nbins * std::log(v / lo) /
                                                  std::log(hi / lo)))
                      : 0;
   }
-  std::vector<double> dev;
-  // The normal probability plot's quantiles depend only on the count, which a
-  // round does not change: computed once rather than twenty times.
-  std::vector<double> quantile_of(use.size());
-  for (std::size_t k = 0; k < use.size(); ++k)
-    quantile_of[k] = normal_quantile((static_cast<double>(k) + 0.5) /
-                                     static_cast<double>(use.size()));
-  for (int round = 0; round < 20; ++round) {
-    const double a0 = em.a, b0 = em.b;
-    // a: the slope of the central normal probability plot, |x| < 1.5.
-    deviations(em.a, em.b, &dev);
-    std::vector<double> sorted = dev;
-    std::sort(sorted.begin(), sorted.end());
-    double sxx = 0.0, sxy = 0.0;
-    for (std::size_t k = 0; k < sorted.size(); ++k) {
-      const double x = quantile_of[k];
-      if (std::abs(x) < 1.5) {
-        sxx += x * x;
-        sxy += x * sorted[k];
-      }
-    }
-    if (sxx > 0.0)
-      em.a *= sxy / sxx;
-    // b: minimise eqn 17, sum w_i [(0.5 - v_i)^2 + 1/v_i], the bin variances
-    // v_i of the deviations and w_i proportional to the bin's mean intensity.
-    const auto phi = [&](double b) {
-      deviations(em.a, b, &dev);
-      std::vector<double> sum(nbins, 0.0), sum2(nbins, 0.0), mean_i(nbins, 0.0);
-      std::vector<std::size_t> count(nbins, 0);
-      for (std::size_t k = 0; k < dev.size(); ++k) {
-        sum[bin[k]] += dev[k];
-        sum2[bin[k]] += dev[k] * dev[k];
-        mean_i[bin[k]] += data.intensity[use[k]];
-        ++count[bin[k]];
-      }
-      double f = 0.0;
-      for (int j = 0; j < nbins; ++j) {
-        if (count[j] < 10)
-          continue;
-        const double c = static_cast<double>(count[j]);
-        const double v =
-            std::fmax(sum2[j] / c - (sum[j] / c) * (sum[j] / c), 1e-6);
-        f += (mean_i[j] / c) * ((0.5 - v) * (0.5 - v) + 1.0 / v);
-      }
-      return f;
-    };
-    // Brent's minimiser over b in [0, 0.5], to 1e-8: parabolic steps where the
-    // function allows, golden-section ones where it does not. It was a golden
-    // section of sixty steps, to 1e-13, where the rounds stop at a change of
-    // 1e-6.
-    em.b = brent_minimum(phi, 0.0, 0.5, 1e-8);
-    if (std::abs(em.a - a0) < 1e-5 && std::abs(em.b - b0) < 1e-6)
-      break;
+  // a and b together, by regression, as dials.scale's default: in each
+  // intensity bin the deviations' mean square should be a^2 (P + b^2 Q),
+  // linear in a^2 and a^2 b^2 -- fitted across the bins by weighted least
+  // squares, each bin's weight its count over its mean square squared. a had
+  // been the slope of the normal probability plot over every observation,
+  // b then fitted about it: on Graeme's 6S0R set, its strong reflections out by
+  // a tenth of their intensity, that gave a = 4.81 and b = 0.023 -- every sigma
+  // five times over, the weak ones' three times too large (the anomalous
+  // slope 0.33, its control 0.34) -- where the data wanted b near 0.1.
+  std::vector<double> sy(nbins, 0.0), sp(nbins, 0.0), sq(nbins, 0.0);
+  std::vector<std::size_t> count(nbins, 0);
+  for (std::size_t k = 0; k < use.size(); ++k) {
+    sy[bin[k]] += R[k] * R[k];
+    sp[bin[k]] += P[k];
+    sq[bin[k]] += Q[k];
+    ++count[bin[k]];
+  }
+  double Spp = 0.0, Spq = 0.0, Sqq = 0.0, Spy = 0.0, Sqy = 0.0;
+  for (int j = 0; j < nbins; ++j) {
+    if (count[j] < 10)
+      continue;
+    const double c = static_cast<double>(count[j]);
+    const double y = sy[j] / c, pp = sp[j] / c, qq = sq[j] / c;
+    if (!(y > 0.0))
+      continue;
+    const double w = c / (y * y);
+    Spp += w * pp * pp;
+    Spq += w * pp * qq;
+    Sqq += w * qq * qq;
+    Spy += w * pp * y;
+    Sqy += w * qq * y;
+  }
+  double alpha = 0.0, beta = 0.0;
+  const double det = Spp * Sqq - Spq * Spq;
+  if (det > 0.0) {
+    alpha = (Spy * Sqq - Sqy * Spq) / det;
+    beta = (Sqy * Spp - Spy * Spq) / det;
+  }
+  if (!(beta > 0.0) || !(alpha > 0.0)) { // b at its bound, a alone
+    beta = 0.0;
+    alpha = Spp > 0.0 ? Spy / Spp : 1.0;
+  }
+  if (alpha > 0.0) {
+    em.a = std::sqrt(alpha);
+    em.b = std::min(std::sqrt(beta / alpha), 0.5);
   }
   return em;
 }

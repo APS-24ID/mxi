@@ -530,6 +530,20 @@ because the layout is the part that is expensive to change afterwards.
 
 ## Refinement
 
+**One table, not three** (14 October). Refinement, symmetry and scaling each
+held the table three times: as read; as the lattices' view of it, which
+lattice_rows built by selecting every row whenever the experiments included a
+crystal-less one -- always, since the sweep as imported is carried as one --
+even with none of the rows its; and as rows_again's concatenation of that view
+with no crystal-less rows, for writing. Now the crystal-less rows are taken
+apart at reading, the rest moved into the view, and the view moved into the
+table written; with no crystal-less rows, ids renumbered in place both ways.
+Insulin replicated twentyfold, 420600 rows: symmetry's peak 1256 MB to 310,
+its time 1.9 s to 1.1; scaling's 379 MB, with --d-min-auto 353 (Graeme's
+36000 images: symmetry 21.9 GB and scaling 25.8 before). The output the same,
+every column, the experiments, the identifiers. `--timing` gives each phase's
+peak memory now, which found it.
+
 **The Jacobian's memory** (14 October). The analytical Jacobian is kept an
 observation at a time: only the parameters the observation's span holds -- at
 most 36 crystal (four spline control points of nine), 6 detector, 2 beam --

@@ -12,7 +12,23 @@
 #include <utility>
 #include <vector>
 
+#include <sys/resource.h>
+
 namespace mxi {
+
+//: The process's peak resident memory so far, in MB: kB on Linux, bytes on
+//: macOS. Only ever rises, so the phase after which it jumps is the one that
+//: asked for the memory (Graeme: symmetry 22 GB, scaling 26, on 36000 images).
+inline double peak_memory_mb() {
+  struct rusage u {};
+  if (getrusage(RUSAGE_SELF, &u) != 0)
+    return 0.0;
+#ifdef __APPLE__
+  return static_cast<double>(u.ru_maxrss) / (1024.0 * 1024.0);
+#else
+  return static_cast<double>(u.ru_maxrss) / 1024.0;
+#endif
+}
 
 class Timing {
 public:
@@ -31,7 +47,7 @@ public:
 
   //: A phase measured elsewhere; depth indents it under the one before.
   void add(const std::string &name, double seconds, int depth = 0) {
-    phases_.push_back({name, seconds, depth});
+    phases_.push_back({name, seconds, depth, peak_memory_mb()});
   }
 
   //: A scope timed to its end: `{ auto t = timing.scope("reading"); ... }`.
@@ -66,8 +82,9 @@ public:
     for (const Phase &p : phases_) {
       const std::string name =
           std::string(static_cast<std::size_t>(2 * p.depth), ' ') + p.name;
-      std::fprintf(out, "  %-42s %9.3f s  %5.1f%%\n", name.c_str(), p.seconds,
-                   total > 0.0 ? 100.0 * p.seconds / total : 0.0);
+      std::fprintf(out, "  %-42s %9.3f s  %5.1f%%  peak %8.0f MB\n",
+                   name.c_str(), p.seconds,
+                   total > 0.0 ? 100.0 * p.seconds / total : 0.0, p.peak_mb);
     }
     std::fprintf(out, "  %-42s %9.3f s\n", "total", total);
     for (const std::string &n : notes_)
@@ -79,6 +96,7 @@ private:
     std::string name;
     double seconds;
     int depth;
+    double peak_mb; //: the process's peak memory as the phase ended
   };
   bool on_;
   double began_;

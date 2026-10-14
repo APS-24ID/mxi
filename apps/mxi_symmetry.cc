@@ -153,10 +153,14 @@ int run_program(int argc, char **argv) {
     // The lattices; each sweep's own crystal-less experiment carried through
     // (docs/multi-lattice.md, stage 2).
     const ExperimentList whole = read_experiments(args.positional[0]);
-    const Table whole_table = read_reflections(args.positional[1]);
+    Table whole_table = read_reflections(args.positional[1]);
     const Lattices views = lattices_of(whole);
     ExperimentList experiments = views.list;
-    Table reflections = lattice_rows(whole_table, views);
+    // The crystal-less rows apart, the rest moved, not copied: one table
+    // held, not three (Graeme: symmetry 22 GB, scaling 26, on 36000
+    // images).
+    const Table crystal_less = crystal_less_rows(whole_table, views);
+    Table reflections = lattice_rows(std::move(whole_table), views);
     phase("reading");
     // Several sweeps of one crystal pooled, as dials.symmetry takes them: the
     // lattice is the first's, so every sweep must have a crystal and the same
@@ -414,8 +418,8 @@ int run_program(int argc, char **argv) {
                 after.c, after.alpha, after.beta, after.gamma);
     const rflx::Outputs out = rflx::outputs(args, "symmetrized");
     const ExperimentList written = whole_again(whole, views, experiments);
-    Table written_table = rows_again(
-        reflections, crystal_less_rows(whole_table, views), views, written);
+    Table written_table =
+        rows_again(std::move(reflections), crystal_less, views, written);
     const json::Value document = experiments_to_json(written);
     // The summary: each element, each subgroup, the choice.
     Summary summary("mxi_symmetry", args.positional[0]);
@@ -465,10 +469,11 @@ int run_program(int argc, char **argv) {
                       json::Value(after.beta), json::Value(after.gamma)}));
     }
     const json::Value summary_document = summary.document();
+    phase("reindexing");
     rflx::write_outputs(out, &document, &written_table, "mxi_symmetry",
                         &summary_document);
     std::printf("\nWrote %s\n", rflx::describe(out).c_str());
-    phase("reindexing and writing");
+    phase("writing");
     timing.report(stdout);
   } catch (const std::exception &error) {
     std::fprintf(stderr, "mxi_symmetry: %s\n", error.what());

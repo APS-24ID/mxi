@@ -35,7 +35,10 @@ Lattices lattices_of(const ExperimentList &whole);
 //: A table's rows of the lattices, `id` and the identifier map in the
 //: lattices' own numbering; and its other rows -- the crystal-less
 //: experiments', the unindexed spots -- as they are.
-Table lattice_rows(const Table &table, const Lattices &lattices);
+//: By value: given a table moved in, and every row a crystal's, the same
+//: table back with no copy -- a copy here was a third of mxi_symmetry's 22 GB
+//: on Graeme's 36000-image sweep.
+Table lattice_rows(Table table, const Lattices &lattices);
 Table crystal_less_rows(const Table &table, const Lattices &lattices);
 
 //: The whole list again, the lattices as a program left them put back in
@@ -50,7 +53,8 @@ ExperimentList whole_again(const ExperimentList &whole,
 //: experiments' after them: `id` and the identifier map in the whole list's
 //: numbering again, and any column the lattices' rows have and the others do
 //: not given them as zeros, as an unindexed spot has no prediction.
-Table rows_again(const Table &lattice_rows, const Table &crystal_less_rows,
+//: By value, as lattice_rows: moved in, no copy where there is nothing to add.
+Table rows_again(Table lattice_rows, const Table &crystal_less_rows,
                  const Lattices &lattices, const ExperimentList &whole);
 
 //: The whole list of a program that finds lattices -- indexing -- as

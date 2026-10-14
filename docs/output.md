@@ -132,3 +132,9 @@ mxi back end is a step list (`mxi_import` to `mxi_export`, their options) and a
 reader of `mxi_<program>.json` in place of the log parsers. The viewers
 (image viewer, reciprocal lattice viewer) stay DIALS's, given the DIALS pair
 through `mxi_convert` where they need it.
+
+## --timing
+
+Every program's `--timing` table gives each phase's wall time, its share, and
+the process's peak memory as the phase ended (`src/timing.hh`); the peak only
+rises, so the phase after which it jumps is the one that asked for it.

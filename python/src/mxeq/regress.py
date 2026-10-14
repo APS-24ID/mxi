@@ -542,23 +542,43 @@ def _human(n: float) -> str:
     return f"{n:.1f} TB"
 
 
+# What a kept run can do without: every step's file but the last, scaled.rflx,
+# which the report and the figures came from.
+INTERMEDIATES = [
+    w for _, _, _, w in STEPS if w.endswith(".rflx") and w != "scaled.rflx"
+]
+
+
 def cmd_clean(args) -> int:
-    """Remove the files of old runs and old builds, which are large; the
-    figures stay in the history, so list and compare go on working. Without
-    --yes, only says what it would remove (Graeme: they are huge)."""
+    """Remove the files of old runs and old builds, which are large -- and,
+    with --intermediates, kept runs' files but scaled.rflx, the report and the
+    logs. The figures stay in the history, so list and compare go on working.
+    Everything is shown with its size, kept or not (Graeme: 'nothing to
+    remove' over 17 GB). Without --yes, nothing is removed."""
     db = database()
     runs = [
         r for r in db.execute("SELECT id, commit_id, tag FROM runs ORDER BY started")
     ]
     kept = {r[0] for r in runs[-args.keep_runs :]} if args.keep_runs > 0 else set()
     kept |= {r[0] for r in runs if r[2]}  # tagged runs keep their files
-    remove = []
+    tags = {r[0]: r[2] for r in runs}
+    plan = []  # (kind, path, remove?, why)
     run_dir = home() / "runs"
     if run_dir.exists():
         for d in sorted(run_dir.iterdir()):
-            if d.is_dir() and d.name not in kept:
-                remove.append(("run", d))
-    # Builds: those kept runs used, and the newest few, stay.
+            if not d.is_dir():
+                continue
+            if d.name not in kept:
+                plan.append(("run", d, True, "old"))
+                continue
+            why = "tagged " + tags[d.name] if tags.get(d.name) else "recent"
+            plan.append(("run", d, False, why))
+            if args.intermediates:
+                for ds in sorted(x for x in d.iterdir() if x.is_dir()):
+                    for name in INTERMEDIATES:
+                        f = ds / name
+                        if f.exists():
+                            plan.append(("file", f, True, "intermediate"))
     wanted = {(r[1] or "")[:12] for r in runs if r[0] in kept}
     build_dir = home() / "builds"
     builds = []
@@ -571,20 +591,42 @@ def cmd_clean(args) -> int:
         {d.name for d in builds[-args.keep_builds :]} if args.keep_builds > 0 else set()
     )
     for d in builds:
-        if d.name not in wanted and d.name not in newest:
-            remove.append(("build", d))
-    if not remove:
-        print("nothing to remove")
-        return 0
-    total = 0
-    for kind, d in remove:
-        n = _size(d)
-        total += n
-        print(f"  {kind:5s} {d.name:32s} {_human(n):>10s}")
+        if d.name in wanted:
+            plan.append(("build", d, False, "used by a kept run"))
+        elif d.name in newest:
+            plan.append(("build", d, False, "newest"))
+        else:
+            plan.append(("build", d, True, "old"))
+    removed_total = kept_total = 0
+    for kind, d, remove, why in plan:
+        n = _size(d) if d.is_dir() else d.stat().st_size
+        if kind == "file":
+            label = f"{d.parent.parent.name}/{d.parent.name}/{d.name}"
+        else:
+            label = d.name
+        print(
+            f"  {'remove' if remove else 'keep':6s} {kind:5s} {label:48s} "
+            f"{_human(n):>10s}  {why}"
+        )
+        if remove:
+            removed_total += n
+        elif kind != "file":
+            kept_total += n
+    # A kept run's size above includes its intermediates; count them once.
+    kept_total -= sum(d.stat().st_size for k, d, r, _ in plan if k == "file")
+    removal = [(k, d) for k, d, r, _ in plan if r]
     print(
-        f"{len(remove)} to remove, {_human(total)}"
-        + ("" if args.yes else "; run again with --yes to remove them")
+        f"{len(removal)} to remove, {_human(removed_total)}; "
+        f"{_human(max(kept_total, 0))} kept"
+        + ("" if args.yes or not removal else "; --yes to remove them")
     )
+    if not removal:
+        if not args.intermediates:
+            print(
+                "  (--intermediates would also take kept runs' files but "
+                "scaled.rflx, the report and the logs; --keep-runs N fewer runs)"
+            )
+        return 0
     if not args.yes:
         return 0
     source = None
@@ -592,7 +634,10 @@ def cmd_clean(args) -> int:
         source = Path(read_toml(home() / "build.toml")["source"]).expanduser()
     except (SystemExit, Exception):
         pass
-    for kind, d in remove:
+    for kind, d in removal:
+        if kind == "file":
+            d.unlink(missing_ok=True)
+            continue
         tree = d / "src"
         if kind == "build" and source is not None and tree.exists():
             # The worktree, through git: the repository's own record of it too.
@@ -605,7 +650,7 @@ def cmd_clean(args) -> int:
         subprocess.run(
             ["git", "-C", str(source), "worktree", "prune"], capture_output=True
         )
-    print(f"removed {len(remove)}, {_human(total)}")
+    print(f"removed {len(removal)}, {_human(removed_total)}")
     return 0
 
 
@@ -769,6 +814,12 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=2,
         help="the newest builds that stay (2), besides those the " "kept runs used",
+    )
+    cl.add_argument(
+        "--intermediates",
+        action="store_true",
+        help="also kept runs' files but scaled.rflx, the report "
+        "and the logs: every step's .rflx before scaling",
     )
     cl.add_argument("--yes", action="store_true", help="remove them")
     c = sub.add_parser("compare", help="a run against an earlier one")

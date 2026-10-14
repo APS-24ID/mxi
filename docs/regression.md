@@ -36,8 +36,12 @@ overwrites one that exists.
 most recent five (`--keep-runs`) and the tagged ones -- every run's figures
 stay in the history, so `list` and `compare` go on working -- and every build
 but those the kept runs used and the newest two (`--keep-builds`), each
-worktree removed through git and the repository's records pruned. Without
-`--yes` it only says what it would remove and how much.
+worktree removed through git and the repository's records pruned. `--intermediates`
+takes kept runs' files too, all but scaled.rflx, the report and the logs --
+every step's .rflx before scaling, most of a run's size, nothing a comparison
+needs. Every run and build is listed with its size, kept or not -- Graeme's
+first clean said only "nothing to remove" over 17 GB. Without `--yes` nothing
+is removed.
 
 ## The commands
 
@@ -46,7 +50,7 @@ worktree removed through git and the repository's records pruned. Without
     mxeq regress list
     mxeq regress compare [RUN] [--against previous|reference|RUN]
     mxeq regress tag RUN reference
-    mxeq regress clean [--keep-runs N] [--keep-builds N] [--yes]
+    mxeq regress clean [--keep-runs N] [--keep-builds N] [--intermediates] [--yes]
 
 Tiers are in order, quick < full < slow, a data set with none full: `run`
 takes quick and full, `--quick` the quick ones, `--slow` all three (the

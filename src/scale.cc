@@ -387,7 +387,7 @@ void normal_equations(const ScaleModel &model, const ScaleData &data,
     N.assign(n * n, 0.0);
     b.assign(n, 0.0);
     std::vector<std::pair<std::size_t, double>> grad;
-    std::vector<double> G(n, 0.0), row(n, 0.0);
+    std::vector<double> G(n, 0.0);
     std::vector<std::vector<std::pair<std::size_t, double>>> grads;
     std::vector<std::size_t> touched;
     for (std::size_t hh = block_begin(groups, blocks, blk);
@@ -418,24 +418,33 @@ void normal_equations(const ScaleModel &model, const ScaleData &data,
       touched.erase(std::unique(touched.begin(), touched.end()), touched.end());
       for (std::size_t a : touched)
         G[a] /= den;
+      // The group's part, by its rows d_i - g_i G: sum w m^2 (d_i - g_i G)
+      // (d_i - g_i G)^T is m^2 (sum w d_i d_i^T - den G G^T), since sum w g_i
+      // d_i is den G; and sum w m r_i (d_i - g_i G) is m (sum w r_i d_i - (sum
+      // w g_i r_i) G). Each observation's own few parameters, then the dense G
+      // G^T once a group, not once an observation: G touches every parameter
+      // any of the group's observations does, at multiplicity 374 over ten
+      // turns all 448, and N had cost 448^2 an observation -- three fits, 70 s
+      // of mxi_scale's 95 on Graeme's 36000 images. The same sum, rearranged.
+      double wgr = 0.0;
       for (std::size_t k = 0; k < obs.size(); ++k) {
         const std::size_t i = obs[k];
         const double w = 1.0 / data.variance[i];
-        for (std::size_t a : touched)
-          row[a] = -g[i] * G[a];
-        for (const auto &[a, da] : grads[k])
-          row[a] += da;
         const double r = data.intensity[i] - g[i] * m;
-        // J = -sqrt(w) m row; accumulate J^T J and -J^T r.
-        for (std::size_t a : touched) {
-          if (row[a] == 0.0)
-            continue;
-          b[a] += w * m * row[a] * r;
-          for (std::size_t c : touched)
-            N[a * n + c] += w * m * m * row[a] * row[c];
+        wgr += w * g[i] * r;
+        for (const auto &[a, da] : grads[k]) {
+          b[a] += w * m * r * da;
+          double *row_a = &N[a * n];
+          for (const auto &[c, dc] : grads[k])
+            row_a[c] += w * m * m * da * dc;
         }
-        for (std::size_t a : touched)
-          row[a] = 0.0;
+      }
+      for (std::size_t a : touched) {
+        b[a] -= m * wgr * G[a];
+        const double ga = m * m * den * G[a];
+        double *row_a = &N[a * n];
+        for (std::size_t c : touched)
+          row_a[c] -= ga * G[c];
       }
       for (std::size_t a : touched)
         G[a] = 0.0;

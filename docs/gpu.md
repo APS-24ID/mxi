@@ -530,6 +530,17 @@ because the layout is the part that is expensive to change afterwards.
 
 ## Refinement
 
+**The Jacobian's memory** (14 October). The analytical Jacobian is kept an
+observation at a time: only the parameters the observation's span holds -- at
+most 36 crystal (four spline control points of nine), 6 detector, 2 beam --
+each with its three derivatives, a kilobyte an observation (`SparseJacobian`).
+It had been dense, a column a parameter the length of three residuals an
+observation: on Graeme's 36000-image sweep, its scan-varying crystal thousands
+of parameters of which a reflection touches thirty-six, refinement's peak was
+82.7 GB against 2 to 26 GB for every other step. The normal matrix is formed
+as before, from each observation's non-zeros; insulin's refined model is the
+dense code's to the bit. The finite-difference path, for testing, stays dense.
+
 The refinement target is where a device port was first designed, and the
 design is here -- why the target is the thing to move, the shape of its work,
 its precision in float32, the analytical derivatives it needs -- followed by

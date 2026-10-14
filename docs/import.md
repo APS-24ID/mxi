@@ -84,6 +84,18 @@ overrides apply to every master alike.
 Every unit is read from its attribute -- lengths to mm, angles to degrees -- and
 one missing is taken as mm or degrees and said.
 
+## Splitting a sweep, for testing
+
+`--split N` makes each sweep N sweeps of consecutive images, as even as they
+can be (a difference of one image at most): a scan and an image set each, the
+per-image properties (epochs, exposure times, oscillation) and frame indices
+sliced, a new identifier each; the beam, detector and goniometer shared. The
+chain takes them as several sweeps -- refined each, a scale model each -- and a
+reflection cut at a join is a partial in both (Graeme: partial reflections
+probed, a big set as many small ones). Insulin's 300 images as four of 75:
+R merge 0.040 against 0.035 whole, CC half 0.985 against 0.988. More parts
+than a sweep has images is an error.
+
 ## The panel is the size the data are
 
 Masters have been written with the detector's x and y pixel counts the wrong

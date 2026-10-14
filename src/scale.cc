@@ -1716,15 +1716,45 @@ parameter_covariance(const ScaleModel &model, const ScaleData &data,
     for (std::size_t j = 0; j < m; ++j)
       for (std::size_t a = 0; a < n; ++a)
         M[i * m + j] += Z[i][a] * NZ[a * m + j];
-  std::vector<double> Minv(m * m, 0.0);
+  // M's inverse from one Cholesky factorisation, a column at a time from the
+  // factor: a factorisation a column, as it was, is m^4 / 3 -- 446
+  // constrained parameters on Graeme's 36000 images, 10^10 operations, the
+  // 3 s of 'the scale's uncertainty'.
+  std::vector<double> L = M;
   for (std::size_t j = 0; j < m; ++j) {
-    std::vector<double> A = M, e(m, 0.0);
-    e[j] = 1.0;
-    if (!solve_spd(A.data(), e.data(), m))
+    double d = L[j * m + j];
+    for (std::size_t k = 0; k < j; ++k)
+      d -= L[j * m + k] * L[j * m + k];
+    if (!(d > 0.0))
       return out;
-    for (std::size_t i = 0; i < m; ++i)
-      Minv[i * m + j] = e[i];
+    const double root = std::sqrt(d);
+    L[j * m + j] = root;
+    for (std::size_t i = j + 1; i < m; ++i) {
+      double v = L[i * m + j];
+      for (std::size_t k = 0; k < j; ++k)
+        v -= L[i * m + k] * L[j * m + k];
+      L[i * m + j] = v / root;
+    }
   }
+  std::vector<double> Minv(m * m, 0.0);
+  for_each_index(m, [&](std::size_t j) {
+    std::vector<double> x(m, 0.0);
+    x[j] = 1.0;
+    for (std::size_t i = 0; i < m; ++i) { // L y = e_j
+      double v = x[i];
+      for (std::size_t k = 0; k < i; ++k)
+        v -= L[i * m + k] * x[k];
+      x[i] = v / L[i * m + i];
+    }
+    for (std::size_t i = m; i-- > 0;) { // L^T x = y
+      double v = x[i];
+      for (std::size_t k = i + 1; k < m; ++k)
+        v -= L[k * m + i] * x[k];
+      x[i] = v / L[i * m + i];
+    }
+    for (std::size_t i = 0; i < m; ++i)
+      Minv[i * m + j] = x[i];
+  });
   // The degrees of freedom: observations, less the merged intensities, less
   // the free parameters.
   std::size_t groups = 0;
@@ -1760,14 +1790,24 @@ inverse_scale_variances(const ScaleModel &model, const ScaleData &data,
   if (!covariance.ok)
     return out;
   const std::size_t n = model.size();
-  for_each_index(data.size(), [&](std::size_t i) {
+  // A block of observations a thread, one gradient buffer each: a vector made
+  // and freed for every observation, 6.7 million on Graeme's 36000 images,
+  // was most of the 3 s this took.
+  const std::size_t count = data.size();
+  const std::size_t blocks =
+      std::min<std::size_t>(std::max<std::size_t>(count, 1), kParallelBlocks);
+  for_each_block(blocks, [&](std::size_t blk) {
     std::vector<std::pair<std::size_t, double>> grad;
-    model.inverse_scale(data.observation[i], &grad);
-    double v = 0.0;
-    for (const auto &[a, da] : grad)
-      for (const auto &[c, dc] : grad)
-        v += da * covariance.matrix[a * n + c] * dc;
-    out[i] = std::fmax(v, 0.0);
+    for (std::size_t i = block_begin(count, blocks, blk);
+         i < block_begin(count, blocks, blk + 1); ++i) {
+      grad.clear();
+      model.inverse_scale(data.observation[i], &grad);
+      double v = 0.0;
+      for (const auto &[a, da] : grad)
+        for (const auto &[c, dc] : grad)
+          v += da * covariance.matrix[a * n + c] * dc;
+      out[i] = std::fmax(v, 0.0);
+    }
   });
   return out;
 }

@@ -270,6 +270,12 @@ was dense at high multiplicity -- Graeme's 36000 images, multiplicity 374 over
 ten turns, 448 parameters: three fits of 22 to 30 s each, twice over with
 --d-min-auto, of mxi_scale's 188. The same sum rearranged: the inverse scales
 agree with the old to 2e-15, insulin replicated twentyfold and the two crystals.
+Graeme's 36000 images then: each fit 0.3 to 0.4 s where it had been 22 to 30,
+mxi_scale 188 s to 22.5. The scale's uncertainty, 3 s of what remained, inverted
+its constrained normal matrix a column at a time with a factorisation each, m^4
+/ 3 at 446 parameters; one Cholesky factorisation now, the columns solved from
+it, the same numbers to the bit; and each observation's variance from the
+covariance with one gradient buffer a thread, not a vector an observation.
 
 ## The cell from two-theta
 

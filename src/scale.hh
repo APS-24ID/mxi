@@ -213,6 +213,21 @@ void apply_error_model(ScaleData &data, const ErrorModel &model);
 //: integration wrote no variances with no signal.
 bool model_variances(ScaleData &data, const std::vector<double> &g);
 
+//: How well the sigmas describe the scatter, bin by bin: each observation's
+//: deviation from the mean of its equivalents without it, over the sigma of
+//: the difference -- 1 where the sigmas are right -- as a mean square and
+//: robustly, (1.4826 MAD)^2, so a few wild observations show as the two
+//: apart. With the variances before the error model ("raw": integration's,
+//: or the model's, and the scale's term) and after it ("final").
+struct CalibrationRow {
+  double lo = 0.0, hi = 0.0; //: the bin's range: d in A, or <I>
+  std::size_t n = 0;
+  double raw_ms = 0.0, raw_robust = 0.0, final_ms = 0.0, final_robust = 0.0;
+};
+std::vector<CalibrationRow> calibration(const ScaleData &data,
+                                        const std::vector<double> &g,
+                                        bool by_resolution, int bins);
+
 //: I = w I_prf + (1 - w) I_sum with w = 1 / (1 + (I_sum / I_mid)^3), eqns 13
 //: and 14; the variance as for fully correlated estimates, which they are,
 //: being from the same pixels. I_mid of zero is profile fitting alone, and of

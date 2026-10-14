@@ -189,6 +189,21 @@ crystals' whole background. Both mended, the same two crystals scale with a =
 0.98; insulin's sweep 0.95 1.06 1.09 1.13 1.23 1.20, where it was 0.66 0.92
 1.04 1.13 1.27 1.23. CC half as it was.
 
+## The calibration
+
+After the merging statistics, how well the sigmas describe the scatter: each
+observation's deviation from the mean of its equivalents without it, over the
+sigma of the difference -- 1 where the sigmas are right -- its variance in ten
+shells of resolution and six of mean intensity, equal counts a bin; with the
+variances before the error model ("raw") and after ("final"); and each as a
+mean square and robustly, (1.4826 MAD)^2, so a few wild observations show as
+the two apart. In the summary (`calibration_by_resolution`,
+`calibration_by_intensity`). The two insulin crystals: final 0.95 to 1.03
+nearly everywhere, plain and robust alike. Insulin's sweep before the error
+model: the strongest sixth 7.8 plain, 2.3 robust -- a tail of a few -- 1.10 and
+0.76 after. Written for Graeme's 6S0R set, whose error model came out a = 4.8
+while its anomalous slope's control said the sigmas were three times too large.
+
 ## The anomalous slope and its control
 
 The anomalous slope -- the normal probability plot's slope of dI/sigma(dI) over

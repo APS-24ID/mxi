@@ -78,7 +78,9 @@ def test_clean_keeps_the_recent_and_the_tagged_and_every_runs_figures(
         (tmp_path / "runs" / run / "x").mkdir(parents=True)
         (tmp_path / "runs" / run / "x" / "big").write_bytes(b"0" * 1000)
     db.commit()
-    args = types.SimpleNamespace(keep_runs=1, keep_builds=0, yes=False)
+    args = types.SimpleNamespace(
+        keep_runs=1, keep_builds=0, yes=False, intermediates=False
+    )
     regress.cmd_clean(args)  # says what, removes nothing
     assert len(list((tmp_path / "runs").iterdir())) == 4
     args.yes = True
@@ -87,3 +89,28 @@ def test_clean_keeps_the_recent_and_the_tagged_and_every_runs_figures(
     assert left == ["20261011-000000", "20261013-000000"]  # tagged, newest
     figures = db.execute("SELECT COUNT(*) FROM metrics").fetchone()[0]
     assert figures == 4  # every run's figures stay
+
+
+def test_clean_intermediates_leaves_scaled_and_the_logs(tmp_path, monkeypatch):
+    import types
+
+    monkeypatch.setenv("MXI_REGRESSION", str(tmp_path))
+    db = regress.database()
+    db.execute(
+        "INSERT INTO runs VALUES ('r', '2026-10-14T00:00:00', NULL, 'c', 0, "
+        "'h', 'p', 'b', NULL)"
+    )
+    db.commit()
+    ds = tmp_path / "runs" / "r" / "x"
+    ds.mkdir(parents=True)
+    for name in regress.INTERMEDIATES + ["scaled.rflx", "scale.log", "mxi_report.html"]:
+        (ds / name).write_bytes(b"0" * 100)
+    args = types.SimpleNamespace(
+        keep_runs=5, keep_builds=0, yes=True, intermediates=True
+    )
+    regress.cmd_clean(args)
+    assert sorted(f.name for f in ds.iterdir()) == [
+        "mxi_report.html",
+        "scale.log",
+        "scaled.rflx",
+    ]

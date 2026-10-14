@@ -202,3 +202,13 @@ Then mxi_convert; then each program's input, then its output; then mxeq.
    when it is settled.
 4. **`.rflx` from DIALS directly**, by dxtbx-h5's `dxh5 combine`, which writes
    this layout already: nothing more needed from mxi.
+
+## To DIALS: the sweeps' crystal-less experiments left out
+
+mxi carries each sweep as an experiment without a crystal beside its lattices
+(docs/multi-lattice.md). `mxi_convert` to the DIALS pair leaves those out by
+default, once any experiment has a crystal -- their spots' id -1, as
+dials.index leaves unindexed spots -- so that the files go straight into DIALS
+(Graeme); `--keep-sweeps` keeps them; and before indexing, with no crystal
+anywhere, all are kept. Insulin indexed: one experiment, 12678 spots id 0 and
+237 id -1.

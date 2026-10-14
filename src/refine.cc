@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <stdexcept>
 #include <thread>
 
 #include "derivatives.hh"
@@ -205,6 +206,40 @@ struct ParameterSpan {
   std::uint32_t crystal_low = 0, crystal_high = 0;
   std::uint32_t detector_low = 0, detector_high = 0;
   std::uint32_t beam_low = 0, beam_high = 0;
+};
+
+// The analytical Jacobian, an observation at a time: only the parameters its
+// span holds -- at most 36 crystal (four spline control points of nine), 6
+// detector and 2 beam -- each with its three derivatives. Dense, a column a
+// parameter the length of three residuals an observation, it took 82.7 GB on
+// Graeme's 36000-image sweep, whose scan-varying crystal runs to thousands of
+// parameters of which a reflection touches thirty-six; a kilobyte an
+// observation here.
+struct SparseJacobian {
+  static constexpr std::size_t kCrystal = 36, kDetector = 6, kBeam = 2,
+                               kSlots = kCrystal + kDetector + kBeam;
+  std::vector<double> value; // observation x slot x 3
+  std::vector<ParameterSpan> span;
+
+  //: The three derivatives of observation i for parameter p, or null where p
+  //: is outside its span.
+  double *slot(std::size_t i, std::size_t p) {
+    const ParameterSpan &sp = span[i];
+    std::size_t at;
+    if (p >= sp.crystal_low && p < sp.crystal_high)
+      at = p - sp.crystal_low;
+    else if (p >= sp.detector_low && p < sp.detector_high)
+      at = kCrystal + (p - sp.detector_low);
+    else if (p >= sp.beam_low && p < sp.beam_high)
+      at = kCrystal + kDetector + (p - sp.beam_low);
+    else
+      return nullptr;
+    return &value[(i * kSlots + at) * 3];
+  }
+  double get(std::size_t p, std::size_t row) const {
+    double *q = const_cast<SparseJacobian *>(this)->slot(row / 3, p);
+    return q ? q[row % 3] : 0.0;
+  }
 };
 
 struct Layout {
@@ -427,11 +462,10 @@ std::size_t jacobian_thread_count(std::size_t observations) {
 
 void build_analytic_jacobian(const ExperimentList &experiments,
                              const std::vector<TargetRow> &observations,
-                             const Layout &layout,
-                             std::vector<std::vector<double>> *jacobian,
-                             std::vector<ParameterSpan> *span) {
-  const std::size_t n = layout.size();
-  jacobian->assign(n, std::vector<double>(observations.size() * 3, 0.0));
+                             const Layout &layout, SparseJacobian *jacobian) {
+  jacobian->value.assign(observations.size() * SparseJacobian::kSlots * 3, 0.0);
+  jacobian->span.assign(observations.size(), ParameterSpan{});
+  std::vector<ParameterSpan> *span = &jacobian->span;
   // Which parameters each reflection can touch, recorded as it is written
   // rather than discovered afterwards by reading every entry of the column.
   //
@@ -479,9 +513,10 @@ void build_analytic_jacobian(const ExperimentList &experiments,
         const double dpx_fast = weight * (J[0] * d.dX + J[1] * d.dY);
         const double dpx_slow = weight * (J[2] * d.dX + J[3] * d.dY);
         const double dz = weight * d.dphi * per_image;
-        (*jacobian)[parameter][i * 3 + 0] = -dpx_fast;
-        (*jacobian)[parameter][i * 3 + 1] = -dpx_slow;
-        (*jacobian)[parameter][i * 3 + 2] = -dz;
+        double *q = jacobian->slot(i, parameter);
+        q[0] = -dpx_fast;
+        q[1] = -dpx_slow;
+        q[2] = -dz;
       };
 
       if (layout.crystal && e.crystal) {
@@ -510,6 +545,9 @@ void build_analytic_jacobian(const ExperimentList &experiments,
             // parameters and iterating it costs the same as iterating a list
             // would. If the support were ever not consecutive this stays
             // correct and only iterates a little wider.
+            if (high - low > SparseJacobian::kCrystal)
+              throw std::logic_error("a reflection's spline span exceeds the "
+                                     "sparse Jacobian's crystal slots");
             (*span)[i].crystal_low = static_cast<std::uint32_t>(low);
             (*span)[i].crystal_high = static_cast<std::uint32_t>(high);
           }
@@ -523,9 +561,10 @@ void build_analytic_jacobian(const ExperimentList &experiments,
               const double dz = w.weight[c] * d[k].dphi * per_image;
               // Accumulated, not assigned: the padding repeats a control point
               // at the ends of the scan and both contributions are real.
-              (*jacobian)[parameter][i * 3 + 0] -= dpx_fast;
-              (*jacobian)[parameter][i * 3 + 1] -= dpx_slow;
-              (*jacobian)[parameter][i * 3 + 2] -= dz;
+              double *q = jacobian->slot(i, parameter);
+              q[0] -= dpx_fast;
+              q[1] -= dpx_slow;
+              q[2] -= dz;
             }
           }
         }
@@ -716,15 +755,16 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
       // differences would cost twice as much for an accuracy the Gauss-Newton
       // step does not need, since the step is recomputed every iteration.
       const double t_jacobian = now_seconds();
-      std::vector<std::vector<double>> jacobian(n);
+      std::vector<std::vector<double>> jacobian(n); // finite differences
+      SparseJacobian sparse;                        // the analytical one
       // Empty unless the analytical path fills it; the finite-difference path
       // has no idea which parameters it touched, so the accumulation falls
       // back to searching the whole column there.
       std::vector<ParameterSpan> span;
       ExperimentList trial;
       if (options.analytic) {
-        build_analytic_jacobian(experiments, observations, layout, &jacobian,
-                                &span);
+        build_analytic_jacobian(experiments, observations, layout, &sparse);
+        span = sparse.span;
       } else {
         std::vector<double> shift(n, 0.0);
         std::vector<double> moved(residual.size());
@@ -782,7 +822,8 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
             value.clear();
             const auto take = [&](std::size_t from, std::size_t to) {
               for (std::size_t a = from; a < to; ++a) {
-                const double ja = jacobian[a][row];
+                const double ja =
+                    options.analytic ? sparse.get(a, row) : jacobian[a][row];
                 if (ja == 0.0)
                   continue;
                 nonzero.push_back(a);
@@ -1069,8 +1110,8 @@ JacobianComparison compare_jacobians(const ExperimentList &experiments,
       e.crystal->A_points.assign(points, e.crystal->A);
   }
 
-  std::vector<std::vector<double>> analytic;
-  build_analytic_jacobian(base, observations, layout, &analytic, nullptr);
+  SparseJacobian analytic;
+  build_analytic_jacobian(base, observations, layout, &analytic);
 
   std::vector<double> residual;
   residuals_of(base, observations, &residual);
@@ -1093,7 +1134,7 @@ JacobianComparison compare_jacobians(const ExperimentList &experiments,
 
     for (std::size_t i = 0; i < plus.size(); ++i) {
       const double numeric = (plus[i] - minus[i]) / (2.0 * step[p]);
-      const double exact = analytic[p][i];
+      const double exact = analytic.get(p, i);
       const double size = std::fmax(std::abs(numeric), std::abs(exact));
       // Entries where both are essentially zero say nothing about agreement.
       if (size < 1e-3)

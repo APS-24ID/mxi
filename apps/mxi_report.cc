@@ -169,7 +169,8 @@ std::string unentity(std::string s) {
   static const std::vector<std::pair<std::string, std::string>> map = {
       {"&lang;", "\u27e8"},   {"&rang;", "\u27e9"},  {"&sigma;", "\u03c3"},
       {"&frac12;", "\u00bd"}, {"&Aring;", "\u00c5"}, {"&alpha;", "\u03b1"},
-      {"&beta;", "\u03b2"},   {"&gamma;", "\u03b3"}, {"&deg;", "\u00b0"}};
+      {"&beta;", "\u03b2"},   {"&gamma;", "\u03b3"}, {"&deg;", "\u00b0"},
+      {"&minus;", "\u2212"}};
   for (const auto &[from, to] : map)
     for (std::size_t at = s.find(from); at != std::string::npos;
          at = s.find(from, at + to.size()))
@@ -677,6 +678,41 @@ std::string section_scale(const json::Value &s, Figures &f,
                  trace(d, column(m, "rpim"), "R pim")},
                 true, 0.0, {}, true);
     o << "</div><h4>Merging statistics by resolution</h4>" << html_table(m);
+  }
+  // The sigmas' calibration: 1 where right, raw (before the error model) and
+  // final, plain and robust -- on a log scale, which a bad case needs.
+  for (const auto &[key, by_d] :
+       {std::pair<const char *, bool>{"calibration_by_resolution", true},
+        {"calibration_by_intensity", false}}) {
+    const json::Value &t = s[key];
+    if (!is_table(t))
+      continue;
+    const json::Array lo = column(t, "from"), hi = column(t, "to");
+    json::Array x;
+    for (std::size_t k = 0; k < lo.size() && k < hi.size(); ++k)
+      x.push_back(json::Value(
+          by_d ? hi[k].as_number()
+               : std::sqrt(std::fabs(lo[k].as_number() * hi[k].as_number()))));
+    json::Array ones;
+    for (std::size_t k = 0; k < x.size(); ++k)
+      ones.push_back(json::Value(1.0));
+    json::Object axis;
+    if (!by_d)
+      axis["type"] = json::Value(std::string("log"));
+    o << f.plot(by_d ? "The sigmas' calibration by resolution"
+                     : "The sigmas' calibration by intensity",
+                by_d ? "d<sub>min</sub> (&Aring;)" : "&lang;I&rang;",
+                "(I &minus; &lang;I&rang;)/&sigma;, its variance",
+                {trace(x, column(t, "raw"), "raw"),
+                 trace(x, column(t, "raw_robust"), "raw, robust"),
+                 trace(x, column(t, "final"), "final"),
+                 trace(x, column(t, "final_robust"), "final, robust"),
+                 trace(x, ones, "right", "lines")},
+                by_d, 0.0, axis, true);
+    o << "<h4>"
+      << (by_d ? "The sigmas' calibration by resolution"
+               : "The sigmas' calibration by intensity")
+      << "</h4>" << html_table(t);
   }
   // By image, from the reflections: each sweep's mean scale and <I/sigma>
   // over fifty blocks of its images.

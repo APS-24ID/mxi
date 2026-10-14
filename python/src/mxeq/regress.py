@@ -189,6 +189,31 @@ def run_step(words: list[str], cwd: Path, log: Path) -> tuple[int, float, float,
     return code, wall, usage.ru_utime + usage.ru_stime, rss
 
 
+def warm_up(bin_dir: Path) -> None:
+    """Each program run once, asked only for its help, before anything is
+    timed: macOS checks a binary the first time it runs, a fraction of a second
+    each, some 2 s over the chain that would otherwise be counted against the
+    first data set (Graeme). --help, so no program writes its log; in a scratch
+    directory besides. Harmless elsewhere."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as scratch:
+        for _, program, _, _ in STEPS:
+            exe = bin_dir / program
+            if exe.exists():
+                try:
+                    subprocess.run(
+                        [str(exe), "--help"],
+                        cwd=scratch,
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        timeout=60,
+                    )
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+
+
 def run_dataset(name: str, spec: dict, bin_dir: Path, where: Path) -> list[tuple]:
     where.mkdir(parents=True, exist_ok=True)
     options = spec.get("options", {})
@@ -392,6 +417,7 @@ def cmd_run(args) -> int:
     )
     db.commit()
     print(f"run {run_id}: {len(chosen)} data sets, programs from {bin_dir}")
+    warm_up(bin_dir)
     from . import rflx
 
     failed = 0

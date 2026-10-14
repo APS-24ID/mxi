@@ -117,8 +117,8 @@ void usage() {
 
 int run_program(int argc, char **argv) {
   const std::set<std::string> known = {
-      "--max-delta",   "--threads",     "--no-cosym", "-o",
-      "--output-expt", "--output-refl", "--timing"};
+      "--max-delta",        "--threads",     "--no-cosym",    "-o",
+      "--same-orientation", "--output-expt", "--output-refl", "--timing"};
   std::set<std::string> takes_value = known;
   takes_value.erase("--timing");
   takes_value.erase("--no-cosym");
@@ -198,11 +198,40 @@ int run_program(int argc, char **argv) {
     // twin. So cosym (Gildea & Winter, 2018): each experiment's intensities
     // merged in P1 and normalised, correlated with every other's under every
     // rotation of the lattice, and each reindexed into the first's setting.
-    bool one_crystal = true;
-    for (std::size_t i = 1; i < experiments.size(); ++i)
-      for (int k = 0; k < 9; ++k)
-        one_crystal = one_crystal && experiments[i].crystal->A.m[k] ==
-                                         experiments[0].crystal->A.m[k];
+    // Crystals indexed together are in one setting already, whatever their
+    // refinement did after: their orientations at the goniometer's datum
+    // agree. Cosym is for crystals indexed apart. Run on four sweeps of one
+    // small molecule crystal -- tetragonal, c/a 1.01, a lattice all but cubic
+    // -- it reindexed one by a false cubic rotation, cosines 0.42 (Graeme).
+    // So each crystal's U, from A = U B, B the Cholesky factor of A^T A,
+    // against the first's: within --same-orientation degrees, all of them,
+    // and there is nothing for cosym to do.
+    const auto orientation = [](const Mat3 &A) {
+      const Mat3 G = A.transpose() * A;
+      Mat3 B{0, 0, 0, 0, 0, 0, 0, 0, 0};
+      B(0, 0) = std::sqrt(G(0, 0));
+      B(0, 1) = G(0, 1) / B(0, 0);
+      B(0, 2) = G(0, 2) / B(0, 0);
+      B(1, 1) = std::sqrt(G(1, 1) - B(0, 1) * B(0, 1));
+      B(1, 2) = (G(1, 2) - B(0, 1) * B(0, 2)) / B(1, 1);
+      B(2, 2) = std::sqrt(G(2, 2) - B(0, 2) * B(0, 2) - B(1, 2) * B(1, 2));
+      return A * B.inverse();
+    };
+    const double same_within = args.number("--same-orientation", 5.0);
+    double widest = 0.0;
+    const Mat3 U0 = orientation(experiments[0].crystal->A);
+    for (std::size_t i = 1; i < experiments.size(); ++i) {
+      const Mat3 R = orientation(experiments[i].crystal->A) * U0.transpose();
+      const double cosine = (R(0, 0) + R(1, 1) + R(2, 2) - 1.0) / 2.0;
+      widest =
+          std::max(widest, std::acos(std::fmax(-1.0, std::fmin(1.0, cosine))) *
+                               180.0 / M_PI);
+    }
+    const bool one_crystal = widest <= same_within;
+    if (experiments.size() > 1 && one_crystal && !args.has("--no-cosym"))
+      std::printf("\nOne setting already: the %zu crystals' orientations agree "
+                  "within %.3f deg, so no cosym\n",
+                  experiments.size(), widest);
     if (experiments.size() > 1 && !one_crystal && !args.has("--no-cosym")) {
       std::vector<P1Intensities> sets;
       const Column &id = reflections.at("id");

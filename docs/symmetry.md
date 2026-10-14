@@ -93,6 +93,17 @@ byte-identical, to mxi_scale given the space group and change of basis by hand.
 The cell is written reindexed but not constrained: 77.93 77.90 77.89 A where
 dials.symmetry reports 77.898.
 
+**Cosym only for crystals indexed apart** (13 October). Crystals indexed
+together are in one setting, whatever refinement did after: their orientations
+at the goniometer's datum agree. Each crystal's U, from A = U B, against the
+first's; all within 5 degrees (`--same-orientation`), and cosym is not run.
+It had been run whenever the crystals' A differed at all, and on Graeme's four
+sweeps of one small-molecule crystal -- P 4 2 2, 6.85 6.85 6.92 A, a lattice all
+but cubic -- it reindexed one by a false cubic rotation, -l,k,h, its cosines
+0.42 and 0.40, and the symmetry came out P 4 3 2. Two half-sweeps of insulin,
+refined apart: within 0.047 degrees, no cosym; the two insulin crystals of
+ins2_27: cosym, as before.
+
 **A monoclinic cell's axes, as the convention orders them** (13 October). Of
 the settings that fit a monoclinic Patterson group, the one with the fewest
 coefficients, then beta nearest 90, then beta not acute, then a no longer than

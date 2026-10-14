@@ -18,10 +18,19 @@ HDF5_SIGNATURE = b"\x89HDF\r\n\x1a\n"
 RESERVED = {"__type__", "__keys__", "__len__"}
 
 
-try:  # bitshuffle-LZ4, HDF5 filter 32008, which .rflx numbers are stored with
-    import hdf5plugin  # noqa: F401
-except ImportError:  # pragma: no cover - then only uncompressed files read
-    pass
+def _h5py():
+    """h5py, with hdf5plugin loaded: .rflx numbers are stored bitshuffle-LZ4,
+    HDF5 filter 32008, which h5py reads only with the plugin -- without it a
+    read fails deep in HDF5 with a missing plugin directory."""
+    try:
+        import h5py
+        import hdf5plugin  # noqa: F401
+    except ImportError as e:  # pragma: no cover - a plain environment
+        raise RuntimeError(
+            "reading a .rflx needs h5py and hdf5plugin (bitshuffle-LZ4, HDF5 "
+            f"filter 32008): pip install h5py hdf5plugin ({e})"
+        ) from e
+    return h5py
 
 
 def is_hdf5(path: str) -> bool:
@@ -51,7 +60,7 @@ def _text(value) -> str:
 
 def _leaf(value, null: bool):
     """A value's type from its dtype and dataspace alone (HANDOVER 2.2)."""
-    import h5py
+    h5py = _h5py()
 
     if null or isinstance(value, h5py.Empty):
         return None
@@ -71,7 +80,7 @@ def _leaf(value, null: bool):
 
 
 def _member(group, name: str):
-    import h5py
+    h5py = _h5py()
 
     if name in group.attrs:
         a = group.attrs.get_id(name)
@@ -102,7 +111,7 @@ def experiments_dict(path: str) -> dict:
     if not is_hdf5(path):
         with open(path) as f:
             return json.load(f)
-    import h5py
+    h5py = _h5py()
 
     with h5py.File(path, "r") as f:
         if "experiments" not in f:
@@ -114,7 +123,7 @@ def summary_dict(path: str) -> dict | None:
     """The processing's summary a .rflx carries -- {"steps": [...]}, each
     program's figures and tables in the order they ran (docs/output.md) -- or
     None if it carries none."""
-    import h5py
+    h5py = _h5py()
 
     with h5py.File(path, "r") as f:
         if "summary" not in f:
@@ -167,7 +176,7 @@ def _column_type(dataset) -> str | None:
 def load_table(path: str):
     """The tables under /reflections, joined in order; shoeboxes left aside,
     which mxeq has no use for."""
-    import h5py
+    h5py = _h5py()
 
     from mxeq.refl import ReflectionTable, ReflFormatError
 

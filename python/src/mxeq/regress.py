@@ -418,7 +418,18 @@ def cmd_run(args) -> int:
                 last = where / written
                 break
         if last is not None:
-            summary = rflx.summary_dict(str(last)) or {}
+            # The figures, or the data set failed at them -- a file not to be
+            # read is one data set's failure, not the run's.
+            try:
+                summary = rflx.summary_dict(str(last)) or {}
+            except Exception as e:  # noqa: BLE001
+                print(f"  {name:20s} figures    FAILED   {e}", flush=True)
+                db.execute(
+                    "INSERT INTO steps VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (run_id, name, "figures", 1, 0.0, 0.0, 0.0),
+                )
+                failed += 1
+                summary = {}
             for k, v in figures(summary).items():
                 db.execute(
                     "INSERT INTO metrics VALUES (?, ?, ?, ?)", (run_id, name, k, v)

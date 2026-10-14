@@ -48,6 +48,7 @@ is removed.
     mxeq regress run [--commit REV | --bin DIR] [--datasets A,B]
                      [--quick | --slow | --tier T]
     mxeq regress list
+    mxeq regress show [RUN]
     mxeq regress compare [RUN] [--against previous|reference|RUN]
     mxeq regress tag RUN reference
     mxeq regress clean [--keep-runs N] [--keep-builds N] [--intermediates] [--yes]
@@ -72,6 +73,10 @@ correlation; scaling's completeness, multiplicity, <I/sigma>, R merge, R pim,
 CC half and the anomalous figures overall and in the outer shell, the error
 model, the resolution, observations, unique reflections, outliers; the cell
 from two-theta; and every step's time and memory.
+
+`show` prints a run, the latest unless named: its identity, each data set's
+steps with their status, time, CPU time and peak memory, its total, and its
+figures by stage, the overall shell before the outer; and where its report is.
 
 `compare` takes a run against the one before it on the same host -- times are
 only comparable on one machine -- or the host's reference, or a named run. The

@@ -114,3 +114,26 @@ def test_clean_intermediates_leaves_scaled_and_the_logs(tmp_path, monkeypatch):
         "scale.log",
         "scaled.rflx",
     ]
+
+
+def test_show_prints_a_runs_steps_total_and_figures(tmp_path, monkeypatch, capsys):
+    import types
+
+    monkeypatch.setenv("MXI_REGRESSION", str(tmp_path))
+    db = regress.database()
+    db.execute(
+        "INSERT INTO runs VALUES ('r', '2026-10-14T00:00:00', "
+        "'2026-10-14T00:01:00', 'abc', 0, 'h', 'p', 'b', NULL)"
+    )
+    db.execute("INSERT INTO steps VALUES ('r', 'x', 'find', 0, 12.5, 20.0, 100)")
+    for k, v in (
+        ("time.total", 12.5),
+        ("scale.overall.rmerge", 0.05),
+        ("scale.high.rmerge", 0.4),
+    ):
+        db.execute("INSERT INTO metrics VALUES ('r', 'x', ?, ?)", (k, v))
+    db.commit()
+    regress.cmd_show(types.SimpleNamespace(run=None))
+    out = capsys.readouterr().out
+    assert "run r" in out and "find" in out and "total" in out
+    assert out.index("overall.rmerge") < out.index("high.rmerge")

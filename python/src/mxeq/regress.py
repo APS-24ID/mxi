@@ -295,6 +295,8 @@ def figures(summary: dict) -> dict[str, float]:
             "anom_slope",
             "anom_slope_random",
         ):
+            if shell == "high" and k.startswith("anom_slope"):
+                continue  # computed overall only; the shells' are placeholders
             put(f"scale.{shell}.{k}", _row(m, shell, k))
     for k in (
         "error_model_a",
@@ -669,6 +671,89 @@ def cmd_list(args) -> int:
     return 0
 
 
+def cmd_show(args) -> int:
+    """A run's results: each data set's steps -- status, time, peak memory --
+    its total, and its figures by stage; the latest run unless named."""
+    db = database()
+    runs = [r[0] for r in db.execute("SELECT id FROM runs ORDER BY started")]
+    if not runs:
+        raise SystemExit("no runs yet")
+    run = args.run or runs[-1]
+    info = db.execute(
+        "SELECT started, finished, commit_id, dirty, host, platform, build, tag "
+        "FROM runs WHERE id = ?",
+        (run,),
+    ).fetchone()
+    if not info:
+        raise SystemExit(f"no run {run}")
+    started, finished, commit, dirty, host, plat, build, tag = info
+    print(f"run {run}{'  [' + tag + ']' if tag else ''}")
+    print(f"  {started} to {finished or '(unfinished)'} on {host}, {plat}")
+    print(f"  commit {(commit or '?')[:12]}{' with changes' if dirty else ''}; {build}")
+    datasets = [
+        d
+        for (d,) in db.execute(
+            "SELECT DISTINCT dataset FROM steps WHERE run = ? ORDER BY rowid", (run,)
+        )
+    ]
+    groups = [
+        ("spot finding", "find."),
+        ("indexing", "index."),
+        ("refinement", "refine."),
+        ("integration", "integrate."),
+        ("scaling", "scale."),
+        ("cell", "cell."),
+    ]
+    for d in datasets:
+        print(f"\n{d}")
+        for step, code, wall, cpu, mem in db.execute(
+            "SELECT step, status, wall, cpu, memory_mb FROM steps "
+            "WHERE run = ? AND dataset = ? ORDER BY rowid",
+            (run, d),
+        ):
+            print(
+                f"  {step:10s} {'ok' if code == 0 else 'FAILED':6s} {wall:8.1f} s "
+                f"{cpu:8.1f} s CPU {mem:8.0f} MB"
+            )
+        figures = dict(
+            db.execute(
+                "SELECT name, value FROM metrics WHERE run = ? AND dataset = ?",
+                (run, d),
+            )
+        )
+        if "time.total" in figures:
+            print(
+                f"  {'total':10s} {'':6s} {figures['time.total']:8.1f} s "
+                f"{figures.get('cpu.total', 0.0):8.1f} s CPU"
+            )
+        for title, prefix in groups:
+            # Overall before the outer shell, then the rest, each alphabetical.
+            def order(item):
+                rest = item[0][len(prefix) :]
+                return (
+                    (
+                        0
+                        if rest.startswith("overall.")
+                        else 1 if rest.startswith("high.") else 2
+                    ),
+                    rest,
+                )
+
+            mine = sorted(
+                ((k, v) for k, v in figures.items() if k.startswith(prefix)),
+                key=order,
+            )
+            if not mine:
+                continue
+            print(f"  {title}:")
+            for k, v in mine:
+                print(f"    {k[len(prefix):]:32s} {v:.6g}")
+        report = home() / "runs" / run / d / "mxi_report.html"
+        if report.exists():
+            print(f"  report: {report}")
+    return 0
+
+
 def cmd_tag(args) -> int:
     db = database()
     if args.name == "reference":  # one reference a host
@@ -798,6 +883,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     speed.add_argument("--tier", choices=TIERS, help="only the data sets of this tier")
     sub.add_parser("list", help="the runs so far")
+    sh = sub.add_parser("show", help="a run's results: steps, times, figures")
+    sh.add_argument("run", nargs="?", help="the run (the latest)")
     cl = sub.add_parser(
         "clean",
         help="remove old runs' files and old builds " "(says what, unless --yes)",
@@ -836,6 +923,7 @@ def main(argv: list[str] | None = None) -> int:
         "run": cmd_run,
         "list": cmd_list,
         "compare": cmd_compare,
+        "show": cmd_show,
         "clean": cmd_clean,
         "tag": cmd_tag,
     }[args.command](args)

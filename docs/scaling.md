@@ -209,6 +209,24 @@ planted a = 1.0, b = 0.15 came back a = 1.18; by the merged intensity, 1.0 and
 the calibration by resolution 0.95 to 1.07 for the most part, the strongest
 sixth by intensity 1.10 to 1.21; the two crystals as they were.
 
+## The error model, split
+
+Where integration wrote each variance with no signal, the error model is
+split: a_bg^2 V_bg + a^2 (V_signal + the scale's term) + a^2 b^2 I^2 -- one a
+for a background's variance, another for the signal's -- fitted by the same
+regression, three columns, over every group of two or more in twenty bins of
+merged intensity, equal counts, the weak groups (which the single model's fit
+leaves out below <I> 25, as dials.scale) deciding a_bg. Kept if all three come
+out positive; a_bg = a is the single model. One a for both had carried 6S0R's
+strong reflections' excess, a tenth of their intensity, into its weak ones'
+sigmas: final calibration 0.05 to 0.08 (outstanding 62, 64). Planted, a_bg 1
+and a 3 come back as such, and one a of 1.3 as one a (tests/test_scale.cc).
+Insulin's sweep: a_bg 1.08, a 1.21; calibration by intensity 0.85 to 1.21
+before, 0.96 to 1.08; by resolution 0.84 to 1.25, 0.91 to 1.12. The two
+crystals: a_bg 0.91, a 1.11; the weakest sixth 0.84 to 1.01, the anomalous slope
+and its control 0.97 and 0.96 to 1.00 and 0.99. Under --verbose the fit is
+printed a bin at a time.
+
 ## The calibration
 
 After the merging statistics, how well the sigmas describe the scatter: each

@@ -241,6 +241,64 @@ TEST(a_large_fractional_error_is_b_not_a) {
   check::is_true(std::abs(em.b - 0.15) < 0.015, "b = " + std::to_string(em.b));
 }
 
+namespace {
+
+// Planted for the split error model: a background's variance B and a signal's
+// truth, as integration writes them, the noise a_bg^2 B + a^2 truth + (a b
+// truth)^2; through model_variances, as mxi_scale goes.
+ScaleData planted_split(double a_bg, double a, double b, unsigned seed) {
+  std::mt19937 rng(seed);
+  std::uniform_real_distribution<double> uni(0.0, 1.0);
+  std::normal_distribution<double> noise(0.0, 1.0);
+  ScaleData data;
+  const double B = 40.0;
+  for (std::size_t h = 0; h < 6000; ++h) {
+    data.unique.push_back(Miller{static_cast<int>(h), 1, 0});
+    const double truth = std::pow(10000.0, uni(rng));
+    for (int k = 0; k < 7; ++k) {
+      const double var =
+          a_bg * a_bg * B + a * a * (truth + b * b * truth * truth);
+      data.intensity.push_back(truth + std::sqrt(var) * noise(rng));
+      data.variance.push_back(B + truth);
+      data.variance_before.push_back(B + truth);
+      data.variance_background.push_back(B);
+      data.factor.push_back(1.0);
+      data.observation.emplace_back();
+      data.group.push_back(h);
+      data.outlier.push_back(false);
+    }
+  }
+  data.has_background = true;
+  model_variances(data, std::vector<double>(data.size(), 1.0));
+  return data;
+}
+
+} // namespace
+
+TEST(the_error_model_split_keeps_the_background_and_inflates_the_signal) {
+  // 6S0R's case: strong reflections far out, weak ones near right. One a for
+  // both had made the weak ones' sigmas three and a half times too large.
+  const ScaleData data = planted_split(1.0, 3.0, 0.02, 41);
+  const ErrorModel em =
+      refine_error_model(data, std::vector<double>(data.size(), 1.0));
+  check::is_true(em.split, "split");
+  check::is_true(std::abs(em.a_bg - 1.0) < 0.15,
+                 "the background's a = " + std::to_string(em.a_bg));
+  check::is_true(std::abs(em.a - 3.0) < 0.2,
+                 "the signal's a = " + std::to_string(em.a));
+  check::is_true(std::abs(em.b - 0.02) < 0.01, "b = " + std::to_string(em.b));
+}
+
+TEST(the_error_model_split_is_one_a_where_one_a_is_true) {
+  // Every variance inflated alike: the split finds one a, today's model.
+  const ScaleData data = planted_split(1.3, 1.3, 0.03, 43);
+  const ErrorModel em =
+      refine_error_model(data, std::vector<double>(data.size(), 1.0));
+  check::is_true(std::abs(em.a_bg - 1.3) < 0.12 && std::abs(em.a - 1.3) < 0.1,
+                 "a_bg = " + std::to_string(em.a_bg) +
+                     ", a = " + std::to_string(em.a));
+}
+
 TEST(the_intensity_combination_chosen_is_better_than_either_alone) {
   // Profile fitting less noisy for weak spots and five per cent wrong, at
   // random, for strong ones; summation counting-noisy throughout. The best

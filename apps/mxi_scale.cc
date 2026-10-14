@@ -352,8 +352,14 @@ int run_program(int argc, char **argv) {
       std::printf("Scale uncertainties: the normal matrix could not be "
                   "inverted; none carried\n");
     }
-    std::printf("Error model: a = %.4f, b = %.4f, from %zu observations\n",
-                run.error_model.a, run.error_model.b, run.error_model.used);
+    if (run.error_model.split)
+      std::printf("Error model: a = %.4f for the variance with no signal, %.4f "
+                  "for the rest, b = %.4f, from %zu observations\n",
+                  run.error_model.a_bg, run.error_model.a, run.error_model.b,
+                  run.error_model.used);
+    else
+      std::printf("Error model: a = %.4f, b = %.4f, from %zu observations\n",
+                  run.error_model.a, run.error_model.b, run.error_model.used);
     std::printf("%zu outliers\n", run.outliers);
 
     MergingShell all;
@@ -579,6 +585,9 @@ int run_program(int argc, char **argv) {
                       json::Value(cell.beta), json::Value(cell.gamma)}));
       summary.set("error_model_a", json::Value(run.error_model.a));
       summary.set("error_model_b", json::Value(run.error_model.b));
+      if (run.error_model.split)
+        summary.set("error_model_a_background",
+                    json::Value(run.error_model.a_bg));
       summary.set("outliers", json::Value(static_cast<long>(run.outliers)));
       summary.set("observations",
                   json::Value(static_cast<long>(all.observations)));

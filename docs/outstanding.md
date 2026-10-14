@@ -196,23 +196,6 @@ where something is missing.
 
 ## Scaling
 
-* **64.** **decision -- The error model's form.** sigma'^2 = a^2 (sigma^2 +
-    b^2 I^2), one a for every reflection, fitted (as dials.scale) on groups
-    with <I> above 25. Where the excess scatter grows with the signal but not
-    as I^2 -- 6S0R -- a takes it, and the weak reflections, whose sigmas were
-    nearly right, get theirs inflated with it: final calibration 0.05 to
-    0.08, the anomalous slope 0.32. mxi integrates each variance with no
-    signal, so a_bg^2 V_bg + a_sig^2 V_signal + b^2 I^2, fitted by the same
-    regression with the weak bins in, would keep the weak sigmas and inflate
-    the strong. Proposed to Graeme; not built.
-* **65.** **decision -- Merged sigmas at high multiplicity.** The ten-turn
-    insulin's anomalous slope 1.516 against its random-halves control 1.375:
-    the merged sigmas some 37 per cent small at multiplicity 200, errors
-    shared among a reflection's observations not averaging away. One remedy:
-    each merged sigma the larger of the propagated and that from the
-    observations' own scatter. A policy, not built.
-
-
 * **54.** **correctness -- Weak reflections' sigma, the last of it.** The
     fitted variance's background term carried through the fit's weights, and
     a pixel's least variance 0.001 counts rather than 0.05 (since 13 October
@@ -353,6 +336,12 @@ where something is missing.
     `docs/spots_notes.md`, `docs/spotfinder.md` -- which could be one.
 
 ## Closed
+
+* **64.** The error model's form: split, a background's variance and a
+    signal's each their own a (`docs/scaling.md`, "The error model, split").
+* **65.** Merged sigmas at high multiplicity: the old fit's doing. With the fit
+    by regression the ten-turn insulin's random halves are 1.034, its slope
+    1.133 the signal above them.
 
 * **13.** e.s.d.s for the cell: from two-theta in mxi_scale, as
     dials.two_theta_refine (`docs/scaling.md`, "The cell from two-theta");

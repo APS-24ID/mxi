@@ -189,13 +189,19 @@ std::size_t reject_outliers(ScaleData &data, const std::vector<double> &g,
 
 struct ErrorModel {
   double a = 1.0, b = 0.02;
+  //: Split (docs/scaling.md, "The error model, split"): a_bg for the variance
+  //: with no signal, a for the rest -- the signal's and the scale's -- and b
+  //: with a as before. Not split, a_bg is a.
+  bool split = false;
+  double a_bg = 1.0;
   std::size_t used = 0; //: observations it was determined from
 };
-//: sigma'^2 = a^2 (sigma^2 + (b I)^2), determined as dials.scale does: a from
-//: the slope of the central normal probability plot, |x| < 1.5, of the
-//: normalised deviations (eqn 12); b by minimising eqn 17 over logarithmically
-//: spaced intensity bins; the two alternated to convergence from a = 1,
-//: b = 0.02; on groups with <I> above 25 and <I / sigma^2> above 0.85.
+//: sigma'^2 = a^2 (sigma^2 + (b I)^2), fitted as dials.scale's default: by
+//: regression across bins of merged intensity, on groups with <I> above 25 and
+//: <I / sigma^2> above 0.85. Then, where integration wrote each variance with
+//: no signal, split: a_bg^2 V_bg + a^2 (V_signal + the scale's term) + a^2 b^2
+//: I^2, fitted the same way over every group, the weak ones deciding a_bg --
+//: kept if all three come out positive, else the model above.
 ErrorModel refine_error_model(const ScaleData &data,
                               const std::vector<double> &g);
 //: The error model applied to every observation's variance, from the variance

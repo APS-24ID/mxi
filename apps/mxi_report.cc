@@ -111,6 +111,8 @@ std::string pretty(const std::string &name) {
       {"d_min", "d<sub>min</sub> (&Aring;)"},
       {"cc_half", "CC<sub>&frac12;</sub>"},
       {"cc_anom", "CC<sub>anom</sub>"},
+      {"anom_slope", "anomalous slope"},
+      {"anom_slope_random", "anomalous slope, random halves"},
       {"i_over_sigma", "&lang;I/&sigma;&rang;"},
       {"isigma_sum", "&lang;I/&sigma;&rang; summed"},
       {"isigma_prf", "&lang;I/&sigma;&rang; fitted"},
@@ -602,6 +604,8 @@ std::string merging_summary(const json::Value &t) {
       {"anom_completeness", 1},
       {"anom_multiplicity", 1},
       {"cc_anom", 3},
+      {"anom_slope", 3},
+      {"anom_slope_random", 3},
       {"observations", 0},
       {"unique", 0}};
   const json::Array shells = column(t, "shell");

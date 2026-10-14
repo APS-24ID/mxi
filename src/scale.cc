@@ -1046,7 +1046,9 @@ MergingShell merge_groups(const ScaleData &data, const std::vector<double> &g,
   double denominator = 0.0, denominator_anom = 0.0;
   std::size_t anomalous_groups = 0;
   std::vector<std::pair<double, double>> cc_pairs, anom_pairs;
-  std::vector<double> deltas; // dI / sigma(dI)
+  std::vector<double> deltas;        // dI / sigma(dI)
+  std::vector<double> deltas_random; // the same, random halves of each pair
+  std::mt19937 dealer(21);
   double sum_abs_di = 0.0, sum_sig_di = 0.0, sum_df2 = 0.0, sum_f2 = 0.0;
   std::size_t n_df = 0;
   const auto merged_of = [&](const std::vector<std::size_t> &o) {
@@ -1093,6 +1095,21 @@ MergingShell merge_groups(const ScaleData &data, const std::vector<double> &g,
     sum_sig_di += sdi;
     if (sdi > 0.0)
       deltas.push_back(di / sdi);
+    {
+      // The control: this pair's observations pooled and dealt into two
+      // groups as large as I+'s and I-'s.
+      std::vector<std::size_t> pooled = plus[h];
+      pooled.insert(pooled.end(), minus[h].begin(), minus[h].end());
+      std::shuffle(pooled.begin(), pooled.end(), dealer);
+      const std::vector<std::size_t> one(pooled.begin(),
+                                         pooled.begin() + plus[h].size()),
+          two(pooled.begin() + plus[h].size(), pooled.end());
+      const Merged a = merged_of(one), b = merged_of(two);
+      const double s2 =
+          std::sqrt(a.sigma() * a.sigma() + b.sigma() * b.sigma());
+      if (s2 > 0.0)
+        deltas_random.push_back((a.weighted() - b.weighted()) / s2);
+    }
     if (p.weighted() > 0.0 && q.weighted() > 0.0) {
       const double fp = std::sqrt(p.weighted()), fm = std::sqrt(q.weighted());
       sum_df2 += (fp - fm) * (fp - fm);
@@ -1127,24 +1144,29 @@ MergingShell merge_groups(const ScaleData &data, const std::vector<double> &g,
                        : 0.0;
   m.di_over_sig_di = sum_sig_di > 0.0 ? sum_abs_di / sum_sig_di : 0.0;
   m.df_over_f = n_df && sum_f2 > 0.0 ? std::sqrt(2.0 * sum_df2 / sum_f2) : 0.0;
-  // The slope of the normal probability plot over |x| < 0.9, as dials.scale.
-  if (deltas.size() >= 10) {
-    std::sort(deltas.begin(), deltas.end());
-    const double n = static_cast<double>(deltas.size());
+  // The slope of the normal probability plot over |x| < 0.9, as dials.scale:
+  // the Friedel pairs', and the control's.
+  const auto slope_of = [](std::vector<double> d) {
+    if (d.size() < 10)
+      return 0.0;
+    std::sort(d.begin(), d.end());
+    const double n = static_cast<double>(d.size());
     double sxx = 0.0, sxy = 0.0, sx = 0.0, sy = 0.0, k = 0.0;
-    for (std::size_t i = 0; i < deltas.size(); ++i) {
+    for (std::size_t i = 0; i < d.size(); ++i) {
       const double x = normal_quantile((static_cast<double>(i) + 0.5) / n);
       if (std::abs(x) < 0.9) {
         sx += x;
-        sy += deltas[i];
+        sy += d[i];
         sxx += x * x;
-        sxy += x * deltas[i];
+        sxy += x * d[i];
         k += 1.0;
       }
     }
     const double den = sxx - sx * sx / k;
-    m.anom_slope = k > 2.0 && den > 0.0 ? (sxy - sx * sy / k) / den : 0.0;
-  }
+    return k > 2.0 && den > 0.0 ? (sxy - sx * sy / k) / den : 0.0;
+  };
+  m.anom_slope = slope_of(deltas);
+  m.anom_slope_random = slope_of(deltas_random);
   return m;
 }
 

@@ -244,6 +244,11 @@ struct MergingShell {
   //: and mean |dI| over mean sigma(dI).
   double anom_completeness = 0.0, anom_multiplicity = 0.0, cc_anom = 0.0;
   double anom_slope = 0.0, df_over_f = 0.0, di_over_sig_di = 0.0;
+  //: The control for the slope: the same slope over random halves of each
+  //: pair's observations, I+ and I- pooled and dealt out again in the same
+  //: numbers -- no anomalous signal, so near 1 where the sigmas are right.
+  //: The slope above it, the signal; both above 1, the sigmas too small.
+  double anom_slope_random = 0.0;
   std::size_t anomalous_pairs = 0;
 };
 

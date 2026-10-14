@@ -465,6 +465,9 @@ int run_program(int argc, char **argv) {
            1.0);
       line("Anomalous correlation", &MergingShell::cc_anom, "%.3f", 1.0);
       only("Anomalous slope", all.anom_slope, "%.3f");
+      // Its control: random halves, no signal -- near 1 if the sigmas are
+      // right, so the slope above it is the signal (docs/scaling.md).
+      only("  random halves", all.anom_slope_random, "%.3f");
       only("dF/F", all.df_over_f, "%.3f");
       only("dI/s(dI)", all.di_over_sig_di, "%.3f");
       count("Total observations", &MergingShell::observations);
@@ -539,7 +542,7 @@ int run_program(int argc, char **argv) {
       const auto shells_table =
           [&](const std::vector<const MergingShell *> &rows,
               const std::vector<std::string> &labels) {
-            std::vector<std::vector<json::Value>> c(17);
+            std::vector<std::vector<json::Value>> c(18);
             for (std::size_t k = 0; k < rows.size(); ++k) {
               const MergingShell &m = *rows[k];
               c[0].push_back(json::Value(labels.empty() ? std::to_string(k + 1)
@@ -560,6 +563,7 @@ int run_program(int argc, char **argv) {
               c[14].push_back(json::Value(m.anom_multiplicity));
               c[15].push_back(json::Value(m.cc_anom));
               c[16].push_back(json::Value(m.anom_slope));
+              c[17].push_back(json::Value(m.anom_slope_random));
             }
             return c;
           };
@@ -579,7 +583,8 @@ int run_program(int argc, char **argv) {
                                               "anom_completeness",
                                               "anom_multiplicity",
                                               "cc_anom",
-                                              "anom_slope"};
+                                              "anom_slope",
+                                              "anom_slope_random"};
       std::vector<const MergingShell *> rows;
       for (const MergingShell &m : table)
         rows.push_back(&m);

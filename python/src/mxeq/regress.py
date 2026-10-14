@@ -59,7 +59,8 @@ STEPS = [
 EXAMPLE_DATASETS = """\
 # The data sets a regression run takes (docs/regression.md). Each a table:
 #   images   one master file or several (several sweeps), absolute paths
-#   tier     "quick" or "full": `mxeq regress run --tier quick` takes the first
+#   tier     "quick", "full" (the default) or "slow": `mxeq regress run`
+#            takes quick and full, --quick the quick ones, --slow all three
 #   options  a step's extra arguments, by step: import find index refine
 #            integrate symmetry scale
 #
@@ -358,6 +359,37 @@ def tolerance_of(name: str) -> tuple[float, float]:
 # --- The commands ------------------------------------------------------------
 
 
+TIERS = ("quick", "full", "slow")
+
+
+def choose(datasets: dict, names=None, tier=None, upto="full") -> dict:
+    """The data sets a run takes. Named ones whatever their tier; else one
+    tier exactly (--tier), or every tier up to `upto` -- quick < full < slow:
+    --quick the quick ones, the default quick and full, --slow all of them
+    (Graeme: the 36000-image set, ten minutes, only when asked). No tier is
+    full; a tier not one of the three is an error, not a data set never run."""
+    out = {}
+    for k, v in datasets.items():
+        if not isinstance(v, dict):
+            continue
+        own = v.get("tier", "full")
+        if own not in TIERS:
+            raise SystemExit(f"{k}: tier {own!r} is not one of {', '.join(TIERS)}")
+        if names is not None:
+            if k in names:
+                out[k] = v
+        elif tier is not None:
+            if own == tier:
+                out[k] = v
+        elif TIERS.index(own) <= TIERS.index(upto):
+            out[k] = v
+    if names is not None:
+        missing = [n for n in names if n not in out]
+        if missing:
+            raise SystemExit(f"no such data set: {', '.join(missing)}")
+    return out
+
+
 def cmd_init(args) -> int:
     home().mkdir(parents=True, exist_ok=True)
     for name, text in (
@@ -375,13 +407,12 @@ def cmd_init(args) -> int:
 
 def cmd_run(args) -> int:
     datasets = read_toml(home() / "datasets.toml")
-    chosen = {
-        k: v
-        for k, v in datasets.items()
-        if isinstance(v, dict)
-        and (not args.datasets or k in args.datasets.split(","))
-        and (not args.tier or v.get("tier", "full") == args.tier)
-    }
+    chosen = choose(
+        datasets,
+        names=args.datasets.split(",") if args.datasets else None,
+        tier=args.tier,
+        upto="quick" if args.quick else "slow" if args.slow else "full",
+    )
     if not chosen:
         raise SystemExit("no data sets chosen")
     if args.bin:
@@ -627,7 +658,14 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--commit", default="HEAD", help="build and run this commit (HEAD)")
     g.add_argument("--bin", help="run the programs already built in this directory")
     r.add_argument("--datasets", help="these, comma-separated (all)")
-    r.add_argument("--tier", help="only the data sets of this tier")
+    speed = r.add_mutually_exclusive_group()
+    speed.add_argument("--quick", action="store_true", help="only the quick data sets")
+    speed.add_argument(
+        "--slow",
+        action="store_true",
+        help="every data set, the slow ones too (the default: " "quick and full)",
+    )
+    speed.add_argument("--tier", choices=TIERS, help="only the data sets of this tier")
     sub.add_parser("list", help="the runs so far")
     c = sub.add_parser("compare", help="a run against an earlier one")
     c.add_argument("run", nargs="?", help="the run (the latest)")

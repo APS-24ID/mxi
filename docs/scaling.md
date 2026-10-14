@@ -189,6 +189,26 @@ crystals' whole background. Both mended, the same two crystals scale with a =
 0.98; insulin's sweep 0.95 1.06 1.09 1.13 1.23 1.20, where it was 0.66 0.92
 1.04 1.13 1.27 1.23. CC half as it was.
 
+## The error model's fit, by regression
+
+sigma'^2 = a^2 (sigma^2 + b^2 I^2) is fitted as dials.scale's default does it:
+in each of twenty intensity bins -- by the reflection's merged intensity, not
+the observation's own -- the deviations' mean square should be a^2 (P + b^2 Q),
+P and Q the variance as given and the merged intensity squared, each with the
+exact variance of a deviation from a mean it is part of; linear in a^2 and
+a^2 b^2, so fitted across the bins by weighted least squares, each bin's weight
+its count over its mean square squared; b at zero if the fit wants it below.
+a had been the slope of every observation's normal probability plot, b then
+fitted about it: on Graeme's 6S0R set, its strong reflections out by a tenth of
+their intensity (raw calibration 86 for the strongest sixth, 1.9 for the
+weakest), that gave a = 4.81 and b = 0.023 -- the weak reflections' sigmas
+three and a half times too large (final calibration 0.08; the anomalous slope
+0.33 and its control 0.34). Binned by each observation's own intensity, a
+planted a = 1.0, b = 0.15 came back a = 1.18; by the merged intensity, 1.0 and
+0.15 (tests/test_scale.cc). Insulin's sweep: a 1.13 to 1.23, b 0.023 to 0.018,
+the calibration by resolution 0.95 to 1.07 for the most part, the strongest
+sixth by intensity 1.10 to 1.21; the two crystals as they were.
+
 ## The calibration
 
 After the merging statistics, how well the sigmas describe the scatter: each

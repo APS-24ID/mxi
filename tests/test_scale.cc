@@ -211,6 +211,36 @@ TEST(the_error_model_is_unbiased_in_pairs) {
   check::is_true(std::abs(em.b - 0.03) < 0.006, "b = " + std::to_string(em.b));
 }
 
+TEST(a_large_fractional_error_is_b_not_a) {
+  // Graeme's 6S0R: strong reflections out by a tenth of their intensity, the
+  // weak ones as integration said. The slope of every observation's normal
+  // probability plot had taken that as a = 4.81, b = 0.023 -- the weak ones'
+  // sigmas five times over. By regression across intensity bins: b.
+  // Intensities from 10 to 10000, as real data run: where counting statistics
+  // still lead, at the weak end, a is decided; b at the strong.
+  std::mt19937 rng(6);
+  std::uniform_real_distribution<double> uni(0.0, 1.0);
+  std::normal_distribution<double> noise(0.0, 1.0);
+  ScaleData data;
+  for (std::size_t h = 0; h < 4000; ++h) {
+    data.unique.push_back(Miller{static_cast<int>(h), 1, 0});
+    const double truth = 10.0 * std::pow(1000.0, uni(rng));
+    for (int k = 0; k < 8; ++k) {
+      const double sigma = std::sqrt(truth + 0.15 * 0.15 * truth * truth);
+      data.intensity.push_back(truth + sigma * noise(rng));
+      data.variance.push_back(truth);
+      data.variance_before.push_back(truth);
+      data.observation.emplace_back();
+      data.group.push_back(h);
+      data.outlier.push_back(false);
+    }
+  }
+  const ErrorModel em =
+      refine_error_model(data, std::vector<double>(data.size(), 1.0));
+  check::is_true(std::abs(em.a - 1.0) < 0.1, "a = " + std::to_string(em.a));
+  check::is_true(std::abs(em.b - 0.15) < 0.015, "b = " + std::to_string(em.b));
+}
+
 TEST(the_intensity_combination_chosen_is_better_than_either_alone) {
   // Profile fitting less noisy for weak spots and five per cent wrong, at
   // random, for strong ones; summation counting-noisy throughout. The best
@@ -446,12 +476,10 @@ TEST(with_anomalous_a_real_friedel_difference_is_neither_noise_nor_outliers) {
   // Each reflection's I(+) and I(-) differ by +-10 per cent -- a strong
   // anomalous signal -- with noise planted at a = 1.3, b = 0.03, four of each
   // mate. Merged, the difference is the error model's and outlier rejection's
-  // to explain, and they do it in the worst way: a comes out near 3.2, every
-  // sigma inflated, and outlier rejection throws away a fifth of the
-  // observations -- those with the largest anomalous differences. Measured with
-  // no difference, +-5, 10 and 20 per cent: merged, a 1.35, 1.63, 3.24 and 9.80
-  // and outliers 397, 1688, 4509 and 8102 of 24000; apart, a 1.36 and some 330
-  // outliers throughout. Kept apart, the planted model comes back.
+  // to explain: the error model takes it as a fractional error, b near the
+  // difference (it was a, near 3.2, before the fit by regression), and outlier
+  // rejection throws away the observations with the largest anomalous
+  // differences. Kept apart, the planted model comes back.
   std::mt19937 rng(31);
   std::uniform_real_distribution<double> uni(0.0, 1.0);
   std::normal_distribution<double> noise(0.0, 1.0);
@@ -488,9 +516,14 @@ TEST(with_anomalous_a_real_friedel_difference_is_neither_noise_nor_outliers) {
   ScaleData merged_rejected = merged, apart_rejected = apart;
   const std::size_t out_merged = reject_outliers(merged_rejected, g);
   const std::size_t out_apart = reject_outliers(apart_rejected, g);
-  check::is_true(em_merged.a > 2.5,
-                 "merged, the difference inflates every sigma: a = " +
-                     std::to_string(em_merged.a));
+  // Merged, the fit by regression takes the difference as what it acts like,
+  // a fractional error, b near the difference -- where the slope of every
+  // observation's normal probability plot had made it a, near 3.2, every
+  // sigma inflated (docs/scaling.md, "The error model's fit, by regression").
+  check::is_true(
+      em_merged.a < 1.6 && em_merged.b > 0.06 && em_merged.b < 0.15,
+      "merged, the difference is b, not a: a = " + std::to_string(em_merged.a) +
+          ", b = " + std::to_string(em_merged.b));
   check::is_true(
       out_merged > 10 * out_apart,
       "and is thrown away as outliers: " + std::to_string(out_merged) +

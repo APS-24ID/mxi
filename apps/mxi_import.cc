@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "args.hh"
+#include "expt.hh"
 #include "json.hh"
 #include "log_mirror.hh"
 #include "nxmx_import.hh"
@@ -40,7 +41,11 @@ const char *kUsage =
     "                        material not tabulated\n"
     "  --trusted-max N       the top of the trusted range, for a file with no\n"
     "                        saturation value\n"
-    "  --image-range A,B     only images A to B, counting from 1\n";
+    "  --image-range A,B     only images A to B, counting from 1\n"
+    "  --split N             each sweep as N sweeps of consecutive images, as\n"
+    "                        even as they can be: partials at the joins, a "
+    "big\n"
+    "                        set as many small ones, for testing\n";
 
 std::vector<double> pair_of(const std::string &text, const char *what) {
   const std::size_t comma = text.find(',');
@@ -118,6 +123,69 @@ void describe(const std::string &master, const mxi::json::Value &expt,
     std::printf("  note: %s\n", n.c_str());
 }
 
+// Each sweep split into n of consecutive images, as even as they can be (a
+// difference of one at most): a scan and an image set each, the per-image
+// properties and frame indices sliced, a new identifier; the beam, detector and
+// goniometer shared. For testing (Graeme): partial reflections at the joins, a
+// big set as many small ones.
+mxi::json::Value split_sweeps(const mxi::json::Value &doc, std::size_t n) {
+  using namespace mxi;
+  json::Object out = doc.as_object();
+  json::Array experiments, scans, imagesets;
+  for (const json::Value &e : doc["experiment"].as_array()) {
+    const auto si = static_cast<std::size_t>(e["scan"].as_number());
+    const auto ii = static_cast<std::size_t>(e["imageset"].as_number());
+    const json::Value &scan = doc["scan"].as_array().at(si);
+    const json::Value &set = doc["imageset"].as_array().at(ii);
+    const json::Array &range = scan["image_range"].as_array();
+    const auto first = static_cast<long long>(range.at(0).as_number());
+    const auto last = static_cast<long long>(range.at(1).as_number());
+    const auto count = static_cast<std::size_t>(last - first + 1);
+    if (n > count)
+      throw std::runtime_error("--split " + std::to_string(n) +
+                               ": a sweep has only " + std::to_string(count) +
+                               " images");
+    const auto slice = [&](const json::Value &v, std::size_t from,
+                           std::size_t to) {
+      if (!v.is_array() || v.as_array().size() != count)
+        return v;
+      const json::Array &a = v.as_array();
+      return json::Value(json::Array(a.begin() + static_cast<long>(from),
+                                     a.begin() + static_cast<long>(to)));
+    };
+    for (std::size_t k = 0; k < n; ++k) {
+      const std::size_t from = count * k / n, to = count * (k + 1) / n;
+      json::Object sc = scan.as_object();
+      sc["image_range"] = json::Value(json::Array{
+          json::Value(static_cast<long>(first + static_cast<long long>(from))),
+          json::Value(
+              static_cast<long>(first + static_cast<long long>(to) - 1))});
+      if (scan["properties"].is_object()) {
+        json::Object props;
+        for (const auto &[key, value] : scan["properties"].as_object())
+          props[key] = slice(value, from, to);
+        sc["properties"] = json::Value(std::move(props));
+      }
+      sc["batch_offset"] = json::Value(0L);
+      sc["valid_image_ranges"] = json::Value(json::Object{});
+      json::Object is = set.as_object();
+      if (set["single_file_indices"].is_array())
+        is["single_file_indices"] = slice(set["single_file_indices"], from, to);
+      json::Object x = e.as_object();
+      x["scan"] = json::Value(static_cast<long>(scans.size()));
+      x["imageset"] = json::Value(static_cast<long>(imagesets.size()));
+      x["identifier"] = json::Value(new_identifier());
+      scans.push_back(json::Value(std::move(sc)));
+      imagesets.push_back(json::Value(std::move(is)));
+      experiments.push_back(json::Value(std::move(x)));
+    }
+  }
+  out["experiment"] = json::Value(std::move(experiments));
+  out["scan"] = json::Value(std::move(scans));
+  out["imageset"] = json::Value(std::move(imagesets));
+  return json::Value(std::move(out));
+}
+
 int main(int argc, char **argv) {
   using namespace mxi;
   // Mirrored to mxi_import.log in the working directory, as every mxi program
@@ -126,10 +194,10 @@ int main(int argc, char **argv) {
     mirror_to_log("mxi_import.log");
   const std::set<std::string> known = {
       "-o",   "--output",      "--wavelength",  "--distance", "--beam-centre",
-      "--mu", "--trusted-max", "--image-range", "--help"};
+      "--mu", "--trusted-max", "--image-range", "--help",     "--split"};
   const std::set<std::string> takes_value = {
-      "-o",   "--output",      "--wavelength", "--distance", "--beam-centre",
-      "--mu", "--trusted-max", "--image-range"};
+      "-o",   "--output",      "--wavelength",  "--distance", "--beam-centre",
+      "--mu", "--trusted-max", "--image-range", "--split"};
   const Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (args.has("--help")) {
     std::printf("%s", kUsage);
@@ -169,7 +237,23 @@ int main(int argc, char **argv) {
       lists.push_back(import_nxmx(master, o, &notes));
       describe(master, lists.back(), notes);
     }
-    const json::Value document = join_experiment_lists(lists);
+    json::Value document = join_experiment_lists(lists);
+    if (args.has("--split")) {
+      const auto n = static_cast<std::size_t>(args.number("--split", 1.0));
+      if (n < 1)
+        throw std::runtime_error("--split wants a number of sweeps, 1 or more");
+      if (n > 1) {
+        document = split_sweeps(document, n);
+        const json::Array &scans = document["scan"].as_array();
+        std::printf("Split into %zu sweeps:", scans.size());
+        for (std::size_t k = 0; k < scans.size() && k < 6; ++k) {
+          const json::Array &r = scans[k]["image_range"].as_array();
+          std::printf(" %lld-%lld", static_cast<long long>(r.at(0).as_number()),
+                      static_cast<long long>(r.at(1).as_number()));
+        }
+        std::printf("%s\n", scans.size() > 6 ? " ..." : "");
+      }
+    }
     // The first step of the processing's summary: each sweep as imported.
     Summary summary("mxi_import", "");
     {

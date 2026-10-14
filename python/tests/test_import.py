@@ -574,3 +574,60 @@ def test_the_panel_is_the_size_the_data_are(tmp_path, where, shape, size):
     panel = json.load(open(tmp_path / "imported.expt"))["detector"][0]["panels"][0]
     assert panel["image_size"] == size
     assert ("the data's taken" in result.stdout) == (size != [200, 300])
+
+
+@needs_import
+def test_split_makes_sweeps_of_consecutive_images(tmp_path):
+    # Graeme: a big set as many small ones, partials at the joins, for testing.
+    from mxeq import rflx
+
+    plant(tmp_path / "master.nxs")
+    whole = subprocess.run(
+        [IMPORT, str(tmp_path / "master.nxs"), "-o", str(tmp_path / "whole.expt")],
+        capture_output=True,
+        text=True,
+    )
+    assert whole.returncode == 0, whole.stderr
+    n = json.load(open(tmp_path / "whole.expt"))["scan"][0]["image_range"]
+    images = n[1] - n[0] + 1
+    parts = 3 if images >= 3 else images
+    r = subprocess.run(
+        [
+            IMPORT,
+            str(tmp_path / "master.nxs"),
+            "--split",
+            str(parts),
+            "-o",
+            str(tmp_path / "split.rflx"),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    d = rflx.experiments_dict(str(tmp_path / "split.rflx"))
+    assert len(d["experiment"]) == parts
+    assert len({e["identifier"] for e in d["experiment"]}) == parts
+    seen = []
+    for e in d["experiment"]:
+        s = d["scan"][e["scan"]]
+        first, last = s["image_range"]
+        frames = d["imageset"][e["imageset"]]["single_file_indices"]
+        assert len(frames) == last - first + 1
+        assert frames[0] == first - n[0]
+        for v in s["properties"].values():
+            assert len(v) == last - first + 1
+        seen.extend(range(first, last + 1))
+    assert seen == list(range(n[0], n[1] + 1))  # every image once, in order
+    too_many = subprocess.run(
+        [
+            IMPORT,
+            str(tmp_path / "master.nxs"),
+            "--split",
+            str(images + 1),
+            "-o",
+            str(tmp_path / "x.rflx"),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert too_many.returncode != 0

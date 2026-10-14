@@ -116,12 +116,19 @@ section from its summary, a plot a sweep wherever the data are a sweep's:
   and the R factors (log scale) by resolution; and from the reflections the
   inverse scale and <I/sigma> by image, each sweep from its first image.
 
+A point a degree along every scan (14 October; Graeme: fifty blocks a sweep
+drew nothing on 3600 degrees): spots per image as each degree's mean, the cell
+over the scan sampled a degree apart, scaling's inverse scale and <I/sigma>
+binned a degree. And the scale model the scaled file holds (mxi_physical):
+the scale C and the relative B over each sweep, a point a degree, and each
+lattice's absorption surface, S over the directions of the crystal frame, five
+degrees a step.
+
 Plotly from its CDN (one file, to mail; it draws with a network), plot text in
 characters, not entities, which plotly does not know; an axis spans at least
 what makes a constant flat (0.01 A, 0.1 degree). A step it has no section for
 gets its tables; long or nested lists are left to the plots. Not yet: the error
-model's normal probability plot, the absorption surface, anomalous plots,
-Wilson plots -- dials.scale's analysis plots past the merging statistics.
+model's normal probability plot, anomalous plots, Wilson plots -- dials.scale's analysis plots past the merging statistics.
 
 ## The GUI, later
 

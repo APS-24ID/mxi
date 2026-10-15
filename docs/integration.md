@@ -437,6 +437,20 @@ pread names its offset -- after a descriptor a reader, as first written, took
 insulin's reading went 14.2 s to 2.8, H5Dread_chunk's own cost;
   the frames, the spots and the integrated intensities the same to the bit.
 
+**Opening shoeboxes.** Each box marked with its neighbours' foregrounds had
+computed each neighbour's afresh with region_of, once a box a neighbour. Now a
+box's foreground is computed once, when it is built, and copied where it meets
+its neighbours -- a box marks itself from the neighbours already open and marks
+them from itself, the updates to each gathered and applied by one task; a
+neighbour that fails to build is computed as before. region_of decides each
+voxel from where it is alone, so the masks are the same to the bit (insulin at
+6 sigma, the two crystals at 5). But marking was not where opening's time went:
+`--timing` now splits it, and on the two crystals building took 2.27 s and
+marking 0.02. Building is region_of over each box's own face -- a pixel's
+direction through the detector, parallax and all, computed again for every box
+it is in; a table of each pixel's direction, once a panel, is the next step if
+the crowded data say so (14 October).
+
 ## Conventions that caused bugs
 
 Each of these was once wrong here. They are the ones to check first when

@@ -236,6 +236,15 @@ Epsilon epsilon_at_mm(const KabschFrame &frame, const Panel &p, double mm_fast,
 }
 
 const std::vector<std::pair<double, double>> &pixel_mm_table(const Panel &p) {
+  // Each thread remembers the last panel it asked for and its table: the key
+  // made and the lock taken only when a thread first meets a panel. Taken on
+  // every call, as first written, 16 threads building boxes queued on the lock
+  // -- ferritin's opening 10.3 s to 17.0 (Graeme).
+  thread_local const Panel *last_panel = nullptr;
+  thread_local const std::vector<std::pair<double, double>> *last_table =
+      nullptr;
+  if (last_panel == &p && last_table != nullptr)
+    return *last_table;
   static std::mutex lock;
   static std::map<std::string,
                   std::unique_ptr<std::vector<std::pair<double, double>>>>
@@ -265,6 +274,8 @@ const std::vector<std::pair<double, double>> &pixel_mm_table(const Panel &p) {
     });
     slot = std::move(table);
   }
+  last_panel = &p;
+  last_table = slot.get();
   return *slot;
 }
 

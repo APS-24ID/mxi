@@ -431,7 +431,10 @@ scan's length and the threads' number, not of the work:
   the chunk's address, size and filter mask), and the bytes are read with
   pread on a descriptor of the reader's own, of the file the dataset is in --
   through an external link, often not the master -- from its user block's end.
-  On one thread insulin's reading went 14.2 s to 2.8, H5Dread_chunk's own cost;
+  One descriptor a data file for the whole process, shared by every reader --
+pread names its offset -- after a descriptor a reader, as first written, took
+16 threads x 18 data files past macOS's 256 a process (Graeme). On one thread
+insulin's reading went 14.2 s to 2.8, H5Dread_chunk's own cost;
   the frames, the spots and the integrated intensities the same to the bit.
 
 ## Conventions that caused bugs

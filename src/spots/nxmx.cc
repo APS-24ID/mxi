@@ -180,29 +180,28 @@ std::string_view algorithm_of(hid_t dcpl) {
   return {};
 }
 
-// A file descriptor of the data file's own, for its chunks' bytes read with
-// pread outside HDF5's lock; closed with it.
-struct OwnFd {
-  int fd = -1;
-  OwnFd() = default;
-  explicit OwnFd(int f) : fd(f) {}
-  OwnFd(const OwnFd &) = delete;
-  OwnFd &operator=(const OwnFd &) = delete;
-  OwnFd(OwnFd &&o) noexcept : fd(o.fd) { o.fd = -1; }
-  OwnFd &operator=(OwnFd &&o) noexcept {
-    std::swap(fd, o.fd);
-    return *this;
-  }
-  ~OwnFd() {
-    if (fd >= 0)
-      ::close(fd);
-  }
-};
+// One descriptor a data file for the whole process, shared by every reader:
+// pread names its offset, so threads may share it. A descriptor a reader, as
+// first written, took threads x files of them -- 16 x 18, past macOS's 256 a
+// process, and HDF5 could then open nothing (Graeme). Kept open while the
+// process runs, as HDF5's own are.
+int shared_descriptor(const std::string &path) {
+  static std::mutex lock;
+  static std::map<std::string, int> open;
+  const std::lock_guard<std::mutex> held(lock);
+  const auto found = open.find(path);
+  if (found != open.end())
+    return found->second;
+  const int fd = ::open(path.c_str(), O_RDONLY);
+  if (fd >= 0)
+    open.emplace(path, fd);
+  return fd;
+}
 
 struct SourceDataset {
   Handle file;
   Handle dataset;
-  OwnFd raw;              //: the data file opened again, for pread
+  int raw = -1;           //: the data file's shared descriptor, for pread
   std::uint64_t base = 0; //: its user block: chunk addresses count from here
   std::uint64_t height = 0;
   std::uint64_t width = 0;
@@ -244,7 +243,7 @@ public:
       if (address == HADDR_UNDEF || size == 0)
         return false;
       frame->storage.resize(static_cast<std::size_t>(size));
-      if (source->raw.fd < 0) {
+      if (source->raw < 0) {
         // No descriptor of our own: through HDF5, under its lock, as before.
         std::uint32_t filters = 0;
         ok(read_chunk(source->dataset.get(), offset, &filters,
@@ -253,12 +252,12 @@ public:
         mask = filters;
       }
     }
-    if (source->raw.fd >= 0) {
+    if (source->raw >= 0) {
       auto *into = reinterpret_cast<char *>(frame->storage.data());
       std::size_t done = 0;
       const auto at = static_cast<off_t>(source->base + address);
       while (done < size) {
-        const ssize_t got = ::pread(source->raw.fd, into + done, size - done,
+        const ssize_t got = ::pread(source->raw, into + done, size - done,
                                     at + static_cast<off_t>(done));
         if (got <= 0)
           throw std::runtime_error("reading a chunk of " +
@@ -380,7 +379,7 @@ private:
         H5Fclose(holder);
         source.base = userblock;
         if (!name.empty())
-          source.raw = OwnFd(::open(name.c_str(), O_RDONLY));
+          source.raw = shared_descriptor(name);
       }
     }
 

@@ -102,4 +102,49 @@ BackgroundResult glm_background(const std::vector<double> &values,
   return out;
 }
 
+BackgroundResult
+glm_background_counted(const std::vector<std::pair<double, double>> &counted,
+                       const BackgroundOptions &options) {
+  BackgroundResult out;
+  double n = 0.0, sum = 0.0;
+  for (const auto &[v, k] : counted) {
+    n += k;
+    sum += k * v;
+  }
+  out.n = static_cast<std::size_t>(n);
+  if (!(n > 0.0))
+    return out;
+  const double mean = sum / n;
+  if (!(mean > 0.0)) {
+    out.valid = true;
+    out.mean = 0.0;
+    out.converged = true;
+    return out;
+  }
+  double theta = std::log(mean);
+  for (int i = 0; i < options.max_iterations; ++i) {
+    const double mu = std::exp(theta);
+    const double root = std::sqrt(mu);
+    double score = 0.0;
+    for (const auto &[v, k] : counted)
+      score += k * huber((v - mu) / root, options.tuning);
+    const double c1 = glm_c1(mu, options.tuning);
+    const double c2 = glm_c2(mu, options.tuning);
+    if (!(std::fabs(c2) > 0.0))
+      break;
+    const double step = (score - n * c1) / (n * c2);
+    theta += step;
+    out.iterations = i + 1;
+    if (std::fabs(step) < options.tolerance) {
+      out.converged = true;
+      break;
+    }
+    if (theta > 30.0 || theta < -60.0)
+      break;
+  }
+  out.valid = true;
+  out.mean = std::exp(theta);
+  return out;
+}
+
 } // namespace mxi

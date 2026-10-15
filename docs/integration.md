@@ -464,6 +464,18 @@ in the same order. The same sums, every column the same; the rest of
 integrate_shoebox 2.68 thread-seconds to 1.46 on insulin, 1.41 to 0.74 on the
 two crystals.
 
+Then the fit itself, and the copying for it: every background pixel copied out
+as a double and read some five times, memory traffic on ferritin's
+background-heavy boxes, where the passes' saving was only 183 thread-seconds to
+167. Now the background is a histogram of its counts (integers 0 to 4095) and
+the fit and the dispersion go over the distinct values, each with how many
+pixels hold it (glm_background_counted); any other value sends the box down the
+pixel-by-pixel path. Not bit-identical: sums in another order, so the fit can
+stop elsewhere within its tolerance -- the background mean to 1.1e-12, the
+summed intensities to 1.8e-9 (near zero), the fitted intensities, flags and
+integers unchanged. The two crystals: the fit 0.86 thread-seconds to 0.076, the
+rest of integrate_shoebox 0.73 to 0.58.
+
 **sigma_m, two estimators** (15 October). `--sigma-m-estimator basic` (the
 default, as DIALS's) counts each image holding foreground once;
 `extended` weights each by its counts, as DIALS's non-default estimator. On

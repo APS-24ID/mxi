@@ -2,6 +2,8 @@
 
 #include <cmath>
 #include <cstdint>
+#include <map>
+#include <random>
 #include <vector>
 
 #include "../src/background.hh"
@@ -44,6 +46,36 @@ double mean_of(const std::vector<double> &v) {
 }
 
 } // namespace
+
+TEST(the_counted_fit_is_the_pixel_fit_to_rounding) {
+  // glm_background_counted takes each value once with how many pixels hold
+  // it; on Poisson backgrounds from a hundredth of a count to fifty, with a
+  // few outliers, it must agree with the fit over every pixel.
+  std::mt19937 rng(17);
+  for (double level : {0.01, 0.3, 2.0, 12.0, 50.0}) {
+    std::poisson_distribution<int> draw(level);
+    std::vector<double> pixels;
+    for (int i = 0; i < 4000; ++i)
+      pixels.push_back(static_cast<double>(draw(rng)));
+    for (int i = 0; i < 20; ++i)
+      pixels.push_back(level * 20.0 + 100.0); // outliers
+    std::map<double, double> histogram;
+    for (double v : pixels)
+      histogram[v] += 1.0;
+    const std::vector<std::pair<double, double>> counted(histogram.begin(),
+                                                         histogram.end());
+    const BackgroundOptions options;
+    const BackgroundResult a = glm_background(pixels, options);
+    const BackgroundResult b = glm_background_counted(counted, options);
+    check::is_true(a.valid && b.valid, "both fitted");
+    check::is_true(
+        std::fabs(a.mean - b.mean) <= 1e-9 * std::fmax(a.mean, 1e-12),
+        "the same mean at " + std::to_string(level) + ": " +
+            std::to_string(a.mean) + " and " + std::to_string(b.mean));
+    check::equal(static_cast<long long>(b.n),
+                 static_cast<long long>(pixels.size()), "every pixel counted");
+  }
+}
 
 TEST(with_no_clipping_the_glm_is_the_plain_mean) {
   // The Huber weight with a large tuning constant does nothing, and the

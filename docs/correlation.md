@@ -1,8 +1,7 @@
 # Clustering data sets by their intensities: mxi_correlation
 
-STATUS: stages 1 to 3 built, and stage 4's files, 15 October 2026 -- the
-correlation matrix, the cosym coordinates, OPTICS, each cluster written as its
-own .rflx. The report's plots to follow.
+STATUS: built, 15 October 2026 -- the correlation matrix, the cosym
+coordinates, OPTICS, each cluster as its own .rflx, and the report.
 
 `mxi_correlation` is to do what dials.correlation_matrix does (Thompson et al.
 2025, Acta Cryst. D81, 278-290): from a scaled file whose lattices are each a
@@ -150,7 +149,14 @@ mxi_scale, completeness 90.1 per cent and multiplicity 9.8, as
 dials.correlation_matrix reports that cluster (90.1, 9.74); R merge 0.146
 against 0.225 with the three species together.
 
-**The report (to follow).** mxi_report to draw the correlation heat map
-ordered by cluster, the reachability plot, the principal components and the
-dimension functional, and Ward dendrograms of r and of the cosine angles,
-uncut.
+**The report (built).** mxi_correlation writes its own HTML, as
+dials.correlation_matrix does -- mxi_correlation.html, `--html` to name it;
+Plotly, as mxi_report: the clusters' table; the correlation matrix and the
+cosine-angle matrix between the coordinates, each a heat map in its Ward
+dendrogram's order with the dendrogram above (distances 1 - value, as DIALS);
+the reachability plot in OPTICS's order, by cluster; the coordinates' first
+two principal components, by cluster; the dimension functional, the chosen
+dimension marked. Ward linkage as scipy's (the Lance-Williams update on
+distances) and the dendrogram's leaf order and brackets as scipy's dendrogram:
+on nine random points every merge to 1e-12 and the same leaves. On Graeme's 36
+crystals both dendrograms put each species together: 24-35, 0-11, 12-23.

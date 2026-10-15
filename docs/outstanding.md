@@ -24,6 +24,14 @@ where something is missing.
     mean square -- a handful of wild observations outlier rejection does not
     catch; DIALS shows no dip there. A diagnostic listing a shell's worst
     observations, where they lie on the detector, would find them.
+* **70.** **correctness -- mxi_symmetry takes its input's cell as
+    primitive.** Run on data already in a centred setting -- Graeme's 36 insulin
+    crystals scaled in I 2 3's conventional cell -- lattice_symmetry treats the
+    conventional cubic cell as a primitive lattice: every Patterson group
+    scored is P (P m -3 best, I m -3 m never), and it recommends P 2 3. Input
+    as mxi_index writes it, a reduced primitive cell, is not affected.
+    Wanted: a centred input taken to its primitive setting first (from the
+    crystal's space group), or refused, never silently treated as P.
 * **69.** **correctness -- the error model's b, twice dials.scale's on many
     crystals.** Graeme's 36 insulin crystals (three species, 12 each): after
     partials were combined and partiality kept off the profile-fitted

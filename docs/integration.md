@@ -454,6 +454,15 @@ opening slower, 10.3 s to 11.6 -- a serial gathering of millions of pairs a
 chunk -- and was undone; `--timing` now splits opening into building and
 marking (14 October).
 
+**sigma_m, two estimators** (15 October). `--sigma-m-estimator basic` (the
+default, as DIALS's) counts each image holding foreground once;
+`extended` weights each by its counts, as DIALS's non-default estimator. On
+insulin 0.1284 and 0.0835 degrees; the second is the rocking curve's width, but
+the rotation profile's tails are heavy, and a box of 3 sigma at it loses 1.8
+per cent of the counts: insulin merged worse with it (outstanding 63). sigma_b
+is the total angle about s1, a per-axis width times root 2, as DIALS's: a
+per-axis comparison finds 1.41 and should not suspect a bug.
+
 ## Conventions that caused bugs
 
 Each of these was once wrong here. They are the ones to check first when

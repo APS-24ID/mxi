@@ -24,19 +24,26 @@ where something is missing.
     mean square -- a handful of wild observations outlier rejection does not
     catch; DIALS shows no dip there. A diagnostic listing a shell's worst
     observations, where they lie on the detector, would find them.
-* **63.** **correctness -- sigma_m comes out larger than DIALS's.** 6S0R 0.565
-    degrees against 0.316, insulin 0.128 against 0.089 (item 3, closed as
-    harmless for insulin, where 0.086 merged worse). Larger boxes, more
-    overlaps, on crowded data. Compared line for line (15 October), the
-    estimators are DIALS's defaults: sigma_b about the predicted s1
-    (ComputeEsdBeamDivergence, centroid_definition s1), sigma_m by maximum
-    likelihood with one sample an image holding a foreground pixel
-    (ComputeEsdReflectingRange, the basic estimator). So the difference is in
-    the inputs, most likely the spot finder's shoeboxes: how many images a
-    spot's foreground spans, which pixels it marks foreground. Next: both
-    estimators on dials.find_spots's shoeboxes and mxi_find's for the same
-    spots, or on mxsim's images with known sigmas.
-
+* **63.** **decision -- sigma_m: the rocking curve's width, and how far the
+    box must reach, are two numbers.** mxsim's note (15 October): the basic
+    estimator, one sample an image holding foreground counted once, as
+    DIALS's default, measures how far a spot's foreground spans, which grows
+    with brightness -- on NE-CAT insulin 0.040 degrees for the weakest sixth to
+    0.179 for the strongest. Weighted by each image's counts (DIALS's
+    `extended`; `mxi_integrate --sigma-m-estimator extended`) it is 0.0835 on
+    insulin here, with mxsim's 0.0826, its second moments' 0.083 to 0.090 and
+    DIALS's 0.089. But integrated with it insulin merges worse: R merge 0.035 to
+    0.039, the low shell 0.026 to 0.032, <I/sigma> 17.5 to 16.4 (as item 3's
+    0.086 did). mxi_profile says why: at that width the rotation profile's
+    core is near Gaussian but its tails are heavy -- 0.934, 0.982 and 0.996 of
+    the counts within 2, 3 and 4 sigma, where a Gaussian holds 0.954, 0.997
+    and 0.99994 -- so a box of 3 sigma loses 1.8 per cent of every spot's
+    counts, unevenly; basic's inflated sigma_m happens to set the box where
+    0.999 are held. Proposed: sigma_m from the extended estimator, the box's
+    extent in rotation set to the n sigma that holds 0.997 of the counts (4
+    here, 0.33 degrees). basic stays the default until decided. sigma_b is
+    not a discrepancy: it is the total angle about s1, so a per-axis width
+    times root 2, as DIALS's.
 * **55.** **understood -- Summation 2 to 3 per cent below DIALS's on the two
     crystals**: the foreground's extent. A 3 sigma ellipsoid holds 97.1 per
     cent of a three-dimensional Gaussian, and mxi's sigma_b is some 6 per cent

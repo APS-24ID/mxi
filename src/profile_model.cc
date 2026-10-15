@@ -104,10 +104,16 @@ std::vector<RangeSample> range_samples(const Experiment &e, const Shoebox &box,
     // different criterion; on these tables it selects the same images, but it
     // is not what DIALS asks.
     bool marked = false;
-    for (std::int32_t y = 0; y < box.ny() && !marked; ++y) {
-      for (std::int32_t x = 0; x < box.nx() && !marked; ++x) {
-        if (box.mask[box.at(x, y, z)] == wanted)
+    double counts = 0.0;
+    for (std::int32_t y = 0; y < box.ny(); ++y) {
+      for (std::int32_t x = 0; x < box.nx(); ++x) {
+        const std::size_t at = box.at(x, y, z);
+        if (box.mask[at] == wanted) {
           marked = true;
+          counts += std::fmax(static_cast<double>(box.data[at]) -
+                                  static_cast<double>(box.background[at]),
+                              0.0);
+        }
       }
     }
     if (!marked)
@@ -117,13 +123,13 @@ std::vector<RangeSample> range_samples(const Experiment &e, const Shoebox &box,
     const double centre =
         Scan::radians(e.scan.osc_start) +
         (image - static_cast<double>(e.scan.z_offset)) * width;
-    out.push_back({phi_calculated - centre, zeta});
+    out.push_back({phi_calculated - centre, zeta, counts});
   }
   return out;
 }
 
 double reflecting_range(const std::vector<RangeSample> &samples,
-                        double oscillation, double min_zeta) {
+                        double oscillation, double min_zeta, bool weighted) {
   std::vector<RangeSample> used;
   for (const RangeSample &s : samples) {
     if (std::fabs(s.zeta) >= min_zeta)
@@ -139,7 +145,7 @@ double reflecting_range(const std::vector<RangeSample> &samples,
       // A sample the model says is impossible would take the whole sum to
       // infinity; floored so that one such sample cannot decide the answer on
       // its own.
-      total -= std::log(std::fmax(r, 1e-300));
+      total -= (weighted ? s.counts : 1.0) * std::log(std::fmax(r, 1e-300));
     }
     return total;
   };

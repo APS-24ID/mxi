@@ -190,7 +190,11 @@ int main(int argc, char **argv) {
     series::Info info;
     if (!s->try_open(&info))
       throw std::runtime_error("cannot open " + master + " as an NXmx series");
-    std::uint64_t frames = info.images;
+    // The frames the series has, by its own keys, as mxi_find and mxi_max
+    // read them -- not the data's declared extent, which a virtual dataset can
+    // make longer than its mappings cover.
+    const std::vector<std::string> keys = s->ready();
+    std::uint64_t frames = keys.size();
     if (args.has("--frames"))
       frames = std::min<std::uint64_t>(
           frames, static_cast<std::uint64_t>(args.number("--frames", 0.0)));
@@ -244,7 +248,7 @@ int main(int argc, char **argv) {
               if (p.mask & 1u)
                 how = std::string_view();
             } else {
-              if (!reader->read(std::to_string(f), &frame))
+              if (!reader->read(keys[static_cast<std::size_t>(f)], &frame))
                 continue;
               data = frame.data;
               how = frame.algorithm;

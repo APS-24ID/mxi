@@ -129,7 +129,12 @@ int main(int argc, char **argv) {
     series::Info info;
     if (!s->try_open(&info))
       throw std::runtime_error("cannot open " + master + " as an NXmx series");
-    const std::uint64_t frames = info.images;
+    // The frames the series has, by its own keys, as mxi_find reads them: not
+    // 0 to info.images - 1, the data's declared extent, which a converted
+    // master's virtual dataset can make longer than its mappings cover --
+    // those frames are in no file, and asked for, the reader throws.
+    const std::vector<std::string> keys = s->ready();
+    const auto frames = static_cast<std::uint64_t>(keys.size());
 
     std::atomic<std::uint64_t> next{0}, read_frames{0}, bad_total{0},
         join_total{0}, over_total{0};
@@ -147,7 +152,7 @@ int main(int argc, char **argv) {
           std::vector<std::uint8_t> out;
           for (std::uint64_t f = next.fetch_add(1); f < frames;
                f = next.fetch_add(1)) {
-            if (!reader->read(std::to_string(f), &frame))
+            if (!reader->read(keys[static_cast<std::size_t>(f)], &frame))
               continue; // never written
             const std::size_t h = frame.height, wd = frame.width;
             const std::size_t bytes =
@@ -174,7 +179,7 @@ int main(int argc, char **argv) {
             bit_depth = frame.bit_depth;
             if (largest > best || (largest == best && f < best_frame)) {
               best = largest;
-              best_frame = f;
+              best_frame = std::stoull(keys[static_cast<std::size_t>(f)]);
             }
           }
         } catch (const std::exception &e) {

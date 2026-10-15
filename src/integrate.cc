@@ -97,11 +97,28 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
   if (box->mask.size() != box->size())
     return out;
 
-  std::vector<double> background_values;
+  // One pass over the box: its pixels classified, the background's values
+  // kept for the fit, and the valid foreground's pixels kept -- position and
+  // count, in the box's own order -- for the centroids after, which had each
+  // gone over the whole box again checking its mask: seven passes, two thirds
+  // of background and summation on ferritin (183 of 282 thread-seconds). The
+  // same pixels in the same order, so the same sums. Buffers a thread's own,
+  // not made and freed a box.
+  struct Foreground {
+    std::int32_t x, y, z;
+    double count;
+  };
+  thread_local std::vector<double> background_values;
+  thread_local std::vector<Foreground> foreground;
+  background_values.clear();
+  foreground.clear();
   double foreground_sum = 0.0;
   std::size_t n_foreground = 0;
   std::size_t n_valid = 0;
-  for (std::size_t i = 0; i < box->size(); ++i) {
+  const std::int32_t nx = box->nx(), ny = box->ny();
+  std::int32_t px = 0, py = 0, pz = 0; // the pixel i is, kept in step
+  for (std::size_t i = 0; i < box->size();
+       ++i, (++px == nx ? (px = 0, (++py == ny ? (py = 0, ++pz) : 0)) : 0)) {
     const std::uint8_t m = box->mask[i];
     if ((m & shoebox_mask::kValid) == 0) {
       // Counted before it is skipped: a bad pixel keeps its region bit, so
@@ -115,6 +132,7 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
     ++n_valid;
     if (m & shoebox_mask::kForeground) {
       foreground_sum += static_cast<double>(box->data[i]);
+      foreground.push_back({px, py, pz, static_cast<double>(box->data[i])});
       ++n_foreground;
       if (m & shoebox_mask::kOverlapped)
         ++out.n_foreground_overlapped;
@@ -196,23 +214,14 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
   // reflection there are enough of them to move the answer a long way.
   {
     double weight = 0.0, mf = 0.0, ms = 0.0, mz = 0.0;
-    for (std::int32_t z = 0; z < box->nz(); ++z) {
-      for (std::int32_t y = 0; y < box->ny(); ++y) {
-        for (std::int32_t x = 0; x < box->nx(); ++x) {
-          const std::size_t i = box->at(x, y, z);
-          if ((box->mask[i] & shoebox_mask::kForeground) == 0)
-            continue;
-          if ((box->mask[i] & shoebox_mask::kValid) == 0)
-            continue;
-          const double w = static_cast<double>(box->data[i]) - background.mean;
-          if (!(w > 0.0))
-            continue;
-          weight += w;
-          mf += w * (static_cast<double>(box->bbox[0] + x) + 0.5);
-          ms += w * (static_cast<double>(box->bbox[2] + y) + 0.5);
-          mz += w * (static_cast<double>(box->bbox[4] + z) + 0.5);
-        }
-      }
+    for (const Foreground &f : foreground) {
+      const double w = f.count - background.mean;
+      if (!(w > 0.0))
+        continue;
+      weight += w;
+      mf += w * (static_cast<double>(box->bbox[0] + f.x) + 0.5);
+      ms += w * (static_cast<double>(box->bbox[2] + f.y) + 0.5);
+      mz += w * (static_cast<double>(box->bbox[4] + f.z) + 0.5);
     }
     if (weight > 0.0) {
       out.centroid_valid = true;
@@ -220,44 +229,34 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
       out.centroid_slow = ms / weight;
       out.centroid_z = mz / weight;
       double sf = 0.0, ss = 0.0, sz = 0.0;
-      for (std::int32_t z = 0; z < box->nz(); ++z) {
-        for (std::int32_t y = 0; y < box->ny(); ++y) {
-          for (std::int32_t x = 0; x < box->nx(); ++x) {
-            const std::size_t i = box->at(x, y, z);
-            if ((box->mask[i] & shoebox_mask::kForeground) == 0)
-              continue;
-            if ((box->mask[i] & shoebox_mask::kValid) == 0)
-              continue;
-            const double w =
-                static_cast<double>(box->data[i]) - background.mean;
-            if (!(w > 0.0))
-              continue;
-            const double df =
-                static_cast<double>(box->bbox[0] + x) + 0.5 - out.centroid_fast;
-            const double ds =
-                static_cast<double>(box->bbox[2] + y) + 0.5 - out.centroid_slow;
-            const double dz =
-                static_cast<double>(box->bbox[4] + z) + 0.5 - out.centroid_z;
-            // The Poisson variance of this pixel's COUNT, not its excess over
-            // the background. The centroid is sum(w x) / W with w = c - b, so
-            // its variance is sum((x - xbar)^2 var(c)) / W^2, and var(c) is c:
-            // the background photons are as noisy as the signal ones. Using w
-            // here made the uncertainty of a weak reflection on a background
-            // come out far too small, and independent of the background
-            // altogether.
-            const double count = static_cast<double>(box->data[i]);
-            // And a count is not AT its pixel's centre but somewhere in the
-            // pixel, uniformly, which is a variance of 1/12 of a pixel squared
-            // on each axis -- and of an image squared along the scan. Without
-            // it a spot whose counts share one coordinate, all on a single
-            // image say, has every (x - xbar) zero and a variance of nothing,
-            // and its pull came out at 1e12.
-            constexpr double kQuantisation = 1.0 / 12.0;
-            sf += count * (df * df + kQuantisation);
-            ss += count * (ds * ds + kQuantisation);
-            sz += count * (dz * dz + kQuantisation);
-          }
-        }
+      for (const Foreground &f : foreground) {
+        const double w = f.count - background.mean;
+        if (!(w > 0.0))
+          continue;
+        const double df =
+            static_cast<double>(box->bbox[0] + f.x) + 0.5 - out.centroid_fast;
+        const double ds =
+            static_cast<double>(box->bbox[2] + f.y) + 0.5 - out.centroid_slow;
+        const double dz =
+            static_cast<double>(box->bbox[4] + f.z) + 0.5 - out.centroid_z;
+        // The Poisson variance of this pixel's COUNT, not its excess over
+        // the background. The centroid is sum(w x) / W with w = c - b, so
+        // its variance is sum((x - xbar)^2 var(c)) / W^2, and var(c) is c:
+        // the background photons are as noisy as the signal ones. Using w
+        // here made the uncertainty of a weak reflection on a background
+        // come out far too small, and independent of the background
+        // altogether.
+        const double count = f.count;
+        // And a count is not AT its pixel's centre but somewhere in the
+        // pixel, uniformly, which is a variance of 1/12 of a pixel squared
+        // on each axis -- and of an image squared along the scan. Without
+        // it a spot whose counts share one coordinate, all on a single
+        // image say, has every (x - xbar) zero and a variance of nothing,
+        // and its pull came out at 1e12.
+        constexpr double kQuantisation = 1.0 / 12.0;
+        sf += count * (df * df + kQuantisation);
+        ss += count * (ds * ds + kQuantisation);
+        sz += count * (dz * dz + kQuantisation);
       }
       // The variance of the MEAN: the second moment of the distribution
       // divided by the weight in it, which is the standard quantity and goes
@@ -279,21 +278,12 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
   {
     constexpr double kQuantisation = 1.0 / 12.0;
     double weight = 0.0, mf = 0.0, ms = 0.0, mz = 0.0;
-    for (std::int32_t z = 0; z < box->nz(); ++z) {
-      for (std::int32_t y = 0; y < box->ny(); ++y) {
-        for (std::int32_t x = 0; x < box->nx(); ++x) {
-          const std::size_t i = box->at(x, y, z);
-          if ((box->mask[i] & shoebox_mask::kForeground) == 0)
-            continue;
-          if ((box->mask[i] & shoebox_mask::kValid) == 0)
-            continue;
-          const double w = static_cast<double>(box->data[i]) - background.mean;
-          weight += w;
-          mf += w * (static_cast<double>(box->bbox[0] + x) + 0.5);
-          ms += w * (static_cast<double>(box->bbox[2] + y) + 0.5);
-          mz += w * (static_cast<double>(box->bbox[4] + z) + 0.5);
-        }
-      }
+    for (const Foreground &f : foreground) {
+      const double w = f.count - background.mean;
+      weight += w;
+      mf += w * (static_cast<double>(box->bbox[0] + f.x) + 0.5);
+      ms += w * (static_cast<double>(box->bbox[2] + f.y) + 0.5);
+      mz += w * (static_cast<double>(box->bbox[4] + f.z) + 0.5);
     }
     // A centre exists only for a reflection that was DETECTED. The centre is
     // sum(w x) / W, and a W that is barely positive by noise throws it
@@ -306,14 +296,9 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
     // So W must stand clear of its own noise, whose variance is the sum of the
     // counts: the same quantity the instability comes from, rather than an
     // intensity cut chosen for the purpose.
-    double counts = 0.0;
-    for (std::size_t i = 0; i < box->size(); ++i) {
-      if ((box->mask[i] & shoebox_mask::kForeground) == 0)
-        continue;
-      if ((box->mask[i] & shoebox_mask::kValid) == 0)
-        continue;
-      counts += static_cast<double>(box->data[i]);
-    }
+    // The valid foreground's counts: foreground_sum, the same pixels added in
+    // the same order.
+    const double counts = foreground_sum;
     const bool detected =
         weight > 0.0 && counts > 0.0 &&
         weight >= options.least_centroid_significance * std::sqrt(counts);
@@ -322,26 +307,17 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
       out.unbiased_slow = ms / weight;
       out.unbiased_z = mz / weight;
       double vf = 0.0, vs = 0.0, vz = 0.0;
-      for (std::int32_t z = 0; z < box->nz(); ++z) {
-        for (std::int32_t y = 0; y < box->ny(); ++y) {
-          for (std::int32_t x = 0; x < box->nx(); ++x) {
-            const std::size_t i = box->at(x, y, z);
-            if ((box->mask[i] & shoebox_mask::kForeground) == 0)
-              continue;
-            if ((box->mask[i] & shoebox_mask::kValid) == 0)
-              continue;
-            const double count = static_cast<double>(box->data[i]);
-            const double df =
-                static_cast<double>(box->bbox[0] + x) + 0.5 - out.unbiased_fast;
-            const double ds =
-                static_cast<double>(box->bbox[2] + y) + 0.5 - out.unbiased_slow;
-            const double dz =
-                static_cast<double>(box->bbox[4] + z) + 0.5 - out.unbiased_z;
-            vf += count * (df * df + kQuantisation);
-            vs += count * (ds * ds + kQuantisation);
-            vz += count * (dz * dz + kQuantisation);
-          }
-        }
+      for (const Foreground &f : foreground) {
+        const double count = f.count;
+        const double df =
+            static_cast<double>(box->bbox[0] + f.x) + 0.5 - out.unbiased_fast;
+        const double ds =
+            static_cast<double>(box->bbox[2] + f.y) + 0.5 - out.unbiased_slow;
+        const double dz =
+            static_cast<double>(box->bbox[4] + f.z) + 0.5 - out.unbiased_z;
+        vf += count * (df * df + kQuantisation);
+        vs += count * (ds * ds + kQuantisation);
+        vz += count * (dz * dz + kQuantisation);
       }
       out.unbiased_variance_fast = vf / (weight * weight);
       out.unbiased_variance_slow = vs / (weight * weight);

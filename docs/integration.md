@@ -454,6 +454,16 @@ opening slower, 10.3 s to 11.6 -- a serial gathering of millions of pairs a
 chunk -- and was undone; `--timing` now splits opening into building and
 marking (14 October).
 
+**Background and summation** (15 October). `--timing` splits it: ferritin's
+282 thread-seconds were the background fit 98 (a median of 5 iterations, 99 per
+cent within 8) and the rest of integrate_shoebox 183 -- seven passes over each
+box, the centroids each checking every pixel's mask again. Now the first pass
+keeps the valid foreground's pixels, in the box's order, and the centroids go
+over those alone; the foreground's counts are foreground_sum, the same pixels
+in the same order. The same sums, every column the same; the rest of
+integrate_shoebox 2.68 thread-seconds to 1.46 on insulin, 1.41 to 0.74 on the
+two crystals.
+
 **sigma_m, two estimators** (15 October). `--sigma-m-estimator basic` (the
 default, as DIALS's) counts each image holding foreground once;
 `extended` weights each by its counts, as DIALS's non-default estimator. On

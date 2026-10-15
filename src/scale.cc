@@ -804,8 +804,160 @@ double brent_minimum(F f, double lo, double hi, double tol) {
 
 } // namespace
 
+// The error model fitted as dials.scale fits it by default (its basic
+// model's minimisation = individual, ErrorModelRefinery): a and b in turn, a
+// from the central normal probability plot, b from logarithmic intensity bins,
+// until a settles. mxi's own until 14 October, when the fit by regression
+// replaced it -- for 6S0R, and on the mistaken word that regression was
+// dials.scale's default; restored as --error-model-fit individual.
+ErrorModel refine_error_model_individual(const ScaleData &data,
+                                         const std::vector<double> &g) {
+  const GroupSums s = group_sums(data, g);
+  // Groups fit to judge an error model by, as dials.scale: <I> above 25 and
+  // <I / sigma^2> above 0.85, with at least two observations.
+  std::vector<double> ratio(data.unique.size(), 0.0);
+  for (std::size_t i = 0; i < data.size(); ++i)
+    if (!data.outlier[i])
+      ratio[data.group[i]] +=
+          data.intensity[i] / (data.variance_before[i] + data.scale_term_at(i));
+  std::vector<std::size_t> use;
+  for (std::size_t i = 0; i < data.size(); ++i) {
+    const std::size_t h = data.group[i];
+    if (data.outlier[i] || s.count[h] < 2 || !(s.den[h] > 0.0))
+      continue;
+    const double mean = s.num[h] / s.den[h];
+    if (mean > 25.0 && ratio[h] / static_cast<double>(s.count[h]) > 0.85)
+      use.push_back(i);
+  }
+  ErrorModel em;
+  em.used = use.size();
+  if (use.size() < 50)
+    return em;
+  // Normalised deviations of x_i = I_i / g_i from the merged <I_h>, with the
+  // EXACT variance of the difference rather than eqn 12's prefactor. With
+  // <I_h> = sum c_j x_j, weights held as dials.scale holds them, and v_j the
+  // variance of x_j under the candidate error model,
+  //     Var(x_i - <I_h>) = v_i (1 - 2 c_i) + sum_j c_j^2 v_j,
+  // which is v (n - 1) / n when every weight is equal. dials.scale multiplies
+  // by sqrt((n - 1) / n) instead (calc_deltahl), which leaves the deviations'
+  // spread at (n - 1) / n and a low by that factor: planted a = 1.3 in groups
+  // of eight came back 1.158.
+  std::vector<double> c(data.size(), 0.0);
+  for (std::size_t i : use) {
+    const std::size_t h = data.group[i];
+    c[i] = (g[i] * g[i] / data.variance[i]) / s.den[h];
+  }
+  // Everything in a deviation but a and b, once a fit rather than once an
+  // evaluation. With A = (sigma^2 + the scale's term) / g^2 and B = I^2 / g^2,
+  // a variance under the error model is v = a^2 (A + b^2 B), and the variance
+  // of a deviation v (1 - 2c) + sum_h c^2 v = a^2 (P + b^2 Q), P and Q summed a
+  // group at a time here -- so an evaluation is a square root an observation.
+  // It was every group's spread summed again, for each of some sixty values of
+  // b a round.
+  std::vector<double> A_of(data.size(), 0.0), B_of(data.size(), 0.0);
+  std::vector<double> SA(data.unique.size(), 0.0), SB(data.unique.size(), 0.0);
+  for (std::size_t i : use) {
+    const double g2 = g[i] * g[i];
+    A_of[i] = (data.variance_before[i] + data.scale_term_at(i)) / g2;
+    B_of[i] = data.b_intensity(i) * data.b_intensity(i) / g2;
+    SA[data.group[i]] += c[i] * c[i] * A_of[i];
+    SB[data.group[i]] += c[i] * c[i] * B_of[i];
+  }
+  std::vector<double> P(use.size()), Q(use.size()), R(use.size()),
+      Aw(use.size()), Bw(use.size());
+  for (std::size_t k = 0; k < use.size(); ++k) {
+    const std::size_t i = use[k], h = data.group[i];
+    P[k] = A_of[i] * (1.0 - 2.0 * c[i]) + SA[h];
+    Q[k] = B_of[i] * (1.0 - 2.0 * c[i]) + SB[h];
+    R[k] = data.intensity[i] / g[i] - s.num[h] / s.den[h];
+    Aw[k] = A_of[i];
+    Bw[k] = B_of[i];
+  }
+  const auto deviations = [&](double a, double b, std::vector<double> *out) {
+    out->assign(use.size(), 0.0);
+    const double b2 = b * b, a2 = a * a;
+    for_each_index(use.size(), [&](std::size_t k) {
+      const double var =
+          a2 * std::fmax(P[k] + b2 * Q[k], 1e-12 * (Aw[k] + b2 * Bw[k]));
+      (*out)[k] = R[k] / std::sqrt(var);
+    });
+  }; // Intensity bins for b: logarithmically spaced over the used intensities.
+  double lo = HUGE_VAL, hi = 0.0;
+  for (std::size_t i : use) {
+    const double v = std::fmax(data.b_intensity(i), 1e-3);
+    lo = std::fmin(lo, v);
+    hi = std::fmax(hi, v);
+  }
+  const int nbins = 20;
+  std::vector<int> bin(use.size());
+  for (std::size_t k = 0; k < use.size(); ++k) {
+    const double v = std::fmax(data.b_intensity(use[k]), 1e-3);
+    bin[k] = hi > lo ? std::min(nbins - 1,
+                                static_cast<int>(nbins * std::log(v / lo) /
+                                                 std::log(hi / lo)))
+                     : 0;
+  }
+  std::vector<double> dev;
+  // The normal probability plot's quantiles depend only on the count, which a
+  // round does not change: computed once rather than twenty times.
+  std::vector<double> quantile_of(use.size());
+  for (std::size_t k = 0; k < use.size(); ++k)
+    quantile_of[k] = normal_quantile((static_cast<double>(k) + 0.5) /
+                                     static_cast<double>(use.size()));
+  for (int round = 0; round < 20; ++round) {
+    const double a0 = em.a, b0 = em.b;
+    // a: the slope of the central normal probability plot, |x| < 1.5.
+    deviations(em.a, em.b, &dev);
+    std::vector<double> sorted = dev;
+    std::sort(sorted.begin(), sorted.end());
+    double sxx = 0.0, sxy = 0.0;
+    for (std::size_t k = 0; k < sorted.size(); ++k) {
+      const double x = quantile_of[k];
+      if (std::abs(x) < 1.5) {
+        sxx += x * x;
+        sxy += x * sorted[k];
+      }
+    }
+    if (sxx > 0.0)
+      em.a *= sxy / sxx;
+    // b: minimise eqn 17, sum w_i [(0.5 - v_i)^2 + 1/v_i], the bin variances
+    // v_i of the deviations and w_i proportional to the bin's mean intensity.
+    const auto phi = [&](double b) {
+      deviations(em.a, b, &dev);
+      std::vector<double> sum(nbins, 0.0), sum2(nbins, 0.0), mean_i(nbins, 0.0);
+      std::vector<std::size_t> count(nbins, 0);
+      for (std::size_t k = 0; k < dev.size(); ++k) {
+        sum[bin[k]] += dev[k];
+        sum2[bin[k]] += dev[k] * dev[k];
+        mean_i[bin[k]] += data.intensity[use[k]];
+        ++count[bin[k]];
+      }
+      double f = 0.0;
+      for (int j = 0; j < nbins; ++j) {
+        if (count[j] < 10)
+          continue;
+        const double c = static_cast<double>(count[j]);
+        const double v =
+            std::fmax(sum2[j] / c - (sum[j] / c) * (sum[j] / c), 1e-6);
+        f += (mean_i[j] / c) * ((0.5 - v) * (0.5 - v) + 1.0 / v);
+      }
+      return f;
+    };
+    // Brent's minimiser over b in [0, 0.5], to 1e-8: parabolic steps where the
+    // function allows, golden-section ones where it does not. It was a golden
+    // section of sixty steps, to 1e-13, where the rounds stop at a change of
+    // 1e-6.
+    em.b = brent_minimum(phi, 0.0, 0.5, 1e-8);
+    if (std::abs(em.a - a0) < 1e-5 && std::abs(em.b - b0) < 1e-6)
+      break;
+  }
+  return em;
+}
+
 ErrorModel refine_error_model(const ScaleData &data,
-                              const std::vector<double> &g) {
+                              const std::vector<double> &g, bool individual) {
+  if (individual)
+    return refine_error_model_individual(data, g);
   const GroupSums s = group_sums(data, g);
   // Groups fit to judge an error model by, as dials.scale: <I> above 25 and
   // <I / sigma^2> above 0.85, with at least two observations.
@@ -1654,7 +1806,8 @@ ScaleRun scale_sweep(const ExperimentList &experiments,
   // From here each variance from the model, not the observation's own noise.
   if (options.model_variances)
     model_variances(data, run.g);
-  run.error_model = refine_error_model(data, run.g);
+  run.error_model =
+      refine_error_model(data, run.g, options.error_model_individual);
   apply_error_model(data, run.error_model);
   step("error model 1");
   fit();
@@ -1662,7 +1815,8 @@ ScaleRun scale_sweep(const ExperimentList &experiments,
   reject_outliers(data, run.g);
   if (options.model_variances)
     model_variances(data, run.g);
-  run.error_model = refine_error_model(data, run.g);
+  run.error_model =
+      refine_error_model(data, run.g, options.error_model_individual);
   apply_error_model(data, run.error_model);
   step("outliers and error model 2");
   fit();
@@ -1681,7 +1835,8 @@ ScaleRun scale_sweep(const ExperimentList &experiments,
   run.outliers = reject_outliers(data, run.g);
   if (options.model_variances)
     model_variances(data, run.g);
-  run.error_model = refine_error_model(data, run.g);
+  run.error_model =
+      refine_error_model(data, run.g, options.error_model_individual);
   apply_error_model(data, run.error_model);
   step("final outliers and error model");
   return run;

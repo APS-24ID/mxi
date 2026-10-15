@@ -222,6 +222,28 @@ dials.scale's (0.991, 0.956 against 0.994, 0.967). So what remains is the
 sigmas, by the error model's larger b, which caps I / sigma at 1 / (a b):
 outstanding item 69.
 
+## The error model's fit: which is dials.scale's default (15 October)
+
+The fit by regression (below) was introduced on 14 October as "dials.scale's
+default". It is not: DIALS's basic error model has `minimisation = *individual
+regression None`, and nothing in dials.scale overrides it -- by default a and
+b are fitted in turn (ErrorModelRefinery): a from the central normal
+probability plot, b from logarithmic intensity bins, until a settles. That is
+the fit mxi had before 14 October, now back as `--error-model-fit individual`;
+regression stays the default, pending Graeme's choice.
+
+On Graeme's 36 insulin crystals (dials.symmetry's output): regression a 4.13,
+b 0.056; individual a 5.12, b 0.020; dials.scale a 3.92, b 0.026. Individual
+brings the sigma-weighted correlations between crystals to 0.979 within a
+species and 0.900 between (regression 0.969, 0.870; dials.scale's own
+0.982, 0.915) and <I/sigma> at low resolution to 29.6 (19.6; 38.0). But no
+a and b fit both ends: before any error model the weak reflections' deviations
+have about the variance their sigmas say (0.8 to 1.4) and the strongest 48;
+individual's large a leaves the weak with variances 0.03 to 0.08, their sigmas
+four to six times too large -- as dials.scale's 3.92 does too, and as
+individual did on 6S0R. The split model (below) is the remedy, where
+integration wrote the variance with no signal; DIALS's integration does not.
+
 ## The error model's fit, by regression
 
 sigma'^2 = a^2 (sigma^2 + b^2 I^2) is fitted as dials.scale's default does it:

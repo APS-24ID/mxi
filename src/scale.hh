@@ -207,8 +207,13 @@ struct ErrorModel {
 //: no signal, split: a_bg^2 V_bg + a^2 (V_signal + the scale's term) + a^2 b^2
 //: I^2, fitted the same way over every group, the weak ones deciding a_bg --
 //: kept if all three come out positive, else the model above.
+//: `individual`: as dials.scale's default, a and b fitted in turn (a from the
+//: normal probability plot, b from intensity bins); otherwise by regression
+//: across intensity bins, with the split where integration wrote each
+//: variance with no signal (docs/scaling.md).
 ErrorModel refine_error_model(const ScaleData &data,
-                              const std::vector<double> &g);
+                              const std::vector<double> &g,
+                              bool individual = false);
 //: The error model applied to every observation's variance, from the variance
 //: before any: applying it twice does not compound.
 void apply_error_model(ScaleData &data, const ErrorModel &model);
@@ -311,6 +316,9 @@ struct ScaleRunOptions {
   double d_min = 0.0;
   double d_max = 0.0; //: low resolution limit; 0, none
   ScaleFitOptions fit;
+  //: The error model fitted as dials.scale's default does, a and b in turn,
+  //: not by regression (refine_error_model).
+  bool error_model_individual = false;
 };
 
 struct ScaleRun {

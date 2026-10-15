@@ -1,7 +1,7 @@
 # Clustering data sets by their intensities: mxi_correlation
 
-STATUS: stage 1 built, 15 October 2026 -- the correlation matrix. Stages 2
-to 4 to follow.
+STATUS: stages 1 and 2 built, 15 October 2026 -- the correlation matrix and the
+cosym coordinates. Stages 3 and 4 to follow.
 
 `mxi_correlation` is to do what dials.correlation_matrix does (Thompson et al.
 2025, Acta Cryst. D81, 278-290): from a scaled file whose lattices are each a
@@ -33,15 +33,37 @@ ins2_27: 0.980. Unit tests: the pair correlation against the formula written
 out, the weights' rescaling, two planted groups told apart
 (tests/test_correlation.cc).
 
-## Stage 2: the coordinates (next)
+## Stage 2: the coordinates (built)
 
-Minimise sum w_ij (r_ij - x_i . x_j)^2 for coordinates x_i in d dimensions.
-The dimension as DIALS has found it since September 2026 (#3248): one
-minimisation in the largest dimension tested, min(n, 50), the coordinates
-rotated to their principal axes, each smaller dimension's functional read off
-the leading axes, with the outlier rejection DIALS uses for this; the elbow of
-that curve the dimension. The coordinates then rotated to principal axes, the
-variance each explains reported.
+Minimise f = 1/2 sum_ij w_ij (r_ij - x_i . x_j)^2 over the whole matrix, its
+gradient -2 X (W.R - W.(X^T X)), for coordinates x_i in d dimensions, by
+L-BFGS: ten pairs remembered, a backtracking line search, and as the starting
+inverse Hessian at every iteration 1 / the curvature, c_ki = 2 sum_j x_kj^2
+w_ji, as DIALS's minimiser (scitbx's lbfgs, diag_mode "always"); stopped at 100
+iterations or |g| under 1e-5 of max(1, |x|). The start is DIALS's exactly:
+numpy's np.random.seed(230); np.random.rand(...), drawn the same way from the
+Mersenne twister.
+
+The dimension as dials.correlation_matrix chooses it -- not by DIALS #3248's
+projection, which only dials.cosym uses (`--by-projection` has it): a
+minimisation at each dimension from 1 to min(n, 50), each scored with outlier
+rejection (the elements w (r - x.x)^2 below q2 + (q3 - q1), halved), and the
+elbow of that curve, as distl's resolution method 1, at least 2. Then the
+minimisation at that dimension, and the coordinates' principal components,
+centred as sklearn's PCA, with the variance each explains.
+
+Two mistakes on the way, both in reading DIALS: its scan's
+`min(20, max_calls) if max_calls else max_calls` limits a dimension's
+minimisation to 20 calls only where max_calls is set, which by default it is
+not -- read as 20, the curve was rough and the elbow 14 or 16 of 18 for three
+planted groups; and without the curvatures a minimisation got almost nowhere
+in those calls. Now three planted groups of six: the curve 0.0072, 0.0044,
+2.7e-7 and flat, the elbow 3, the variance 0.51, 0.49, 0.00, each group its own
+place. Checked: the start numpy's to the bit; the gradient finite
+differences'; the minima scipy's L-BFGS-B's from the same start, 0.00973797
+against mxi's 0.00973796 in 2 dimensions, 6.78e-7 against 6.72e-7 in 3.
+Insulin's four sweeps of one crystal: 2 dimensions, the first component
+everything -- one group.
 
 ## Stage 3: OPTICS (to follow)
 

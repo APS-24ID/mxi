@@ -33,7 +33,13 @@ const char *kUsage =
     "  --min-partiality P  reflections at least this partial (0.4)\n"
     "  --min-pairs N       a pair's correlation needs N reflections in common "
     "(3)\n"
-    "  --json FILE         the matrix, its weights and the data sets, as JSON\n"
+    "  --dimensions N      the cosym coordinates in N dimensions (by default\n"
+    "                      the elbow of the functional over 1 to\n"
+    "                      min(n, 50), as dials.correlation_matrix)\n"
+    "  --by-projection     the functional for each dimension from one\n"
+    "                      minimisation, projected (DIALS #3248): faster\n"
+    "  --json FILE         the matrix, its weights, the data sets, the\n"
+    "                      coordinates and their principal components\n"
     "  -h, --help          this\n";
 
 } // namespace
@@ -42,9 +48,11 @@ int main(int argc, char **argv) {
   using namespace mxi;
   if (!only_asks_for_help(argc, argv))
     mirror_to_log("mxi_correlation.log");
-  const std::set<std::string> known = {"--min-partiality", "--min-pairs",
-                                       "--json", "-h", "--help"};
+  const std::set<std::string> known = {
+      "--min-partiality", "--min-pairs", "--json", "--dimensions",
+      "--by-projection",  "-h",          "--help"};
   std::set<std::string> takes_value = known;
+  takes_value.erase("--by-projection");
   takes_value.erase("-h");
   takes_value.erase("--help");
   Arguments args = parse_arguments(argc, argv, known, takes_value);
@@ -122,6 +130,27 @@ int main(int argc, char **argv) {
         std::printf("\n");
       }
     }
+    // Stage 2: the coordinates, their dimension, their principal components.
+    CosymOptions options;
+    options.dimensions =
+        static_cast<std::size_t>(args.number("--dimensions", 0.0));
+    options.by_projection = args.has("--by-projection");
+    const CosymCoordinates c = cosym_coordinates(m, options);
+    if (c.dim > 0) {
+      if (!c.functional.empty()) {
+        std::printf("\nthe cosym functional by dimension%s:\n",
+                    options.by_projection ? " (by projection)" : "");
+        for (std::size_t k = 0; k < c.functional.size(); ++k)
+          std::printf("  %3.0f  %.6g\n", c.dimensions[k], c.functional[k]);
+      }
+      std::printf("\n%zu dimensions%s; the functional there %.6g\n", c.dim,
+                  options.dimensions > 0 ? " (as asked)" : ", at the elbow",
+                  c.final_functional);
+      std::printf("the variance each principal component explains:");
+      for (std::size_t k = 0; k < c.explained_variance_ratio.size(); ++k)
+        std::printf(" %.3f", c.explained_variance_ratio[k]);
+      std::printf("\n");
+    }
     if (args.has("--json")) {
       json::Array exps, r_rows, w_rows, merged;
       for (std::size_t i = 0; i < n; ++i) {
@@ -140,6 +169,29 @@ int main(int argc, char **argv) {
       doc["merged_reflections"] = json::Value(std::move(merged));
       doc["r"] = json::Value(std::move(r_rows));
       doc["w"] = json::Value(std::move(w_rows));
+      json::Array dims, func, comps, ratio;
+      for (std::size_t k = 0; k < c.dimensions.size(); ++k) {
+        dims.push_back(json::Value(c.dimensions[k]));
+        func.push_back(json::Value(c.functional[k]));
+      }
+      for (std::size_t i = 0; i < c.n && c.dim > 0; ++i) {
+        json::Array row;
+        for (std::size_t k = 0; k < c.dim; ++k)
+          row.push_back(json::Value(c.components[i * c.dim + k]));
+        comps.push_back(json::Value(std::move(row)));
+      }
+      for (double v : c.explained_variance_ratio)
+        ratio.push_back(json::Value(v));
+      json::Array coords;
+      for (double v : c.x)
+        coords.push_back(json::Value(v));
+      doc["dimension"] = json::Value(static_cast<long>(c.dim));
+      doc["scan_dimensions"] = json::Value(std::move(dims));
+      doc["scan_functional"] = json::Value(std::move(func));
+      doc["coordinates"] = json::Value(std::move(coords));
+      doc["components"] = json::Value(std::move(comps));
+      doc["explained_variance_ratio"] = json::Value(std::move(ratio));
+      doc["functional"] = json::Value(c.final_functional);
       json::dump_file(args.value("--json", "correlation.json"),
                       json::Value(std::move(doc)));
       std::printf("\nWrote the matrix to %s\n",

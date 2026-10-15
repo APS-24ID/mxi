@@ -1,7 +1,7 @@
 # Clustering data sets by their intensities: mxi_correlation
 
-STATUS: stages 1 and 2 built, 15 October 2026 -- the correlation matrix and the
-cosym coordinates. Stages 3 and 4 to follow.
+STATUS: stages 1 to 3 built, 15 October 2026 -- the correlation matrix, the
+cosym coordinates, OPTICS. Stage 4, the output and the report, to follow.
 
 `mxi_correlation` is to do what dials.correlation_matrix does (Thompson et al.
 2025, Acta Cryst. D81, 278-290): from a scaled file whose lattices are each a
@@ -65,13 +65,43 @@ against mxi's 0.00973796 in 2 dimensions, 6.78e-7 against 6.72e-7 in 3.
 Insulin's four sweeps of one crystal: 2 dimensions, the first component
 everything -- one group.
 
-## Stage 3: OPTICS (to follow)
+## Stage 3: OPTICS (built)
 
-OPTICS on the coordinates, as scikit-learn's with xi = 0.05 and min_samples
-s_min = max(5, b n / d), b = 0.5 (the paper's eqn 9). DIALS now also chooses
-min_samples by optimising a silhouette score; to follow if the simple rule
-proves not enough. Written in C++, checked against scikit-learn in the Python
-tests.
+OPTICS as scikit-learn's, ported from its source (sklearn/cluster/_optics.py),
+on the coordinates as minimised (not their principal components), Euclidean:
+core distances to the min_samples-th nearest point, itself the first, infinite
+beyond max_eps; the ordering from the lowest index, each next the unprocessed
+point of least reachability, ties to the lowest index; reachability
+max(distance, core distance) to the points within max_eps; both rounded as
+np.around to 15 decimals. Clusters by xi (0.05): steep areas,
+_extend_region, _update_filter_sdas, predecessor correction, the minimum
+cluster size min_samples; labels -1 for noise. The silhouette as
+scikit-learn's silhouette_score.
+
+How DIALS uses it, from its source (analysis.py, cluster_cosine_coords and
+optimise_clustering), with its defaults: max_eps 0.5 (`max_distance`),
+min_points_buffer 0.5. Under five data sets, min_samples n. Otherwise the
+paper's initial guess max(5, int(n / d x 0.5)), then -- `optimise_input`, the
+default -- min_samples searched from 5 to min(n, 50), each scored
+silhouette x (1 - f^1.5), f the fraction labelled noise, -1 where there is one
+cluster or none. DIALS searches that range by optuna, 20 random trials and 30
+Bayesian; mxi scores every value, which is deterministic and finds the best,
+a tie to the initial guess (DIALS's first trial) then the smallest. The best
+below zero, DIALS's single-cluster heuristic, ported line for line, Python's
+truthiness and all; no trial at all, OPTICS with no max_eps.
+
+Checked: four point sets -- three blobs with noise, with and without max_eps,
+a grid of exactly tied distances, clusters of differing density -- against
+scikit-learn 1.8's OPTICS: every ordering position, predecessor and label the
+same, every distance to 1e-12, the silhouette too
+(tests/tools/make_optics_cases.py writes tests/optics_cases.hh). Three planted
+groups of eight through all three stages: three clusters, each a group, no
+outliers. Insulin's four sweeps of one crystal: one cluster.
+
+`mxi_correlation` prints the clusters, each with its data sets by experiment,
+and the outliers; `--xi`, `--max-distance`, `--min-samples` (no search);
+`--json` adds the labels, the reachability plot in order, and the search's
+scores.
 
 ## Stage 4: output
 

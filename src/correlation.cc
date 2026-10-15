@@ -7,6 +7,8 @@
 #include <map>
 #include <numeric>
 #include <random>
+#include <set>
+#include <tuple>
 
 #include "parallel.hh"
 #include "scale.hh"
@@ -557,6 +559,452 @@ CosymCoordinates cosym_coordinates(const CorrelationMatrix &m,
       out.components[i * dim + c] = v;
     }
   }
+  return out;
+}
+
+namespace {
+
+// np.around(x, 15): x times 10^15, rounded half to even, divided back.
+double around15(double x) {
+  if (!std::isfinite(x))
+    return x;
+  return std::nearbyint(x * 1e15) / 1e15;
+}
+
+double distance(const std::vector<double> &p, std::size_t d, std::size_t i,
+                std::size_t j) {
+  double s = 0.0;
+  for (std::size_t k = 0; k < d; ++k) {
+    const double e = p[i * d + k] - p[j * d + k];
+    s += e * e;
+  }
+  return std::sqrt(s);
+}
+
+// scikit-learn's _extend_region.
+std::size_t extend_region(const std::vector<bool> &steep,
+                          const std::vector<bool> &xward, std::size_t start,
+                          std::size_t min_samples) {
+  const std::size_t n = steep.size();
+  std::size_t non_xward = 0, index = start, end = start;
+  while (index < n) {
+    if (steep[index]) {
+      non_xward = 0;
+      end = index;
+    } else if (!xward[index]) {
+      ++non_xward;
+      if (non_xward > min_samples)
+        break;
+    } else {
+      return end;
+    }
+    ++index;
+  }
+  return end;
+}
+
+struct SteepDown {
+  std::size_t start, end;
+  double mib;
+};
+
+// scikit-learn's _update_filter_sdas.
+std::vector<SteepDown> update_filter_sdas(const std::vector<SteepDown> &sdas,
+                                          double mib, double xi_complement,
+                                          const std::vector<double> &plot) {
+  if (std::isinf(mib))
+    return {};
+  std::vector<SteepDown> out;
+  for (SteepDown sda : sdas)
+    if (mib <= plot[sda.start] * xi_complement) {
+      sda.mib = std::max(sda.mib, mib);
+      out.push_back(sda);
+    }
+  return out;
+}
+
+// scikit-learn's _xi_cluster, with predecessor correction.
+std::vector<std::pair<std::size_t, std::size_t>>
+xi_cluster(std::vector<double> plot, const std::vector<long> &predecessor_plot,
+           const std::vector<std::size_t> &ordering, double xi,
+           std::size_t min_samples, std::size_t min_cluster_size) {
+  plot.push_back(HUGE_VAL);
+  const double xi_complement = 1.0 - xi;
+  const std::size_t n = plot.size() - 1;
+  std::vector<bool> steep_up(n), steep_down(n), down(n), up(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    const double ratio = plot[i] / plot[i + 1]; // inf/inf NaN: all false
+    steep_up[i] = ratio <= xi_complement;
+    steep_down[i] = ratio >= 1.0 / xi_complement;
+    down[i] = ratio > 1.0;
+    up[i] = ratio < 1.0;
+  }
+  std::vector<SteepDown> sdas;
+  std::vector<std::pair<std::size_t, std::size_t>> clusters;
+  std::size_t index = 0;
+  double mib = 0.0;
+  const auto correct_predecessor = [&](std::size_t s, std::size_t e, bool *ok) {
+    while (s < e) {
+      if (plot[s] > plot[e]) {
+        *ok = true;
+        return std::make_pair(s, e);
+      }
+      const long p_e = predecessor_plot[e];
+      for (std::size_t i = s; i < e; ++i)
+        if (p_e == static_cast<long>(ordering[i])) {
+          *ok = true;
+          return std::make_pair(s, e);
+        }
+      --e;
+    }
+    *ok = false;
+    return std::make_pair(s, e);
+  };
+  for (std::size_t steep_index = 0; steep_index < n; ++steep_index) {
+    if (!(steep_up[steep_index] || steep_down[steep_index]))
+      continue;
+    if (steep_index < index)
+      continue;
+    for (std::size_t k = index; k <= steep_index; ++k)
+      mib = std::max(mib, plot[k]);
+    if (steep_down[steep_index]) {
+      sdas = update_filter_sdas(sdas, mib, xi_complement, plot);
+      const std::size_t d_start = steep_index;
+      const std::size_t d_end =
+          extend_region(steep_down, up, d_start, min_samples);
+      sdas.push_back({d_start, d_end, 0.0});
+      index = d_end + 1;
+      mib = plot[index];
+    } else {
+      sdas = update_filter_sdas(sdas, mib, xi_complement, plot);
+      const std::size_t u_start = steep_index;
+      const std::size_t u_end =
+          extend_region(steep_up, down, u_start, min_samples);
+      index = u_end + 1;
+      mib = plot[index];
+      std::vector<std::pair<std::size_t, std::size_t>> u_clusters;
+      for (const SteepDown &sda : sdas) {
+        std::size_t c_start = sda.start, c_end = u_end;
+        if (plot[c_end + 1] * xi_complement < sda.mib)
+          continue;
+        const double d_max = plot[sda.start];
+        if (d_max * xi_complement >= plot[c_end + 1]) {
+          while (plot[c_start + 1] > plot[c_end + 1] && c_start < sda.end)
+            ++c_start;
+        } else if (plot[c_end + 1] * xi_complement >= d_max) {
+          while (plot[c_end - 1] > d_max && c_end > u_start)
+            --c_end;
+        }
+        bool ok = true;
+        std::tie(c_start, c_end) = correct_predecessor(c_start, c_end, &ok);
+        if (!ok)
+          continue;
+        if (c_end - c_start + 1 < min_cluster_size)
+          continue;
+        if (c_start > sda.end)
+          continue;
+        if (c_end < u_start)
+          continue;
+        u_clusters.emplace_back(c_start, c_end);
+      }
+      std::reverse(u_clusters.begin(), u_clusters.end());
+      clusters.insert(clusters.end(), u_clusters.begin(), u_clusters.end());
+    }
+  }
+  return clusters;
+}
+
+} // namespace
+
+OpticsResult optics(const std::vector<double> &points, std::size_t n,
+                    std::size_t d, std::size_t min_samples, double max_eps,
+                    double xi) {
+  OpticsResult out;
+  out.reachability.assign(n, HUGE_VAL);
+  out.predecessor.assign(n, -1);
+  out.core_distance.assign(n, HUGE_VAL);
+  out.labels.assign(n, -1);
+  if (n == 0)
+    return out;
+  min_samples = std::max<std::size_t>(std::min(min_samples, n), 1);
+  for_each_index(n, [&](std::size_t i) {
+    std::vector<double> dist(n);
+    for (std::size_t j = 0; j < n; ++j)
+      dist[j] = distance(points, d, i, j);
+    std::nth_element(dist.begin(),
+                     dist.begin() + static_cast<long>(min_samples - 1),
+                     dist.end());
+    const double core = dist[min_samples - 1];
+    out.core_distance[i] = core > max_eps ? HUGE_VAL : around15(core);
+  });
+  std::vector<bool> processed(n, false);
+  for (std::size_t o = 0; o < n; ++o) {
+    std::size_t point = n;
+    for (std::size_t i = 0; i < n; ++i)
+      if (!processed[i] &&
+          (point == n || out.reachability[i] < out.reachability[point]))
+        point = i;
+    processed[point] = true;
+    out.ordering.push_back(point);
+    if (std::isinf(out.core_distance[point]))
+      continue;
+    for (std::size_t j = 0; j < n; ++j) {
+      if (processed[j])
+        continue;
+      const double dist = distance(points, d, point, j);
+      if (dist > max_eps)
+        continue;
+      const double r = around15(std::max(dist, out.core_distance[point]));
+      if (r < out.reachability[j]) {
+        out.reachability[j] = r;
+        out.predecessor[j] = static_cast<long>(point);
+      }
+    }
+  }
+  std::vector<double> plot(n);
+  std::vector<long> predecessor_plot(n);
+  for (std::size_t k = 0; k < n; ++k) {
+    plot[k] = out.reachability[out.ordering[k]];
+    predecessor_plot[k] = out.predecessor[out.ordering[k]];
+  }
+  out.clusters = xi_cluster(plot, predecessor_plot, out.ordering, xi,
+                            min_samples, min_samples);
+  // scikit-learn's _extract_xi_labels: the clusters in order, each labelled
+  // where none of it is yet.
+  std::vector<int> in_order(n, -1);
+  int label = 0;
+  for (const auto &[a, b] : out.clusters) {
+    bool free = true;
+    for (std::size_t k = a; k <= b; ++k)
+      free = free && in_order[k] == -1;
+    if (free) {
+      for (std::size_t k = a; k <= b; ++k)
+        in_order[k] = label;
+      ++label;
+    }
+  }
+  for (std::size_t k = 0; k < n; ++k)
+    out.labels[out.ordering[k]] = in_order[k];
+  return out;
+}
+
+double silhouette(const std::vector<double> &points, std::size_t d,
+                  const std::vector<int> &labels) {
+  const std::size_t n = labels.size();
+  std::map<int, std::size_t> sizes;
+  for (int l : labels)
+    if (l != -1)
+      ++sizes[l];
+  if (sizes.size() < 2)
+    return 0.0;
+  double total = 0.0;
+  std::size_t counted = 0;
+  for (std::size_t i = 0; i < n; ++i) {
+    if (labels[i] == -1)
+      continue;
+    std::map<int, double> sums;
+    for (std::size_t j = 0; j < n; ++j)
+      if (labels[j] != -1 && j != i)
+        sums[labels[j]] += distance(points, d, i, j);
+    ++counted;
+    const std::size_t own = sizes[labels[i]];
+    if (own <= 1)
+      continue; // a point alone in its cluster: 0
+    const double a = sums[labels[i]] / static_cast<double>(own - 1);
+    double b = HUGE_VAL;
+    for (const auto &[l, size] : sizes)
+      if (l != labels[i])
+        b = std::min(b, sums[l] / static_cast<double>(size));
+    const double denominator = std::max(a, b);
+    total += denominator > 0.0 ? (b - a) / denominator : 0.0;
+  }
+  return counted > 0 ? total / static_cast<double>(counted) : 0.0;
+}
+
+SignificantClusters significant_clusters(const CosymCoordinates &c,
+                                         const ClusterOptions &options) {
+  SignificantClusters out;
+  const std::size_t n = c.n, d = c.dim;
+  if (n == 0 || d == 0)
+    return out;
+  // The coordinates as minimised, row major: what DIALS clusters.
+  std::vector<double> points(n * d);
+  for (std::size_t i = 0; i < n; ++i)
+    for (std::size_t k = 0; k < d; ++k)
+      points[i * d + k] = c.x[k * n + i];
+  const auto clusters_in = [](const std::vector<int> &labels) {
+    std::set<int> s;
+    for (int l : labels)
+      if (l != -1)
+        s.insert(l);
+    return s.size();
+  };
+  if (n < 5) {
+    out.min_samples = out.initial_min_samples = n;
+    out.model = optics(points, n, d, n, options.max_eps, options.xi);
+    out.labels = out.model.labels;
+    if (clusters_in(out.labels) > 1)
+      out.silhouette = silhouette(points, d, out.labels);
+    return out;
+  }
+  const std::size_t initial = std::max<std::size_t>(
+      5,
+      static_cast<std::size_t>(static_cast<double>(n) / static_cast<double>(d) *
+                               options.min_points_buffer));
+  out.initial_min_samples = initial;
+  if (!options.optimise) {
+    out.min_samples = initial;
+    out.model = optics(points, n, d, initial, options.max_eps, options.xi);
+    out.labels = out.model.labels;
+    if (clusters_in(out.labels) > 1)
+      out.silhouette = silhouette(points, d, out.labels);
+    return out;
+  }
+  // Every min_samples DIALS's search ranges over, scored as its objective;
+  // the best kept, a tie to the initial guess (DIALS's first trial), then the
+  // smallest.
+  bool any = false;
+  double best = -HUGE_VAL;
+  for (std::size_t ms = 5; ms <= std::min<std::size_t>(n, 50); ++ms) {
+    OpticsResult model = optics(points, n, d, ms, options.max_eps, options.xi);
+    bool all_inf = true;
+    for (double r : model.reachability)
+      all_inf = all_inf && std::isinf(r);
+    if (all_inf)
+      continue; // pruned
+    any = true;
+    std::size_t noise = 0;
+    for (int l : model.labels)
+      noise += l == -1;
+    const double fraction = static_cast<double>(noise) / static_cast<double>(n);
+    const double penalty =
+        1.0 - options.alpha * std::pow(fraction, options.gamma);
+    double score = -1.0, sil = 0.0;
+    if (clusters_in(model.labels) > 1) {
+      std::vector<double> kept;
+      std::vector<int> kept_labels;
+      for (std::size_t i = 0; i < n; ++i)
+        if (model.labels[i] != -1) {
+          kept_labels.push_back(model.labels[i]);
+          for (std::size_t k = 0; k < d; ++k)
+            kept.push_back(points[i * d + k]);
+        }
+      sil = silhouette(kept, d, kept_labels);
+      score = sil * penalty;
+    }
+    out.scores.emplace_back(ms, score);
+    const bool better = score > best || (score == best && ms == initial &&
+                                         out.min_samples != initial);
+    if (better) {
+      best = score;
+      out.min_samples = ms;
+      out.score = score;
+      out.silhouette = sil;
+      out.labels = model.labels;
+      out.model = std::move(model);
+    }
+  }
+  if (!any) {
+    // DIALS's default_optics: no max_eps.
+    out.min_samples = initial;
+    out.model = optics(points, n, d, initial, HUGE_VAL, options.xi);
+    out.labels = out.model.labels;
+    return out;
+  }
+  if (out.score >= 0.0)
+    return out;
+  // DIALS's single_cluster_optics, line for line.
+  out.single_cluster = true;
+  out.min_samples = initial;
+  const OpticsResult model =
+      optics(points, n, d, initial, options.max_eps, options.xi);
+  out.model = model;
+  std::vector<double> reach(n), core(n);
+  for (std::size_t k = 0; k < n; ++k) {
+    reach[k] = model.reachability[model.ordering[k]];
+    core[k] = model.core_distance[model.ordering[k]];
+  }
+  std::vector<std::size_t> finite;
+  for (std::size_t k = 0; k < n; ++k)
+    if (std::isfinite(reach[k]))
+      finite.push_back(k);
+  std::vector<double> gradients(n, 0.0);
+  for (std::size_t q = 1; q < finite.size(); ++q)
+    gradients[finite[q]] = reach[finite[q]] - reach[finite[q - 1]];
+  long start = 0;
+  long end = -1; // None
+  {
+    long last_negative = -1, first_large = -1;
+    for (std::size_t q = 0; q < finite.size(); ++q) {
+      const double g = gradients[finite[q]];
+      if (g < -options.xi)
+        last_negative = static_cast<long>(q);
+      if (g > options.xi && first_large < 0)
+        first_large = static_cast<long>(q);
+    }
+    if (last_negative >= 0)
+      start =
+          static_cast<long>(finite[static_cast<std::size_t>(last_negative)]);
+    if (first_large >= 0)
+      end = static_cast<long>(finite[static_cast<std::size_t>(first_large)]);
+  }
+  const bool end_truthy = end > 0; // Python's `if end`: None and 0 false
+  if (end_truthy && start > end)
+    start = 0;
+  start = start > 2 ? start - 2 : 0;
+  std::vector<int> labels(n);
+  for (std::size_t k = 0; k < n; ++k)
+    labels[k] = model.labels[model.ordering[k]];
+  for (long k = 0; k < start; ++k)
+    labels[static_cast<std::size_t>(k)] = -1;
+  if (end_truthy) {
+    for (long k = start; k < end; ++k)
+      labels[static_cast<std::size_t>(k)] = 0;
+    for (long k = end; k < static_cast<long>(n); ++k)
+      labels[static_cast<std::size_t>(k)] = -1;
+  } else {
+    for (long k = start; k < static_cast<long>(n); ++k)
+      labels[static_cast<std::size_t>(k)] = 0;
+  }
+  for (std::size_t k = 0; k < n; ++k)
+    if (std::isinf(core[k]))
+      labels[k] = -1;
+  long mystery = -1;
+  for (std::size_t k = 0; k < n; ++k)
+    if (std::isinf(reach[k]) && !std::isinf(core[k])) {
+      mystery = static_cast<long>(k);
+      break;
+    }
+  if (mystery >= 0) {
+    std::vector<double> verified;
+    double mystery_density = 0.0;
+    for (std::size_t k = 0; k < n; ++k)
+      if (labels[k] == 0) {
+        if (static_cast<long>(k) != mystery)
+          verified.push_back(core[k]);
+        else
+          mystery_density = core[k];
+      }
+    if (mystery_density != 0.0 && !verified.empty()) { // Python's truthiness
+      double avg = 0.0;
+      for (double v : verified)
+        avg += v;
+      avg /= static_cast<double>(verified.size());
+      double var = 0.0;
+      for (double v : verified)
+        var += (v - avg) * (v - avg);
+      const double sd = std::sqrt(var / static_cast<double>(verified.size()));
+      labels[static_cast<std::size_t>(mystery)] =
+          mystery_density <= avg + 3.0 * sd && mystery_density >= avg - 3.0 * sd
+              ? 0
+              : -1;
+    }
+  }
+  out.labels.assign(n, -1);
+  for (std::size_t k = 0; k < n; ++k)
+    out.labels[model.ordering[k]] = labels[k];
+  out.score = -1.0;
+  out.silhouette = 0.0;
   return out;
 }
 

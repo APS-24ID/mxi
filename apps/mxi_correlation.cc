@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdio>
 #include <fstream>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -38,6 +39,9 @@ const char *kUsage =
     "                      min(n, 50), as dials.correlation_matrix)\n"
     "  --by-projection     the functional for each dimension from one\n"
     "                      minimisation, projected (DIALS #3248): faster\n"
+    "  --xi X              OPTICS's steepness for a cluster's edge (0.05)\n"
+    "  --max-distance D    OPTICS's max_eps (0.5, as DIALS's)\n"
+    "  --min-samples N     OPTICS's min_samples, not searched for\n"
     "  --json FILE         the matrix, its weights, the data sets, the\n"
     "                      coordinates and their principal components\n"
     "  -h, --help          this\n";
@@ -48,9 +52,16 @@ int main(int argc, char **argv) {
   using namespace mxi;
   if (!only_asks_for_help(argc, argv))
     mirror_to_log("mxi_correlation.log");
-  const std::set<std::string> known = {
-      "--min-partiality", "--min-pairs", "--json", "--dimensions",
-      "--by-projection",  "-h",          "--help"};
+  const std::set<std::string> known = {"--min-partiality",
+                                       "--min-pairs",
+                                       "--json",
+                                       "--dimensions",
+                                       "--by-projection",
+                                       "--xi",
+                                       "--max-distance",
+                                       "--min-samples",
+                                       "-h",
+                                       "--help"};
   std::set<std::string> takes_value = known;
   takes_value.erase("--by-projection");
   takes_value.erase("-h");
@@ -151,6 +162,64 @@ int main(int argc, char **argv) {
         std::printf(" %.3f", c.explained_variance_ratio[k]);
       std::printf("\n");
     }
+    // Stage 3: OPTICS on the coordinates, the clusters and the outliers.
+    SignificantClusters clusters;
+    if (c.dim > 0) {
+      ClusterOptions co;
+      co.xi = args.number("--xi", 0.05);
+      co.max_eps = args.number("--max-distance", 0.5);
+      if (args.has("--min-samples")) {
+        co.optimise = false;
+        co.min_points_buffer = 0.0; // the initial guess replaced below
+      }
+      CosymCoordinates for_clusters = c;
+      clusters = significant_clusters(for_clusters, co);
+      if (args.has("--min-samples")) {
+        std::vector<double> points(c.n * c.dim);
+        for (std::size_t i = 0; i < c.n; ++i)
+          for (std::size_t k = 0; k < c.dim; ++k)
+            points[i * c.dim + k] = c.x[k * c.n + i];
+        const auto ms =
+            static_cast<std::size_t>(args.number("--min-samples", 5));
+        clusters.model = optics(points, c.n, c.dim, ms, co.max_eps, co.xi);
+        clusters.labels = clusters.model.labels;
+        clusters.min_samples = ms;
+      }
+      std::printf(
+          "\nOPTICS (Ankerst et al. 1999), xi %.3g, max distance %.3g: ", co.xi,
+          co.max_eps);
+      if (args.has("--min-samples"))
+        std::printf("min_samples %zu, as asked\n", clusters.min_samples);
+      else if (c.n < 5)
+        std::printf("fewer than five data sets, min_samples %zu, as DIALS's\n",
+                    clusters.min_samples);
+      else if (clusters.single_cluster)
+        std::printf("no min_samples gave two clusters; one cluster, as DIALS's "
+                    "single-cluster heuristic finds it, min_samples %zu\n",
+                    clusters.min_samples);
+      else
+        std::printf("min_samples %zu (the initial guess %zu), silhouette %.3f, "
+                    "score %.3f\n",
+                    clusters.min_samples, clusters.initial_min_samples,
+                    clusters.silhouette, clusters.score);
+      std::map<int, std::vector<std::size_t>> members;
+      for (std::size_t i = 0; i < clusters.labels.size(); ++i)
+        members[clusters.labels[i]].push_back(which[i]);
+      for (const auto &[label, list] : members) {
+        if (label == -1)
+          continue;
+        std::printf("  cluster %d, %zu data sets:", label + 1, list.size());
+        for (std::size_t e : list)
+          std::printf(" %zu", e);
+        std::printf("\n");
+      }
+      if (members.count(-1)) {
+        std::printf("  outliers, %zu:", members[-1].size());
+        for (std::size_t e : members[-1])
+          std::printf(" %zu", e);
+        std::printf("\n");
+      }
+    }
     if (args.has("--json")) {
       json::Array exps, r_rows, w_rows, merged;
       for (std::size_t i = 0; i < n; ++i) {
@@ -192,6 +261,24 @@ int main(int argc, char **argv) {
       doc["components"] = json::Value(std::move(comps));
       doc["explained_variance_ratio"] = json::Value(std::move(ratio));
       doc["functional"] = json::Value(c.final_functional);
+      json::Array labels, order, reach, search;
+      for (int l : clusters.labels)
+        labels.push_back(json::Value(static_cast<long>(l)));
+      for (std::size_t k : clusters.model.ordering) {
+        order.push_back(json::Value(static_cast<long>(k)));
+        reach.push_back(json::Value(clusters.model.reachability[k]));
+      }
+      for (const auto &[ms, score] : clusters.scores) {
+        json::Array pair;
+        pair.push_back(json::Value(static_cast<long>(ms)));
+        pair.push_back(json::Value(score));
+        search.push_back(json::Value(std::move(pair)));
+      }
+      doc["labels"] = json::Value(std::move(labels));
+      doc["ordering"] = json::Value(std::move(order));
+      doc["reachability_in_order"] = json::Value(std::move(reach));
+      doc["min_samples"] = json::Value(static_cast<long>(clusters.min_samples));
+      doc["min_samples_scores"] = json::Value(std::move(search));
       json::dump_file(args.value("--json", "correlation.json"),
                       json::Value(std::move(doc)));
       std::printf("\nWrote the matrix to %s\n",

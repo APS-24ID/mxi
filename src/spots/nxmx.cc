@@ -73,8 +73,9 @@ void ok(herr_t status, const char *what) {
 // both. Which shape this HDF5 has is settled by a compile probe in
 // CMakeLists.txt, since vcpkg and the distributions are currently on different
 // sides of it.
-herr_t read_chunk(hid_t dataset, const hsize_t *offset, std::uint32_t *filters,
-                  void *buffer, std::size_t capacity) {
+herr_t hdf5_read_chunk(hid_t dataset, const hsize_t *offset,
+                       std::uint32_t *filters, void *buffer,
+                       std::size_t capacity) {
 #ifdef SPOTFINDER_H5DREAD_CHUNK_TAKES_SIZE
   std::size_t size = capacity;
   return H5Dread_chunk(dataset, H5P_DEFAULT, offset, filters, buffer, &size);
@@ -180,34 +181,109 @@ std::string_view algorithm_of(hid_t dcpl) {
   return {};
 }
 
-// One descriptor a data file for the whole process, shared by every reader:
-// pread names its offset, so threads may share it. A descriptor a reader, as
-// first written, took threads x files of them -- 16 x 18, past macOS's 256 a
-// process, and HDF5 could then open nothing (Graeme). Kept open while the
-// process runs, as HDF5's own are.
-int shared_descriptor(const std::string &path) {
-  static std::mutex lock;
-  static std::map<std::string, int> open;
-  const std::lock_guard<std::mutex> held(lock);
-  const auto found = open.find(path);
-  if (found != open.end())
-    return found->second;
-  const int fd = ::open(path.c_str(), O_RDONLY);
-  if (fd >= 0)
-    open.emplace(path, fd);
-  return fd;
-}
-
 struct SourceDataset {
   Handle file;
   Handle dataset;
-  int raw = -1;           //: the data file's shared descriptor, for pread
-  std::uint64_t base = 0; //: its user block: chunk addresses count from here
   std::uint64_t height = 0;
   std::uint64_t width = 0;
   unsigned bit_depth = 0;
   std::string_view algorithm;
 };
+
+// A data file whose chunks read_chunk can read directly: its descriptor and
+// where HDF5's addresses count from (the end of its user block). fd -1 when
+// it cannot: the file not on HDF5's default driver, which alone keeps a
+// chunk's bytes at its address in the one file named; the file not opened;
+// or MXI_READ_CHUNK=hdf5 in the environment, which sends every read through
+// H5Dread_chunk, to compare. One descriptor a file for the whole process,
+// shared by every reader -- pread names its offset -- since one a reader took
+// threads x files of them, past macOS's 256 a process (Graeme). Called with
+// the HDF5 lock held.
+struct DirectFile {
+  int fd = -1;
+  std::uint64_t base = 0;
+};
+
+DirectFile direct_file_of(hid_t dataset) {
+  static const bool through_hdf5 = [] {
+    const char *how = std::getenv("MXI_READ_CHUNK");
+    return how != nullptr && std::string(how) == "hdf5";
+  }();
+  if (through_hdf5)
+    return {};
+  static std::map<std::string, DirectFile> files;
+  const hid_t file = H5Iget_file_id(dataset);
+  if (file < 0)
+    return {};
+  const ssize_t n = H5Fget_name(file, nullptr, 0);
+  std::string name(n > 0 ? static_cast<std::size_t>(n) : 0, '\0');
+  if (n > 0)
+    H5Fget_name(file, name.data(), static_cast<std::size_t>(n) + 1);
+  const auto found = files.find(name);
+  if (found != files.end()) {
+    H5Fclose(file);
+    return found->second;
+  }
+  DirectFile direct;
+  const hid_t fapl = H5Fget_access_plist(file);
+  const bool default_driver = fapl >= 0 && H5Pget_driver(fapl) == H5FD_SEC2;
+  if (fapl >= 0)
+    H5Pclose(fapl);
+  if (default_driver && !name.empty()) {
+    const hid_t fcpl = H5Fget_create_plist(file);
+    hsize_t userblock = 0;
+    if (fcpl >= 0) {
+      H5Pget_userblock(fcpl, &userblock);
+      H5Pclose(fcpl);
+    }
+    direct.base = userblock;
+    direct.fd = ::open(name.c_str(), O_RDONLY);
+  }
+  H5Fclose(file);
+  files.emplace(name, direct);
+  return direct;
+}
+
+// H5Dread_chunk: the same arguments and the same result -- a chunk's stored
+// bytes, still compressed, and the mask of the filters skipped for it -- but
+// the bytes read with pread, outside HDF5's global lock, where HDF5 itself
+// says they are: H5Dget_chunk_info_by_coord gives the chunk's address and
+// size, and on HDF5's default driver those bytes lie there, contiguous, in the
+// file holding the dataset (through an external link, the data file, not the
+// master). Only that lookup is under the lock. Inside it, 32 threads queued
+// behind one -- 1000 thread-seconds of fetching in 67 s of reading -- and even
+// on one thread H5Dread_chunk took five times as long for the same bytes.
+// Where a direct read is not sound (direct_file_of), H5Dread_chunk itself.
+// tests/test_read_chunk.py checks the two give the same spots.
+herr_t read_chunk(hid_t dataset, const hsize_t *offset, std::uint32_t *filters,
+                  void *buffer, std::size_t capacity) {
+  DirectFile file;
+  unsigned mask = 0;
+  haddr_t address = 0;
+  hsize_t size = 0;
+  {
+    const Guard guard(hdf5_mutex());
+    file = direct_file_of(dataset);
+    if (file.fd < 0)
+      return hdf5_read_chunk(dataset, offset, filters, buffer, capacity);
+    if (H5Dget_chunk_info_by_coord(dataset, offset, &mask, &address, &size) < 0)
+      return -1;
+  }
+  if (address == HADDR_UNDEF || size > capacity)
+    return -1;
+  auto *into = static_cast<char *>(buffer);
+  std::size_t done = 0;
+  const auto at = static_cast<off_t>(file.base + address);
+  while (done < size) {
+    const ssize_t got = ::pread(file.fd, into + done, size - done,
+                                at + static_cast<off_t>(done));
+    if (got <= 0)
+      return -1;
+    done += static_cast<std::size_t>(got);
+  }
+  *filters = mask;
+  return 0;
+}
 
 class NxmxReader : public Reader {
 public:
@@ -220,21 +296,16 @@ public:
     const std::uint64_t index = std::strtoull(key.c_str(), nullptr, 10);
     SourceDataset *source = nullptr;
     hsize_t offset[3] = {0, 0, 0};
-    unsigned mask = 0;
-    haddr_t address = 0;
-    hsize_t size = 0;
     {
-      // Under HDF5's lock only the lookup: where the chunk is, how long, which
-      // filters it skipped. Its bytes are read after, with pread on a file
-      // descriptor of this reader's own, in parallel: the whole read under the
-      // lock had 32 threads queue behind one, 1000 thread-seconds of
-      // "fetching" in 67 s of reading (Graeme's 36000 images).
       const Guard guard(hdf5_mutex());
       const Block &block = locate(index);
       source = &open(block);
       // The chunk holds one frame, so its coordinate is the frame's own index
       // within the data file, and the other two are zero by construction.
       offset[0] = static_cast<hsize_t>(index - block.first + block.offset);
+      unsigned mask = 0;
+      haddr_t address = 0;
+      hsize_t size = 0;
       ok(H5Dget_chunk_info_by_coord(source->dataset.get(), offset, &mask,
                                     &address, &size),
          "H5Dget_chunk_info_by_coord");
@@ -243,28 +314,12 @@ public:
       if (address == HADDR_UNDEF || size == 0)
         return false;
       frame->storage.resize(static_cast<std::size_t>(size));
-      if (source->raw < 0) {
-        // No descriptor of our own: through HDF5, under its lock, as before.
-        std::uint32_t filters = 0;
-        ok(read_chunk(source->dataset.get(), offset, &filters,
-                      frame->storage.data(), frame->storage.size()),
-           "H5Dread_chunk");
-        mask = filters;
-      }
     }
-    if (source->raw >= 0) {
-      auto *into = reinterpret_cast<char *>(frame->storage.data());
-      std::size_t done = 0;
-      const auto at = static_cast<off_t>(source->base + address);
-      while (done < size) {
-        const ssize_t got = ::pread(source->raw, into + done, size - done,
-                                    at + static_cast<off_t>(done));
-        if (got <= 0)
-          throw std::runtime_error("reading a chunk of " +
-                                   std::to_string(size) + " bytes failed");
-        done += static_cast<std::size_t>(got);
-      }
-    }
+    // Outside the lock: read_chunk takes it only to look the chunk up.
+    std::uint32_t filters = 0;
+    ok(read_chunk(source->dataset.get(), offset, &filters,
+                  frame->storage.data(), frame->storage.size()),
+       "read_chunk");
     frame->height = source->height;
     frame->width = source->width;
     frame->bit_depth = source->bit_depth;
@@ -272,7 +327,7 @@ public:
     // a writer stores a payload it could not compress. The algorithm string
     // belongs to the source dataset, which this reader owns and which outlives
     // every frame it fills.
-    frame->algorithm = (mask & 1u) ? std::string_view() : source->algorithm;
+    frame->algorithm = (filters & 1u) ? std::string_view() : source->algorithm;
     frame->data = {
         reinterpret_cast<const std::uint8_t *>(frame->storage.data()),
         frame->storage.size()};
@@ -358,29 +413,6 @@ private:
         throw std::runtime_error("HDF5: opening " + block.dataset + " failed" +
                                  why);
       source.dataset = Handle(id, H5Dclose);
-    }
-    {
-      // The file the dataset's chunks are in, opened again for their bytes
-      // outside the lock, from its user block's end, where HDF5's addresses
-      // count from. Not block.filename: a master's dataset is often an external
-      // link to a data file (insulin's), and the chunk's address is in that.
-      const hid_t holder = H5Iget_file_id(source.dataset.get());
-      if (holder >= 0) {
-        const ssize_t n = H5Fget_name(holder, nullptr, 0);
-        std::string name(n > 0 ? static_cast<std::size_t>(n) : 0, '\0');
-        if (n > 0)
-          H5Fget_name(holder, name.data(), static_cast<std::size_t>(n) + 1);
-        const hid_t fcpl = H5Fget_create_plist(holder);
-        hsize_t userblock = 0;
-        if (fcpl >= 0) {
-          H5Pget_userblock(fcpl, &userblock);
-          H5Pclose(fcpl);
-        }
-        H5Fclose(holder);
-        source.base = userblock;
-        if (!name.empty())
-          source.raw = shared_descriptor(name);
-      }
     }
 
     const Handle dcpl(opened(H5Dget_create_plist(source.dataset.get()),

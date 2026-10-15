@@ -112,6 +112,7 @@ add_library(mxi
   src/views.cc
   src/processing.cc
   src/two_theta.cc
+  src/correlation.cc
   src/fft.cc
   $<$<BOOL:${MXI_FFTW}>:src/fft_fftw.cc>
   src/index.cc
@@ -193,6 +194,10 @@ target_compile_options(mxi_symmetry PRIVATE -Wall -Wextra)
 add_executable(mxi_show apps/mxi_show.cc)
 target_link_libraries(mxi_show PRIVATE mxi)
 target_compile_options(mxi_show PRIVATE -Wall -Wextra)
+
+add_executable(mxi_correlation apps/mxi_correlation.cc)
+target_link_libraries(mxi_correlation PRIVATE mxi)
+target_compile_options(mxi_correlation PRIVATE -Wall -Wextra)
 add_executable(mxi_report apps/mxi_report.cc)
 target_link_libraries(mxi_report PRIVATE mxi)
 target_compile_options(mxi_report PRIVATE -Wall -Wextra)
@@ -360,6 +365,7 @@ add_executable(mxi_tests
   tests/test_views.cc
   tests/test_processing.cc
   tests/test_two_theta.cc
+  tests/test_correlation.cc
   tests/test_space_group.cc
   tests/test_resolution.cc
   tests/test_timing.cc

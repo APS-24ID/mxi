@@ -139,7 +139,7 @@ multi-crystal scaling, apart from the clustering.
 ## Stage 4: output
 
 **The clusters' files (built).** `--write-clusters` writes each cluster as
-its own .rflx, `cluster_1.rflx` and on (`--prefix`): its data sets, any
+its own .rflx, `cluster_0.rflx` and on (`--prefix`): its data sets, any
 crystal-less sweep experiment of theirs (the same image set and scan, so that
 mxi's own files keep their sweeps), and their reflections, the ids renumbered
 and the identifier map to match (keep_experiments, which dials_form now

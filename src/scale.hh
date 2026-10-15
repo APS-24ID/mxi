@@ -200,6 +200,11 @@ struct ErrorModel {
   bool split = false;
   double a_bg = 1.0;
   std::size_t used = 0; //: observations it was determined from
+  //: Why the split was tried and not kept, its coefficients a_bg^2, a^2 and
+  //: a^2 b^2 -- kept only with the first two positive; empty when it was kept
+  //: or not tried. Said, not left to --verbose (Graeme: a cluster scaled
+  //: alone fell back to a and b, unexplained).
+  std::string split_refused;
 };
 //: sigma'^2 = a^2 (sigma^2 + (b I)^2), fitted as dials.scale's default: by
 //: regression across bins of merged intensity, on groups with <I> above 25 and

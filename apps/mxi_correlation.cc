@@ -50,7 +50,7 @@ const char *kUsage =
     "with\n"
     "                      their dendrograms, the reachability plot, the\n"
     "                      principal components, the dimension functional\n"
-    "  --write-clusters    each cluster as its own .rflx, PREFIX_1.rflx and\n"
+    "  --write-clusters    each cluster as its own .rflx, PREFIX_0.rflx and\n"
     "                      on: its data sets and their reflections, for\n"
     "                      mxi_scale\n"
     "  --prefix PREFIX     those files' names (cluster)\n"
@@ -314,7 +314,7 @@ int main(int argc, char **argv) {
       for (const auto &[label, list] : members) {
         if (label == -1)
           continue;
-        std::printf("  cluster %d, %zu data sets:", label + 1, list.size());
+        std::printf("  cluster %d, %zu data sets:", label, list.size());
         for (std::size_t e : list)
           std::printf(" %zu", e);
         std::printf("\n");
@@ -354,8 +354,7 @@ int main(int argc, char **argv) {
               "</th><th style=\"text-align:left\">experiments</th></tr>";
       for (const auto &[label, list] : members) {
         html << "<tr><td>"
-             << (label == -1 ? std::string("outliers")
-                             : std::to_string(label + 1))
+             << (label == -1 ? std::string("outliers") : std::to_string(label))
              << "</td><td>" << list.size()
              << "</td><td style=\"text-align:left\">";
         for (std::size_t k = 0; k < list.size(); ++k)
@@ -410,9 +409,8 @@ int main(int argc, char **argv) {
         for (auto &[label, xy] : by)
           traces.push_back(json::Value(json::Object{
               {"type", text("bar")},
-              {"name",
-               text(label == -1 ? std::string("outliers")
-                                : "cluster " + std::to_string(label + 1))},
+              {"name", text(label == -1 ? std::string("outliers")
+                                        : "cluster " + std::to_string(label))},
               {"x", json::Value(std::move(xy.first))},
               {"y", json::Value(std::move(xy.second))}}));
         html << "<h2>OPTICS</h2>\n"
@@ -440,9 +438,8 @@ int main(int argc, char **argv) {
           traces.push_back(json::Value(json::Object{
               {"type", text("scatter")},
               {"mode", text("markers")},
-              {"name",
-               text(label == -1 ? std::string("outliers")
-                                : "cluster " + std::to_string(label + 1))},
+              {"name", text(label == -1 ? std::string("outliers")
+                                        : "cluster " + std::to_string(label))},
               {"x", json::Value(std::move(v[0]))},
               {"y", json::Value(std::move(v[1]))},
               {"text", json::Value(std::move(v[2]))}}));
@@ -551,13 +548,12 @@ int main(int argc, char **argv) {
         }
         Table table = select_rows(reflections, rows);
         const json::Value sub = keep_experiments(document, keep, &table);
-        const std::string path =
-            prefix + "_" + std::to_string(label + 1) + ".rflx";
+        const std::string path = prefix + "_" + std::to_string(label) + ".rflx";
         rflx::write(path, &sub, &table, "mxi_correlation", false,
                     summary ? &*summary : nullptr);
         std::printf("Wrote %s: cluster %d, %zu data sets, %zu reflections\n",
-                    path.c_str(), label + 1,
-                    members_count(clusters.labels, label), table.nrows);
+                    path.c_str(), label, members_count(clusters.labels, label),
+                    table.nrows);
       }
     }
     if (args.has("--json")) {

@@ -1688,9 +1688,25 @@ int run_program(int argc, char **argv) {
 
     // The shoeboxes currently open, by their row in the table.
 
+    // Each box's account for --timing: the background fit's time and
+    // iterations, integrate_shoebox's time, the whole close's.
+    std::vector<float> fit_time(planned.size(), 0.0f),
+        shoebox_time(planned.size(), 0.0f), close_time(planned.size(), 0.0f);
+    std::vector<std::uint8_t> fit_iterations(planned.size(), 0);
     const auto close = [&](std::size_t row, Shoebox *box) -> bool {
+      const double close_start = now_wall();
       const Prediction &p = *planned[row].prediction;
       const IntegratedReflection r = integrate_shoebox(box, integrate_options);
+      fit_time[row] = static_cast<float>(r.background_seconds);
+      fit_iterations[row] =
+          static_cast<std::uint8_t>(std::min(r.background_iterations, 255));
+      shoebox_time[row] = static_cast<float>(now_wall() - close_start);
+      struct Account {
+        std::vector<float> &into;
+        std::size_t row;
+        double start;
+        ~Account() { into[row] = static_cast<float>(now_wall() - start); }
+      } account{close_time, row, close_start};
       miller.ints[row * 3 + 0] = p.h;
       miller.ints[row * 3 + 1] = p.k;
       miller.ints[row * 3 + 2] = p.l;
@@ -3089,6 +3105,40 @@ int run_program(int argc, char **argv) {
                                  : static_cast<double>(frames_read) /
                                        static_cast<double>(wanted.size()),
                   bad_pixels);
+      {
+        // Background and summation, in thread-seconds: the background fit,
+        // the rest of integrate_shoebox, and the rest of closing a box; and
+        // the fit's iterations.
+        double fit = 0.0, shoebox = 0.0, closing = 0.0;
+        std::vector<int> iterations;
+        for (std::size_t r = 0; r < planned.size(); ++r) {
+          if (close_time[r] <= 0.0f)
+            continue;
+          fit += fit_time[r];
+          shoebox += shoebox_time[r];
+          closing += close_time[r];
+          iterations.push_back(fit_iterations[r]);
+        }
+        if (!iterations.empty()) {
+          std::sort(iterations.begin(), iterations.end());
+          const auto at = [&](double q) {
+            return iterations[static_cast<std::size_t>(
+                q * static_cast<double>(iterations.size() - 1))];
+          };
+          double mean = 0.0;
+          for (int v : iterations)
+            mean += v;
+          mean /= static_cast<double>(iterations.size());
+          std::printf("  background and summation, in thread-seconds: the "
+                      "background fit %.3f s, the rest of integrate_shoebox "
+                      "%.3f s, the rest of closing %.3f s\n",
+                      fit, shoebox - fit, closing - shoebox);
+          std::printf(
+              "  the background fit's iterations: mean %.1f, median %d, "
+              "90%% %d, 99%% %d, most %d\n",
+              mean, at(0.5), at(0.9), at(0.99), iterations.back());
+        }
+      }
       std::printf("  opening shoeboxes: building %.3f s, marking neighbours "
                   "%.3f s, wall\n",
                   t_build, t_mark);

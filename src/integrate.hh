@@ -61,6 +61,10 @@ struct IntegrateOptions {
 
 struct IntegratedReflection {
   bool valid = false;
+  //: The background fit's iterations and its time, for --timing's account of
+  //: background and summation (ferritin: 17 s, a third of integration).
+  int background_iterations = 0;
+  double background_seconds = 0.0;
   //: Background-subtracted sum over the foreground, uncorrected.
   double intensity = 0.0;
   double variance = 0.0;

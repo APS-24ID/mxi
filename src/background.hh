@@ -47,6 +47,7 @@
 #pragma once
 
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 namespace mxi {
@@ -79,6 +80,17 @@ struct BackgroundOptions {
 //: caller should have removed it, along with anything the detector marked bad.
 BackgroundResult glm_background(const std::vector<double> &values,
                                 const BackgroundOptions &options = {});
+
+//: The same fit, each distinct value given once with how many pixels hold it:
+//: its score is sum n_k huber((v_k - mu) / sqrt(mu)), the rest depending on
+//: mu alone. A photon-counting background is a few dozen small integers, so
+//: this goes over those rather than every pixel -- every background pixel
+//: copied out and read some five times had been most of integration's
+//: background and summation on ferritin, 100 of 270 thread-seconds in the fit.
+//: The same fit to rounding: sums in another order.
+BackgroundResult
+glm_background_counted(const std::vector<std::pair<double, double>> &counted,
+                       const BackgroundOptions &options);
 
 //: E[psi_c(r)] and E[psi_c(r) (y - mu)] for a Poisson of mean `mu`, by direct
 //: summation. Exposed because they are what the algorithm turns on and a test

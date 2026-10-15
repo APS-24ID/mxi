@@ -109,6 +109,15 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
     double count;
   };
   thread_local std::vector<double> background_values;
+  // The background as a histogram of its counts, where they are the small
+  // integers a photon counter gives: the fit and the dispersion over the
+  // distinct values, not every pixel (glm_background_counted). A count that is
+  // not one -- negative, fractional, or from kDense up -- sends the box down
+  // the pixel-by-pixel path instead.
+  constexpr std::size_t kDense = 4096;
+  thread_local std::vector<std::uint32_t> histogram(kDense, 0);
+  std::size_t histogram_top = 0, n_background_pixels = 0;
+  bool by_pixel = false;
   thread_local std::vector<Foreground> foreground;
   background_values.clear();
   foreground.clear();
@@ -140,21 +149,54 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
       // A neighbour's foreground is no part of this background.
       if (m & shoebox_mask::kOverlapped)
         ++out.n_background_overlapped;
-      else
-        background_values.push_back(static_cast<double>(box->data[i]));
+      else {
+        ++n_background_pixels;
+        const float v = box->data[i];
+        const auto k = static_cast<std::size_t>(v);
+        if (!by_pixel && v >= 0.0f && v < static_cast<float>(kDense) &&
+            static_cast<float>(k) == v) {
+          ++histogram[k];
+          histogram_top = std::max(histogram_top, k);
+        } else {
+          by_pixel = true;
+        }
+      }
+    }
+  }
+  // Each value once, with how many pixels hold it; the histogram cleared for
+  // the thread's next box.
+  thread_local std::vector<std::pair<double, double>> counted;
+  counted.clear();
+  if (n_background_pixels > 0) {
+    for (std::size_t k = 0; k <= histogram_top; ++k) {
+      if (histogram[k] != 0 && !by_pixel)
+        counted.emplace_back(static_cast<double>(k),
+                             static_cast<double>(histogram[k]));
+      histogram[k] = 0;
+    }
+  }
+  if (by_pixel) {
+    // As before: every background pixel's value, in the box's order.
+    for (std::size_t i = 0; i < box->size(); ++i) {
+      const std::uint8_t m = box->mask[i];
+      if ((m & shoebox_mask::kValid) == 0 || (m & shoebox_mask::kForeground) ||
+          !(m & shoebox_mask::kBackground) || (m & shoebox_mask::kOverlapped))
+        continue;
+      background_values.push_back(static_cast<double>(box->data[i]));
     }
   }
   out.n_foreground = n_foreground;
-  out.n_background = background_values.size();
+  out.n_background = n_background_pixels;
   out.n_valid = n_valid;
 
-  if (background_values.size() < options.min_background) {
+  if (n_background_pixels < options.min_background) {
     out.too_few_background = true;
     return out;
   }
   const auto fit_start = std::chrono::steady_clock::now();
   const BackgroundResult background =
-      glm_background(background_values, options.background);
+      by_pixel ? glm_background(background_values, options.background)
+               : glm_background_counted(counted, options.background);
   out.background_seconds = std::chrono::duration<double>(
                                std::chrono::steady_clock::now() - fit_start)
                                .count();
@@ -179,24 +221,36 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
     const double band = 5.0 * std::sqrt(std::max(background.mean, 0.0)) + 1.0;
     double s = 0.0, s2 = 0.0, ts = 0.0, ts2 = 0.0;
     std::size_t kept = 0;
-    for (const double v : background_values) {
-      s += v;
-      s2 += v * v;
-      if (std::abs(v - background.mean) <= band) {
-        ts += v;
-        ts2 += v * v;
-        ++kept;
+    if (by_pixel) {
+      for (const double v : background_values) {
+        s += v;
+        s2 += v * v;
+        if (std::abs(v - background.mean) <= band) {
+          ts += v;
+          ts2 += v * v;
+          ++kept;
+        }
+      }
+    } else {
+      for (const auto &[v, k] : counted) {
+        s += k * v;
+        s2 += k * v * v;
+        if (std::abs(v - background.mean) <= band) {
+          ts += k * v;
+          ts2 += k * v * v;
+          kept += static_cast<std::size_t>(k);
+        }
       }
     }
     out.background_dispersion =
-        dispersion(s, s2, static_cast<double>(background_values.size()));
+        dispersion(s, s2, static_cast<double>(n_background_pixels));
     out.background_dispersion_trimmed =
         dispersion(ts, ts2, static_cast<double>(kept));
     out.n_background_trimmed = kept;
   }
 
   const double m = static_cast<double>(n_foreground);
-  const double n = static_cast<double>(background_values.size());
+  const double n = static_cast<double>(n_background_pixels);
   out.background_mean = background.mean;
   out.background_sum = background.mean * m;
   // The uncertainty in the background estimate, propagated to the foreground:

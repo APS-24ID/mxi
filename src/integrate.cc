@@ -409,7 +409,8 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
 
   // The fitted background, left in the shoebox so a saved one carries what was
   // subtracted from it.
-  box->background.assign(box->size(), static_cast<float>(background.mean));
+  if (options.fill_background)
+    box->background.assign(box->size(), static_cast<float>(background.mean));
   out.valid = true;
   return out;
 }

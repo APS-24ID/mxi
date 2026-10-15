@@ -2122,6 +2122,8 @@ int run_program(int argc, char **argv) {
         failed(row, FitFailure::no_box);
         return;
       }
+      if (!integrate_options.fill_background) // as integrate_shoebox fitted it
+        box.background.assign(box.size(), static_cast<float>(bmean.reals[row]));
       const Prediction &q = *planned[row].prediction;
       // The background the GLM found in the first pass, put back so the
       // fit subtracts the same thing the sum did.
@@ -2191,6 +2193,10 @@ int run_program(int argc, char **argv) {
     // boxes at a time; --gpu-emulate the same on the CPU. One pass only.
     const bool emulate_gpu = args.has("--gpu-emulate");
     bool use_gpu = emulate_gpu || args.has("-g") || args.has("--gpu");
+    // A device takes each box's background as one number: the box's array of
+    // it is filled only where it is read -- learning, a fit on the CPU, a box
+    // saved (see IntegrateOptions::fill_background).
+    integrate_options.fill_background = !(use_gpu && !save);
     if ((use_gpu || emulate_gpu) && args.has("--least-variance"))
       std::printf("--least-variance is the CPU fit's: the device's keeps "
                   "0.001\n");
@@ -2739,6 +2745,13 @@ int run_program(int argc, char **argv) {
                 continue;
               const Prediction &q = *planned[row].prediction;
               const std::uint32_t lattice = planned[row].lattice;
+              // The background as integrate_shoebox fitted it, where the
+              // device's path left the box's array unfilled.
+              // By the option, not by the array's size: build_shoebox makes the
+              // array, of zeros, so its size says nothing.
+              if (!integrate_options.fill_background)
+                boxes[i].background.assign(
+                    boxes[i].size(), static_cast<float>(bmean.reals[row]));
               const Transformed t =
                   transform_shoebox(e, boxes[i], q.s1, q.phi, grids[lattice],
                                     single_pass ? &cells_of[i] : nullptr);

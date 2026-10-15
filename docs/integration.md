@@ -476,6 +476,17 @@ summed intensities to 1.8e-9 (near zero), the fitted intensities, flags and
 integers unchanged. The two crystals: the fit 0.86 thread-seconds to 0.076, the
 rest of integrate_shoebox 0.73 to 0.58.
 
+And on a device's path the box's background array is no longer filled: the
+device takes the background as one number, and integrate_shoebox wrote the
+fitted mean into every voxel -- four bytes a voxel over tens of billions on
+ferritin. IntegrateOptions::fill_background is off when fitting on a device
+and not saving shoeboxes; learning, and a fit on the CPU, fill the array for
+the boxes they read, by the option and not by the array's size (build_shoebox
+makes it, of zeros: filled by its size, the first try left learning subtracting
+nothing, and insulin's fitted intensities 12 per cent out -- caught by the
+comparison with the build before). The same to the bit; on the emulated device
+the rest of integrate_shoebox 0.56 thread-seconds, the CPU's path 1.46.
+
 **sigma_m, two estimators** (15 October). `--sigma-m-estimator basic` (the
 default, as DIALS's) counts each image holding foreground once;
 `extended` weights each by its counts, as DIALS's non-default estimator. On

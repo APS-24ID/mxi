@@ -436,6 +436,10 @@ pread names its offset -- after a descriptor a reader, as first written, took
 16 threads x 18 data files past macOS's 256 a process (Graeme). On one thread
 insulin's reading went 14.2 s to 2.8, H5Dread_chunk's own cost;
   the frames, the spots and the integrated intensities the same to the bit.
+  It is `read_chunk` in `src/spots/nxmx.cc`: H5Dread_chunk's arguments and
+  result, the bytes read where HDF5 says they are, only on HDF5's default
+  driver, H5Dread_chunk itself otherwise or with `MXI_READ_CHUNK=hdf5` in the
+  environment; tests/test_read_chunk.py finds the same spots both ways.
 
 **Opening shoeboxes.** Building a box and marking it with its neighbours'
 foregrounds both run region_of, which took each face pixel through the

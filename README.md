@@ -103,7 +103,7 @@ that is not this machine.
 mxi_import    master.nxs                         # -> imported.rflx
 mxi_find      imported.rflx                      # -> strong.rflx: the models and the spots
 mxi_index     strong.rflx                        # -> indexed.rflx
-mxi_refine    indexed.rflx --analytic            # -> refined.rflx
+mxi_refine    indexed.rflx                       # -> refined.rflx
 mxi_integrate refined.rflx                       # -> integrated.rflx
 mxi_symmetry  integrated.rflx                    # -> symmetrized.rflx
 mxi_scale     symmetrized.rflx --d-min-auto      # -> scaled.rflx
@@ -118,10 +118,11 @@ strong.refl` -- and writes it when asked to by `--output-expt` and
 `--output-refl`, or by `-o` naming a `.refl`. `mxi_convert` goes between the two:
 `mxi_convert indexed.rflx` writes `indexed.expt` and `indexed.refl` for DIALS,
 and `mxi_convert indexed.expt indexed.refl` the `.rflx`. The pair keeps each
-sweep's crystal-less experiment, as mxi carries it (dials/dials#1029) --
-`dials.split_experiments` can take it off to be indexed -- and `--drop-sweeps`
-leaves it out, its spots' id -1, for DIALS's programs past indexing, which
-expect every experiment to have a crystal. Each program also writes what it
+sweep's crystal-less experiment until indexing, as mxi carries it
+(dials/dials#1029); once any experiment has a crystal it leaves them out, their
+spots' id -1, as DIALS's programs past indexing expect -- `--keep-sweeps` keeps
+them. mxi's own scale model (mxi_physical) stays in the .rflx: DIALS cannot
+read it. Each program also writes what it
 prints to `mxi_<name>.log` in the working directory, as DIALS writes
 `dials.<name>.log`.
 
@@ -139,11 +140,12 @@ mxi_import ins10_1.nxs ins10_2.nxs ins10_3.nxs ins10_4.nxs  # one experiment a s
 -- the four sweeps of cubic insulin, each at its own orientation, of
 https://zenodo.org/records/8376818, on which the chain works well.
 `dials.merge` makes a merged MTZ file from the DIALS pair, which
-`mxi_convert scaled.rflx --drop-sweeps` writes.
+`mxi_convert scaled.rflx` writes.
 
 On the 3600 images of an EIGER2 XE 16M sweep -- `ins10_1.nxs` of
 https://zenodo.org/records/8376818 -- on an M4 Max MacBook, that chain with
-`--gpu` for finding and integrating and `--beam` in refinement takes 36.6 s of
+`--gpu` for finding and integrating and the beam refined (the default since 14
+October) takes 36.6 s of
 wall time and 3m42 of CPU (30 September 2026).
 
 ### What each step does, and the options most often wanted
@@ -151,14 +153,14 @@ wall time and 3m42 of CPU (30 September 2026).
 | program | does | options worth knowing |
 | --- | --- | --- |
 | `mxi_find` | finds spots on every frame, of the images an experiment list names or a master given itself | `-j N` threads (every core), `-g`/`--gpu` the threshold on the GPU, `--subtract-background` centroids and profile widths less the local background, `--no-shoeboxes` a much smaller table, `--min-spot-size N` |
-| `mxi_index` | indexes by 3D FFT, reduces the cell, refines; several sweeps with one matrix, then each sweep's crystal refined apart; several lattices in one sweep | `--d-min D`, `--max-cell A`, `--verbose` the search, `--shared-crystal` one crystal throughout, `--max-lattices N` up to N crystals in the beam -- given a refined list, more looked for beside its lattices with their geometry, each sweep given carried through by default, crystal-less, its unindexed spots its own (dials/dials#1029; `--no-keep-sweeps` the lattices alone), `--ambiguous exclude|closest` a spot two lattices index (left out of refinement by default), `--ambiguity-sigma S` how near counts as ambiguous (3), `--min-lattice-spots N` (50) |
-| `mxi_refine` | refines beam, detector and crystal; scan-varying by default, one control point per 10 degrees; several sweeps a crystal each | `--analytic` analytical derivatives (recommended), `--shared-crystal` one crystal for several sweeps, `--beam` the beam direction too, `--static` one crystal setting for the scan, `--scan-varying N` N control points |
+| `mxi_index` | indexes by 3D FFT, reduces the cell, refines; several sweeps with one matrix, then each sweep's crystal refined apart, or each indexed on its own (`--no-joint`, many crystals); several lattices in one sweep | `--d-min D`, `--max-cell A`, `--verbose` the search, `--shared-crystal` one crystal throughout, `--max-lattices N` up to N crystals in the beam -- given a refined list, more looked for beside its lattices with their geometry, each sweep given carried through by default, crystal-less, its unindexed spots its own (dials/dials#1029; `--no-keep-sweeps` the lattices alone), `--ambiguous exclude|closest` a spot two lattices index (left out of refinement by default), `--ambiguity-sigma S` how near counts as ambiguous (3), `--min-lattice-spots N` (50) |
+| `mxi_refine` | refines beam, detector and crystal; scan-varying by default, one control point per 10 degrees; several sweeps a crystal each | the beam and analytical derivatives by default (`--no-beam`, `--numerical`), `--shared-crystal` one crystal for several sweeps, `--static` one crystal setting for the scan, `--scan-varying N` N control points |
 | `mxi_integrate` | predicts, integrates by summation and profile fitting, in one pass over the images -- a sweep's lattices together, each its own profile model, each reflection's neighbours (any lattice's) masked out of its background | `-g`/`--gpu` profile fitting on the GPU, `--threads N` (default every core), `--d-min D`, `--d-max D` a low resolution limit, `--postrefine` refine against integration's own centres and integrate again, `--summation-only`, `--no-mask-neighbours`, `--each-alone` a sweep's lattices a run each, `--save-shoeboxes`, `--save-background-parameters` the background's dispersion, under investigation |
 | `mxi_symmetry` | determines the Laue group, reindexes, and makes the cell the group's (a = b = c and 90 degrees for cubic); several crystals brought to one setting first (cosym) | `--max-delta D` the lattice's obliquity tolerance, `--no-cosym` pool several crystals as they are, `--threads N` |
 | `mxi_report` | an HTML report of a file's processing: each step's figures and tables, plots of spots per image, the RMSDs and the cell over the scan, integration and merging by resolution, the scale and &lang;I/&sigma;&rang; by image -- plotly from its CDN (`docs/output.md`) | a .rflx |
 | `mxi_show` | the state of processing a file holds: the models, the reflections by what has been done to them, and each program's summary in the order they ran (`docs/output.md`) | a .rflx, or an .expt and its .refl |
 | `mxi_export` | an unmerged MTZ with a batch header an image, as dials.export writes it; overlapping sweeps' batches in blocks of the next power of ten (1 to 600, 1001 to 1600) | `-o PATH`, `--partiality-threshold P` (0.4), `--min-isigi S` (-5), `--d-min D` |
-| `mxi_scale` | scales, with an error model, a model an experiment (sweep or crystal), and reports merging statistics | `--d-min-auto` cut where CC half falls to 0.3, `--d-min D`, `--d-max D` a low resolution limit, `--space-group NAME`, `--absorption-level low|medium|high` dials.scale's, `--l-max L` absorption surface degree, `--anomalous` Friedel mates apart for a strong anomalous signal, `--threads N` |
+| `mxi_scale` | scales, with an error model, a model an experiment (sweep or crystal), and reports merging statistics, the sigmas' calibration, the anomalous slope and its control, and the cell from two-theta with e.s.d.s; writes its model into the .rflx | `--d-min-auto` cut where CC half falls to 0.3, `--d-min D`, `--d-max D` a low resolution limit, `--space-group NAME`, `--absorption-level low|medium|high` dials.scale's, `--l-max L` absorption surface degree, `--anomalous` Friedel mates apart for a strong anomalous signal, `--threads N` |
 
 Every program takes `--help` for the rest, and `--version`.
 
@@ -305,8 +307,8 @@ The pipeline:
 
 | | |
 | --- | --- |
-| `mxi_convert` | between `.rflx`, mxi's own files, and the DIALS pair, `.expt` and `.refl`, its direction from what it is given; see `docs/rflx.md` |
-| `mxi_import` | an experiment list from NXmx masters, one experiment a sweep, as dials.import writes it; see `docs/import.md` |
+| `mxi_convert` | between `.rflx`, mxi's own files, and the DIALS pair, `.expt` and `.refl`, its direction from what it is given; to DIALS, the sweeps' crystal-less experiments and mxi's scale model left out (`--keep-sweeps`); see `docs/rflx.md` |
+| `mxi_import` | an experiment list from NXmx masters, one experiment a sweep, as dials.import writes it; `--split N` a sweep as N, for testing; see `docs/import.md` |
 | `mxi_find` | spot finding on the CPU, CUDA or Metal, from NXmx HDF5 |
 | `mxi_index` | FFT indexing with assign, refine and reassign macrocycles; several lattices, and a lattice missed recovered; each sweep carried through; see `docs/multi-lattice.md` |
 | `mxi_refine` | scan-static and scan-varying refinement, analytical derivatives |

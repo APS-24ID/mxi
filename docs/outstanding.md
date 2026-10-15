@@ -381,7 +381,7 @@ where something is missing.
 * **57.** Sweeps carried through (dials/dials#1029): each sweep's own
     experiment, crystal-less, carried through every program by default, its
     unindexed spots its own; `mxi_index --no-keep-sweeps` the lattices alone,
-    `mxi_convert --drop-sweeps` the pair without them. A missed lattice
+    `mxi_convert` the pair without them (the default since 14 October). A missed lattice
     recovered beside refined ones. `docs/multi-lattice.md`, stage 2.
 
 * **16.** Several crystals on one side of the indexing ambiguity: cosym in

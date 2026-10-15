@@ -11,13 +11,14 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
 * Stage 2, sweeps carried through (dials/dials#1029), the default (Graeme:
   even in DIALS's format, since dials.split_experiments can take the
   crystal-less experiment off to be indexed); mxi_index --no-keep-sweeps and
-  mxi_convert --drop-sweeps for the lattices alone. The two views in one
+  mxi_convert for the lattices alone (by default, once there are any;
+  --keep-sweeps keeps the sweeps). The two views in one
   place (src/views.cc) -- the lattices taken out of a list for a program and
   put back, each crystal-less experiment given the models its sweep's
   lattices refined; mxi_index writing each sweep given first, crystal-less,
   its unindexed spots its own, the lattices after it; mxi_refine,
   mxi_integrate, mxi_symmetry, mxi_scale and mxi_export reading through the
-  views; mxi_convert --drop-sweeps, the crystal-less left out and their
+  views; mxi_convert, the crystal-less left out by default and their
   spots -1. On Graeme's two crystals, indexed with and without the
   sweep from the same spots and carried through every program: the same
   refined models, the same integrated and scaled tables but for id, I 2 3

@@ -84,6 +84,9 @@ def test_every_mxeq_subcommand_named_exists():
     for action in parser._subparsers._group_actions:
         commands |= set(action.choices)
     assert commands, "mxeq has no subcommands?"
+    # mxeq regress has a parser of its own, handed the rest of the line before
+    # mxeq's (cli.main).
+    commands.add("regress")
     for document in DOCUMENTS:
         text = (ROOT / document).read_text()
         for m in re.finditer(r"`mxeq ([a-z][a-z-]*)", text):

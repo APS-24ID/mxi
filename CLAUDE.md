@@ -52,7 +52,9 @@ STATUS: written 4 October 2026, 325 commits; several sweeps, the cell
 regularised and mxi_export added 6 October, 349 commits; several crystals,
 sweeps carried through and the variances 12 October, 414 commits; the
 programs' output, mxi_show and mxi_report, compression and the fit's weights
-13 October, 434 commits. For a new session to
+13 October, 434 commits; the error model, the regression runs, the cell
+from two-theta and memory and time on long scans 14 October, 473 commits.
+For a new session to
 pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in
 flight and how the work is done here. People follow this project: keep the
@@ -117,8 +119,8 @@ reflection at a time, and `mxeq observations`, every observation of one;
   intensities CC 0.998, the scaled ones 0.9997.
 * **Sweeps carried through** (dials/dials#1029), the default: each sweep's
   crystal-less experiment first, its unindexed spots its own, through every
-  program (`src/views.cc`, the two views in one place); `mxi_convert
-  --drop-sweeps` for DIALS's programs past indexing. A lattice missed is
+  program (`src/views.cc`, the two views in one place); `mxi_convert` leaves
+  them out for DIALS by default (`--keep-sweeps`). A lattice missed is
   recovered beside refined ones.
 * **Neighbours masked** in integration, as DIALS's 3d_threaded and not its
   default; the search keyed on images too after it took minutes on ten turns.
@@ -136,11 +138,37 @@ reflection at a time, and `mxeq observations`, every observation of one;
 (`docs/output.md`). Each .rflx carries the processing's summary, `/summary`,
 each program's figures and tables after its input's (`src/processing.cc`);
 `mxi_show` tells the state of a file; developer detail under `--verbose`;
-indexing's candidates, the cell's e.s.d.s from refinement's covariance, the
+indexing's candidates, the cell's e.s.d.s (now scaling's, from two-theta), the
 scan-varying cell's range, symmetry's elements by order and axis, the scale by
 image, the MTZ's summary, spots by resolution and ice rings. Mind the names:
 `src/summary.*` is integration's summary tables -- the processing's summary
 was once written over them, unchecked, and restored.
+
+**Done 14 October, to 473:**
+- The cell's e.s.d.s from two-theta in mxi_scale, as dials.two_theta_refine;
+  refinement's covariance e.s.d.s removed (`docs/scaling.md`).
+- The error model fitted by regression across intensity bins, then split, one
+  a for the variance with no signal and one for the rest; the sigmas'
+  calibration printed and in the report; the anomalous slope's control,
+  random halves (`docs/scaling.md`). 6S0R parked (item 62).
+- `mxeq regress`: runs over real data sets, history, compare, show, clean,
+  tiers; Graeme runs it on his machines (`docs/regression.md`).
+- Speed and memory on 36000 images: refinement's Jacobian sparse (82.7 GB to
+  5.1); one table held, not three, in refinement, symmetry and scaling; the
+  scaling normal equations a group at a time, the covariance from one
+  factorisation (scaling 188 s to 22); profiles learned into sparse partial
+  sets; `read_chunk`, H5Dread_chunk by pread outside HDF5's lock, one
+  descriptor a file; a table of each panel's pixels in mm (`docs/integration.md`).
+  `--timing` gives each phase's peak memory.
+- mxi_symmetry: cosym only for crystals whose orientations differ; monoclinic
+  cells in the convention's order. mxi_index `--no-joint`; mxi_import
+  `--split N`. mxi_refine refines the beam, analytically, by default;
+  mxi_convert leaves crystal-less sweeps out of DIALS files by default.
+- The scale model written into scaled .rflx (mxi_physical, item 26); the
+  report a point a degree, the model drawn.
+- Lesson: on 6S0R and the 36000 images, measuring each phase (`--timing`,
+  calibration tables) found the cause each time; guessing before measuring
+  -- the foregrounds reused in opening -- made ferritin slower, and was undone.
 
 **Done 13 October, to 434:** mxi_report (`docs/output.md`), a plot a sweep,
 refinement's own cell over the scan; the cell's e.s.d.s from one

@@ -81,8 +81,8 @@ the summary in order.
 * **mxi_index** -- the candidate solutions the basis search weighed, its ten
   best distinct reduced cells, the chosen one marked; the beam centre and
   distance as given and after indexing; the FFT grid under `--verbose`.
-* **mxi_refine** -- the cell with e.s.d.s, 67.4634(18) 67.5191(18) 67.484(3) A on
-  insulin: the covariance at convergence carried to the cell; scan-varying,
+* **mxi_refine** -- the cell (its e.s.d.s are scaling's, from two-theta, since
+  14 October: `docs/scaling.md`); scan-varying,
   the cell's range over the scan and the orientation's turn; the geometry as
   given and refined.
 * **mxi_integrate** -- progress each tenth of the way on runs of 100000

@@ -27,8 +27,15 @@ where something is missing.
 * **63.** **correctness -- sigma_m comes out larger than DIALS's.** 6S0R 0.565
     degrees against 0.316, insulin 0.128 against 0.089 (item 3, closed as
     harmless for insulin, where 0.086 merged worse). Larger boxes, more
-    overlaps, on crowded data. The estimator against DIALS's, line for line,
-    is the place to start.
+    overlaps, on crowded data. Compared line for line (15 October), the
+    estimators are DIALS's defaults: sigma_b about the predicted s1
+    (ComputeEsdBeamDivergence, centroid_definition s1), sigma_m by maximum
+    likelihood with one sample an image holding a foreground pixel
+    (ComputeEsdReflectingRange, the basic estimator). So the difference is in
+    the inputs, most likely the spot finder's shoeboxes: how many images a
+    spot's foreground spans, which pixels it marks foreground. Next: both
+    estimators on dials.find_spots's shoeboxes and mxi_find's for the same
+    spots, or on mxsim's images with known sigmas.
 
 * **55.** **understood -- Summation 2 to 3 per cent below DIALS's on the two
     crystals**: the foreground's extent. A 3 sigma ellipsoid holds 97.1 per

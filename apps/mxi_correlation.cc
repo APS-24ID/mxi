@@ -4,12 +4,14 @@
 // a scaled file whose lattices are each a data set (docs/correlation.md).
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <map>
 #include <optional>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -44,6 +46,10 @@ const char *kUsage =
     "  --xi X              OPTICS's steepness for a cluster's edge (0.05)\n"
     "  --max-distance D    OPTICS's max_eps (0.5, as DIALS's)\n"
     "  --min-samples N     OPTICS's min_samples, not searched for\n"
+    "  --html FILE         the report (mxi_correlation.html): the matrices "
+    "with\n"
+    "                      their dendrograms, the reachability plot, the\n"
+    "                      principal components, the dimension functional\n"
     "  --write-clusters    each cluster as its own .rflx, PREFIX_1.rflx and\n"
     "                      on: its data sets and their reflections, for\n"
     "                      mxi_scale\n"
@@ -53,6 +59,97 @@ const char *kUsage =
     "  -h, --help          this\n";
 
 } // namespace
+
+// A Plotly figure, as mxi_report draws them.
+std::string figure(int number, const mxi::json::Array &traces,
+                   const mxi::json::Object &layout, int height = 420) {
+  using namespace mxi;
+  json::Object l = layout;
+  l["height"] = json::Value(static_cast<long>(height));
+  l["margin"] = json::Value(json::Object{{"t", json::Value(40L)}});
+  std::ostringstream o;
+  o << "<div class=\"plot\" id=\"plot" << number
+    << "\"></div><script>Plotly.newPlot('plot" << number << "', "
+    << json::dump(json::Value(traces), 0) << ", "
+    << json::dump(json::Value(std::move(l)), 0)
+    << ", {responsive: true});</script>\n";
+  return o.str();
+}
+
+mxi::json::Value text(const std::string &s) { return mxi::json::Value(s); }
+
+// A matrix as a heat map in its Ward dendrogram's order, the dendrogram
+// above it: as dials.correlation_matrix draws the correlations and the cosine
+// angles. `values` n x n; the distances 1 - value.
+std::string matrix_figure(int number, const std::string &title,
+                          const std::vector<double> &values, std::size_t n,
+                          const std::vector<std::size_t> &which) {
+  using namespace mxi;
+  std::vector<double> distance(n * n, 0.0);
+  for (std::size_t i = 0; i < n; ++i)
+    for (std::size_t j = 0; j < n; ++j)
+      distance[i * n + j] =
+          i == j ? 0.0 : std::max(0.0, 1.0 - values[i * n + j]);
+  const Dendrogram tree = dendrogram(ward_linkage(distance, n), n);
+  json::Array traces, places, labels;
+  for (std::size_t k = 0; k < tree.leaves.size(); ++k) {
+    places.push_back(json::Value(10.0 * static_cast<double>(k) + 5.0));
+    labels.push_back(text(std::to_string(which[tree.leaves[k]])));
+  }
+  json::Array z;
+  for (std::size_t a : tree.leaves) {
+    json::Array row;
+    for (std::size_t b : tree.leaves)
+      row.push_back(json::Value(a == b ? 1.0 : values[a * n + b]));
+    z.push_back(json::Value(std::move(row)));
+  }
+  traces.push_back(json::Value(json::Object{
+      {"type", text("heatmap")},
+      {"x", json::Value(places)},
+      {"y", json::Value(places)},
+      {"z", json::Value(std::move(z))},
+      {"colorscale", text("Viridis")},
+      {"colorbar", json::Value(json::Object{{"len", json::Value(0.7)},
+                                            {"y", json::Value(0.35)}})},
+      {"xaxis", text("x")},
+      {"yaxis", text("y")}}));
+  for (std::size_t k = 0; k < tree.x.size(); ++k) {
+    json::Array xs, ys;
+    for (int q = 0; q < 4; ++q) {
+      xs.push_back(json::Value(tree.x[k][q]));
+      ys.push_back(json::Value(tree.y[k][q]));
+    }
+    traces.push_back(json::Value(json::Object{
+        {"type", text("scatter")},
+        {"mode", text("lines")},
+        {"x", json::Value(std::move(xs))},
+        {"y", json::Value(std::move(ys))},
+        {"line", json::Value(json::Object{{"color", text("#444")},
+                                          {"width", json::Value(1L)}})},
+        {"hoverinfo", text("skip")},
+        {"showlegend", json::Value(false)},
+        {"xaxis", text("x")},
+        {"yaxis", text("y2")}}));
+  }
+  const json::Object ticks{
+      {"tickvals", json::Value(places)},
+      {"ticktext", json::Value(labels)},
+      {"tickfont", json::Value(json::Object{{"size", json::Value(9L)}})}};
+  json::Object x = ticks, y = ticks;
+  x["title"] = text("data set (experiment), in the dendrogram's order");
+  y["domain"] = json::Value(json::Array{json::Value(0.0), json::Value(0.72)});
+  y["autorange"] = text("reversed");
+  json::Object y2{
+      {"domain", json::Value(json::Array{json::Value(0.75), json::Value(1.0)})},
+      {"title", text("Ward distance")},
+      {"zeroline", json::Value(false)}};
+  json::Object layout{{"title", text(title)},
+                      {"xaxis", json::Value(std::move(x))},
+                      {"yaxis", json::Value(std::move(y))},
+                      {"yaxis2", json::Value(std::move(y2))},
+                      {"showlegend", json::Value(false)}};
+  return figure(number, traces, layout, 760);
+}
 
 std::size_t members_count(const std::vector<int> &labels, int label) {
   std::size_t n = 0;
@@ -66,10 +163,10 @@ int main(int argc, char **argv) {
   if (!only_asks_for_help(argc, argv))
     mirror_to_log("mxi_correlation.log");
   const std::set<std::string> known = {
-      "--write-clusters", "--prefix", "--min-partiality",
-      "--min-pairs",      "--json",   "--dimensions",
-      "--by-projection",  "--xi",     "--max-distance",
-      "--min-samples",    "-h",       "--help"};
+      "--html",      "--write-clusters", "--prefix",      "--min-partiality",
+      "--min-pairs", "--json",           "--dimensions",  "--by-projection",
+      "--xi",        "--max-distance",   "--min-samples", "-h",
+      "--help"};
   std::set<std::string> takes_value = known;
   takes_value.erase("--by-projection");
   takes_value.erase("--write-clusters");
@@ -228,6 +325,189 @@ int main(int argc, char **argv) {
           std::printf(" %zu", e);
         std::printf("\n");
       }
+    }
+    // Stage 4: the report.
+    if (c.dim > 0) {
+      const std::size_t n = c.n;
+      std::ostringstream html;
+      html
+          << "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>"
+             "mxi_correlation: "
+          << args.positional[0]
+          << "</title><script src=\"https://cdn.plot.ly/plotly-2.27.0.min.js\">"
+             "</script><style>body{font-family:sans-serif;margin:2em;"
+             "max-width:1100px}table{border-collapse:collapse}td,th{padding:"
+             "2px 10px;text-align:right}th{border-bottom:1px solid #888}"
+             ".plot{margin:1em 0}</style></head><body>\n"
+             "<h1>mxi_correlation</h1>\n<p>"
+          << n << " data sets of " << args.positional[0] << ", in "
+          << group.name()
+          << ". Clustered as dials.correlation_matrix (Thompson et al. "
+             "2025): the sigma-weighted correlation of every pair, cosym's "
+             "coordinates in "
+          << c.dim << " dimensions, OPTICS (min_samples "
+          << clusters.min_samples << ").</p>\n";
+      std::map<int, std::vector<std::size_t>> members;
+      for (std::size_t i = 0; i < clusters.labels.size(); ++i)
+        members[clusters.labels[i]].push_back(which[i]);
+      html << "<h2>Clusters</h2><table><tr><th>cluster</th><th>data sets"
+              "</th><th style=\"text-align:left\">experiments</th></tr>";
+      for (const auto &[label, list] : members) {
+        html << "<tr><td>"
+             << (label == -1 ? std::string("outliers")
+                             : std::to_string(label + 1))
+             << "</td><td>" << list.size()
+             << "</td><td style=\"text-align:left\">";
+        for (std::size_t k = 0; k < list.size(); ++k)
+          html << (k ? " " : "") << list[k];
+        html << "</td></tr>";
+      }
+      html << "</table>\n";
+      if (clusters.single_cluster)
+        html << "<p>No min_samples gave two clusters: one cluster, as "
+                "DIALS's single-cluster heuristic finds it.</p>\n";
+      else if (clusters.score > -1.0)
+        html << "<p>Silhouette " << clusters.silhouette << ", score "
+             << clusters.score << ".</p>\n";
+      int number = 0;
+      std::vector<double> r = m.r;
+      for (std::size_t i = 0; i < n; ++i)
+        r[i * n + i] = 1.0;
+      html << "<h2>The correlation matrix</h2>\n"
+           << matrix_figure(++number,
+                            "Correlation between data sets, sigma-weighted", r,
+                            n, which);
+      std::vector<double> cosine(n * n, 1.0);
+      for (std::size_t i = 0; i < n; ++i)
+        for (std::size_t j = 0; j < n; ++j) {
+          double ab = 0, aa = 0, bb = 0;
+          for (std::size_t k = 0; k < c.dim; ++k) {
+            ab += c.x[k * n + i] * c.x[k * n + j];
+            aa += c.x[k * n + i] * c.x[k * n + i];
+            bb += c.x[k * n + j] * c.x[k * n + j];
+          }
+          cosine[i * n + j] = aa > 0 && bb > 0 ? ab / std::sqrt(aa * bb) : 0.0;
+        }
+      html << "<h2>The cosine-angle matrix</h2>\n"
+           << matrix_figure(++number,
+                            "Cosine of the angle between data sets' cosym "
+                            "coordinates",
+                            cosine, n, which);
+      {
+        std::map<int, std::pair<json::Array, json::Array>> by;
+        double top = 0.0;
+        for (double v : clusters.model.reachability)
+          if (std::isfinite(v))
+            top = std::max(top, v);
+        for (std::size_t k = 0; k < clusters.model.ordering.size(); ++k) {
+          const std::size_t i = clusters.model.ordering[k];
+          const double v = clusters.model.reachability[i];
+          auto &[xs, ys] = by[clusters.labels[i]];
+          xs.push_back(json::Value(static_cast<double>(k)));
+          ys.push_back(json::Value(std::isfinite(v) ? v : 1.1 * top));
+        }
+        json::Array traces;
+        for (auto &[label, xy] : by)
+          traces.push_back(json::Value(json::Object{
+              {"type", text("bar")},
+              {"name",
+               text(label == -1 ? std::string("outliers")
+                                : "cluster " + std::to_string(label + 1))},
+              {"x", json::Value(std::move(xy.first))},
+              {"y", json::Value(std::move(xy.second))}}));
+        html << "<h2>OPTICS</h2>\n"
+             << figure(++number, traces,
+                       json::Object{
+                           {"title", text("Reachability, in OPTICS's order "
+                                          "(infinite drawn at 1.1 x the "
+                                          "largest)")},
+                           {"xaxis", json::Value(json::Object{
+                                         {"title", text("OPTICS's order")}})},
+                           {"yaxis", json::Value(json::Object{
+                                         {"title", text("reachability")}})},
+                           {"bargap", json::Value(0.1)}});
+      }
+      if (c.dim >= 2) {
+        std::map<int, std::array<json::Array, 3>> by;
+        for (std::size_t i = 0; i < n; ++i) {
+          auto &v = by[clusters.labels[i]];
+          v[0].push_back(json::Value(c.components[i * c.dim]));
+          v[1].push_back(json::Value(c.components[i * c.dim + 1]));
+          v[2].push_back(text("experiment " + std::to_string(which[i])));
+        }
+        json::Array traces;
+        for (auto &[label, v] : by)
+          traces.push_back(json::Value(json::Object{
+              {"type", text("scatter")},
+              {"mode", text("markers")},
+              {"name",
+               text(label == -1 ? std::string("outliers")
+                                : "cluster " + std::to_string(label + 1))},
+              {"x", json::Value(std::move(v[0]))},
+              {"y", json::Value(std::move(v[1]))},
+              {"text", json::Value(std::move(v[2]))}}));
+        std::ostringstream xt, yt;
+        xt.precision(3);
+        yt.precision(3);
+        xt << "principal component 1 (" << 100.0 * c.explained_variance_ratio[0]
+           << " per cent)";
+        yt << "principal component 2 (" << 100.0 * c.explained_variance_ratio[1]
+           << " per cent)";
+        html << "<h2>The coordinates' principal components</h2>\n"
+             << figure(++number, traces,
+                       json::Object{
+                           {"title", text("Each data set's cosym "
+                                          "coordinates, on their first two "
+                                          "principal components")},
+                           {"xaxis", json::Value(json::Object{
+                                         {"title", text(xt.str())}})},
+                           {"yaxis", json::Value(json::Object{
+                                         {"title", text(yt.str())}})}});
+      }
+      if (!c.functional.empty()) {
+        json::Array xs, ys;
+        for (std::size_t k = 0; k < c.functional.size(); ++k) {
+          xs.push_back(json::Value(c.dimensions[k]));
+          ys.push_back(json::Value(c.functional[k]));
+        }
+        json::Array traces{
+            json::Value(json::Object{{"type", text("scatter")},
+                                     {"mode", text("lines+markers")},
+                                     {"name", text("functional")},
+                                     {"x", json::Value(std::move(xs))},
+                                     {"y", json::Value(std::move(ys))}})};
+        const std::size_t at = std::min(c.dim, c.functional.size()) - 1;
+        traces.push_back(json::Value(json::Object{
+            {"type", text("scatter")},
+            {"mode", text("markers")},
+            {"name", text("chosen")},
+            {"marker",
+             json::Value(json::Object{{"size", json::Value(14L)},
+                                      {"symbol", text("circle-open")}})},
+            {"x",
+             json::Value(json::Array{json::Value(static_cast<double>(c.dim))})},
+            {"y", json::Value(json::Array{json::Value(c.functional[at])})}}));
+        html << "<h2>The dimensions</h2>\n"
+             << figure(++number, traces,
+                       json::Object{
+                           {"title", text("The cosym functional by "
+                                          "dimension, with outlier "
+                                          "rejection; the dimension at its "
+                                          "elbow")},
+                           {"xaxis", json::Value(json::Object{
+                                         {"title", text("dimensions")}})},
+                           {"yaxis", json::Value(json::Object{
+                                         {"title", text("functional")},
+                                         {"type", text("log")}})}});
+      }
+      html << "</body></html>\n";
+      const std::string html_path =
+          args.value("--html", "mxi_correlation.html");
+      std::ofstream file(html_path);
+      file << html.str();
+      if (!file)
+        throw std::runtime_error("cannot write " + html_path);
+      std::printf("\nWrote the report to %s\n", html_path.c_str());
     }
     // Stage 4: each cluster written as its own file -- its data sets, any
     // crystal-less sweep experiment of theirs (the same image set and scan),

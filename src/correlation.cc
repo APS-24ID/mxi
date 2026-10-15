@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <map>
 #include <numeric>
 #include <random>
@@ -1005,6 +1006,87 @@ SignificantClusters significant_clusters(const CosymCoordinates &c,
     out.labels[model.ordering[k]] = labels[k];
   out.score = -1.0;
   out.silhouette = 0.0;
+  return out;
+}
+
+std::vector<std::array<double, 4>> ward_linkage(const std::vector<double> &d,
+                                                std::size_t n) {
+  std::vector<std::array<double, 4>> rows;
+  if (n < 2)
+    return rows;
+  // The working distances between active clusters; each cluster's id (a leaf
+  // its index, a merge n + its row) and size.
+  std::vector<double> dist = d;
+  std::vector<std::size_t> id(n), size(n, 1);
+  std::vector<bool> active(n, true);
+  for (std::size_t i = 0; i < n; ++i)
+    id[i] = i;
+  for (std::size_t step = 0; step + 1 < n; ++step) {
+    std::size_t bi = 0, bj = 0;
+    double best = HUGE_VAL;
+    for (std::size_t i = 0; i < n; ++i) {
+      if (!active[i])
+        continue;
+      for (std::size_t j = i + 1; j < n; ++j)
+        if (active[j] && dist[i * n + j] < best) {
+          best = dist[i * n + j];
+          bi = i;
+          bj = j;
+        }
+    }
+    const std::size_t ni = size[bi], nj = size[bj];
+    rows.push_back({static_cast<double>(std::min(id[bi], id[bj])),
+                    static_cast<double>(std::max(id[bi], id[bj])), best,
+                    static_cast<double>(ni + nj)});
+    // Lance-Williams for Ward, on distances: the merged cluster in bi's slot.
+    for (std::size_t k = 0; k < n; ++k) {
+      if (!active[k] || k == bi || k == bj)
+        continue;
+      const double nk = static_cast<double>(size[k]);
+      const double dki = dist[k * n + bi], dkj = dist[k * n + bj];
+      const double v = std::sqrt(((static_cast<double>(ni) + nk) * dki * dki +
+                                  (static_cast<double>(nj) + nk) * dkj * dkj -
+                                  nk * best * best) /
+                                 (static_cast<double>(ni + nj) + nk));
+      dist[k * n + bi] = dist[bi * n + k] = v;
+    }
+    size[bi] = ni + nj;
+    id[bi] = n + step;
+    active[bj] = false;
+  }
+  return rows;
+}
+
+Dendrogram dendrogram(const std::vector<std::array<double, 4>> &linkage,
+                      std::size_t n) {
+  Dendrogram out;
+  if (n == 0)
+    return out;
+  if (linkage.empty()) {
+    out.leaves.push_back(0);
+    return out;
+  }
+  // Each node's x and height, by a walk from the root, left (the first of the
+  // row) before right, as scipy's.
+  const std::size_t root = n + linkage.size() - 1;
+  std::vector<double> x(n + linkage.size(), 0.0), h(n + linkage.size(), 0.0);
+  std::function<void(std::size_t)> walk = [&](std::size_t node) {
+    if (node < n) {
+      x[node] = 10.0 * static_cast<double>(out.leaves.size()) + 5.0;
+      out.leaves.push_back(node);
+      return;
+    }
+    const auto &row = linkage[node - n];
+    const auto a = static_cast<std::size_t>(row[0]),
+               b = static_cast<std::size_t>(row[1]);
+    walk(a);
+    walk(b);
+    x[node] = 0.5 * (x[a] + x[b]);
+    h[node] = row[2];
+    out.x.push_back({x[a], x[a], x[b], x[b]});
+    out.y.push_back({h[a], row[2], row[2], h[b]});
+  };
+  walk(root);
   return out;
 }
 

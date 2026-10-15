@@ -8,6 +8,7 @@
 #ifndef MXI_CORRELATION_HH
 #define MXI_CORRELATION_HH
 
+#include <array>
 #include <cstddef>
 #include <utility>
 #include <vector>
@@ -164,6 +165,25 @@ struct SignificantClusters {
 };
 SignificantClusters significant_clusters(const CosymCoordinates &c,
                                          const ClusterOptions &options);
+
+//: Stage 4, the report: hierarchical clustering by Ward's method, as
+//: scipy.cluster.hierarchy.linkage(method="ward") on a distance matrix
+//: (n x n, row major): the Lance-Williams update on the distances, the two
+//: nearest clusters merged each step, ties to the lowest pair. Each row as
+//: scipy's: the two clusters merged (a leaf below n, a merge n + its row), the
+//: distance, the size -- the smaller id first.
+std::vector<std::array<double, 4>> ward_linkage(const std::vector<double> &d,
+                                                std::size_t n);
+
+//: A dendrogram of that linkage, as scipy's dendrogram draws it: the leaves
+//: left to right, and for each merge the four points of its bracket, x at the
+//: leaves' places 5, 15, 25 ..., y the heights.
+struct Dendrogram {
+  std::vector<std::size_t> leaves;
+  std::vector<std::array<double, 4>> x, y;
+};
+Dendrogram dendrogram(const std::vector<std::array<double, 4>> &linkage,
+                      std::size_t n);
 
 } // namespace mxi
 

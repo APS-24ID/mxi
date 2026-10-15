@@ -273,6 +273,10 @@ int run_program(int argc, char **argv) {
     const ScaleModelShape &shape = run.model.shape();
     std::printf("\n%zu observations of %zu reflections, of %zu rows\n",
                 data.size(), data.unique.size(), reflections.nrows);
+    if (data.partials_combined > 0)
+      std::printf("%zu pieces of reflections split by integration combined "
+                  "with the others of their reflection\n",
+                  data.partials_combined);
     if (run.model.sweeps() == 1)
       std::printf("Scaling model: %zu scale, %zu decay and %zu absorption "
                   "parameters, %zu in "
@@ -580,7 +584,9 @@ int run_program(int argc, char **argv) {
         json::Object how;
         how["g"] = json::Value(std::string(
             "g = C(t) exp(B(t) / 2d^2) (1 + sum_k a_k Y_k); the intensity "
-            "scaled is I lp / (qe partiality) / g"));
+            "scaled is I lp / qe / g, profile fitted, or I lp / (qe "
+            "partiality) / g, summed; a split reflection's pieces made one "
+            "first"));
         how["t"] =
             json::Value(std::string("the observation's place in its scan, (z - "
                                     "(first image - 1)) / images, "

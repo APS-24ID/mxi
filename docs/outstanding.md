@@ -24,6 +24,17 @@ where something is missing.
     mean square -- a handful of wild observations outlier rejection does not
     catch; DIALS shows no dip there. A diagnostic listing a shell's worst
     observations, where they lie on the detector, would find them.
+* **69.** **correctness -- the error model's b, twice dials.scale's on many
+    crystals.** Graeme's 36 insulin crystals (three species, 12 each): after
+    partials were combined and partiality kept off the profile-fitted
+    intensities (docs/scaling.md), mxi_scale's b is 0.056 where dials.scale's
+    is 0.026 on the same observations, so I / sigma is capped at 3.8
+    rather than 9.9. The intensities agree with each other nearly as well as
+    dials.scale's (unweighted correlations between crystals 0.991 and 0.956
+    within and between species, against 0.994 and 0.967); the sigmas do not,
+    and every sigma-weighted statistic follows. Next: the two fits on the same
+    scaled intensities -- which observations each uses, its bins, whether
+    the species' real differences enter mxi's as error.
 * **63.** **decision -- sigma_m: the rocking curve's width, and how far the
     box must reach, are two numbers.** mxsim's note (15 October): the basic
     estimator, one sample an image holding foreground counted once, as

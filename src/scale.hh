@@ -34,9 +34,14 @@ struct ScaleDataOptions {
 
 //: The observations scaling uses, as parallel arrays.
 struct ScaleData {
-  //: Corrected as dials.scale corrects them before scaling: I lp / qe /
-  //: partiality, and the variance by the square of the same factor.
+  //: Corrected as dials.scale corrects them before scaling: a profile-fitted
+  //: intensity I lp / qe, a summed one I lp / (qe partiality), the variance
+  //: by the square of the same factor; a reflection split into pieces by
+  //: integration made one observation first (build_scale_data).
   std::vector<double> intensity, variance;
+  //: Pieces of split reflections merged into another, as dials.scale's
+  //: "Combined N partial reflections with other partial reflections".
+  std::size_t partials_combined = 0;
   std::vector<ScaleObservation> observation;
   std::vector<std::size_t> group; //: index into `unique`
   std::vector<Miller> unique;     //: the symmetry-unique index of each group

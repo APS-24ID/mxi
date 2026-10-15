@@ -263,6 +263,12 @@ int run_program(int argc, char **argv) {
       for (double share : c.explained)
         std::printf(" %.1f%%", 100.0 * share);
       std::printf(", %zu kept\n", c.dimensions);
+      if (args.has("--timing"))
+        std::printf(
+            "  cosym: correlations %.3f s, eigen-decomposition of %zu x "
+            "%zu %.3f s\n",
+            c.seconds_correlations, experiments.size() * lattice.size(),
+            experiments.size() * lattice.size(), c.seconds_eigen);
       for (std::size_t j = 0; j < experiments.size(); ++j) {
         const Rotation &g = c.operations[c.chosen[j]];
         std::printf("  experiment %zu: %s; cosine %.3f; CC with the first "

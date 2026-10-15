@@ -24,6 +24,9 @@ struct CosymResult {
   //: (the first few): how many clusters there are to see.
   std::vector<double> explained;
   std::size_t dimensions = 0; //: components kept
+  //: Where the time went, for --timing: the correlations of every pair of
+  //: data sets under every rotation, and the eigen-decomposition.
+  double seconds_correlations = 0.0, seconds_eigen = 0.0;
   //: Each data set's chosen point's cosine with the reference point.
   std::vector<double> cosine;
   //: Each data set's correlation with the first, reindexed, over the
@@ -43,6 +46,12 @@ struct CosymResult {
 //: its coset of the true Patterson group -- keeping the identity where it is
 //: in that cluster, so a data set in the reference's setting is not reindexed
 //: into an equivalent one for nothing.
+//: A symmetric matrix's eigenvalues and eigenvectors -- column q of
+//: `vectors`, row major, the q-th -- by Householder's reduction and the
+//: implicit QL algorithm (JAMA's, public domain). For cosym, and its tests.
+void symmetric_eigen(const std::vector<double> &a, std::size_t n,
+                     std::vector<double> *values, std::vector<double> *vectors);
+
 CosymResult cosym(const std::vector<P1Intensities> &datasets,
                   const std::vector<Rotation> &operations);
 

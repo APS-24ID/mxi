@@ -297,10 +297,21 @@ json::Value dials_form(const json::Value &document, Table *table) {
   if (!document.is_object() || !document["experiment"].is_array())
     return document;
   const json::Array &all = document["experiment"].as_array();
+  std::vector<bool> keep(all.size(), false);
+  for (std::size_t i = 0; i < all.size(); ++i)
+    keep[i] = all[i]["crystal"].is_number();
+  return keep_experiments(document, keep, table);
+}
+
+json::Value keep_experiments(const json::Value &document,
+                             const std::vector<bool> &keep, Table *table) {
+  if (!document.is_object() || !document["experiment"].is_array())
+    return document;
+  const json::Array &all = document["experiment"].as_array();
   std::vector<long> renumber(all.size(), -1);
   json::Array kept;
   for (std::size_t i = 0; i < all.size(); ++i)
-    if (all[i]["crystal"].is_number()) {
+    if (i < keep.size() && keep[i]) {
       renumber[i] = static_cast<long>(kept.size());
       kept.push_back(all[i]);
     }

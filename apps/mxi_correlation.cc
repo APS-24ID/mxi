@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <fstream>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -20,6 +21,7 @@
 #include "refl.hh"
 #include "rflx.hh"
 #include "symmetry.hh"
+#include "views.hh"
 
 namespace {
 
@@ -42,28 +44,35 @@ const char *kUsage =
     "  --xi X              OPTICS's steepness for a cluster's edge (0.05)\n"
     "  --max-distance D    OPTICS's max_eps (0.5, as DIALS's)\n"
     "  --min-samples N     OPTICS's min_samples, not searched for\n"
+    "  --write-clusters    each cluster as its own .rflx, PREFIX_1.rflx and\n"
+    "                      on: its data sets and their reflections, for\n"
+    "                      mxi_scale\n"
+    "  --prefix PREFIX     those files' names (cluster)\n"
     "  --json FILE         the matrix, its weights, the data sets, the\n"
     "                      coordinates and their principal components\n"
     "  -h, --help          this\n";
 
 } // namespace
 
+std::size_t members_count(const std::vector<int> &labels, int label) {
+  std::size_t n = 0;
+  for (int l : labels)
+    n += l == label;
+  return n;
+}
+
 int main(int argc, char **argv) {
   using namespace mxi;
   if (!only_asks_for_help(argc, argv))
     mirror_to_log("mxi_correlation.log");
-  const std::set<std::string> known = {"--min-partiality",
-                                       "--min-pairs",
-                                       "--json",
-                                       "--dimensions",
-                                       "--by-projection",
-                                       "--xi",
-                                       "--max-distance",
-                                       "--min-samples",
-                                       "-h",
-                                       "--help"};
+  const std::set<std::string> known = {
+      "--write-clusters", "--prefix", "--min-partiality",
+      "--min-pairs",      "--json",   "--dimensions",
+      "--by-projection",  "--xi",     "--max-distance",
+      "--min-samples",    "-h",       "--help"};
   std::set<std::string> takes_value = known;
   takes_value.erase("--by-projection");
+  takes_value.erase("--write-clusters");
   takes_value.erase("-h");
   takes_value.erase("--help");
   Arguments args = parse_arguments(argc, argv, known, takes_value);
@@ -218,6 +227,57 @@ int main(int argc, char **argv) {
         for (std::size_t e : members[-1])
           std::printf(" %zu", e);
         std::printf("\n");
+      }
+    }
+    // Stage 4: each cluster written as its own file -- its data sets, any
+    // crystal-less sweep experiment of theirs (the same image set and scan),
+    // and their reflections, the ids renumbered (keep_experiments).
+    if (args.has("--write-clusters") && !clusters.labels.empty()) {
+      const json::Value document = read_experiment_document(args.positional[0]);
+      const json::Array &all = document["experiment"].as_array();
+      std::optional<json::Value> summary;
+      if (rflx::has_experiments(args.positional[0]))
+        summary = rflx::read_summary(args.positional[0]);
+      const std::string prefix = args.value("--prefix", "cluster");
+      std::set<int> labels(clusters.labels.begin(), clusters.labels.end());
+      labels.erase(-1);
+      std::printf("\n");
+      for (int label : labels) {
+        std::vector<bool> keep(all.size(), false);
+        std::set<std::pair<long, long>> sweeps; // image set, scan
+        for (std::size_t i = 0; i < clusters.labels.size(); ++i)
+          if (clusters.labels[i] == label) {
+            keep[which[i]] = true;
+            const json::Value &x = all[which[i]];
+            if (x["imageset"].is_number() && x["scan"].is_number())
+              sweeps.insert({static_cast<long>(x["imageset"].as_number()),
+                             static_cast<long>(x["scan"].as_number())});
+          }
+        for (std::size_t e = 0; e < all.size(); ++e)
+          if (!all[e]["crystal"].is_number() &&
+              all[e]["imageset"].is_number() && all[e]["scan"].is_number() &&
+              sweeps.count({static_cast<long>(all[e]["imageset"].as_number()),
+                            static_cast<long>(all[e]["scan"].as_number())}))
+            keep[e] = true;
+        std::vector<std::size_t> rows;
+        if (reflections.has("id")) {
+          const Column &id = reflections.at("id");
+          for (std::size_t r = 0; r < reflections.nrows; ++r) {
+            const std::int64_t e = id.integer(r);
+            if (e >= 0 && static_cast<std::size_t>(e) < keep.size() &&
+                keep[static_cast<std::size_t>(e)])
+              rows.push_back(r);
+          }
+        }
+        Table table = select_rows(reflections, rows);
+        const json::Value sub = keep_experiments(document, keep, &table);
+        const std::string path =
+            prefix + "_" + std::to_string(label + 1) + ".rflx";
+        rflx::write(path, &sub, &table, "mxi_correlation", false,
+                    summary ? &*summary : nullptr);
+        std::printf("Wrote %s: cluster %d, %zu data sets, %zu reflections\n",
+                    path.c_str(), label + 1,
+                    members_count(clusters.labels, label), table.nrows);
       }
     }
     if (args.has("--json")) {

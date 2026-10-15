@@ -81,6 +81,15 @@ ExperimentList add_sweeps(const ExperimentList &given,
 //: mxi_convert's, writing the pair (docs/multi-lattice.md, stage 2).
 json::Value dials_form(const json::Value &document, Table *table);
 
+//: An experiment list, as a document, with only the experiments `keep` marks
+//: (by index; its size the list's): every model, image set and profile still
+//: there, each kept experiment's references to them unchanged; and `table`, if
+//: given, numbered to match -- a dropped experiment's spots -1 -- with the
+//: identifier map renumbered. Nothing kept, or everything, the document as it
+//: is. mxi_correlation's clusters, and dials_form's lattices.
+json::Value keep_experiments(const json::Value &document,
+                             const std::vector<bool> &keep, Table *table);
+
 } // namespace mxi
 
 #endif // MXI_VIEWS_HH

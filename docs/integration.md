@@ -437,19 +437,18 @@ pread names its offset -- after a descriptor a reader, as first written, took
 insulin's reading went 14.2 s to 2.8, H5Dread_chunk's own cost;
   the frames, the spots and the integrated intensities the same to the bit.
 
-**Opening shoeboxes.** Each box marked with its neighbours' foregrounds had
-computed each neighbour's afresh with region_of, once a box a neighbour. Now a
-box's foreground is computed once, when it is built, and copied where it meets
-its neighbours -- a box marks itself from the neighbours already open and marks
-them from itself, the updates to each gathered and applied by one task; a
-neighbour that fails to build is computed as before. region_of decides each
-voxel from where it is alone, so the masks are the same to the bit (insulin at
-6 sigma, the two crystals at 5). But marking was not where opening's time went:
-`--timing` now splits it, and on the two crystals building took 2.27 s and
-marking 0.02. Building is region_of over each box's own face -- a pixel's
-direction through the detector, parallax and all, computed again for every box
-it is in; a table of each pixel's direction, once a panel, is the next step if
-the crowded data say so (14 October).
+**Opening shoeboxes.** Building a box and marking it with its neighbours'
+foregrounds both run region_of, which took each face pixel through the
+detector -- px_to_mm, parallax and all -- once for every box the pixel is in.
+Now each panel's pixel centres in mm are a table, computed once a panel
+geometry (pixel_mm_table, 16 bytes a pixel: about 70 MB for a 4M detector, 290
+for a 16M), and epsilon_of's arithmetic from there one function both use: the
+masks the same to the bit. The two crystals at 5 sigma: building 6.8 s to 5.3,
+marking 0.75 to 0.54. Reusing a neighbour's foreground from its own box instead
+of computing it again over where they meet, tried first, made ferritin's
+opening slower, 10.3 s to 11.6 -- a serial gathering of millions of pairs a
+chunk -- and was undone; `--timing` now splits opening into building and
+marking (14 October).
 
 ## Conventions that caused bugs
 

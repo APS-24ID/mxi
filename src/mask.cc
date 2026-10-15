@@ -174,11 +174,23 @@ void region_of(const Experiment &e, const Prediction &p,
   const std::int32_t face = nx * ny;
   std::vector<double> eps1(static_cast<std::size_t>(face));
   std::vector<double> eps2(static_cast<std::size_t>(face));
+  // Each pixel's place in mm from the panel's table, computed once; a pixel
+  // off the panel (a box over its edge) as before.
+  const std::vector<std::pair<double, double>> &table = pixel_mm_table(panel);
+  const std::int64_t panel_w = panel.image_size[0],
+                     panel_h = panel.image_size[1];
   for (std::int32_t y = 0; y < ny; ++y) {
     for (std::int32_t x = 0; x < nx; ++x) {
+      const std::int64_t px = bbox[0] + x, py = bbox[2] + y;
+      const bool on = px >= 0 && px < panel_w && py >= 0 && py < panel_h;
       const Epsilon eps =
-          epsilon_of(e, frame, panel, static_cast<double>(bbox[0] + x) + 0.5,
-                     static_cast<double>(bbox[2] + y) + 0.5, p.phi, p.phi);
+          on ? epsilon_at_mm(
+                   frame, panel,
+                   table[static_cast<std::size_t>(py * panel_w + px)].first,
+                   table[static_cast<std::size_t>(py * panel_w + px)].second,
+                   p.phi, p.phi)
+             : epsilon_of(e, frame, panel, static_cast<double>(px) + 0.5,
+                          static_cast<double>(py) + 0.5, p.phi, p.phi);
       const std::size_t at =
           static_cast<std::size_t>(y) * static_cast<std::size_t>(nx) +
           static_cast<std::size_t>(x);

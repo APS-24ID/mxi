@@ -103,6 +103,39 @@ and the outliers; `--xi`, `--max-distance`, `--min-samples` (no search);
 `--json` adds the labels, the reachability plot in order, and the search's
 scores.
 
+## Against dials.correlation_matrix (15 October)
+
+Graeme's 100 K bovine, porcine and human insulin, 36 crystals, 12 of each
+(the paper's section 3.2.1), all from dials.symmetry; then either dials.scale
+or mxi_convert and mxi_scale. On mxi's scaling, mxi_correlation: 3
+dimensions, min_samples 6, the three species exactly, silhouette 0.837. On
+DIALS's scaling, dials.correlation_matrix: 3 dimensions, min_samples 6, the
+same three clusters, silhouette 0.833 -- every min_samples from 6 to 12 giving
+the same, 5 making six data sets noise, 13 and up one cluster, as mxi's
+exhaustive search finds too.
+
+The matrices differ in detail. Prototyped on DIALS's scaled data (in Python,
+not committed): mxi's method gives every r within a median 0.0034 of DIALS's,
+and through mxi's stages 2 and 3 the functional 0.258, 0.045, 0.0019 for
+DIALS's 0.314, 0.050, 0.0016, the same dimension and clusters. DIALS's
+preparation, from its source: ε = 1 under the lattice's Patterson group (I m
+-3 m here), a common resolution limit from its Resolutionizer (1.27 A), and
+each data set normalised by mmtbx's ML isotropic Wilson fit, I x exp(B d*^2 / 4
+- p_scale). The first two barely change the matrix. The normalisation could
+not be reproduced: with DIALS's own printed B values it made the agreement
+worse (median 0.019), as did every variant tried, though the remaining
+differences track |B_a - B_b| (correlation 0.59); and dials.correlation_matrix
+with normalisation=None gave correlations higher still (0.879 to 0.996, the
+functional 0.184, 0.047, 0.0012), no closer to mxi's at any resolution limit.
+So some step of DIALS's preparation is not yet understood. Not pursued: the
+clusters and their choice agree. To settle it, dump DIALS's prepared
+intensities (CosymAnalysis.intensities and dataset_ids, after __init__) and
+compare data set by data set.
+
+mxi's own scaling of these crystals gives lower correlations than
+dials.scale's (0.72 against 0.84 at the least): a thing to look at in
+multi-crystal scaling, apart from the clustering.
+
 ## Stage 4: output
 
 The clusters and outliers printed and kept in the summary; each cluster

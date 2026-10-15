@@ -38,6 +38,7 @@
 #pragma once
 
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 #include "geometry.hh"
@@ -138,6 +139,18 @@ KabschFrame kabsch_frame(const Experiment &e, const Vec3 &s1);
 struct Epsilon {
   double e1 = 0.0, e2 = 0.0, e3 = 0.0;
 };
+//: Every pixel centre's place on a panel in mm, as px_to_mm gives it at
+//: (x + 0.5, y + 0.5): computed once a panel geometry, parallax and all, and
+//: shared. region_of had computed it again for every box a pixel is in --
+//: building shoeboxes, most of opening them on crowded data (ferritin). Row
+//: by row, image_size[0] to a row.
+const std::vector<std::pair<double, double>> &pixel_mm_table(const Panel &p);
+
+//: epsilon_of from a pixel's place in mm: the same arithmetic, which
+//: epsilon_of now calls, so that the two cannot differ.
+Epsilon epsilon_at_mm(const KabschFrame &frame, const Panel &p, double mm_fast,
+                      double mm_slow, double phi_image, double phi_calculated);
+
 Epsilon epsilon_of(const Experiment &e, const KabschFrame &frame,
                    const Panel &p, double px_fast, double px_slow,
                    double phi_image, double phi_calculated);

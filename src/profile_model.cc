@@ -1,6 +1,13 @@
 #include "profile_model.hh"
 
+#include "parallel.hh"
+
 #include <cmath>
+#include <cstdio>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <string>
 
 namespace mxi {
 
@@ -192,12 +199,21 @@ KabschFrame kabsch_frame(const Experiment &e, const Vec3 &s1) {
 Epsilon epsilon_of(const Experiment &e, const KabschFrame &frame,
                    const Panel &p, double px_fast, double px_slow,
                    double phi_image, double phi_calculated) {
+  (void)e;
+  if (!frame.valid)
+    return Epsilon{};
+  const auto mm = p.px_to_mm(px_fast, px_slow);
+  return epsilon_at_mm(frame, p, mm.first, mm.second, phi_image,
+                       phi_calculated);
+}
+
+Epsilon epsilon_at_mm(const KabschFrame &frame, const Panel &p, double mm_fast,
+                      double mm_slow, double phi_image, double phi_calculated) {
   Epsilon out;
   if (!frame.valid)
     return out;
   const double length = frame.s1.norm();
-  const auto mm = p.px_to_mm(px_fast, px_slow);
-  const Vec3 lab = p.lab_coord_mm(mm.first, mm.second);
+  const Vec3 lab = p.lab_coord_mm(mm_fast, mm_slow);
   const double lab_length = lab.norm();
   if (!(lab_length > 0.0))
     return out;
@@ -210,8 +226,40 @@ Epsilon epsilon_of(const Experiment &e, const KabschFrame &frame,
   out.e1 = Scan::degrees(frame.e1.dot(difference) / length);
   out.e2 = Scan::degrees(frame.e2.dot(difference) / length);
   out.e3 = Scan::degrees(frame.zeta * (phi_image - phi_calculated));
-  (void)e;
   return out;
+}
+
+const std::vector<std::pair<double, double>> &pixel_mm_table(const Panel &p) {
+  static std::mutex lock;
+  static std::map<std::string,
+                  std::unique_ptr<std::vector<std::pair<double, double>>>>
+      tables;
+  // The geometry px_to_mm depends on, exactly (hexadecimal floats).
+  char key[512];
+  std::snprintf(key, sizeof key,
+                "%a %a %a|%a %a %a|%a %a %a|%a %a|%lld %lld|%d %a %a",
+                p.origin.x, p.origin.y, p.origin.z, p.fast.x, p.fast.y,
+                p.fast.z, p.slow.x, p.slow.y, p.slow.z, p.pixel_size[0],
+                p.pixel_size[1], static_cast<long long>(p.image_size[0]),
+                static_cast<long long>(p.image_size[1]), p.parallax ? 1 : 0,
+                p.mu, p.thickness);
+  const std::lock_guard<std::mutex> held(lock);
+  auto &slot = tables[key];
+  if (!slot) {
+    const auto w =
+        static_cast<std::size_t>(std::max<std::int64_t>(p.image_size[0], 0));
+    const auto h =
+        static_cast<std::size_t>(std::max<std::int64_t>(p.image_size[1], 0));
+    auto table =
+        std::make_unique<std::vector<std::pair<double, double>>>(w * h);
+    for_each_index(h, [&](std::size_t y) {
+      for (std::size_t x = 0; x < w; ++x)
+        (*table)[y * w + x] = p.px_to_mm(static_cast<double>(x) + 0.5,
+                                         static_cast<double>(y) + 0.5);
+    });
+    slot = std::move(table);
+  }
+  return *slot;
 }
 
 Capture capture_fractions(const Experiment &e,

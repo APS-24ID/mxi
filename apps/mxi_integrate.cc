@@ -1669,10 +1669,6 @@ int run_program(int argc, char **argv) {
     std::set<std::int32_t> wanted;
     std::size_t bad_pixels = 0;
     std::size_t most_open = 0;
-    // Each planned reflection's place in `active` while its box is open, -1
-    // otherwise: so that a box opening finds its neighbours' boxes, and takes
-    // their foregrounds from their own masks rather than computing them again.
-    std::vector<std::int32_t> slot_of(planned.size(), -1);
     const Vec3 s0 = e.beam.s0();
     const Vec3 axis = e.goniometer.lab_axis();
 
@@ -2414,17 +2410,11 @@ int run_program(int argc, char **argv) {
       const std::size_t first_new = active.size();
       active.resize(first_new + opening);
       active_rows.resize(first_new + opening);
-      // In two phases. First every new box built, its own foreground kept
-      // apart; then each marks itself with its neighbours' foregrounds over
-      // where they meet -- an open neighbour's taken from its box, which
-      // region_of had made voxel by voxel from where the voxel is alone, so it
-      // is the same as computing it again over the meeting, which is what was
-      // done, once a box a neighbour: on crowded data, ferritin's 6.2 million
-      // reflections, 10.3 s of 54.6 (Graeme). A neighbour not yet open is
-      // computed as before, and marks itself from this box when it opens.
-      // Each box writes only its own mask, and reads the new boxes' foregrounds
-      // from the copies, so no box is read while it is written.
-      std::vector<std::vector<std::uint8_t>> new_foreground(opening);
+      // In two phases, timed apart (--timing): every new box built, then each
+      // marked with its neighbours' foregrounds. Each box writes only itself.
+      // (Reusing a neighbour's foreground from its own box, rather than
+      // computing it again over where they meet, made ferritin's opening
+      // slower, 10.3 s to 11.6: undone.)
       std::vector<std::uint8_t> built(opening, 0);
       const double t_build_start = now_wall();
       in_parallel(opening, [&](std::size_t i) {
@@ -2435,139 +2425,27 @@ int run_program(int argc, char **argv) {
         if (build_shoebox(experiments[own], *planned[at + i].prediction,
                           lattice_masks[own], &box, &ignored)) {
           box.data.assign(box.size(), 0.0f);
-          std::vector<std::uint8_t> &fg = new_foreground[i];
-          fg.resize(box.mask.size());
-          for (std::size_t k = 0; k < fg.size(); ++k)
-            fg[k] = (box.mask[k] & shoebox_mask::kForeground) != 0;
           built[i] = 1;
         }
       });
       t_build += now_wall() - t_build_start;
       const double t_mark_start = now_wall();
-      for (std::size_t i = 0; i < opening; ++i)
-        slot_of[at + i] = static_cast<std::int32_t>(first_new + i);
       in_parallel(opening, [&](std::size_t i) {
-        if (!built[i])
-          return;
         Shoebox &box = active[first_new + i];
-        for (std::uint32_t j : neighbours[at + i]) {
-          if (j >= planned.size()) {
-            const Other &o = others[j - planned.size()];
-            mark_overlapped(other_models[o.lattice], *o.prediction,
-                            other_masks[o.lattice], o.bbox, &box);
-            continue;
+        if (built[i]) {
+          for (std::uint32_t j : neighbours[at + i]) {
+            if (j < planned.size()) {
+              mark_overlapped(
+                  experiments[planned[j].lattice], *planned[j].prediction,
+                  lattice_masks[planned[j].lattice], planned[j].bbox, &box);
+            } else {
+              const Other &o = others[j - planned.size()];
+              mark_overlapped(other_models[o.lattice], *o.prediction,
+                              other_masks[o.lattice], o.bbox, &box);
+            }
           }
-          const std::int32_t slot = slot_of[j];
-          const bool is_new = slot >= static_cast<std::int32_t>(first_new);
-          const Shoebox *other =
-              slot >= 0 ? &active[static_cast<std::size_t>(slot)] : nullptr;
-          const bool usable =
-              other != nullptr &&
-              (is_new
-                   ? built[static_cast<std::size_t>(slot) - first_new] != 0
-                   : other->mask.size() == other->size() && other->size() > 0);
-          // A neighbour that opens later marks this box itself, from its own
-          // foreground, when it opens (below): this box will still be open,
-          // since they meet in the scan. The neighbour test is symmetric.
-          if (slot < 0 && j >= stop)
-            continue;
-          if (!usable) {
-            mark_overlapped(
-                experiments[planned[j].lattice], *planned[j].prediction,
-                lattice_masks[planned[j].lattice], planned[j].bbox, &box);
-            continue;
-          }
-          // mark_overlapped's own tests: the same panel, and where the boxes
-          // meet; then the neighbour's foreground there.
-          if (planned[j].prediction->panel !=
-              static_cast<std::size_t>(box.panel))
-            continue;
-          std::int32_t meet[6];
-          bool apart = false;
-          for (int k = 0; k < 6; k += 2) {
-            meet[k] = std::max(box.bbox[k], planned[j].bbox[k]);
-            meet[k + 1] = std::min(box.bbox[k + 1], planned[j].bbox[k + 1]);
-            apart = apart || meet[k] >= meet[k + 1];
-          }
-          if (apart)
-            continue;
-          const std::vector<std::uint8_t> *fg =
-              is_new
-                  ? &new_foreground[static_cast<std::size_t>(slot) - first_new]
-                  : nullptr;
-          for (std::int32_t z = meet[4]; z < meet[5]; ++z)
-            for (std::int32_t y = meet[2]; y < meet[3]; ++y)
-              for (std::int32_t x = meet[0]; x < meet[1]; ++x) {
-                const std::size_t theirs = other->at(
-                    x - other->bbox[0], y - other->bbox[2], z - other->bbox[4]);
-                const bool inside =
-                    fg ? (*fg)[theirs] != 0
-                       : (other->mask[theirs] & shoebox_mask::kForeground) != 0;
-                if (inside)
-                  box.mask[box.at(x - box.bbox[0], y - box.bbox[2],
-                                  z - box.bbox[4])] |=
-                      shoebox_mask::kOverlapped;
-              }
         }
       });
-      // Third, the boxes already open marked with the new boxes' foregrounds,
-      // which they skipped when they opened: gathered by the box marked, so
-      // that each is written by one task.
-      {
-        std::vector<std::pair<std::size_t, std::size_t>> pairs; // old slot, new
-        for (std::size_t i = 0; i < opening; ++i)
-          for (std::uint32_t j : neighbours[at + i]) {
-            if (j >= planned.size())
-              continue;
-            const std::int32_t slot = slot_of[j];
-            if (slot >= 0 && slot < static_cast<std::int32_t>(first_new))
-              pairs.emplace_back(static_cast<std::size_t>(slot), i);
-          }
-        std::sort(pairs.begin(), pairs.end());
-        std::vector<std::size_t> starts;
-        for (std::size_t k = 0; k < pairs.size(); ++k)
-          if (k == 0 || pairs[k].first != pairs[k - 1].first)
-            starts.push_back(k);
-        starts.push_back(pairs.size());
-        in_parallel(starts.size() - 1, [&](std::size_t g) {
-          Shoebox &box = active[pairs[starts[g]].first];
-          if (box.mask.size() != box.size() || box.size() == 0)
-            return;
-          for (std::size_t k = starts[g]; k < starts[g + 1]; ++k) {
-            const std::size_t i = pairs[k].second;
-            const std::size_t row = at + i;
-            if (!built[i]) {
-              mark_overlapped(
-                  experiments[planned[row].lattice], *planned[row].prediction,
-                  lattice_masks[planned[row].lattice], planned[row].bbox, &box);
-              continue;
-            }
-            if (planned[row].prediction->panel !=
-                static_cast<std::size_t>(box.panel))
-              continue;
-            const Shoebox &theirs_box = active[first_new + i];
-            std::int32_t meet[6];
-            bool apart = false;
-            for (int q = 0; q < 6; q += 2) {
-              meet[q] = std::max(box.bbox[q], theirs_box.bbox[q]);
-              meet[q + 1] = std::min(box.bbox[q + 1], theirs_box.bbox[q + 1]);
-              apart = apart || meet[q] >= meet[q + 1];
-            }
-            if (apart)
-              continue;
-            const std::vector<std::uint8_t> &fg = new_foreground[i];
-            for (std::int32_t z = meet[4]; z < meet[5]; ++z)
-              for (std::int32_t y = meet[2]; y < meet[3]; ++y)
-                for (std::int32_t x = meet[0]; x < meet[1]; ++x)
-                  if (fg[theirs_box.at(x - theirs_box.bbox[0],
-                                       y - theirs_box.bbox[2],
-                                       z - theirs_box.bbox[4])] != 0)
-                    box.mask[box.at(x - box.bbox[0], y - box.bbox[2],
-                                    z - box.bbox[4])] |=
-                        shoebox_mask::kOverlapped;
-          }
-        });
-      }
       t_mark += now_wall() - t_mark_start;
       at = stop;
       t_open += now_wall() - t_open_start;
@@ -2716,11 +2594,9 @@ int run_program(int argc, char **argv) {
         std::vector<std::size_t> staying_rows;
         for (std::size_t i = 0; i < active.size(); ++i) {
           if (active[i].bbox[5] <= chunk_end) {
-            slot_of[active_rows[i]] = -1;
             boxes.push_back(std::move(active[i]));
             rows.push_back(active_rows[i]);
           } else {
-            slot_of[active_rows[i]] = static_cast<std::int32_t>(staying.size());
             staying.push_back(std::move(active[i]));
             staying_rows.push_back(active_rows[i]);
           }

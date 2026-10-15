@@ -2219,7 +2219,8 @@ int run_program(int argc, char **argv) {
     for (std::size_t l = 0; l < n_lattices; ++l)
       fit_batches.push_back(
           make_fit_batch(e, grids[l], integrate_options.gain));
-    ThreadSeconds t_fit_batched, t_gpu_prepare, t_gpu_pack, t_gpu_device;
+    ThreadSeconds t_fit_batched, t_gpu_prepare, t_gpu_pack, t_gpu_device,
+        t_gpu_slot;
     std::size_t gpu_boxes = 0;
     double gpu_bytes = 0.0;
     // Batches started on the device and not yet collected, oldest first.
@@ -2304,16 +2305,22 @@ int run_program(int argc, char **argv) {
             in_batch.push_back(row);
           }
           // A slot must be free before the batch can be packed into it.
+          // Timed apart from the packing: waiting here is waiting for the
+          // device, not packing (ferritin: "packing 4.1 s", the copy itself
+          // a task a box).
+          const double t_slot = Timing::now();
           if (on_device)
             while (static_cast<int>(pending_fits.size()) >= kFitSlots)
               collect_oldest_fit();
+          const double slot_wait = Timing::now() - t_slot;
+          t_gpu_slot.add(slot_wait);
           add_to_batch(&fit_batch, entries, on_device);
           gpu_boxes += fit_batch.boxes.size();
           gpu_bytes +=
               static_cast<double>(fit_batch.voxels) * (sizeof(float) + 1) +
               static_cast<double>(fit_batch.reference_floats) * sizeof(float);
           const double t_device = Timing::now();
-          t_gpu_pack.add(t_device - t_packing);
+          t_gpu_pack.add(t_device - t_packing - slot_wait);
           // On a device the batch is started and not waited for: the threads go
           // back to reading frames while it fits, and its fits are collected
           // when a slot is wanted again or the last boxes are done. The GPU and
@@ -3152,13 +3159,14 @@ int run_program(int argc, char **argv) {
         fit_device_times(device);
         std::printf("  profile fitting in single precision, %s: %.3f s on the "
                     "CPU's side -- "
-                    "preparing %.3f s (the local references), packing %.3f s, "
-                    "handing over "
+                    "preparing %.3f s (the local references), waiting for a "
+                    "free slot %.3f s, packing %.3f s, handing over "
                     "%.3f s, waiting for the device %.3f s",
                     on_device ? fit_device_name() : "emulated on the CPU",
                     t_fit_batched.seconds() + t_gpu_wait.seconds(),
-                    t_gpu_prepare.seconds(), t_gpu_pack.seconds(),
-                    t_gpu_device.seconds(), t_gpu_wait.seconds());
+                    t_gpu_prepare.seconds(), t_gpu_slot.seconds(),
+                    t_gpu_pack.seconds(), t_gpu_device.seconds(),
+                    t_gpu_wait.seconds());
         if (on_device)
           std::printf(" (on the device: uploading %.3f s, %.2f GB for %zu "
                       "boxes, %.1f GB/s; the "

@@ -736,7 +736,8 @@ the corner of an Eiger2 panel, which is small and is a hundred times the
 tolerance the derivatives are held to. `Panel::mm_to_px_jacobian` computes it
 analytically, for the same reason as everything else here.
 
-**Available as `mxi_refine --analytic`.** On insulin it reaches the same model
+**The default since 14 October** (`mxi_refine --numerical` for finite
+differences). On insulin it reaches the same model
 to five decimal places in detector distance and four in cell, six times faster;
 on four sweeps of l-cysteine with about two hundred parameters, 12 s against
 33 s.

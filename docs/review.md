@@ -39,11 +39,16 @@ package is BSD 3-clause.
 that caused bugs, and what not to do again. It is worth reading for the same
 reason a DIALS developer's notes would be.
 
-Its size, excluding third-party code: the library 23449 lines in `src/` and the
-spot finder 7316 in `src/spots/`; eighteen programs in 9313 lines in `apps/`,
-and `mxi_find` in `src/spots/find_spots.cc`; C++ tests 14250 lines; a Python
-package of comparison tools, `mxeq`, 9299 lines, with 7151 of tests; 9102 lines
-of documents. Some 434 commits over five weeks.
+Its size, excluding third-party code: the library 24268 lines in `src/` and the
+spot finder 7413 in `src/spots/`; eighteen programs in 10023 lines in `apps/`,
+and `mxi_find` in `src/spots/find_spots.cc`; C++ tests 14468 lines; a Python
+package of comparison and regression tools, `mxeq`, 10258 lines, with 7586 of
+tests; 9534 lines of documents. Some 473 commits over five weeks.
+
+`mxeq regress` runs the chain over real data sets on each machine and keeps
+every run's figures to compare (`docs/regression.md`). Scaling reports the
+sigmas' calibration and the anomalous slope's control, and writes its model
+into the scaled file; the cell's e.s.d.s come from two-theta.
 
 Each .rflx carries the processing's summary, every program's figures and
 tables in the order they ran; `mxi_show` tells a file's state and
@@ -73,7 +78,7 @@ program answers `--help`, takes `--timing`, and mirrors its output to
 mxi_import    master.nxs                                 # imported.expt
 mxi_find      imported.expt -o strong.refl               # --gpu for the GPU
 mxi_index     imported.expt strong.refl                  # indexed.expt, .refl
-mxi_refine    indexed.expt indexed.refl --analytic   # scan-varying, one point per 10 degrees
+mxi_refine    indexed.expt indexed.refl              # scan-varying, one point per 10 degrees
 mxi_integrate refined.expt refined.refl                  # --gpu: fitting on the GPU, in float
 mxi_symmetry  integrated.expt integrated.refl            # symmetrized.expt, .refl
 mxi_scale     symmetrized.expt symmetrized.refl          # scaled.expt, .refl
@@ -89,8 +94,8 @@ reflection at a time. It needs no cctbx.
 
 On the 3600 images of an EIGER2 XE 16M sweep -- `ins10_1.nxs` of
 https://zenodo.org/records/8376818 -- on an M4 Max MacBook, the chain from the
-images to scaled data, `mxi_find -j 16 --gpu`, `mxi_index`, `mxi_refine --beam
---analytic`, `mxi_integrate --gpu`, `mxi_symmetry` and `mxi_scale --d-min-auto`,
+images to scaled data, `mxi_find -j 16 --gpu`, `mxi_index`, `mxi_refine` (the
+beam, analytically: the default since 14 October), `mxi_integrate --gpu`, `mxi_symmetry` and `mxi_scale --d-min-auto`,
 takes 36.6 s of wall time and 3m42 of CPU (30 September 2026).
 
 ## Where to find things
@@ -165,8 +170,8 @@ refinement (Graeme's choice; `--ambiguous closest` gives it to the nearer).
 Given a refined list, a lattice missed at first is looked for again with the
 geometry refined since. Each sweep's own crystal-less experiment is carried
 through every program, its unindexed spots its own, as dials/dials#1029
-proposes; `mxi_convert --drop-sweeps` leaves it out for DIALS's later
-programs.
+proposes; `mxi_convert` leaves it out for DIALS's later programs, by default
+once there are lattices (`--keep-sweeps` keeps it).
 
 **Refinement** has analytical derivatives for crystal, detector and beam,
 checked against finite differences. The scan-varying crystal is a **cubic

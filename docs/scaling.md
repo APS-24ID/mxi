@@ -92,11 +92,13 @@ Around the fit, as the paper's figure 2:
    the model improves, retesting everything.
 3. **Intensity combination.** I = w I_prf + (1 - w) I_sum with w = 1 / (1 +
    (I_sum / I_mid)^3), I_mid chosen from logarithmically spaced values by Rmeas.
-4. **Error model.** sigma'^2 = a^2 [sigma^2 + (b I)^2]. a from the slope of the
-   central normal probability plot (|x| < 1.5) of the normalised deviations; b
-   by minimising the paper's equation 17 over logarithmically spaced intensity
-   bins with a fixed; alternated to convergence from a = 1, b = 0.02, on groups
-   with <I> above 25 and <I / sigma^2> above 0.85. The deviations take the EXACT
+4. **Error model.** sigma'^2 = a^2 [sigma^2 + (b I)^2], fitted by regression
+   across bins of merged intensity, as dials.scale's default, on groups with
+   <I> above 25 and <I / sigma^2> above 0.85 ("The error model's fit, by
+   regression", below); then, where integration wrote each variance with no
+   signal, split, a_bg for that part and a for the rest ("The error model,
+   split"). It had been a from the slope of the central normal probability
+   plot and b by the paper's equation 17, alternated -- until 6S0R. The deviations take the EXACT
    variance of a difference from a mean the observation is part of, not the
    paper's eqn 12 prefactor, and sigma^2 already carries the scale's uncertainty
    (both below).

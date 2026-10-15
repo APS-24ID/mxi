@@ -9,6 +9,7 @@
 #define MXI_CORRELATION_HH
 
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 #include "expt.hh"
@@ -113,6 +114,56 @@ struct CosymCoordinates {
 };
 CosymCoordinates cosym_coordinates(const CorrelationMatrix &m,
                                    const CosymOptions &options);
+
+//: Stage 3: OPTICS on the coordinates, as scikit-learn's (Ankerst et al. 1999),
+//: Euclidean: core distances to the min_samples-th nearest point (itself the
+//: first), infinite beyond max_eps; the ordering from the lowest index, each
+//: next the unprocessed point of least reachability; reachability
+//: max(distance, core distance) to points within max_eps; both rounded as
+//: np.around to 15 decimals. Clusters by the xi method, with predecessor
+//: correction, the minimum cluster size min_samples, labels -1 for noise.
+//: Points row major, n x d.
+struct OpticsResult {
+  std::vector<std::size_t> ordering;
+  std::vector<double> reachability, core_distance; //: by point
+  std::vector<long> predecessor;                   //: by point, -1 for none
+  std::vector<int> labels;                         //: by point, -1 noise
+  std::vector<std::pair<std::size_t, std::size_t>> clusters; //: in ordering
+};
+OpticsResult optics(const std::vector<double> &points, std::size_t n,
+                    std::size_t d, std::size_t min_samples, double max_eps,
+                    double xi);
+
+//: The mean silhouette of the points labelled (not -1), as scikit-learn's
+//: silhouette_score: (b - a) / max(a, b), a point alone in its cluster 0.
+double silhouette(const std::vector<double> &points, std::size_t d,
+                  const std::vector<int> &labels);
+
+struct ClusterOptions {
+  double xi = 0.05;
+  double max_eps = 0.5;            //: DIALS's max_distance
+  double min_points_buffer = 0.5;  //: the paper's b
+  bool optimise = true;            //: DIALS's optimise_input
+  double alpha = 1.0, gamma = 1.5; //: the noise penalty
+};
+
+//: Stage 3 whole, as dials.correlation_matrix's cluster_cosine_coords: with
+//: under 5 data sets OPTICS with min_samples n; otherwise the paper's
+//: min_samples max(5, int(n / d b)), and, optimising (DIALS's default), every
+//: min_samples from 5 to min(n, 50) scored silhouette x (1 - alpha f^gamma), f
+//: the fraction labelled noise, -1 for one cluster or none -- the best kept
+//: (DIALS samples the same range by optuna, 20 random and 30 TPE trials) --
+//: and, the best below zero, DIALS's single-cluster heuristic.
+struct SignificantClusters {
+  std::vector<int> labels; //: by data set, -1 an outlier
+  std::size_t min_samples = 0, initial_min_samples = 0;
+  double silhouette = 0.0, score = -1.0;
+  bool single_cluster = false;
+  std::vector<std::pair<std::size_t, double>> scores; //: min_samples, score
+  OpticsResult model;
+};
+SignificantClusters significant_clusters(const CosymCoordinates &c,
+                                         const ClusterOptions &options);
 
 } // namespace mxi
 

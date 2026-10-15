@@ -4,10 +4,13 @@
 
 #include <cmath>
 #include <random>
+#include <set>
+#include <tuple>
 #include <vector>
 
 #include "../src/correlation.hh"
 #include "check.hh"
+#include "optics_cases.hh"
 
 namespace mxi {
 
@@ -230,6 +233,61 @@ TEST(three_planted_groups_point_three_ways) {
   for (double r : c.explained_variance_ratio)
     ratio += r;
   check::close(ratio, 1.0, 1e-9, "the explained variance ratios sum to one");
+}
+
+TEST(optics_is_scikit_learns) {
+  // Four point sets and scikit-learn's OPTICS on them (xi 0.05): the
+  // ordering, predecessors and labels the same, the distances to 1e-12, the
+  // silhouette of the labelled points too (tests/tools/make_optics_cases.py).
+  for (const OpticsCase &c : optics_cases()) {
+    const OpticsResult r =
+        optics(c.points, c.n, c.d, c.min_samples, c.max_eps, 0.05);
+    for (std::size_t k = 0; k < c.n; ++k) {
+      check::is_true(static_cast<long>(r.ordering[k]) == c.ordering[k],
+                     c.name + ": ordering at " + std::to_string(k));
+      check::is_true(r.predecessor[k] == c.predecessor[k],
+                     c.name + ": predecessor of " + std::to_string(k));
+      check::is_true(r.labels[k] == c.labels[k],
+                     c.name + ": label of " + std::to_string(k));
+      for (auto [mine, theirs, what] :
+           {std::tuple{r.reachability[k], c.reachability[k], "reachability"},
+            std::tuple{r.core_distance[k], c.core_distance[k],
+                       "core distance"}})
+        check::is_true(std::isinf(theirs) ? std::isinf(mine)
+                                          : std::fabs(mine - theirs) < 1e-12,
+                       c.name + ": " + what + " of " + std::to_string(k));
+    }
+    std::vector<double> kept;
+    std::vector<int> kept_labels;
+    for (std::size_t i = 0; i < c.n; ++i)
+      if (r.labels[i] != -1) {
+        kept_labels.push_back(r.labels[i]);
+        for (std::size_t k = 0; k < c.d; ++k)
+          kept.push_back(c.points[i * c.d + k]);
+      }
+    check::close(silhouette(kept, c.d, kept_labels), c.silhouette, 1e-12,
+                 c.name + ": the silhouette");
+  }
+}
+
+TEST(three_planted_groups_are_three_clusters) {
+  // Through all three stages: the matrix, the coordinates, OPTICS. Each
+  // group one cluster, nothing an outlier.
+  const CorrelationMatrix m = three_groups(8, 4);
+  const CosymCoordinates c = cosym_coordinates(m, CosymOptions{});
+  const SignificantClusters s = significant_clusters(c, ClusterOptions{});
+  std::set<int> found;
+  for (std::size_t g = 0; g < 3; ++g) {
+    const int label = s.labels[g * 8];
+    check::is_true(label != -1, "group " + std::to_string(g) + " clustered");
+    for (std::size_t i = g * 8; i < g * 8 + 8; ++i)
+      check::is_true(s.labels[i] == label,
+                     "data set " + std::to_string(i) + " with its group");
+    found.insert(label);
+  }
+  check::equal(static_cast<long long>(found.size()), 3LL, "three clusters");
+  check::is_true(!s.single_cluster && s.score > 0.0,
+                 "a score " + std::to_string(s.score));
 }
 
 } // namespace mxi

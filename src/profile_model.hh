@@ -81,6 +81,9 @@ struct RangeSample {
   double delta = 0.0;
   //: |m2 . e1|, which corrects for the path length through the Ewald sphere.
   double zeta = 0.0;
+  //: The image's foreground counts, less the box's background: its weight in
+  //: the counts-weighted ("extended") likelihood. The basic one ignores it.
+  double counts = 0.0;
 };
 
 //: The fraction of a reflection's intensity recorded on an image whose centre
@@ -109,8 +112,17 @@ double compute_zeta(const Experiment &e, const Vec3 &s1);
 //: Samples with |zeta| below `min_zeta` are dropped: their reflecting range is
 //: sigma_M / |zeta|, which diverges, and they carry no information about
 //: sigma_M while dominating the likelihood.
+//:
+//: `weighted`: each sample's log-likelihood weighted by its image's counts,
+//: as dials's `extended` estimator, rather than each image with foreground
+//: counting once (`basic`, both programs' default). Counted once, the estimate
+//: measures how far a spot's foreground spans, which grows with its
+//: brightness: on NE-CAT insulin 0.040 degrees for the weakest sixth to 0.179
+//: for the strongest, 0.125 overall, where second moments of the same spots
+//: give 0.083 and DIALS 0.089 (mxsim's note, outstanding item 63).
 double reflecting_range(const std::vector<RangeSample> &samples,
-                        double oscillation, double min_zeta = 0.05);
+                        double oscillation, double min_zeta = 0.05,
+                        bool weighted = false);
 
 // --------------------------------------------------------------------------
 // The per-reflection frame, and what fraction of a spot it captures

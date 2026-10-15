@@ -307,6 +307,9 @@ void usage(const char *program) {
       "                    if given -- indexed or refined reflections, not a\n"
       "                    spot finder's -- else taken from EXPT's profile "
       "block\n"
+      "  --sigma-m-estimator basic|extended  sigma_m with each image holding\n"
+      "                    foreground counted once (basic, the default, as\n"
+      "                    DIALS's) or weighted by its counts (extended)\n"
       "  --n-sigma N       foreground spans plus and minus N sigma (3)\n"
       "  --box-scale S     box is S times wider than the foreground (1.9)\n"
       "  --min-zeta Z      skip reflections nearer the rotation axis than "
@@ -936,6 +939,7 @@ int run_program(int argc, char **argv) {
                                        "--weight-floor",
                                        "--sigma-b",
                                        "--sigma-m",
+                                       "--sigma-m-estimator",
                                        "--n-sigma",
                                        "--box-scale",
                                        "--d-min",
@@ -1114,6 +1118,16 @@ int run_program(int argc, char **argv) {
     // estimates are the ones the rest of this package was measured with.
     double sigma_b = args.number("--sigma-b", 0.0);
     double sigma_m = args.number("--sigma-m", 0.0);
+    // sigma_m by the counts-weighted likelihood (dials's `extended`), or each
+    // image with foreground counted once (`basic`); see reflecting_range.
+    const std::string sigma_m_estimator =
+        args.value("--sigma-m-estimator", "basic");
+    if (sigma_m_estimator != "basic" && sigma_m_estimator != "extended") {
+      std::fprintf(stderr,
+                   "mxi_integrate: --sigma-m-estimator is basic or extended\n");
+      return 2;
+    }
+    const bool sigma_m_weighted = sigma_m_estimator == "extended";
     double n_sigma = args.number("--n-sigma", 0.0);
     const char *source = "the command line";
     // Each lattice's profile model, from its own spots (docs/multi-lattice.md):
@@ -1190,7 +1204,7 @@ int run_program(int argc, char **argv) {
             lb = beam_divergence(le, selected, beams, &used);
           if (!(lm > 0.0)) {
             lm = reflecting_range(samples, Scan::radians(le.scan.osc_width),
-                                  0.0);
+                                  0.0, sigma_m_weighted);
           }
           // Which were estimated: a number given is not.
           sources[l] =

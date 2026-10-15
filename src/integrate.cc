@@ -1,5 +1,7 @@
 #include "integrate.hh"
+
 #include "refl.hh"
+#include <chrono>
 
 #include <algorithm>
 #include <cmath>
@@ -132,8 +134,13 @@ IntegratedReflection integrate_shoebox(Shoebox *box,
     out.too_few_background = true;
     return out;
   }
+  const auto fit_start = std::chrono::steady_clock::now();
   const BackgroundResult background =
       glm_background(background_values, options.background);
+  out.background_seconds = std::chrono::duration<double>(
+                               std::chrono::steady_clock::now() - fit_start)
+                               .count();
+  out.background_iterations = background.iterations;
   if (!background.valid) {
     out.background_failed = true;
     return out;

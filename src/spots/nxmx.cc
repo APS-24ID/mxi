@@ -257,14 +257,30 @@ DirectFile direct_file_of(hid_t dataset) {
 // once written here was a cold file cache.)
 // Where a direct read is not sound (direct_file_of), H5Dread_chunk itself.
 // tests/test_read_chunk.py checks the two give the same spots.
+//: Where a chunk is, as H5Dget_chunk_info_by_coord says: given to read_chunk
+//: by a caller that has already asked, so that it is not asked twice under
+//: the lock (ferritin's reading 6.4 s to 8.7 with the second asking).
+struct ChunkPlace {
+  haddr_t address = HADDR_UNDEF;
+  hsize_t size = 0;
+  unsigned mask = 0;
+};
+
 herr_t read_chunk(hid_t dataset, const hsize_t *offset, std::uint32_t *filters,
                   void *buffer, std::size_t capacity,
-                  const DirectFile *known = nullptr) {
+                  const DirectFile *known = nullptr,
+                  const ChunkPlace *place = nullptr) {
   DirectFile file;
   unsigned mask = 0;
   haddr_t address = 0;
   hsize_t size = 0;
-  {
+  if (known != nullptr && known->fd >= 0 && place != nullptr) {
+    // Both known: no lock at all.
+    file = *known;
+    mask = place->mask;
+    address = place->address;
+    size = place->size;
+  } else {
     const Guard guard(hdf5_mutex());
     // The file the dataset is in: given by a caller that knows it, which saves
     // asking HDF5 its name on every read -- under the lock, 16 threads queued
@@ -302,6 +318,7 @@ public:
     const std::uint64_t index = std::strtoull(key.c_str(), nullptr, 10);
     SourceDataset *source = nullptr;
     hsize_t offset[3] = {0, 0, 0};
+    ChunkPlace place;
     {
       const Guard guard(hdf5_mutex());
       const Block &block = locate(index);
@@ -309,23 +326,20 @@ public:
       // The chunk holds one frame, so its coordinate is the frame's own index
       // within the data file, and the other two are zero by construction.
       offset[0] = static_cast<hsize_t>(index - block.first + block.offset);
-      unsigned mask = 0;
-      haddr_t address = 0;
-      hsize_t size = 0;
-      ok(H5Dget_chunk_info_by_coord(source->dataset.get(), offset, &mask,
-                                    &address, &size),
+      ok(H5Dget_chunk_info_by_coord(source->dataset.get(), offset, &place.mask,
+                                    &place.address, &place.size),
          "H5Dget_chunk_info_by_coord");
       // A chunk that was never allocated is a frame the writer never received.
       // It reads back as the fill value, which is not something to analyse.
-      if (address == HADDR_UNDEF || size == 0)
+      if (place.address == HADDR_UNDEF || place.size == 0)
         return false;
-      frame->storage.resize(static_cast<std::size_t>(size));
+      frame->storage.resize(static_cast<std::size_t>(place.size));
     }
     // Outside the lock: read_chunk takes it only to look the chunk up.
     std::uint32_t filters = 0;
     ok(read_chunk(source->dataset.get(), offset, &filters,
-                  frame->storage.data(), frame->storage.size(),
-                  &source->direct),
+                  frame->storage.data(), frame->storage.size(), &source->direct,
+                  &place),
        "read_chunk");
     frame->height = source->height;
     frame->width = source->width;

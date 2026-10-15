@@ -487,6 +487,18 @@ nothing, and insulin's fitted intensities 12 per cent out -- caught by the
 comparison with the build before). The same to the bit; on the emulated device
 the rest of integrate_shoebox 0.56 thread-seconds, the CPU's path 1.46.
 
+**A reader a worker, for the run's images** (15 October). Each frame reader
+was a thread_local, kept for the thread's life. Integration's workers are new
+threads each call, but the calling thread works in every call and lives
+through every sweep of a run: it kept sweep 1's reader for sweeps 2, 3 and 4,
+reading sweep 1's pixels where its frames existed and throwing where they did
+not (Graeme, four sweeps: 'libc++abi: terminating'). Reproduced in /tmp/two: a
+150-frame and a 300-frame master over insulin's data as two sweeps, the old
+build 'frame 150 is outside every virtual mapping' in sweep 2. Now a reader a
+worker for the run's images, made when first used; single-sweep integration
+the same in every column. And an exception in a worker is carried back to the
+calling thread and reported, not left to end the program unexplained.
+
 **sigma_m, two estimators** (15 October). `--sigma-m-estimator basic` (the
 default, as DIALS's) counts each image holding foreground once;
 `extended` weights each by its counts, as DIALS's non-default estimator. On

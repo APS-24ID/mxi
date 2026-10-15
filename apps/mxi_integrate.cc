@@ -22,6 +22,7 @@
 #include <condition_variable>
 #include <cstdio>
 #include <deque>
+#include <exception>
 #include <limits>
 #include <map>
 #include <mutex>
@@ -1297,6 +1298,15 @@ int run_program(int argc, char **argv) {
     detail("Images: %s (from %s)\n", image_path.c_str(), image_source);
 
     std::unique_ptr<series::Series> images = series::nxmx(image_path);
+    // A reader a worker, for this run's images only: made when a worker first
+    // reads, used by one thread at a time (a call's workers are distinct), and
+    // gone with the images. Once a thread_local, kept for the thread's life:
+    // the calling thread, which works in every call and lives through every
+    // sweep of a run, kept sweep 1's reader for sweeps 2, 3 and 4 -- read sweep
+    // 1's pixels where its frames existed, and threw where they did not
+    // (Graeme, four sweeps, 'frame ... outside every virtual mapping'
+    // uncaught).
+    std::vector<std::unique_ptr<series::Reader>> readers;
     series::Info info;
     if (!images || !images->try_open(&info)) {
       std::fprintf(stderr,
@@ -1882,12 +1892,25 @@ int run_program(int argc, char **argv) {
       std::atomic<std::size_t> next_unit{0};
       std::vector<std::thread> pool;
       pool.reserve(n - 1);
+      // An exception in a worker thread, uncaught, ended the program with no
+      // word of what went wrong ("libc++abi: terminating", Graeme's four
+      // sweeps): the first is kept, the others stop taking work, and it is
+      // thrown again on the calling thread once all have finished.
+      std::mutex failure_lock;
+      std::exception_ptr failure;
       const auto run = [&](std::size_t worker) {
-        for (;;) {
-          const std::size_t i = next_unit.fetch_add(1);
-          if (i >= count)
-            break;
-          body(i, worker);
+        try {
+          for (;;) {
+            const std::size_t i = next_unit.fetch_add(1);
+            if (i >= count)
+              break;
+            body(i, worker);
+          }
+        } catch (...) {
+          const std::lock_guard<std::mutex> guard(failure_lock);
+          if (!failure)
+            failure = std::current_exception();
+          next_unit.store(count);
         }
       };
       for (std::size_t t = 1; t < n; ++t)
@@ -1895,6 +1918,8 @@ int run_program(int argc, char **argv) {
       run(0);
       for (std::thread &t : pool)
         t.join();
+      if (failure)
+        std::rethrow_exception(failure);
     };
     const auto in_parallel = [&](std::size_t count, auto &&body) {
       in_parallel_by_worker(count,
@@ -2518,17 +2543,16 @@ int run_program(int argc, char **argv) {
       std::vector<double> decompress_by_thread(fetch_by_thread.size(), 0.0);
       std::vector<double> fill_by_thread(fetch_by_thread.size(), 0.0);
       const double t_region_start = now_wall();
+      if (readers.size() < fetch_by_thread.size())
+        readers.resize(fetch_by_thread.size());
       in_parallel_by_worker(
           frame_numbers.size(), [&](std::size_t which, std::size_t worker) {
-            // A reader per thread, kept for the thread's life: it belongs to
-            // one thread only, so outliving a call is harmless. Its TIMING lane
-            // is the worker number, which is unique within the call; a
-            // thread_local lane was shared between the calling thread and a new
-            // one.
-            thread_local std::unique_ptr<series::Reader> mine;
+            // The worker's reader, for this run's images (`readers`), and
+            // its TIMING lane, both by the worker number, unique within a call.
+            const std::size_t slot = worker % fetch_by_thread.size();
+            std::unique_ptr<series::Reader> &mine = readers[slot];
             if (!mine)
               mine = images->reader();
-            const std::size_t slot = worker % fetch_by_thread.size();
             const std::int32_t z = frame_numbers[which];
             if (z < 0 || static_cast<std::size_t>(z) >= keys.size())
               return;

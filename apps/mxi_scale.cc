@@ -375,6 +375,10 @@ int run_program(int argc, char **argv) {
     else
       std::printf("Error model: a = %.4f, b = %.4f, from %zu observations\n",
                   run.error_model.a, run.error_model.b, run.error_model.used);
+    if (!run.error_model.split_refused.empty())
+      std::printf("  not split by background and signal, though integration "
+                  "wrote the variance with no signal: %s\n",
+                  run.error_model.split_refused.c_str());
     std::printf("%zu outliers\n", run.outliers);
 
     MergingShell all;

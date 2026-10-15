@@ -1228,6 +1228,15 @@ ErrorModel refine_error_model(const ScaleData &data,
         detail("  a_bg^2 = %.5g, a^2 = %.5g, a^2 b^2 = %.5g%s\n", x3[0], x3[1],
                x3[2], ok && x3[0] > 0.0 && x3[1] > 0.0 ? "" : ": not kept");
       }
+      if (!(ok && x3[0] > 0.0 && x3[1] > 0.0)) {
+        char why[200];
+        std::snprintf(why, sizeof(why),
+                      "%s: a_bg^2 %.4g, a^2 %.4g, a^2 b^2 %.4g -- both of the "
+                      "first two must be positive",
+                      ok ? "a coefficient not positive" : "the fit failed",
+                      x3[0], x3[1], x3[2]);
+        em.split_refused = why;
+      }
       if (ok && x3[0] > 0.0 && x3[1] > 0.0) {
         em.split = true;
         em.a_bg = std::sqrt(x3[0]);

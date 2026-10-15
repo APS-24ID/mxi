@@ -49,6 +49,12 @@ struct IntegrateOptions {
   //: Detector gain, counts per photon. One for a photon counting detector,
   //: which is what this is for.
   double gain = 1.0;
+  //: Whether integrate_shoebox writes the fitted background into every voxel
+  //: of the box's background. A device's fit takes the background as one
+  //: number, so on that path it is written only for the boxes that need it --
+  //: those learned from, or saved: four bytes a voxel over tens of billions of
+  //: voxels on ferritin, for nothing.
+  bool fill_background = true;
   BackgroundOptions background;
   //: Reject a shoebox with fewer than this many background pixels; the
   //: background estimate and its contribution to the variance both need them.

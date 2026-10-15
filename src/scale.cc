@@ -27,10 +27,6 @@ ScaleData build_scale_data(const ExperimentList &experiments,
   const bool profile = options.use == IntensityChoice::profile;
   const Column &miller = reflections.at("miller_index");
   const Column &flags = reflections.at("flags");
-  const Column &value =
-      reflections.at(profile ? "intensity.prf.value" : "intensity.sum.value");
-  const Column &var = reflections.at(profile ? "intensity.prf.variance"
-                                             : "intensity.sum.variance");
   const Column &dcol = reflections.at("d");
   const Column &cal = reflections.at("xyzcal.px");
   const bool has_lp = reflections.has("lp"), has_qe = reflections.has("qe"),
@@ -62,9 +58,79 @@ ScaleData build_scale_data(const ExperimentList &experiments,
   // first appear and the observations appended, so that everything comes out as
   // it did in one serial loop.
   const std::size_t rows = reflections.nrows;
+  // A reflection split by integration across blocks of images, its pieces
+  // sharing a partial_id, made one observation first, as dials.scale does
+  // (sum_partial_reflections): each piece's profile-fitted intensity already
+  // estimates the whole, so their mean weighted by I^2 / sigma^2; the summed
+  // intensities and their variances added; the partialities added. Pieces of
+  // partiality under 0.99 with every variance positive, within an experiment;
+  // the first piece in the table carries the result, the others are merged
+  // away. Scaled apart, each piece divided by its own partiality, they were
+  // 8 per cent of the strongest observations on 36 insulin crystals.
+  std::vector<double> prf_value(pv.reals.begin(), pv.reals.end()),
+      prf_var(pvar.reals.begin(), pvar.reals.end()),
+      sum_value(sv.reals.begin(), sv.reals.end()),
+      sum_var(svar.reals.begin(), svar.reals.end());
+  std::vector<double> partiality(rows, 1.0);
+  if (part_col)
+    partiality.assign(part_col->reals.begin(), part_col->reals.end());
+  std::vector<std::uint8_t> merged_away(rows, 0);
+  std::size_t combined = 0;
+  if (part_col && id_col && reflections.has("partial_id")) {
+    const Column &pid = reflections.at("partial_id");
+    std::map<std::pair<std::int64_t, std::int64_t>, std::vector<std::size_t>>
+        pieces;
+    for (std::size_t i = 0; i < rows; ++i) {
+      if ((flags.ints[i] & wanted) == 0 || id_col->ints[i] < 0)
+        continue;
+      if (!(partiality[i] < 0.99) || !(pvar.reals[i] > 0.0) ||
+          !(svar.reals[i] > 0.0))
+        continue;
+      pieces[{id_col->ints[i], pid.ints[i]}].push_back(i);
+    }
+    for (const auto &[key, j] : pieces) {
+      if (j.size() < 2)
+        continue;
+      double value = 0.0, variance = 0.0, weight = 0.0;
+      double svalue = 0.0, svariance = 0.0, total = 0.0;
+      for (std::size_t i : j) {
+        const double w = pv.reals[i] * pv.reals[i] / pvar.reals[i];
+        value += w * pv.reals[i];
+        variance += w * pvar.reals[i];
+        weight += w;
+        svalue += sv.reals[i];
+        svariance += svar.reals[i];
+        total += partiality[i];
+      }
+      const std::size_t first = j[0];
+      if (weight > 0.0) {
+        prf_value[first] = value / weight;
+        prf_var[first] = variance / weight;
+      } else {
+        double v = 0.0;
+        for (std::size_t i : j)
+          v += pvar.reals[i];
+        prf_value[first] = 0.0;
+        prf_var[first] = v;
+      }
+      sum_value[first] = svalue;
+      sum_var[first] = svariance;
+      partiality[first] = total;
+      for (std::size_t k = 1; k < j.size(); ++k)
+        merged_away[j[k]] = 1;
+      combined += j.size() - 1;
+    }
+  }
+  const std::vector<double> &chosen_value = profile ? prf_value : sum_value;
+  const std::vector<double> &chosen_var = profile ? prf_var : sum_var;
   std::vector<std::uint8_t> taken(rows, 0), plus_of(rows, 0);
   std::vector<Miller> unique_of(rows);
-  std::vector<double> factor_of(rows, 0.0);
+  // Two factors a row: lp / qe for the profile-fitted intensity, which
+  // estimates the whole reflection whatever part of it was recorded, and lp /
+  // (qe partiality) for the summed one, which counts only the recorded part --
+  // as dials.scale (combine_intensities). Dividing both by the partiality made
+  // every partial profile-fitted intensity too large by 1 / p.
+  std::vector<double> prf_factor_of(rows, 0.0), sum_factor_of(rows, 0.0);
   std::vector<std::size_t> sweep_of(rows, 0);
   // An id naming no experiment is not a reflection to drop quietly: the
   // table and the list do not belong together.
@@ -81,17 +147,17 @@ ScaleData build_scale_data(const ExperimentList &experiments,
     }
   }
   for_each_index(rows, [&](std::size_t i) {
-    if ((flags.ints[i] & wanted) == 0)
+    if ((flags.ints[i] & wanted) == 0 || merged_away[i])
       return;
     if (id_col)
       sweep_of[i] = static_cast<std::size_t>(id_col->ints[i]);
-    const double v = var.reals[i];
+    const double v = chosen_var[i];
     const double d = dcol.reals[i];
-    if (!(v > 0.0) || !std::isfinite(value.reals[i]) || !(d > 0.0) ||
+    if (!(v > 0.0) || !std::isfinite(chosen_value[i]) || !(d > 0.0) ||
         !std::isfinite(d) || d < options.d_min ||
         (options.d_max > 0.0 && d > options.d_max))
       return;
-    const double part = part_col ? part_col->reals[i] : 1.0;
+    const double part = partiality[i];
     if (!(part >= options.partiality_cutoff))
       return;
     const Miller h{static_cast<int>(miller.ints[i * 3]),
@@ -99,13 +165,14 @@ ScaleData build_scale_data(const ExperimentList &experiments,
                    static_cast<int>(miller.ints[i * 3 + 2])};
     if ((h[0] == 0 && h[1] == 0 && h[2] == 0) || group.absent(h))
       return;
-    double factor = 1.0 / part;
+    double factor = 1.0;
     if (lp_col)
       factor *= lp_col->reals[i];
     if (qe_col && qe_col->reals[i] > 0.0)
       factor /= qe_col->reals[i];
     taken[i] = 1;
-    factor_of[i] = factor;
+    prf_factor_of[i] = factor;
+    sum_factor_of[i] = factor / part;
     unique_of[i] = group.unique(h);
     plus_of[i] = group.friedel_plus(h) ? 1 : 0;
   });
@@ -114,6 +181,7 @@ ScaleData build_scale_data(const ExperimentList &experiments,
     count += t;
 
   ScaleData data;
+  data.partials_combined = combined;
   data.intensity.reserve(count);
   data.variance.reserve(count);
   data.variance_before.reserve(count);
@@ -170,8 +238,9 @@ ScaleData build_scale_data(const ExperimentList &experiments,
       }
       data.pair.push_back(pt->second);
     }
-    const double factor = factor_of[i];
-    const double v = var.reals[i];
+    const double pf = prf_factor_of[i], sf = sum_factor_of[i];
+    const double factor = profile ? pf : sf;
+    const double v = chosen_var[i];
     const double d = dcol.reals[i];
     ScaleObservation o;
     const double z = cal.reals[i * 3 + 2];
@@ -180,20 +249,20 @@ ScaleData build_scale_data(const ExperimentList &experiments,
     o.sweep = sweep_of[i];
     o.time = o.rotation;
     o.inv_2d2 = 1.0 / (2.0 * d * d);
-    data.intensity.push_back(value.reals[i] * factor);
+    data.intensity.push_back(chosen_value[i] * factor);
     data.variance.push_back(v * factor * factor);
     data.variance_before.push_back(v * factor * factor);
     data.scale_term.push_back(0.0);
     const bool summed =
-        (flags.ints[i] & flag::kIntegratedSum) != 0 && svar.reals[i] > 0.0;
-    data.prf.push_back(pv.reals[i] * factor);
-    data.prf_variance.push_back(pvar.reals[i] * factor * factor);
-    data.sum.push_back(sv.reals[i] * factor);
-    data.sum_variance.push_back(svar.reals[i] * factor * factor);
+        (flags.ints[i] & flag::kIntegratedSum) != 0 && sum_var[i] > 0.0;
+    data.prf.push_back(prf_value[i] * pf);
+    data.prf_variance.push_back(prf_var[i] * pf * pf);
+    data.sum.push_back(sum_value[i] * sf);
+    data.sum_variance.push_back(sum_var[i] * sf * sf);
     data.factor.push_back(factor);
     if (has_bg) {
-      const double pb = pvar_bg->reals[i] * factor * factor;
-      const double sb = svar_bg->reals[i] * factor * factor;
+      const double pb = pvar_bg->reals[i] * pf * pf;
+      const double sb = svar_bg->reals[i] * sf * sf;
       data.prf_variance_bg.push_back(pb);
       data.sum_variance_bg.push_back(sb);
       data.variance_background.push_back(profile ? pb : sb);

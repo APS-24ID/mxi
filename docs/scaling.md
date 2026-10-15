@@ -191,6 +191,37 @@ crystals' whole background. Both mended, the same two crystals scale with a =
 0.98; insulin's sweep 0.95 1.06 1.09 1.13 1.23 1.20, where it was 0.66 0.92
 1.04 1.13 1.27 1.23. CC half as it was.
 
+## Partial reflections (15 October)
+
+Two corrections, both as dials.scale, found on Graeme's 36 insulin crystals
+(dials.symmetry's output, scaled by dials.scale and by mxi_scale):
+
+* **Partiality divides the summed intensity only.** A profile-fitted
+  intensity estimates the whole reflection whatever part of it was recorded;
+  mxi divided it by the partiality too, making every partial one too large
+  by 1 / p. dials.scale (combine_intensities): Ipr lp / qe, Isum lp / (qe p).
+* **A reflection split by integration is one observation.** DIALS's
+  integration cuts a reflection crossing its blocks of images into pieces
+  sharing a partial_id; dials.scale combines them first
+  (sum_partial_reflections): pieces of partiality under 0.99 with positive
+  variances, within an experiment; the profile-fitted value a mean weighted by
+  I^2 / sigma^2, the summed values and variances added, the partialities
+  added; the partiality cutoff applied after. mxi_scale scaled each piece
+  apart -- 23170 of them there, 8 per cent of the observations of raw I/sigma
+  over 100. It now combines them and says how many: 23170, exactly the rows
+  dials.scale's output has fewer.
+
+Effect there: the error model's b 0.067 to 0.056 (dials.scale's 0.026), R
+merge 0.237 to 0.225, at low resolution 0.190 to 0.176 (0.192, 0.127), CC half
+0.992 to 0.997 (0.999); data set 12's relative B -10.1 to -5.7 A^2 became -5.8
+to -4.0. On insulin as mxi integrates it, with no pieces: R merge 0.035 to
+0.034, <I/sigma> 17.5 to 17.7. The correlations between those crystals,
+sigma-weighted, rose only a little (within a species 0.965 to 0.969, between
+0.863 to 0.870, dials.scale's 0.982, 0.916); unweighted they are near
+dials.scale's (0.991, 0.956 against 0.994, 0.967). So what remains is the
+sigmas, by the error model's larger b, which caps I / sigma at 1 / (a b):
+outstanding item 69.
+
 ## The error model's fit, by regression
 
 sigma'^2 = a^2 (sigma^2 + b^2 I^2) is fitted as dials.scale's default does it:

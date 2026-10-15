@@ -1,7 +1,8 @@
 # Clustering data sets by their intensities: mxi_correlation
 
-STATUS: stages 1 to 3 built, 15 October 2026 -- the correlation matrix, the
-cosym coordinates, OPTICS. Stage 4, the output and the report, to follow.
+STATUS: stages 1 to 3 built, and stage 4's files, 15 October 2026 -- the
+correlation matrix, the cosym coordinates, OPTICS, each cluster written as its
+own .rflx. The report's plots to follow.
 
 `mxi_correlation` is to do what dials.correlation_matrix does (Thompson et al.
 2025, Acta Cryst. D81, 278-290): from a scaled file whose lattices are each a
@@ -138,8 +139,18 @@ multi-crystal scaling, apart from the clustering.
 
 ## Stage 4: output
 
-The clusters and outliers printed and kept in the summary; each cluster
-optionally written as its own .rflx for mxi_scale; mxi_report draws the
-correlation heat map ordered by cluster, the reachability plot, the principal
-components and the dimension functional, and Ward dendrograms of r and of the
-cosine angles, uncut.
+**The clusters' files (built).** `--write-clusters` writes each cluster as
+its own .rflx, `cluster_1.rflx` and on (`--prefix`): its data sets, any
+crystal-less sweep experiment of theirs (the same image set and scan, so that
+mxi's own files keep their sweeps), and their reflections, the ids renumbered
+and the identifier map to match (keep_experiments, which dials_form now
+uses), the input's processing summary carried. On Graeme's 36 crystals: three
+files of 12, about 420000 rows each; the second scaled on its own by
+mxi_scale, completeness 90.1 per cent and multiplicity 9.8, as
+dials.correlation_matrix reports that cluster (90.1, 9.74); R merge 0.146
+against 0.225 with the three species together.
+
+**The report (to follow).** mxi_report to draw the correlation heat map
+ordered by cluster, the reachability plot, the principal components and the
+dimension functional, and Ward dendrograms of r and of the cosine angles,
+uncut.

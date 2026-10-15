@@ -189,6 +189,35 @@ TEST(indexing_carries_the_sweep_given_through_and_adds_its_lattices) {
 
 namespace mxi {
 
+TEST(keep_experiments_keeps_those_marked_and_renumbers_the_rest) {
+  // mxi_correlation's clusters: the sweep and its second lattice kept, the
+  // first lattice dropped -- its spot -1, the second lattice's 1, the sweep's
+  // 0, the identifiers to match; the references unchanged.
+  const ExperimentList whole = one_sweep();
+  const json::Value doc = experiments_to_json(whole);
+  Table t = spots();
+  const json::Value kept = keep_experiments(doc, {true, false, true}, &t);
+  const json::Array &x = kept["experiment"].as_array();
+  check::equal(static_cast<long long>(x.size()), 2,
+               "the sweep and one lattice");
+  check::is_true(!x[0]["crystal"].is_number() && x[1]["crystal"].is_number() &&
+                     x[1]["crystal"].as_number() ==
+                         doc["experiment"].as_array()[2]["crystal"].as_number(),
+                 "in order, the lattice's references unchanged");
+  check::is_true(t.at("id").ints == std::vector<std::int64_t>{0, -1, 1},
+                 "the dropped lattice's spot -1");
+  check::is_true(t.identifiers.size() == 2 && t.identifiers.at(0) == "sweep" &&
+                     t.identifiers.at(1) == "b",
+                 "the identifiers renumbered");
+  // Everything kept, or nothing: the document as it was.
+  Table u = spots();
+  const json::Value all = keep_experiments(doc, {true, true, true}, &u);
+  check::equal(static_cast<long long>(all["experiment"].as_array().size()), 3,
+               "all three");
+  check::is_true(u.at("id").ints == std::vector<std::int64_t>{0, 1, 2},
+                 "the table as it was");
+}
+
 TEST(dials_form_leaves_the_crystal_less_out_and_unindexed_spots_minus_one) {
   // mxi_convert's pair for DIALS: the sweep's crystal-less experiment left
   // out, the lattices renumbered from 0 with their references unchanged, an

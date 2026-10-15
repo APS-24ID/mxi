@@ -181,15 +181,6 @@ std::string_view algorithm_of(hid_t dcpl) {
   return {};
 }
 
-struct SourceDataset {
-  Handle file;
-  Handle dataset;
-  std::uint64_t height = 0;
-  std::uint64_t width = 0;
-  unsigned bit_depth = 0;
-  std::string_view algorithm;
-};
-
 // A data file whose chunks read_chunk can read directly: its descriptor and
 // where HDF5's addresses count from (the end of its user block). fd -1 when
 // it cannot: the file not on HDF5's default driver, which alone keeps a
@@ -202,6 +193,16 @@ struct SourceDataset {
 struct DirectFile {
   int fd = -1;
   std::uint64_t base = 0;
+};
+
+struct SourceDataset {
+  Handle file;
+  Handle dataset;
+  DirectFile direct; //: where read_chunk reads its chunks, found once
+  std::uint64_t height = 0;
+  std::uint64_t width = 0;
+  unsigned bit_depth = 0;
+  std::string_view algorithm;
 };
 
 DirectFile direct_file_of(hid_t dataset) {
@@ -251,19 +252,24 @@ DirectFile direct_file_of(hid_t dataset) {
 // size, and on HDF5's default driver those bytes lie there, contiguous, in the
 // file holding the dataset (through an external link, the data file, not the
 // master). Only that lookup is under the lock. Inside it, 32 threads queued
-// behind one -- 1000 thread-seconds of fetching in 67 s of reading -- and even
-// on one thread H5Dread_chunk took five times as long for the same bytes.
+// behind one -- 1000 thread-seconds of fetching in 67 s of reading. (On one
+// thread the two cost the same, warm: 2.2 and 2.6 s on insulin; a 'five times'
+// once written here was a cold file cache.)
 // Where a direct read is not sound (direct_file_of), H5Dread_chunk itself.
 // tests/test_read_chunk.py checks the two give the same spots.
 herr_t read_chunk(hid_t dataset, const hsize_t *offset, std::uint32_t *filters,
-                  void *buffer, std::size_t capacity) {
+                  void *buffer, std::size_t capacity,
+                  const DirectFile *known = nullptr) {
   DirectFile file;
   unsigned mask = 0;
   haddr_t address = 0;
   hsize_t size = 0;
   {
     const Guard guard(hdf5_mutex());
-    file = direct_file_of(dataset);
+    // The file the dataset is in: given by a caller that knows it, which saves
+    // asking HDF5 its name on every read -- under the lock, 16 threads queued
+    // on that, ferritin's reading 6.4 s to 16.4 (Graeme).
+    file = known != nullptr ? *known : direct_file_of(dataset);
     if (file.fd < 0)
       return hdf5_read_chunk(dataset, offset, filters, buffer, capacity);
     if (H5Dget_chunk_info_by_coord(dataset, offset, &mask, &address, &size) < 0)
@@ -318,7 +324,8 @@ public:
     // Outside the lock: read_chunk takes it only to look the chunk up.
     std::uint32_t filters = 0;
     ok(read_chunk(source->dataset.get(), offset, &filters,
-                  frame->storage.data(), frame->storage.size()),
+                  frame->storage.data(), frame->storage.size(),
+                  &source->direct),
        "read_chunk");
     frame->height = source->height;
     frame->width = source->width;
@@ -414,6 +421,7 @@ private:
                                  why);
       source.dataset = Handle(id, H5Dclose);
     }
+    source.direct = direct_file_of(source.dataset.get());
 
     const Handle dcpl(opened(H5Dget_create_plist(source.dataset.get()),
                              "H5Dget_create_plist"),

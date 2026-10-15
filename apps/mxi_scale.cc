@@ -53,6 +53,9 @@ void usage() {
       "is\n"
       "                    the same groups either way\n"
       "  --no-absorption   no absorption surface, whatever the sweep\n"
+      "  --error-model-fit F  regression (by regression across intensity\n"
+      "                    bins) or individual (a and b in turn, as\n"
+      "                    dials.scale's default)\n"
       "  --no-model-variances  each observation's variance as integrated, not\n"
       "                    built on the model's intensity (docs/scaling.md)\n"
       "  --absorption-level LEVEL\n"
@@ -98,18 +101,15 @@ int run_program(int argc, char **argv) {
                                        "--output-expt",
                                        "--d-max",
                                        "--no-model-variances",
+                                       "--error-model-fit",
                                        "--verbose"};
-  const std::set<std::string> takes_value = {"--l-max",
-                                             "--absorption-level",
-                                             "--cc-half-limit",
-                                             "--threads",
-                                             "--space-group",
-                                             "--change-of-basis",
-                                             "--d-min",
-                                             "--shells",
-                                             "-o",
-                                             "--output-expt",
-                                             "--d-max"};
+  const std::set<std::string> takes_value = {
+      "--error-model-fit",  "--l-max",
+      "--absorption-level", "--cc-half-limit",
+      "--threads",          "--space-group",
+      "--change-of-basis",  "--d-min",
+      "--shells",           "-o",
+      "--output-expt",      "--d-max"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   set_verbose(args.has("--verbose"));
   // One .rflx stands for the experiment list and the reflections
@@ -225,6 +225,13 @@ int run_program(int argc, char **argv) {
         level == "low" ? 5e5 : (level == "medium" ? 5e4 : 5e3);
     options.anomalous = args.has("--anomalous");
     options.model_variances = !args.has("--no-model-variances");
+    {
+      const std::string fit = args.value("--error-model-fit", "regression");
+      if (fit != "regression" && fit != "individual")
+        throw std::runtime_error(
+            "--error-model-fit is regression or individual");
+      options.error_model_individual = fit == "individual";
+    }
     options.d_min = args.number("--d-min", 0.0);
     options.d_max = args.number("--d-max", 0.0);
     const double cc_half_limit = args.number("--cc-half-limit", 0.3);

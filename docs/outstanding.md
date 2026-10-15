@@ -32,8 +32,13 @@ where something is missing.
     as mxi_index writes it, a reduced primitive cell, is not affected.
     Wanted: a centred input taken to its primitive setting first (from the
     crystal's space group), or refused, never silently treated as P.
-* **69.** **correctness -- the error model's b, twice dials.scale's on many
-    crystals.** Graeme's 36 insulin crystals (three species, 12 each): after
+* **69.** **decision -- the error model's fit: dials.scale's individual, or
+    regression.** Found 15 October: dials.scale's default is the fit in turn,
+    not regression (docs/scaling.md); --error-model-fit individual brings the
+    36 crystals near dials.scale (correlations 0.979 / 0.900 against 0.982 /
+    0.915), at the cost of weak sigmas four to six times too large, as
+    dials.scale's. Earlier text: **the error model's b, twice dials.scale's on
+    many crystals.** Graeme's 36 insulin crystals (three species, 12 each): after
     partials were combined and partiality kept off the profile-fitted
     intensities (docs/scaling.md), mxi_scale's b is 0.056 where dials.scale's
     is 0.026 on the same observations, so I / sigma is capped at 3.8

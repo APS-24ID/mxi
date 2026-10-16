@@ -515,7 +515,7 @@ if(SPOTFINDER_TESTS)
     add_executable(mxi_max ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_max.cc)
     target_link_libraries(mxi_max
                           PRIVATE mxi spotfinder_series spotfinder_decompress
-                                  spotfinder_warnings)
+                                  spotfinder_expt spotfinder_warnings)
     target_include_directories(mxi_max PRIVATE src src/spots apps)
 
     # How fast the images can be read and decompressed, apart from the

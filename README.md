@@ -173,3 +173,41 @@ mxeq regress compare --against reference # what changed, past its tolerance
 mxeq's, and those of the programs that need real data, given the programs and
 data through `MXI_*` environment variables; without them those tests are
 skipped (`python/README.md`).
+
+## Acknowledgements
+
+mxi implements methods described in the following papers, and is tested
+against the software they describe; please cite them alongside mxi:
+
+* **DIALS:** Winter, G., Waterman, D. G., Parkhurst, J. M., Brewster, A. S.,
+  Gildea, R. J., Gerstel, M., Fuentes-Montero, L., Vollmar, M.,
+  Michels-Clark, T., Young, I. D., Sauter, N. K. & Evans, G. (2018).
+  DIALS: implementation and evaluation of a new integration package.
+  *Acta Cryst.* D74, 85–97. https://doi.org/10.1107/S2059798317017235
+* **XDS:** Kabsch, W. (2010). XDS. *Acta Cryst.* D66, 125–132.
+  https://doi.org/10.1107/S0907444909047337; and Kabsch, W. (2010).
+  Integration, scaling, space-group assignment and post-refinement.
+  *Acta Cryst.* D66, 133–144. https://doi.org/10.1107/S0907444909047374
+* **cosym:** Gildea, R. J. & Winter, G. (2018). Determination of Patterson
+  group symmetry from sparse multi-crystal data sets in the presence of an
+  indexing ambiguity. *Acta Cryst.* D74, 405–410.
+  https://doi.org/10.1107/S2059798318002978
+* **Scaling:** Beilsten-Edmands, J., Winter, G., Gildea, R., Parkhurst, J.,
+  Waterman, D. & Evans, G. (2020). Scaling diffraction data in the DIALS
+  software package: algorithms and new approaches for multi-crystal scaling.
+  *Acta Cryst.* D76, 385–399. https://doi.org/10.1107/S2059798320003198
+* **Clustering:** Thompson, A. J., Beilsten-Edmands, J., Tam, C.,
+  Sanchez-Weatherby, J., Sandy, J., Mikolajek, H., Axford, D., Jaho, S.,
+  Hough, M. A. & Winter, G. (2025). Enhanced intensity-based clustering of
+  isomorphous multi-crystal data sets in the presence of subtle variations.
+  *Acta Cryst.* D81, 278–290. https://doi.org/10.1107/S2059798325004589
+
+The other methods mxi uses, and their references, are in
+`docs/algorithms.md`.
+
+mxi was developed at the Northeastern Collaborative Access Team (NE-CAT)
+beamlines, which are funded by the National Institute of General Medical
+Sciences from the National Institutes of Health (P30 GM124165). NE-CAT is
+at the Advanced Photon Source, a U.S. Department of Energy (DOE) Office of
+Science User Facility operated for the DOE Office of Science by Argonne
+National Laboratory under Contract No. DE-AC02-06CH11357.

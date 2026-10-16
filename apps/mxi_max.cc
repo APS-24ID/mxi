@@ -30,7 +30,9 @@
 #include "decompress.hh"
 #include "expt.hh"
 #include "log_mirror.hh"
+#include "rflx.hh"
 #include "series.hh"
+#include "spots/expt.hh"
 
 namespace {
 
@@ -113,12 +115,31 @@ int main(int argc, char **argv) {
     return 2;
   }
   try {
+    // An experiment list -- JSON, or a .rflx, which is HDF5 and does not
+    // look like JSON: taken for the NXmx master itself, a .rflx made mxi_max
+    // open it as one and fail on /entry/data (Graeme) -- names its images by
+    // each experiment's image file, as mxi_find reads them; the first sweep's,
+    // saying so when there are others.
     std::string master = args.positional[0];
-    if (looks_like_json(master)) {
-      master = read_experiments(master).image_template;
-      if (master.empty() || master.find('#') != std::string::npos)
+    if (looks_like_json(master) || rflx::has_experiments(master)) {
+      const std::size_t n = read_experiments(master).experiments.size();
+      std::set<std::string> files;
+      std::string first;
+      for (std::size_t i = 0; i < n; ++i) {
+        const expt::Info e = expt::read(args.positional[0], i);
+        if (!e.has_imageset || e.templated || e.image_file.empty())
+          continue;
+        if (first.empty())
+          first = e.image_file;
+        files.insert(e.image_file);
+      }
+      if (first.empty())
         throw std::runtime_error(args.positional[0] +
-                                 " names no single NXmx master");
+                                 " names no single NXmx file for its images");
+      master = first;
+      if (files.size() > 1)
+        std::printf("%s names %zu image files; the first sweep's, %s\n",
+                    args.positional[0].c_str(), files.size(), master.c_str());
     }
     std::size_t threads = static_cast<std::size_t>(
         args.number("--threads", args.number("-j", 0.0)));

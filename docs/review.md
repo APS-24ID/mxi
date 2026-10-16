@@ -39,11 +39,12 @@ package is BSD 3-clause.
 that caused bugs, and what not to do again. It is worth reading for the same
 reason a DIALS developer's notes would be.
 
-Its size, excluding third-party code: the library 24268 lines in `src/` and the
-spot finder 7413 in `src/spots/`; eighteen programs in 10023 lines in `apps/`,
-and `mxi_find` in `src/spots/find_spots.cc`; C++ tests 14468 lines; a Python
-package of comparison and regression tools, `mxeq`, 10258 lines, with 7586 of
-tests; 9534 lines of documents. Some 473 commits over five weeks.
+Its size, excluding third-party code: the library 26167 lines in `src/` and the
+spot finder 7435 in `src/spots/`; nineteen programs in 10873 lines in `apps/`,
+and `mxi_find` in `src/spots/find_spots.cc`; C++ tests 14963 lines; a Python
+package of comparison and regression tools, `mxeq`, 10258 lines, with 7687 of
+tests; 9842 lines of documents. Some 494 commits over five weeks.
+`docs/algorithms.md` lists each stage's methods and their sources.
 
 `mxeq regress` runs the chain over real data sets on each machine and keeps
 every run's figures to compare (`docs/regression.md`). Scaling reports the
@@ -260,6 +261,25 @@ there:
 * **The resolution estimate is dials.estimate_resolution's**, and agrees with it
   exactly on 1082994 reflections (1.25 and 1.17 A), except that only bins with
   pairs enough to fit decide whether CC half stays above the limit throughout.
+* **The error model's fit is by regression across intensity bins** by default,
+  split by background and signal where integration recorded the variance with
+  no signal; dials.scale's own default, a and b in turn, is
+  `--error-model-fit individual`. Neither fits every intensity on data like
+  Graeme's 36 insulin crystals (`docs/scaling.md`; item 69).
+* As dials.scale: partiality divides only the summed intensity, and a
+  reflection split by integration's blocks is combined before scaling (both
+  since 15 October: mxi had divided the profile-fitted intensity too, and
+  scaled the pieces apart).
+
+**Clustering** (`docs/correlation.md`): `mxi_correlation` is
+dials.correlation_matrix -- the sigma-weighted correlation of every pair of
+data sets, cosym's coordinates and their dimension, OPTICS as scikit-learn's
+(every ordering, predecessor and label the same on four test sets), each
+cluster written as its own file, an HTML report. On Graeme's 36 insulin
+crystals (Thompson et al. 2025's): the same dimension, min_samples and three
+clusters as DIALS. mxi scores every min_samples where DIALS samples them by
+optuna; the matrices differ in detail by a step of DIALS's preparation not
+yet reproduced.
   `--d-min-auto` scales, estimates and scales again to the limit.
 
 **Speed** is measured, not assumed, and the tables are in the documents. On a

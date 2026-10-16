@@ -93,7 +93,9 @@ Around the fit, as the paper's figure 2:
 3. **Intensity combination.** I = w I_prf + (1 - w) I_sum with w = 1 / (1 +
    (I_sum / I_mid)^3), I_mid chosen from logarithmically spaced values by Rmeas.
 4. **Error model.** sigma'^2 = a^2 [sigma^2 + (b I)^2], fitted by regression
-   across bins of merged intensity, as dials.scale's default, on groups with
+   across bins of merged intensity (dials.scale's own default is the fit in
+   turn, `--error-model-fit individual`: "Which is dials.scale's default",
+   below), on groups with
    <I> above 25 and <I / sigma^2> above 0.85 ("The error model's fit, by
    regression", below); then, where integration wrote each variance with no
    signal, split, a_bg for that part and a for the rest ("The error model,

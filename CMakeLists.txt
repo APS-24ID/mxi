@@ -230,11 +230,10 @@ add_executable(mxi_grid apps/mxi_grid.cc)
 target_link_libraries(mxi_grid PRIVATE mxi)
 target_compile_options(mxi_grid PRIVATE -Wall -Wextra)
 
-# The spot finder, which needs HDF5 and the bitshuffle submodule. HDF5 is
-# required of the whole build (below); the submodule is checked rather than
-# required, so that a clone without it still configures and builds and tests
-# everything else -- the clean-clone check has caught several real problems in
-# this repository and it has to keep working on such a machine.
+# The spot finder and the image reader, which need HDF5 and the bitshuffle
+# submodule -- both required (below): without them nothing reads an image, and
+# a build that quietly leaves out spot finding and integration is not one
+# worth having (Graeme, v1.0).
 #
 # enable_testing() is called BEFORE it, not after: a subdirectory's add_test
 # calls are only registered with the top-level CTest if testing was enabled
@@ -285,20 +284,21 @@ enable_testing()
 # HDF5 is required (docs/rflx.md, Graeme's decision, October 2026): mxi's own
 # files, .rflx, are HDF5, and so every program needs it, not only the spot
 # finder and the importer.
+# Every program's --version (src/args.cc).
+target_compile_definitions(mxi PRIVATE MXI_VERSION="${PROJECT_VERSION}")
 find_package(HDF5 REQUIRED COMPONENTS C)
 target_include_directories(mxi SYSTEM PUBLIC ${HDF5_C_INCLUDE_DIRS})
 target_link_libraries(mxi PUBLIC ${HDF5_C_LIBRARIES})
+# bitshuffle (with LZ4) decompresses the images and compresses the .rflx's
+# integer datasets: required, as HDF5 is.
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bitshuffle/LICENSE")
-    message(STATUS
-            "spotfinder: bitshuffle submodule not checked out, skipping. "
-            "git submodule update --init --recursive")
-else()
-    message(STATUS "spotfinder: building")
-    include(cmake/spots.cmake)
-    # The .rflx writer's bitshuffle-LZ4 for integer datasets (docs/rflx.md).
-    target_link_libraries(mxi PUBLIC bitshuffle)
-    target_compile_definitions(mxi PRIVATE MXI_HAVE_BITSHUFFLE)
+    message(FATAL_ERROR
+            "The bitshuffle submodule is not checked out, and without it nothing "
+            "reads an image: git submodule update --init --recursive")
 endif()
+include(cmake/spots.cmake)
+target_link_libraries(mxi PUBLIC bitshuffle)
+target_compile_definitions(mxi PRIVATE MXI_HAVE_BITSHUFFLE)
 
 # Profile fitting on a device, for mxi_integrate --gpu: CUDA's kernel where the
 # spot finder's CUDA is on, and otherwise the stubs, which fit in single

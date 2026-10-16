@@ -1,5 +1,7 @@
 #include "args.hh"
 
+#include <cstdio>
+
 #include <cstdlib>
 
 namespace mxi {
@@ -17,6 +19,17 @@ Arguments parse_arguments(int argc, char **argv,
                           const std::set<std::string> &known,
                           const std::set<std::string> &takes_value,
                           const std::set<std::string> &optional_value) {
+  // --version, for every program: its name and mxi's version, and nothing
+  // else done (once only mxi_find answered it).
+  for (int i = 1; i < argc; ++i)
+    if (std::string(argv[i]) == "--version") {
+      std::string name = argv[0];
+      const std::size_t slash = name.find_last_of('/');
+      if (slash != std::string::npos)
+        name = name.substr(slash + 1);
+      std::printf("%s %s\n", name.c_str(), MXI_VERSION);
+      std::exit(0);
+    }
   Arguments out;
   const auto whole_number = [](const std::string &s) {
     if (s.empty())
@@ -27,7 +40,15 @@ Arguments parse_arguments(int argc, char **argv,
     return true;
   };
   for (int i = 1; i < argc; ++i) {
-    const std::string arg = argv[i];
+    // -j and --threads one option: whichever a program knows, the other
+    // spelling taken for it, so the count of threads is asked the same way of
+    // every program.
+    std::string arg = argv[i];
+    if (arg == "-j" && !known.count("-j") && known.count("--threads"))
+      arg = "--threads";
+    else if (arg == "--threads" && !known.count("--threads") &&
+             known.count("-j"))
+      arg = "-j";
     if (arg == "-h" || arg == "--help") {
       out.help = true;
       return out;

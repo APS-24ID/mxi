@@ -146,6 +146,23 @@ image, the MTZ's summary, spots by resolution and ice rings. Mind the names:
 `src/summary.*` is integration's summary tables -- the processing's summary
 was once written over them, unchecked, and restored.
 
+## Two lessons the whole repository rests on (from the README, October 2026)
+
+**A round-trip test cannot detect a wrong convention.** A file written and read
+by the same code agrees with itself whatever it means. Five separate format
+bugs here were invisible until DIALS read the output: the `.refl` container
+shape, the geometry conventions, `0` written where `0.0` was required, blocks
+dropped on write, and flags never set. Everything that matters is checked
+against a file somebody else wrote.
+
+**When what you are measuring is at the sampling scale, render the model into a
+measurement rather than comparing a measurement to a model.** Spots here are
+two pixels across. Comparing their moments with a Gaussian in closed form
+suggested the model was wrong by factors and that the spots were anisotropic;
+integrating the same model over the same pixels inside the same mask put the
+positions within a hundredth of a pixel, the widths within four per cent, and
+predicted the anisotropy. Most of the disagreement had been the comparison.
+
 **Done 15 October, to 494:**
 - mxi_correlation, whole (`docs/correlation.md`): the sigma-weighted matrix as
   DIALS's weighted_cchalf, cosym coordinates and their dimension as

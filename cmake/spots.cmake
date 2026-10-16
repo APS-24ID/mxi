@@ -1,5 +1,5 @@
-# The spot finder, included from the top-level CMakeLists once it has decided
-# that HDF5 and the bitshuffle submodule are both present.
+# The spot finder and the image reader, included from the top-level
+# CMakeLists, which requires HDF5 and the bitshuffle submodule.
 #
 # This was a standalone project with its own cmake_minimum_required, project()
 # and language settings. Those are the parent's now: one project, one C++

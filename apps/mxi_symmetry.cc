@@ -4,8 +4,10 @@
 // as Evans (2011); screw axes from the absences.
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <map>
 #include <numeric>
 #include <set>
 #include <string>
@@ -162,6 +164,64 @@ int run_program(int argc, char **argv) {
     const Table crystal_less = crystal_less_rows(whole_table, views);
     Table reflections = lattice_rows(std::move(whole_table), views);
     phase("reading");
+    // Input in a centred setting -- data already through dials.symmetry or
+    // mxi_symmetry, I 2 3 for instance -- taken to its primitive cell first:
+    // the lattice's symmetry and everything after work in the basis given, as
+    // a primitive one, and the conventional cell of a centred lattice is not
+    // one. Taken as it was, a body-centred cubic cell was analysed as a
+    // primitive cubic one -- every Patterson group P, P 2 3 recommended for
+    // I 2 3 data (Graeme, a cluster of the 36 insulin crystals; item 70).
+    // Reflections whose indices are not whole numbers in the primitive basis
+    // are forbidden by the centring; any there are dropped, and counted.
+    if (experiments.size() > 0 && experiments[0].crystal) {
+      char lattice = 'P';
+      for (char ch : experiments[0].crystal->space_group_hall)
+        if (ch != ' ' && ch != '-') {
+          lattice =
+              static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+          break;
+        }
+      static const std::map<char, const char *> to_primitive = {
+          {'I', "-1/2a+1/2b+1/2c,1/2a-1/2b+1/2c,1/2a+1/2b-1/2c"},
+          {'F', "1/2b+1/2c,1/2a+1/2c,1/2a+1/2b"},
+          {'C', "1/2a-1/2b,1/2a+1/2b,c"},
+          {'A', "a,1/2b-1/2c,1/2b+1/2c"},
+          {'B', "1/2a-1/2c,b,1/2a+1/2c"},
+          {'R', "2/3a+1/3b+1/3c,-1/3a+1/3b+1/3c,-1/3a-2/3b+1/3c"}};
+      const auto found = to_primitive.find(lattice);
+      if (found != to_primitive.end()) {
+        const ChangeOfBasis cb = ChangeOfBasis::parse(found->second);
+        std::vector<std::size_t> keep;
+        if (reflections.has("miller_index")) {
+          const Column &hkl = reflections.at("miller_index");
+          for (std::size_t r = 0; r < reflections.nrows; ++r) {
+            bool whole = true;
+            for (int j = 0; j < 3; ++j) {
+              double v = 0.0;
+              for (int i = 0; i < 3; ++i)
+                v += cb.M(i, j) * static_cast<double>(hkl.ints[r * 3 + i]);
+              whole = whole && std::fabs(v - std::round(v)) < 1e-6;
+            }
+            if (whole)
+              keep.push_back(r);
+          }
+        }
+        const std::size_t dropped = reflections.nrows - keep.size();
+        if (dropped > 0)
+          reflections = select_rows(reflections, keep);
+        const std::string name =
+            SpaceGroup::from_hall(experiments[0].crystal->space_group_hall)
+                .name();
+        reindex(experiments, reflections, cb, SpaceGroup::from_hall(" P 1"));
+        std::printf("The input is in a centred setting, %s: taken to its "
+                    "primitive cell first, by %s",
+                    name.c_str(), found->second);
+        if (dropped > 0)
+          std::printf("; %zu reflections forbidden by the centring dropped",
+                      dropped);
+        std::printf("\n");
+      }
+    }
     // Several sweeps of one crystal pooled, as dials.symmetry takes them: the
     // lattice is the first's, so every sweep must have a crystal and the same
     // cell -- sweeps indexed apart may not, and may not even share a setting,

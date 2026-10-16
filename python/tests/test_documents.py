@@ -66,6 +66,23 @@ def test_every_path_named_exists(document):
     assert not missing, f"{document} names paths that do not exist: {missing}"
 
 
+LINK = re.compile(r"\]\(([^)\s#]+)(?:#[^)]*)?\)")
+
+
+@pytest.mark.parametrize("document", DOCUMENTS)
+def test_every_link_leads_somewhere(document):
+    """Each relative link's target exists, from the document's own directory:
+    as GitHub follows them (Graeme: clicking a link on GitHub should work)."""
+    doc = ROOT / document
+    broken = [
+        target
+        for target in LINK.findall(doc.read_text())
+        if not target.startswith(("http://", "https://", "mailto:"))
+        and not (doc.parent / target).exists()
+    ]
+    assert not broken, f"{document} links to paths that do not exist: {broken}"
+
+
 @pytest.mark.parametrize("document", DOCUMENTS)
 def test_every_program_named_is_built(document):
     built = _programs()

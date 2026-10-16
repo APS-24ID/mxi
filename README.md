@@ -5,16 +5,34 @@
 ░▒▓ █ ▀ █ ▄▀▄ █
 ```
 
-Macromolecular crystallography data reduction for rotation data: from NXmx
-images to scaled, unmerged intensities -- spot finding, indexing,
-refinement, integration, symmetry, scaling and clustering of many crystals --
-in C++, with spot finding and profile fitting on the GPU through CUDA or Metal.
-It follows DIALS's methods, reads and writes DIALS's files, and any step can be
-exchanged for DIALS's own.
+mxi processes macromolecular crystallography (MX) data: from the diffraction
+images a beamline records to scaled, unmerged intensities ready for structure
+solution -- spot finding, indexing, refinement, integration, symmetry, scaling
+and the clustering of data from many crystals.
 
-* **How it works:** `docs/algorithms.md`, each stage's methods and sources.
-* **How it differs from DIALS, and why:** `docs/review.md`.
-* **Every document:** `docs/README.md`. **What is open:** `docs/outstanding.md`.
+**A new, standalone package.** mxi is a completely new project, written from
+scratch in C++. It contains no DIALS code and does not need DIALS installed.
+It is compatible with DIALS: it follows DIALS's methods, reads and writes
+DIALS's files, and any step can be exchanged for DIALS's own (see [Working with
+DIALS](#working-with-dials)).
+
+**Its purpose is speed.** mxi aims to process data as DIALS does, with results
+of similar quality, an order of magnitude more quickly -- fast enough to keep
+pace with modern detectors, and to give results while data are still being
+collected. Spot finding and profile fitting can run on a GPU, through CUDA or
+Apple's Metal.
+
+**Its images are NXmx.** NXmx is the community standard format for X-ray
+diffraction images: a layout, built on the HDF5 file format, that keeps the
+images together with everything needed to interpret them -- the X-ray beam,
+the detector's geometry, how the crystal was rotated -- so that any program
+can read data from any beamline the same way. Modern detectors, such as
+DECTRIS's EIGER, write it directly; older formats can be converted, CBF by
+[cbf2nxmx](https://github.com/graeme-winter/cbf2nxmx).
+
+* **How it works:** [`docs/algorithms.md`](docs/algorithms.md), each stage's methods and sources.
+* **How it differs from DIALS, and why:** [`docs/review.md`](docs/review.md).
+* **Every document:** [`docs/README.md`](docs/README.md). **What is open:** [`docs/outstanding.md`](docs/outstanding.md).
 
 ## Building
 
@@ -61,7 +79,7 @@ mxi_export    scaled.rflx             # an unmerged MTZ                         
 Each step reads the last one's file and writes its own, under the name shown
 unless `-o` names another: a `.rflx`, mxi's own format -- HDF5 holding the
 experiment list, the reflections and the processing's summary
-(`docs/rflx.md`). Every program also writes what it prints to
+([`docs/rflx.md`](docs/rflx.md)). Every program also writes what it prints to
 `mxi_<program>.log` and takes `--help` and `--version`; the main sequence's
 programs take `--timing`, where the time went, and use every core;
 `-j N` or `--threads N` sets fewer, where a program has the choice. `mxi_find --gpu` and `mxi_integrate --gpu`
@@ -69,17 +87,17 @@ use a GPU where the build has one.
 
 **Several sweeps of one crystal:** name every master to `mxi_import`; each
 program takes them all, the sweeps indexed in one basis, each its own crystal
-and scale model (`docs/multi-sweep.md`).
+and scale model ([`docs/multi-sweep.md`](docs/multi-sweep.md)).
 
 **Several crystals in one beam:** `mxi_index --max-lattices N`; each lattice
 is refined, integrated and scaled as its own experiment, the detector shared,
 cosym bringing them to one setting in `mxi_symmetry`
-(`docs/multi-lattice.md`).
+([`docs/multi-lattice.md`](docs/multi-lattice.md)).
 
 **Many crystals, a data set each:** after scaling them together,
 `mxi_correlation scaled.rflx --write-clusters` finds the groups that belong
 together by their intensities, writes each as its own `.rflx` to scale alone,
-and an HTML report (`docs/correlation.md`).
+and an HTML report ([`docs/correlation.md`](docs/correlation.md)).
 
 The options most often wanted:
 
@@ -98,8 +116,8 @@ The options most often wanted:
 
 | program | |
 | --- | --- |
-| `mxi_show` | what a file holds: the models, the reflections by what has been done to them, each program's summary (`docs/output.md`) |
-| `mxi_report` | an HTML report of a file's processing, every step's figures and plots (`docs/output.md`) |
+| `mxi_show` | what a file holds: the models, the reflections by what has been done to them, each program's summary ([`docs/output.md`](docs/output.md)) |
+| `mxi_report` | an HTML report of a file's processing, every step's figures and plots ([`docs/output.md`](docs/output.md)) |
 | `mxi_convert` | between `.rflx` and DIALS's `.expt` and `.refl` (below) |
 | `mxi_max` | the largest count on a valid pixel, and whether the images fit in 16 bits (for `mxi_find --gpu-force`) |
 | `mxi_profile` | the profile model estimated from strong spots, and how much of each spot it holds |
@@ -139,7 +157,7 @@ and `dials.image_viewer`, `dials.export` and `dials.merge` read mxi's output.
 | `mxi_export` | `dials.export` |
 | `mxi_show`, `mxi_report` | `dials.show`, `dials.report` |
 
-Where they differ, and by how much, is in `docs/review.md`.
+Where they differ, and by how much, is in [`docs/review.md`](docs/review.md).
 
 ## mxeq: comparisons and regression runs
 
@@ -151,13 +169,13 @@ pip install -e python                    # mxeq
 pip install -e "python[plots,fixtures]"  # with its plots and test-data makers
 ```
 
-**Comparing with DIALS** (`python/README.md`): `mxeq check` compares two
+**Comparing with DIALS** ([`python/README.md`](python/README.md)): `mxeq check` compares two
 pipelines at a boundary; `compare-expt` two experiment lists; `trend`,
 `explain` and `disagree` where two integrations differ, and why; `unique` two
 scaled data sets a reflection at a time; `equivalents` integration's bias
 against the data's own symmetry equivalents, with no second program.
 
-**Regression runs** (`docs/regression.md`): `mxeq regress` builds a commit,
+**Regression runs** ([`docs/regression.md`](docs/regression.md)): `mxeq regress` builds a commit,
 runs the chain over a set of real data sets, and keeps every figure in a
 history, so that runs, commits and machines can be compared:
 
@@ -172,7 +190,7 @@ mxeq regress compare --against reference # what changed, past its tolerance
 `ctest --test-dir build` runs the C++ tests. `pytest python/tests` runs
 mxeq's, and those of the programs that need real data, given the programs and
 data through `MXI_*` environment variables; without them those tests are
-skipped (`python/README.md`).
+skipped ([`python/README.md`](python/README.md)).
 
 ## Acknowledgements
 
@@ -203,7 +221,7 @@ against the software they describe; please cite them alongside mxi:
   *Acta Cryst.* D81, 278–290. https://doi.org/10.1107/S2059798325004589
 
 The other methods mxi uses, and their references, are in
-`docs/algorithms.md`.
+[`docs/algorithms.md`](docs/algorithms.md).
 
 mxi was developed at the Northeastern Collaborative Access Team (NE-CAT)
 beamlines, which are funded by the National Institute of General Medical

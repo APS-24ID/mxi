@@ -9,6 +9,7 @@ its conclusions sometimes overturned later, with an index of those.
 |---|---|---|
 | `README.md` | reference | building, the chain, the programs, where it stands |
 | `docs/review.md` | guide | for reviewers: what this is, how it differs from DIALS, where things are |
+| `docs/algorithms.md` | reference | each stage's methods, their sources, where they live and how they differ from DIALS |
 | `docs/outstanding.md` | list | every open task, with its evidence |
 | `docs/backstop.md` | plan | the backstop shadow, its flare, and scaling's outlier rejection: what was found and what is to be done |
 | `docs/multi-sweep.md` | plan | more than one sweep, from import to scaling: where each program stands, the steps, how each is tested |
@@ -16,7 +17,7 @@ its conclusions sometimes overturned later, with an index of those.
 | `docs/rflx.md` | design, built | `.rflx`, one HDF5 file a step in dxtbx-h5's layout, as mxi's primary format: the decisions, the format, the programs, the converter, and how it will be judged |
 | `docs/output.md` | built; the GUI later | what each program prints for a crystallographer, the processing's summary in each .rflx, mxi_show, mxi_report's HTML report, and porting dials_ui to mxi |
 | `docs/regression.md` | built; bisecting next | regression runs over real data sets: mxeq regress, its directory, the figures kept and how runs are compared |
-| `docs/correlation.md` | stages 1-3 built | mxi_correlation: clustering data sets by their intensities, as dials.correlation_matrix -- the matrix, the coordinates, OPTICS |
+| `docs/correlation.md` | built | mxi_correlation: clustering data sets by their intensities, as dials.correlation_matrix -- the matrix, the coordinates, OPTICS |
 | `docs/export.md` | design | mxi_export, an unmerged MTZ as dials.export writes it: the intensities and their corrections, the columns, the batches and their headers |
 | `docs/import.md` | reference | `mxi_import`, and checking it against dials.import |
 | `docs/integration.md` | reference | `mxi_integrate` |

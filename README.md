@@ -1,7 +1,13 @@
 # mxi
 
+```
+░▒▓ █▀▄▀█ ▀▄▀ █
+░▒▓ █ ▀ █ ▄▀▄ █
+```
+
 **Reviewing this code?** Start with `docs/review.md`: what this is, how it differs
-from DIALS and why, and where to find things.
+from DIALS and why, and where to find things. **How does it work?**
+`docs/algorithms.md`: each stage's methods and their sources.
 
 An independent implementation of the MX data-reduction chain for rotation data
 -- one sweep, several of one crystal, or several crystals in one beam -- from
@@ -328,7 +334,7 @@ For looking inside it:
 | `mxi_grid` | spot density in Kabsch space, and spot widths across the face |
 | `mxi_forward` | the model rendered onto the pixels, against the data |
 | `mxi_background` | the robust background fitted to pixel values from a file |
-| `mxi_max` | the largest count on a valid pixel of a series, and whether it fits in 16 bits -- for `mxi_find --gpu-force` |
+| `mxi_max` | the largest count on a valid pixel of a series, and whether it fits in 16 bits -- for `mxi_find --gpu-force`; given a master, or an experiment list (JSON or .rflx), its first sweep's images |
 | `mxi_readtest` | how fast the images read and decompress, apart from the programs: `--direct-chunk` through HDF5 as they read, or `--pread` outside its lock, a checksum to show both read the same |
 
 And `mxeq`, which judges the output: `check` compares two pipelines at a

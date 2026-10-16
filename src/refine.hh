@@ -6,7 +6,11 @@
 // dimensionless. Gauss-Newton on the normal equations, with Levenberg
 // damping when a step makes things worse.
 //
-// DERIVATIVES ARE NUMERICAL, and that is a decision rather than a shortcut.
+// DERIVATIVES: analytical by default since 14 October 2026 (mxi_refine
+// --numerical for finite differences), each checked against the numerical
+// ones in the tests. Why numerical came first, and remains the reference:
+//
+// DERIVATIVES WERE NUMERICAL, and that was a decision rather than a shortcut.
 // Fifteen parameters over thirteen thousand reflections costs sixteen
 // predictions per iteration, which is a fraction of a second. Analytical
 // derivatives would be perhaps twenty times faster and would introduce the

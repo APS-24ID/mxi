@@ -53,7 +53,9 @@ regularised and mxi_export added 6 October, 349 commits; several crystals,
 sweeps carried through and the variances 12 October, 414 commits; the
 programs' output, mxi_show and mxi_report, compression and the fit's weights
 13 October, 434 commits; the error model, the regression runs, the cell
-from two-theta and memory and time on long scans 14 October, 473 commits.
+from two-theta and memory and time on long scans 14 October, 473 commits;
+mxi_correlation, partials, the error model's fits, centred input and
+integration's speed 15 October, 494 commits.
 For a new session to
 pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in
@@ -143,6 +145,30 @@ scan-varying cell's range, symmetry's elements by order and axis, the scale by
 image, the MTZ's summary, spots by resolution and ice rings. Mind the names:
 `src/summary.*` is integration's summary tables -- the processing's summary
 was once written over them, unchecked, and restored.
+
+**Done 15 October, to 494:**
+- mxi_correlation, whole (`docs/correlation.md`): the sigma-weighted matrix as
+  DIALS's weighted_cchalf, cosym coordinates and their dimension as
+  dials.correlation_matrix, OPTICS ported from scikit-learn, the clusters as
+  files and an HTML report with Ward dendrograms; the same clusters, dimension
+  and min_samples as DIALS on Graeme's 36 insulin crystals.
+- mxi_scale: partiality divides the summed intensity only; split reflections
+  combined first (sum_partial_reflections); `--error-model-fit individual`,
+  dials.scale's real default (regression had been called it, wrongly); the
+  split's refusal said (`docs/scaling.md`).
+- mxi_symmetry: a centred input taken to its primitive cell first (item 70);
+  cosym's correlations by hash lookup across threads, its eigen-decomposition
+  by Householder and QL (83 s to 1.4).
+- mxi_integrate: a frame reader a worker for the run's images, not a
+  thread_local -- the calling thread had kept sweep 1's reader for every
+  sweep; workers' exceptions reported; the background fitted on a histogram
+  of its counts; centroids over the foreground alone. Ferritin 60.7 s to 44.
+- mxi_max reads by the series' keys and takes an .rflx; `--sigma-m-estimator`.
+- Lessons: read DIALS's source for its defaults, never recall them -- two
+  wrong today (sigma_m's scan limit, the error model's fit); measure on the
+  machine that matters -- this one has one core and showed no contention; and
+  a lesson written here (no thread_local state in parallel calls) is worth
+  nothing if the code is not checked against it.
 
 **Done 14 October, to 473:**
 - The cell's e.s.d.s from two-theta in mxi_scale, as dials.two_theta_refine;

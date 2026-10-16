@@ -24,14 +24,6 @@ where something is missing.
     mean square -- a handful of wild observations outlier rejection does not
     catch; DIALS shows no dip there. A diagnostic listing a shell's worst
     observations, where they lie on the detector, would find them.
-* **70.** **correctness -- mxi_symmetry takes its input's cell as
-    primitive.** Run on data already in a centred setting -- Graeme's 36 insulin
-    crystals scaled in I 2 3's conventional cell -- lattice_symmetry treats the
-    conventional cubic cell as a primitive lattice: every Patterson group
-    scored is P (P m -3 best, I m -3 m never), and it recommends P 2 3. Input
-    as mxi_index writes it, a reduced primitive cell, is not affected.
-    Wanted: a centred input taken to its primitive setting first (from the
-    crystal's space group), or refused, never silently treated as P.
 * **69.** **decision -- the error model's fit: dials.scale's individual, or
     regression.** Found 15 October: dials.scale's default is the fit in turn,
     not regression (docs/scaling.md); --error-model-fit individual brings the
@@ -371,6 +363,15 @@ where something is missing.
     `docs/spots_notes.md`, `docs/spotfinder.md` -- which could be one.
 
 ## Closed
+
+* **70.** Closed 15 October. **mxi_symmetry takes its input's cell as
+  primitive.** Input already in a centred setting is now taken to its
+  primitive cell first -- the centring from the crystal's Hall symbol, the
+  standard change of basis for I, F, C, A, B and R, any reflection the
+  centring forbids dropped and counted, and said. Insulin symmetrised in I 2 3
+  and a cluster of Graeme's 36 crystals both come back I 2 3 (P 2 3 before);
+  integrated input unchanged. Test: tests/test_symmetry_centred_input.py,
+  failing on the old build.
 
 * **26.** The scale model written into the scaled experiments, mxi_physical
     (`docs/scaling.md`, "The scale model, written").

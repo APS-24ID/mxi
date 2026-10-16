@@ -5,7 +5,7 @@
 ░▒▓ █ ▀ █ ▄▀▄ █
 ```
 
-mxi is a data proceessing package for NXmx format macromolecular crystallography
+mxi is a data processing package for NXmx format macromolecular crystallography
 (MX) data: from the diffraction images to scaled, unmerged intensities ready for
 structure solution -- spot finding, indexing, refinement, integration, symmetry,
 scaling and the clustering of data from many crystals.
@@ -13,7 +13,7 @@ scaling and the clustering of data from many crystals.
 **It is a new, standalone package.** mxi is a completely new project, written from
 scratch in C++. It contains no DIALS code and does not need DIALS installed.
 It is compatible with DIALS: it follows DIALS' methods, reads and writes
-DIALS' files, and any step can be exchanged for DIALS's own (see [Working with
+DIALS' files, and any step can be exchanged for DIALS' own (see [Working with
 DIALS](#working-with-dials)).
 
 **Its purpose is almost instant data processing.** mxi aims to process data as
@@ -122,7 +122,7 @@ The options most often wanted:
 | --- | --- |
 | `mxi_show` | what a file holds: the models, the reflections by what has been done to them, each program's summary ([`docs/output.md`](docs/output.md)) |
 | `mxi_report` | an HTML report of a file's processing, every step's figures and plots ([`docs/output.md`](docs/output.md)) |
-| `mxi_convert` | between `.rflx` and DIALS's `.expt` and `.refl` (below) |
+| `mxi_convert` | between `.rflx` and DIALS' `.expt` and `.refl` (below) |
 | `mxi_max` | the largest count on a valid pixel, and whether the images fit in 16 bits (for `mxi_find --gpu-force`) |
 | `mxi_profile` | the profile model estimated from strong spots, and how much of each spot it holds |
 | `mxi_residuals` | refinement's residuals by resolution, detector module, or anything else |
@@ -134,7 +134,7 @@ The options most often wanted:
 
 ## Working with DIALS
 
-**The files.** Every program reads DIALS's `.expt` and `.refl` as well as a
+**The files.** Every program reads DIALS' `.expt` and `.refl` as well as a
 `.rflx`, and writes them on request (`--output-expt`, `--output-refl`, or `-o`
 naming a `.refl`). `mxi_convert` goes either way: `mxi_convert indexed.rflx`
 writes `indexed.expt` and `indexed.refl`; `mxi_convert indexed.expt
@@ -142,8 +142,8 @@ indexed.refl` the `.rflx`. Two things DIALS cannot read stay behind: each
 sweep's own crystal-less experiment, which mxi carries through indexing
 (dials/dials#1029; `--keep-sweeps` keeps them), and mxi's scale model.
 
-**Swapping steps.** Any step can be DIALS's: `dials.symmetry` and `dials.scale`
-take mxi's integrated reflections, mxi's programs take DIALS's at any stage,
+**Swapping steps.** Any step can be DIALS': `dials.symmetry` and `dials.scale`
+take mxi's integrated reflections, mxi's programs take DIALS' at any stage,
 and `dials.image_viewer`, `dials.export` and `dials.merge` read mxi's output.
 
 **The equivalents:**

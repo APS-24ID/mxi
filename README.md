@@ -5,34 +5,36 @@
 ░▒▓ █ ▀ █ ▄▀▄ █
 ```
 
-mxi processes macromolecular crystallography (MX) data: from the diffraction
-images a beamline records to scaled, unmerged intensities ready for structure
-solution -- spot finding, indexing, refinement, integration, symmetry, scaling
-and the clustering of data from many crystals.
+mxi is a data proceessing package for NXmx format macromolecular crystallography
+(MX) data: from the diffraction images to scaled, unmerged intensities ready for
+structure solution -- spot finding, indexing, refinement, integration, symmetry,
+scaling and the clustering of data from many crystals.
 
-**A new, standalone package.** mxi is a completely new project, written from
+**It is a new, standalone package.** mxi is a completely new project, written from
 scratch in C++. It contains no DIALS code and does not need DIALS installed.
-It is compatible with DIALS: it follows DIALS's methods, reads and writes
-DIALS's files, and any step can be exchanged for DIALS's own (see [Working with
+It is compatible with DIALS: it follows DIALS' methods, reads and writes
+DIALS' files, and any step can be exchanged for DIALS's own (see [Working with
 DIALS](#working-with-dials)).
 
-**Its purpose is speed.** mxi aims to process data as DIALS does, with results
-of similar quality, an order of magnitude more quickly -- fast enough to keep
-pace with modern detectors, and to give results while data are still being
-collected. Spot finding and profile fitting can run on a GPU, through CUDA or
-Apple's Metal.
+**Its purpose is almost instant data processing.** mxi aims to process data as
+DIALS does, with results of similar quality, an order of magnitude more quickly
+-- fast enough to keep pace with modern detectors, and to give results while the
+crystal is still mounted. Spot finding and integration can run on a GPU,
+through CUDA or Apple's Metal.
 
-**Its images are NXmx.** NXmx is the community standard format for X-ray
+**It reads NXmx format data only.**
+[NXmx](https://journals.iucr.org/m/issues/2020/05/00/ti5018/index.html)
+is the community standard format for X-ray
 diffraction images: a layout, built on the HDF5 file format, that keeps the
 images together with everything needed to interpret them -- the X-ray beam,
 the detector's geometry, how the crystal was rotated -- so that any program
 can read data from any beamline the same way. Modern detectors, such as
-DECTRIS's EIGER, write it directly; older formats can be converted, CBF by
-[cbf2nxmx](https://github.com/graeme-winter/cbf2nxmx).
+DECTRIS's EIGER, write it directly; older formats can be converted, for example
+CBF by [cbf2nxmx](https://github.com/graeme-winter/cbf2nxmx).
 
 * **How it works:** [`docs/algorithms.md`](docs/algorithms.md), each stage's methods and sources.
 * **How it differs from DIALS, and why:** [`docs/review.md`](docs/review.md).
-* **Every document:** [`docs/README.md`](docs/README.md). **What is open:** [`docs/outstanding.md`](docs/outstanding.md).
+* **Open issues:** [`docs/outstanding.md`](docs/outstanding.md).
 
 ## Building
 
@@ -41,8 +43,10 @@ submodules, gemmi (space groups) and bitshuffle (the images' compression). The
 configure stops if any is missing.
 
 ```sh
-sudo apt-get install libhdf5-dev        # Debian and Ubuntu
-brew install hdf5                       # macOS
+# Debian and Ubuntu
+sudo apt-get install libhdf5-dev
+# or macOS
+brew install hdf5
 # or: conda install -c conda-forge hdf5
 
 git submodule update --init --recursive
@@ -50,7 +54,7 @@ cmake -S . -B build && cmake --build build
 ctest --test-dir build
 ```
 
-Options:
+Build options:
 
 | option | |
 | --- | --- |
@@ -82,8 +86,8 @@ experiment list, the reflections and the processing's summary
 ([`docs/rflx.md`](docs/rflx.md)). Every program also writes what it prints to
 `mxi_<program>.log` and takes `--help` and `--version`; the main sequence's
 programs take `--timing`, where the time went, and use every core;
-`-j N` or `--threads N` sets fewer, where a program has the choice. `mxi_find --gpu` and `mxi_integrate --gpu`
-use a GPU where the build has one.
+`-j N` or `--threads N` sets fewer, where a program has the choice.
+`mxi_find --gpu` and `mxi_integrate --gpu` use a GPU where the build has one.
 
 **Several sweeps of one crystal:** name every master to `mxi_import`; each
 program takes them all, the sweeps indexed in one basis, each its own crystal

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 # against each other: vcpkg reads its manifest before CMake runs, so nothing
 # else would catch them drifting. "Which build is this?" is the first question
 # asked in an incident and a quietly wrong answer is worse than none.
-project(mxi VERSION 0.1.0 LANGUAGES CXX)
+project(mxi VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

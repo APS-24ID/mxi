@@ -223,7 +223,8 @@ void report_version(const char *program) {
 void usage(const char *program, std::FILE *to = stderr) {
   std::fprintf(
       to,
-      "usage: %s [-j threads] [-g|--gpu] [-e imported.expt] [-o strong.rflx]\n"
+      "usage: %s [-j|--threads N] [-g|--gpu] [-e imported.expt] [-o "
+      "strong.rflx]\n"
       "       [options] [master.nxs | imported.expt]\n"
       "\n"
       "  imported.expt      an experiment list, as -e: the images are the "
@@ -319,7 +320,7 @@ bool parse_options(int argc, char **argv, Options *options) {
   for (int i = 1; i < argc; i++) {
     const std::string flag = argv[i];
     const bool has_value = i + 1 < argc;
-    if (flag == "-j" && has_value) {
+    if ((flag == "-j" || flag == "--threads") && has_value) {
       options->threads = std::atoi(argv[++i]);
     } else if (flag == "-t" && has_value) {
       options->timeout_seconds = std::atoi(argv[++i]);

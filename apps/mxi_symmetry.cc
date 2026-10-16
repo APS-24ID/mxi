@@ -101,6 +101,8 @@ std::string as_hkl(const Rotation &g) {
 void usage() {
   std::printf(
       "usage: mxi_symmetry [options] INTEGRATED_EXPT INTEGRATED_REFL\n"
+      "  --no-cosym        several crystals pooled as they are, not first\n"
+      "                    brought to one setting by cosym\n"
       "  --threads N       N threads for scoring and naming the subgroups; "
       "every\n"
       "                    core by default, the answer the same on any number\n"

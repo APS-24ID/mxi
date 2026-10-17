@@ -1,5 +1,5 @@
-#ifndef SPOTFINDER_DEXT_HH
-#define SPOTFINDER_DEXT_HH
+#ifndef MXI_DEXT_HH
+#define MXI_DEXT_HH
 
 #include <cstddef>
 #include <cstdint>
@@ -115,4 +115,4 @@ extern template int dext<std::uint32_t>(const std::uint32_t *,
                                         std::size_t,
                                         dext_scratch<std::uint32_t> &);
 
-#endif // SPOTFINDER_DEXT_HH
+#endif // MXI_DEXT_HH

@@ -12,7 +12,7 @@ Three pieces share this repository and are not one program:
 
 | | where | its notes |
 | --- | --- | --- |
-| the spot finder and image reader | `src/spots/` | `docs/spots.md`, `docs/spots_notes.md`, `docs/spotfinder.md` |
+| the spot finder and image reader | `src/` | `docs/spots.md`, `docs/spots_notes.md`, `docs/spotfinder.md` |
 | the pipeline | `src/`, `apps/` | this file; `docs/integration.md`, `docs/symmetry.md`, `docs/scaling.md` |
 | `mxeq`, the referee | `python/` | `python/CLAUDE.md` |
 
@@ -26,7 +26,7 @@ built and tested here. Without HDF5 both are left out of the build silently.
 
 Two overlaps, neither resolved:
 
-* `src/spots/refl.cc` writes reflection tables and so does `src/refl.cc`. The
+* `src/spot_refl.cc` writes reflection tables and so does `src/refl.cc`. The
   spot finder's is specialised to its Spot type; the other is a general reader
   and writer validated against real DIALS files. The cost of two is real: the
   4 GB msgpack limit was guarded in one and not the other, and a shoebox table
@@ -34,7 +34,7 @@ Two overlaps, neither resolved:
   doing and is exactly the kind of change that quietly breaks a format that
   works, so: not in the same commit as anything else, and with both writers'
   output compared byte for byte before and after.
-* `src/spots/expt.cc` reads experiment lists too, but only for the scan range,
+* `src/spot_expt.cc` reads experiment lists too, but only for the scan range,
   the panel size, the identifier and the image mapping, and its header says it
   is not trying to be dxtbx. The geometry conventions still live in one place,
   `src/geometry.hh`.

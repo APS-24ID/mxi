@@ -16,7 +16,7 @@ mask with it. `--split N` cuts a sweep into N for testing.
 
 ## Spot finding -- `mxi_find` (`docs/spots.md`)
 
-**The extended dispersion threshold**, DIALS's default (`src/spots/dext*`): a
+**The extended dispersion threshold**, DIALS's default (`src/dext*`): a
 pixel is signal where the local index of dispersion and the local mean say so,
 over windows of 7 x 7, 5 x 5 and 11 x 11, on the CPU, CUDA or Metal; then
 **connected components** over images, the spots' centroids and variances.

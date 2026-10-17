@@ -1,5 +1,5 @@
-// The GPU signal calculation, built only with -DSPOTFINDER_CUDA=ON or
-// -DSPOTFINDER_METAL=ON.
+// The GPU signal calculation, built only with -DMXI_CUDA=ON or
+// -DMXI_METAL=ON.
 //
 // gpu::find mirrors dext() from dext.hh exactly -- same arguments, same output
 // contract, same masked-pixel rule -- so signal.cc has one call site with a
@@ -12,8 +12,8 @@
 // two is compiled in, and nothing above this line knows which. Nothing here
 // exposes a CUDA or a Metal header, so signal.cc needs no toolkit include path.
 
-#ifndef SPOTFINDER_DEXT_GPU_HH
-#define SPOTFINDER_DEXT_GPU_HH
+#ifndef MXI_DEXT_GPU_HH
+#define MXI_DEXT_GPU_HH
 
 #include <cstddef>
 #include <cstdint>
@@ -54,7 +54,7 @@ enum class Window {
 
 const char *name(Window window);
 
-// Defaults come from SPOTFINDER_GPU_STAGE0 and SPOTFINDER_GPU_STAGE2, each
+// Defaults come from MXI_GPU_STAGE0 and MXI_GPU_STAGE2, each
 // taking "tile" or "direct". An
 // unrecognised value is a warning on stderr and the default, not a failure:
 // this changes how long a run takes and not what it reports, so refusing to
@@ -73,7 +73,7 @@ Window stage2_window();
 void stage2_window(Window window);
 
 // All three stages in one kernel (dext_fused.hh): each 32 x 32 tile reads its
-// pixels once and keeps both masks in shared memory. From SPOTFINDER_GPU_FUSED,
+// pixels once and keeps both masks in shared memory. From MXI_GPU_FUSED,
 // "1" or "0"; off by default until it has been measured on the hardware. CUDA
 // and 16-bit only -- a 32-bit tile wants more shared memory than a static
 // allocation may have -- so a 32-bit frame, and Metal, run the three kernels
@@ -181,4 +181,4 @@ extern template int find<std::uint32_t>(const std::uint32_t *,
 
 } // namespace gpu
 
-#endif // SPOTFINDER_DEXT_GPU_HH
+#endif // MXI_DEXT_GPU_HH

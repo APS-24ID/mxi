@@ -29,7 +29,7 @@
 #include <utility>
 #include <vector>
 
-#include "series.hh"
+#include "image_series.hh"
 
 namespace series {
 namespace {
@@ -76,7 +76,7 @@ void ok(herr_t status, const char *what) {
 herr_t hdf5_read_chunk(hid_t dataset, const hsize_t *offset,
                        std::uint32_t *filters, void *buffer,
                        std::size_t capacity) {
-#ifdef SPOTFINDER_H5DREAD_CHUNK_TAKES_SIZE
+#ifdef MXI_H5DREAD_CHUNK_TAKES_SIZE
   std::size_t size = capacity;
   return H5Dread_chunk(dataset, H5P_DEFAULT, offset, filters, buffer, &size);
 #else

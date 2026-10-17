@@ -51,8 +51,8 @@
 
 // The compiled shader, embedded by CMake so that the binary carries its own
 // kernels and there is nothing to install beside it or find at runtime.
-extern "C" const unsigned char spotfinder_dext_metallib[];
-extern "C" const unsigned long spotfinder_dext_metallib_size;
+extern "C" const unsigned char mxi_dext_metallib[];
+extern "C" const unsigned long mxi_dext_metallib_size;
 
 namespace gpu {
 namespace {
@@ -154,7 +154,7 @@ private:
     Pool pool;
 
     dispatch_data_t data = dispatch_data_create(
-        spotfinder_dext_metallib, spotfinder_dext_metallib_size, nullptr,
+        mxi_dext_metallib, mxi_dext_metallib_size, nullptr,
         DISPATCH_DATA_DESTRUCTOR_DEFAULT);
     NS::Error *error = nullptr;
     MTL::Library *library = device_->newLibrary(data, &error);
@@ -347,7 +347,7 @@ namespace internal {
 // The workstation CUDA card prefers direct for stage0 by 2%, which is why this
 // is a question for the backend and not a constant in dext_gpu.cc.
 //
-// Both are still overridable with SPOTFINDER_GPU_STAGE0 and _STAGE2, and both
+// Both are still overridable with MXI_GPU_STAGE0 and _STAGE2, and both
 // losing variants are kept: each is a second, independent way of summing the
 // same window, and ctest -R dext_gpu runs all four against the CPU.
 Window default_stage0_window() { return Window::Tile; }

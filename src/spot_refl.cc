@@ -1,4 +1,4 @@
-#include "refl.hh"
+#include "spot_refl.hh"
 
 #include <bit>
 #include <cstdio>

@@ -62,7 +62,7 @@ constant int kTile0 = kGroup + 3 + 3; // stage0's 7 x 7 reach
 //   dext_stage0_u16       the 49 pixels summed straight. What CUDA does.
 //   dext_stage0_tile_u16  three summed-area tables in threadgroup memory.
 //
-// Selected at run time with SPOTFINDER_GPU_STAGE0=direct or =tile. stage2's
+// Selected at run time with MXI_GPU_STAGE0=direct or =tile. stage2's
 // measurement is the reason this exists: the tile beat direct summing there by
 // 1.76x, stage0 is half the frame's GPU time, and it is doing 49 loads a pixel.
 //
@@ -290,7 +290,7 @@ kernel void dext_stage1_u16(device const T *image_in [[buffer(0)]],
 //
 // Both are kept because which is faster is a question about the hardware and
 // not about the algorithm, and on Apple silicon the answer is not the same as
-// on NVIDIA. Pick between them at run time with SPOTFINDER_GPU_STAGE2=tile or
+// on NVIDIA. Pick between them at run time with MXI_GPU_STAGE2=tile or
 // =direct; the host reports which it used. Neither may drift from the other:
 // tests/test_dext_gpu.cc runs both and requires them identical.
 //

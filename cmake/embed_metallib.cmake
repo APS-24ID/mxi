@@ -8,9 +8,9 @@
 #
 # Run as: cmake -DINPUT=<file.metallib> -DOUTPUT=<file.cc> -P embed_metallib.cmake
 
-# SYMBOL names the arrays; spotfinder_dext_metallib unless told.
+# SYMBOL names the arrays; mxi_dext_metallib unless told.
 if(NOT DEFINED SYMBOL)
-    set(SYMBOL spotfinder_dext_metallib)
+    set(SYMBOL mxi_dext_metallib)
 endif()
 
 if(NOT DEFINED INPUT OR NOT DEFINED OUTPUT)

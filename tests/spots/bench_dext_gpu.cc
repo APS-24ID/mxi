@@ -50,7 +50,7 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 
-#ifdef SPOTFINDER_FAST_MATH
+#ifdef MXI_FAST_MATH
 constexpr bool kFastMath = true;
 #else
 constexpr bool kFastMath = false;

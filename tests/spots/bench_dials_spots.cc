@@ -38,7 +38,7 @@
 #include <string>
 #include <vector>
 
-#include "dials_spots.hh"
+#include "spots.hh"
 #include "signal_pixel.hh"
 
 namespace {

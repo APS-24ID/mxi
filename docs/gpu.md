@@ -183,7 +183,7 @@ shared buffers the GPU reads where they are, with nothing to cross a bus: the
 0.54 s the RTX 4060 spent uploading has no counterpart. fit_batch.cc checks the
 structs are the sizes the shader declares them. The MacBook's CPU is also the
 weaker opponent: profile fitting was 35 per cent of its integration, against 20
-on the 32 thread machine. Built with `-DSPOTFINDER_METAL=ON` as the spot finder
+on the 32 thread machine. Built with `-DMXI_METAL=ON` as the spot finder
 is; `--timing` gives copying in, the kernel from the command buffer's own clock,
 and reading back.
 
@@ -278,7 +278,7 @@ million on the edge in single precision.
 **Still to know:** whether the kernel agrees -- it should with the
 emulation, up to the order of the block reductions' sums -- and whether it is
 faster than every CPU thread on the machine, which is the test it must pass
-(item 43). On a CUDA machine: build with `-DSPOTFINDER_CUDA=ON`, run with and
+(item 43). On a CUDA machine: build with `-DMXI_CUDA=ON`, run with and
 without `--gpu`, compare the tables, and read `--timing`'s "profile fitting in
 single precision" line.
 

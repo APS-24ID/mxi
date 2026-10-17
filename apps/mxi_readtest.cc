@@ -40,7 +40,7 @@
 #include "args.hh"
 #include "decompress.hh"
 #include "expt.hh"
-#include "series.hh"
+#include "image_series.hh"
 
 namespace {
 

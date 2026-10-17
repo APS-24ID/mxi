@@ -7,7 +7,7 @@ the top-level `ctest`.
 
 ## Where it is now
 
-    src/spots/          its sources, beside src/ rather than under a project
+    src/          its sources, beside src/ rather than under a project
     tests/spots/        its tests, run by the same ctest
     cmake/spots.cmake   its build, included by the top-level CMakeLists
     third_party/        the bitshuffle submodule
@@ -25,7 +25,7 @@ than skip one part.
 ## What is shared now
 
 **The JSON parser.** The spot finder's expt.cc, then spotfinder/src/expt.cc and
-now `src/spots/expt.cc`, was 461 lines, of which about 400
+now `src/spot_expt.cc`, was 461 lines, of which about 400
 were a second parser for a format this repository already parses. It is now 152
 and uses `src/json.cc`.
 
@@ -46,7 +46,7 @@ silently none of the spot finder's.
 
 ## What is still duplicated
 
-`src/spots/refl.cc` is 353 lines that write a reflection table, which
+`src/spot_refl.cc` is 353 lines that write a reflection table, which
 `src/refl.cc` also does and does more generally -- opaque columns, every dtype,
 round-tripped against real DIALS files.
 
@@ -101,7 +101,7 @@ description of what the build does rather than against the build:
 
 * the version guard compares `vcpkg.json` against `project()`, and the
   top-level `project()` had no `VERSION`, so every configure aborted;
-* the substitution that repointed `src/` at `src/spots/` required a trailing
+* the substitution that repointed `src/` at `src/` required a trailing
   slash, so ten `target_include_directories(... PUBLIC src)` and two
   `PRIVATE tests` were left pointing at directories that no longer held the
   headers.

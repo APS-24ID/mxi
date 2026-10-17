@@ -1,18 +1,16 @@
 # The spot finder and the image reader, included from the top-level
 # CMakeLists, which requires HDF5 and the bitshuffle submodule.
 #
-# This was a standalone project with its own cmake_minimum_required, project()
-# and language settings. Those are the parent's now: one project, one C++
-# standard, one build type. What is kept is the version check against
+# One project, one C++ standard, one build type. Kept here: the version check against
 # vcpkg.json, because vcpkg reads that file before CMake runs and the two would
 # otherwise drift -- "which build is this?" is the first question asked in an
 # incident, and a quietly wrong answer is worse than none.
 
 enable_language(C)  # bitshuffle and lz4
 
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg.json" spotfinder_manifest)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg.json" mxi_manifest)
 string(REGEX MATCH "\"version-string\"[ \t]*:[ \t]*\"([^\"]+)\""
-       spotfinder_manifest_version "${spotfinder_manifest}")
+       mxi_manifest_version "${mxi_manifest}")
 if(NOT CMAKE_MATCH_1 STREQUAL PROJECT_VERSION)
     message(FATAL_ERROR
             "version-string in vcpkg.json is ${CMAKE_MATCH_1} but project() says "
@@ -35,32 +33,44 @@ endif()
 # changed; bench_dext_gpu reports the difference and prints its timings anyway,
 # since the timings are the reason for the build. Named without the project's
 # usual prefix because that is what was asked for.
+# The spot finder's options were SPOTFINDER_*, from when it was a project of
+# its own; mxi is one project, and they are MXI_* (Graeme, 1.0). The old names
+# are taken, with a warning, through 1.0.x.
+foreach(name CUDA METAL AVX2 TESTS SANITIZE)
+    if(DEFINED SPOTFINDER_${name})
+        message(DEPRECATION
+                "SPOTFINDER_${name} is MXI_${name} now; taking it as that")
+        set(MXI_${name} "${SPOTFINDER_${name}}" CACHE STRING "" FORCE)
+        unset(SPOTFINDER_${name} CACHE)  # said once, not at every configure
+    endif()
+endforeach()
+
 option(ENABLE_FAST_MATH "Compile the device kernels with fast math" OFF)
 
-option(SPOTFINDER_TESTS "Build the tests" ON)
-option(SPOTFINDER_CUDA "Build the CUDA threshold kernels" OFF)
-option(SPOTFINDER_METAL "Build the Metal threshold kernels" OFF)
+option(MXI_TESTS "Build the tests" ON)
+option(MXI_CUDA "Build the CUDA threshold kernels" OFF)
+option(MXI_METAL "Build the Metal threshold kernels" OFF)
 
 # One backend at a time. gpu::find has one definition, and a build with both
 # would either fail at the linker or -- worse -- link whichever the linker saw
 # first, so that --gpu ran a device nobody chose.
-if(SPOTFINDER_CUDA AND SPOTFINDER_METAL)
+if(MXI_CUDA AND MXI_METAL)
     message(FATAL_ERROR
-            "SPOTFINDER_CUDA and SPOTFINDER_METAL are both on, and they implement "
+            "MXI_CUDA and MXI_METAL are both on, and they implement "
             "the same interface. Pick one.")
 endif()
 
 # CUDA is enabled as a language only when asked for, so that a machine without a
 # toolkit still configures. check_language reports its absence as a plain message
 # rather than the hard failure enable_language would give.
-if(SPOTFINDER_CUDA)
+if(MXI_CUDA)
     include(CheckLanguage)
     check_language(CUDA)
     if(NOT CMAKE_CUDA_COMPILER)
         message(FATAL_ERROR
-                "SPOTFINDER_CUDA is on but no CUDA compiler was found. Put nvcc "
+                "MXI_CUDA is on but no CUDA compiler was found. Put nvcc "
                 "on PATH, or set CMAKE_CUDA_COMPILER, or configure with "
-                "-DSPOTFINDER_CUDA=OFF.")
+                "-DMXI_CUDA=OFF.")
     endif()
     enable_language(CUDA)
     set(CMAKE_CUDA_STANDARD 17)
@@ -83,12 +93,12 @@ endif()
 # metal-cpp is a header-only wrapper Apple distributes as a zip rather than
 # through any package manager, so it is pointed at rather than found:
 #
-#   cmake -S . -B build -DSPOTFINDER_METAL=ON -DMETAL_CPP_DIR=/path/to/metal-cpp
-if(SPOTFINDER_METAL)
+#   cmake -S . -B build -DMXI_METAL=ON -DMETAL_CPP_DIR=/path/to/metal-cpp
+if(MXI_METAL)
     if(NOT APPLE)
         message(FATAL_ERROR
-                "SPOTFINDER_METAL is on but this is not macOS. The CPU path runs "
-                "everywhere; -DSPOTFINDER_CUDA=ON is the other device.")
+                "MXI_METAL is on but this is not macOS. The CPU path runs "
+                "everywhere; -DMXI_CUDA=ON is the other device.")
     endif()
 
     find_path(METAL_CPP_INCLUDE_DIR
@@ -103,8 +113,8 @@ if(SPOTFINDER_METAL)
                 "-DMETAL_CPP_DIR=<the unpacked directory>.")
     endif()
 
-    find_program(SPOTFINDER_XCRUN xcrun)
-    if(NOT SPOTFINDER_XCRUN)
+    find_program(MXI_XCRUN xcrun)
+    if(NOT MXI_XCRUN)
         message(FATAL_ERROR
                 "xcrun was not found, so the shader cannot be compiled. Install "
                 "the Xcode command line tools.")
@@ -126,37 +136,37 @@ if(SPOTFINDER_METAL)
     # test out from under the comparison. -DENABLE_FAST_MATH asks for the other
     # one, deliberately.
     if(ENABLE_FAST_MATH)
-        set(spotfinder_metal_math -ffast-math)
+        set(mxi_metal_math -ffast-math)
     else()
-        set(spotfinder_metal_math -fno-fast-math)
+        set(mxi_metal_math -fno-fast-math)
     endif()
 
-    set(spotfinder_metal_air "${CMAKE_CURRENT_BINARY_DIR}/dext_metal.air")
-    set(spotfinder_metallib "${CMAKE_CURRENT_BINARY_DIR}/dext_metal.metallib")
-    set(spotfinder_metallib_cc "${CMAKE_CURRENT_BINARY_DIR}/dext_metal_library.cc")
+    set(mxi_metal_air "${CMAKE_CURRENT_BINARY_DIR}/dext_metal.air")
+    set(mxi_metallib "${CMAKE_CURRENT_BINARY_DIR}/dext_metal.metallib")
+    set(mxi_metallib_cc "${CMAKE_CURRENT_BINARY_DIR}/dext_metal_library.cc")
 
     add_custom_command(
-        OUTPUT ${spotfinder_metal_air}
-        COMMAND ${SPOTFINDER_XCRUN} -sdk macosx metal
-                -std=metal3.0 ${spotfinder_metal_math} -Wall -Werror
-                -c "${CMAKE_CURRENT_SOURCE_DIR}/src/spots/dext_metal.metal"
-                -o ${spotfinder_metal_air}
-        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/spots/dext_metal.metal"
-        COMMENT "Compiling src/spots/dext_metal.metal")
+        OUTPUT ${mxi_metal_air}
+        COMMAND ${MXI_XCRUN} -sdk macosx metal
+                -std=metal3.0 ${mxi_metal_math} -Wall -Werror
+                -c "${CMAKE_CURRENT_SOURCE_DIR}/src/dext_metal.metal"
+                -o ${mxi_metal_air}
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/dext_metal.metal"
+        COMMENT "Compiling src/dext_metal.metal")
 
     add_custom_command(
-        OUTPUT ${spotfinder_metallib}
-        COMMAND ${SPOTFINDER_XCRUN} -sdk macosx metallib ${spotfinder_metal_air}
-                -o ${spotfinder_metallib}
-        DEPENDS ${spotfinder_metal_air}
+        OUTPUT ${mxi_metallib}
+        COMMAND ${MXI_XCRUN} -sdk macosx metallib ${mxi_metal_air}
+                -o ${mxi_metallib}
+        DEPENDS ${mxi_metal_air}
         COMMENT "Linking dext_metal.metallib")
 
     add_custom_command(
-        OUTPUT ${spotfinder_metallib_cc}
-        COMMAND ${CMAKE_COMMAND} -DINPUT=${spotfinder_metallib}
-                -DOUTPUT=${spotfinder_metallib_cc}
+        OUTPUT ${mxi_metallib_cc}
+        COMMAND ${CMAKE_COMMAND} -DINPUT=${mxi_metallib}
+                -DOUTPUT=${mxi_metallib_cc}
                 -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_metallib.cmake"
-        DEPENDS ${spotfinder_metallib}
+        DEPENDS ${mxi_metallib}
                 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_metallib.cmake"
         COMMENT "Embedding dext_metal.metallib")
 endif()
@@ -171,39 +181,50 @@ endif()
 # built in this tree -- bitshuffle included, which matters: a sanitizer only
 # reports an access it instrumented, so a read off the end of a buffer inside
 # bitshuffle is invisible unless bitshuffle itself was built this way.
-set(SPOTFINDER_SANITIZE "" CACHE STRING
-    "Sanitizers to build with: address, undefined, address,undefined, or thread")
-set_property(CACHE SPOTFINDER_SANITIZE PROPERTY STRINGS
-             "" address undefined "address,undefined" thread)
+set(MXI_SANITIZE "" CACHE STRING
+    "Sanitizers to build with: ON (address and undefined), address, undefined, address,undefined, or thread")
+set_property(CACHE MXI_SANITIZE PROPERTY STRINGS
+             "" ON address undefined "address,undefined" thread)
+# ON, as the one switch this build had before the spot finder's list joined it:
+# address and undefined behaviour.
+if(MXI_SANITIZE STREQUAL "ON" OR MXI_SANITIZE STREQUAL "TRUE")
+    set(MXI_SANITIZE "address,undefined")
+endif()
 
-if(SPOTFINDER_SANITIZE)
+if(MXI_SANITIZE)
     if(MSVC)
-        message(FATAL_ERROR "SPOTFINDER_SANITIZE is not supported with MSVC here")
+        message(FATAL_ERROR "MXI_SANITIZE is not supported with MSVC here")
     endif()
     # nvcc does not take -fsanitize itself; it has to be handed to the host
     # compiler, one flag per sanitizer, because nvcc splits -Xcompiler arguments
     # on commas. A device fault needs compute-sanitizer instead.
-    string(REPLACE "," ";" spotfinder_sanitizers "${SPOTFINDER_SANITIZE}")
-    set(spotfinder_sanitize_host "")
-    set(spotfinder_sanitize_cuda "")
-    foreach(sanitizer IN LISTS spotfinder_sanitizers)
-        list(APPEND spotfinder_sanitize_host "-fsanitize=${sanitizer}")
-        list(APPEND spotfinder_sanitize_cuda "-Xcompiler=-fsanitize=${sanitizer}")
+    string(REPLACE "," ";" mxi_sanitizers "${MXI_SANITIZE}")
+    set(mxi_sanitize_host "")
+    set(mxi_sanitize_cuda "")
+    foreach(sanitizer IN LISTS mxi_sanitizers)
+        list(APPEND mxi_sanitize_host "-fsanitize=${sanitizer}")
+        list(APPEND mxi_sanitize_cuda "-Xcompiler=-fsanitize=${sanitizer}")
     endforeach()
+    # Undefined behaviour ABORTS rather than prints and carries on: otherwise a
+    # sanitizer run reports and the test still passes, which cannot fail.
+    if("undefined" IN_LIST mxi_sanitizers)
+        list(APPEND mxi_sanitize_host "-fno-sanitize-recover=undefined")
+        list(APPEND mxi_sanitize_cuda "-Xcompiler=-fno-sanitize-recover=undefined")
+    endif()
 
     add_compile_options(
-        "$<$<COMPILE_LANGUAGE:C,CXX>:${spotfinder_sanitize_host};-fno-omit-frame-pointer>"
-        "$<$<COMPILE_LANGUAGE:CUDA>:${spotfinder_sanitize_cuda};-Xcompiler=-fno-omit-frame-pointer>")
-    add_link_options(${spotfinder_sanitize_host})
-    message(STATUS "sanitizers: ${SPOTFINDER_SANITIZE}, applied to everything built here")
+        "$<$<COMPILE_LANGUAGE:C,CXX>:${mxi_sanitize_host};-fno-omit-frame-pointer>"
+        "$<$<COMPILE_LANGUAGE:CUDA>:${mxi_sanitize_cuda};-Xcompiler=-fno-omit-frame-pointer>")
+    add_link_options(${mxi_sanitize_host})
+    message(STATUS "sanitizers: ${MXI_SANITIZE}, applied to everything built here")
 endif()
 
 # Warning flags as usage requirements, so that every target picks them up by
 # linking this and the compiler check lives in one place. An INTERFACE library
 # with no location contributes nothing to the link line.
-add_library(spotfinder_warnings INTERFACE)
+add_library(mxi_warnings INTERFACE)
 if(NOT MSVC)
-    target_compile_options(spotfinder_warnings INTERFACE -Wall -Wextra)
+    target_compile_options(mxi_warnings INTERFACE -Wall -Wextra)
 endif()
 
 # bitshuffle has no CMake build of its own -- it is packaged for Python -- so the
@@ -227,44 +248,44 @@ target_include_directories(bitshuffle SYSTEM PRIVATE ${HDF5_C_INCLUDE_DIRS})
 # need no help, since SSE2 is baseline on x86-64 and NEON is baseline on aarch64
 # -- a plain build is already vectorised on both. AVX2 is the tier that has to be
 # asked for, and asking for it is only meaningful on x86.
-option(SPOTFINDER_AVX2
+option(MXI_AVX2
        "Compile bitshuffle's AVX2 path; the binary then requires an AVX2 CPU" ON)
 
-set(spotfinder_target_arch "${CMAKE_SYSTEM_PROCESSOR}")
+set(mxi_target_arch "${CMAKE_SYSTEM_PROCESSOR}")
 if(CMAKE_OSX_ARCHITECTURES)
     # A universal or cross build overrides the host processor and may name more
     # than one architecture, so "arm64" and "arm64;x86_64" both fall through to
     # the else branch below -- which is what we want, since -mavx2 would fail the
     # arm64 slice.
-    set(spotfinder_target_arch "${CMAKE_OSX_ARCHITECTURES}")
+    set(mxi_target_arch "${CMAKE_OSX_ARCHITECTURES}")
 endif()
 
-if(NOT SPOTFINDER_AVX2)
+if(NOT MXI_AVX2)
     message(STATUS "bitshuffle: AVX2 off by request")
-elseif(NOT spotfinder_target_arch MATCHES "^(x86_64|amd64|AMD64|i[3-6]86)$")
+elseif(NOT mxi_target_arch MATCHES "^(x86_64|amd64|AMD64|i[3-6]86)$")
     message(STATUS
-            "bitshuffle: ${spotfinder_target_arch} is not x86, so AVX2 does not "
+            "bitshuffle: ${mxi_target_arch} is not x86, so AVX2 does not "
             "apply; NEON is baseline on aarch64")
 else()
     include(CheckCCompilerFlag)
     if(MSVC)
-        set(spotfinder_avx2_flag /arch:AVX2)
+        set(mxi_avx2_flag /arch:AVX2)
     else()
-        set(spotfinder_avx2_flag -mavx2)
+        set(mxi_avx2_flag -mavx2)
     endif()
     # Ask the compiler rather than assuming: a clang targeting arm64 rejects
     # -mavx2 outright, and this is the last line of defence if the architecture
     # test above is ever fooled.
-    check_c_compiler_flag(${spotfinder_avx2_flag} SPOTFINDER_COMPILER_TAKES_AVX2)
-    if(SPOTFINDER_COMPILER_TAKES_AVX2)
-        target_compile_options(bitshuffle PRIVATE ${spotfinder_avx2_flag})
+    check_c_compiler_flag(${mxi_avx2_flag} MXI_COMPILER_TAKES_AVX2)
+    if(MXI_COMPILER_TAKES_AVX2)
+        target_compile_options(bitshuffle PRIVATE ${mxi_avx2_flag})
         message(STATUS
                 "bitshuffle: AVX2 path enabled, so this build will not run on a "
-                "CPU without AVX2 -- configure with -DSPOTFINDER_AVX2=OFF for a "
+                "CPU without AVX2 -- configure with -DMXI_AVX2=OFF for a "
                 "portable SSE2 build")
     else()
         message(STATUS
-                "bitshuffle: ${spotfinder_avx2_flag} rejected by the C compiler, "
+                "bitshuffle: ${mxi_avx2_flag} rejected by the C compiler, "
                 "falling back to SSE2")
     endif()
 endif()
@@ -273,12 +294,12 @@ endif()
 # executable, the device test and the benchmark cannot end up compiled three
 # different ways -- which would make the test's verdict about a different binary
 # from the one being timed.
-set(spotfinder_gpu_definitions "")
-set(spotfinder_cuda_options "")
+set(mxi_gpu_definitions "")
+set(mxi_cuda_options "")
 if(ENABLE_FAST_MATH)
-    if(SPOTFINDER_CUDA OR SPOTFINDER_METAL)
-        list(APPEND spotfinder_gpu_definitions SPOTFINDER_FAST_MATH)
-        list(APPEND spotfinder_cuda_options
+    if(MXI_CUDA OR MXI_METAL)
+        list(APPEND mxi_gpu_definitions MXI_FAST_MATH)
+        list(APPEND mxi_cuda_options
              "$<$<COMPILE_LANGUAGE:CUDA>:-use_fast_math>")
         message(STATUS
                 "fast math: ON for the device kernels. They no longer agree "
@@ -318,10 +339,10 @@ herr_t probe(hid_t dataset, const hsize_t *offset, std::uint32_t *filters,
              void *buffer, std::size_t *size) {
   return H5Dread_chunk(dataset, H5P_DEFAULT, offset, filters, buffer, size);
 }
-" SPOTFINDER_H5DREAD_CHUNK_TAKES_SIZE)
+" MXI_H5DREAD_CHUNK_TAKES_SIZE)
 unset(CMAKE_REQUIRED_INCLUDES)
 unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
-if(SPOTFINDER_H5DREAD_CHUNK_TAKES_SIZE)
+if(MXI_H5DREAD_CHUNK_TAKES_SIZE)
     message(STATUS "HDF5: H5Dread_chunk takes a buffer size (2.0 and later)")
 else()
     message(STATUS "HDF5: H5Dread_chunk takes no buffer size (before 2.0)")
@@ -330,90 +351,90 @@ endif()
 # Where frames come from: an NXmx master file whose virtual dataset is unpacked
 # so its chunks can be read directly. HDF5 stays behind this library rather than
 # reaching the tool.
-add_library(spotfinder_series STATIC src/spots/nxmx.cc)
-target_include_directories(spotfinder_series PUBLIC src/spots)
-target_include_directories(spotfinder_series SYSTEM PRIVATE ${HDF5_C_INCLUDE_DIRS})
-target_link_libraries(spotfinder_series
-    PRIVATE ${HDF5_C_LIBRARIES} spotfinder_warnings)
-target_compile_definitions(spotfinder_series PRIVATE
-    $<$<BOOL:${SPOTFINDER_H5DREAD_CHUNK_TAKES_SIZE}>:SPOTFINDER_H5DREAD_CHUNK_TAKES_SIZE>)
+add_library(mxi_image_series STATIC src/nxmx_reader.cc)
+target_include_directories(mxi_image_series PUBLIC src)
+target_include_directories(mxi_image_series SYSTEM PRIVATE ${HDF5_C_INCLUDE_DIRS})
+target_link_libraries(mxi_image_series
+    PRIVATE ${HDF5_C_LIBRARIES} mxi_warnings)
+target_compile_definitions(mxi_image_series PRIVATE
+    $<$<BOOL:${MXI_H5DREAD_CHUNK_TAKES_SIZE}>:MXI_H5DREAD_CHUNK_TAKES_SIZE>)
 
 # bitshuffle+LZ4, plain LZ4 and uncompressed chunks.
-add_library(spotfinder_decompress STATIC src/spots/decompress.cc)
-target_include_directories(spotfinder_decompress PUBLIC src/spots)
-target_link_libraries(spotfinder_decompress PRIVATE bitshuffle spotfinder_warnings)
+add_library(mxi_decompress STATIC src/decompress.cc)
+target_include_directories(mxi_decompress PUBLIC src)
+target_link_libraries(mxi_decompress PRIVATE bitshuffle mxi_warnings)
 
 # The extended dispersion threshold, explicitly instantiated for 16 and 32 bit
 # pixels.
-add_library(spotfinder_dext STATIC src/spots/dext.cc)
-target_include_directories(spotfinder_dext PUBLIC src/spots)
-target_link_libraries(spotfinder_dext PRIVATE spotfinder_warnings)
+add_library(mxi_dext STATIC src/dext.cc)
+target_include_directories(mxi_dext PUBLIC src)
+target_link_libraries(mxi_dext PRIVATE mxi_warnings)
 
 # Ordering a device's signal pixels by index. Host code, shared by both device
 # backends, and its own library because it is worth testing on a machine with no
 # GPU at all -- which is where it was written and where its bug was found.
-add_library(spotfinder_signal_order STATIC src/spots/signal_order.cc)
-target_include_directories(spotfinder_signal_order PUBLIC src/spots)
-target_link_libraries(spotfinder_signal_order PRIVATE spotfinder_warnings)
+add_library(mxi_signal_order STATIC src/signal_order.cc)
+target_include_directories(mxi_signal_order PUBLIC src)
+target_link_libraries(mxi_signal_order PRIVATE mxi_warnings)
 
 # The backend-agnostic half of gpu::: which window each stage uses, whether to
 # profile, and the last frame's split. Plain C++ with no toolkit in it, so it
 # builds whether the backend is CUDA or Metal and is compiled once either way.
-add_library(spotfinder_dext_gpu STATIC src/spots/dext_gpu.cc)
-target_include_directories(spotfinder_dext_gpu PUBLIC src/spots)
-target_link_libraries(spotfinder_dext_gpu PRIVATE spotfinder_warnings)
+add_library(mxi_dext_gpu STATIC src/dext_gpu.cc)
+target_include_directories(mxi_dext_gpu PUBLIC src)
+target_link_libraries(mxi_dext_gpu PRIVATE mxi_warnings)
 
 # Grouping signal pixels six-connected in three dimensions, as DIALS does, with
 # its centroids and its filters. No Boost: the streaming flush renumbers
 # components as it compacts, and a union-find it owns is both smaller than
 # adjacency_list and the reason the whole sweep need not be held in memory.
-add_library(spotfinder_dials_spots STATIC src/spots/dials_spots.cc)
-target_include_directories(spotfinder_dials_spots PUBLIC src/spots)
-target_link_libraries(spotfinder_dials_spots PRIVATE spotfinder_warnings)
+add_library(mxi_spots STATIC src/spots.cc)
+target_include_directories(mxi_spots PUBLIC src)
+target_link_libraries(mxi_spots PRIVATE mxi_warnings)
 
 # Writing a DIALS reflection table. A .refl is msgpack around raw column dumps,
 # so this needs neither DIALS nor a msgpack library; what it does need is the
 # column type names to be exactly right, since DIALS refuses a name it does not
 # know.
-add_library(spotfinder_refl STATIC src/spots/refl.cc)
-target_include_directories(spotfinder_refl PUBLIC src/spots)
-target_link_libraries(spotfinder_refl
-    PUBLIC spotfinder_dials_spots
-    PRIVATE spotfinder_warnings)
+add_library(mxi_spot_refl STATIC src/spot_refl.cc)
+target_include_directories(mxi_spot_refl PUBLIC src)
+target_link_libraries(mxi_spot_refl
+    PUBLIC mxi_spots
+    PRIVATE mxi_warnings)
 
 # Reading the three facts a spot list needs out of what dials.import wrote.
 # The experiment reader parses JSON with the shared parser rather than a second
 # copy of one. It does NOT use the shared experiment reader: that one refuses a
 # scan without an oscillation, and the spot finder does not need one.
-add_library(spotfinder_expt STATIC src/spots/expt.cc)
-target_include_directories(spotfinder_expt PUBLIC src/spots)
-target_link_libraries(spotfinder_expt PRIVATE spotfinder_warnings)
+add_library(mxi_spot_expt STATIC src/spot_expt.cc)
+target_include_directories(mxi_spot_expt PUBLIC src)
+target_link_libraries(mxi_spot_expt PRIVATE mxi_warnings)
 if(TARGET mxi)
-  target_link_libraries(spotfinder_expt PRIVATE mxi)
+  target_link_libraries(mxi_spot_expt PRIVATE mxi)
 else()
   # Standalone: compile the one file it needs from the parent tree.
-  target_sources(spotfinder_expt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/json.cc)
-  target_include_directories(spotfinder_expt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/spots)
+  target_sources(mxi_spot_expt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/json.cc)
+  target_include_directories(mxi_spot_expt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 endif()
 
-add_executable(mxi_find src/spots/find_spots.cc)
+add_executable(mxi_find apps/mxi_find.cc)
 target_compile_definitions(mxi_find PRIVATE
-                           SPOTFINDER_VERSION="${PROJECT_VERSION}")
+                           MXI_VERSION="${PROJECT_VERSION}")
 target_link_libraries(mxi_find
-    PRIVATE spotfinder_series spotfinder_decompress spotfinder_dext
-            spotfinder_dials_spots spotfinder_refl spotfinder_expt
-            Threads::Threads spotfinder_warnings)
+    PRIVATE mxi_image_series mxi_decompress mxi_dext
+            mxi_spots mxi_spot_refl mxi_spot_expt
+            Threads::Threads mxi_warnings)
 
 # The kernels go into the executable rather than a library of their own, so that
 # adding more .cu files is a one-line change here.
-if(SPOTFINDER_CUDA)
-    target_sources(mxi_find PRIVATE src/spots/dext_cuda.cu)
+if(MXI_CUDA)
+    target_sources(mxi_find PRIVATE src/dext_cuda.cu)
     target_compile_definitions(mxi_find PRIVATE
-                               SPOTFINDER_CUDA SPOTFINDER_GPU
-                               ${spotfinder_gpu_definitions})
+                               MXI_CUDA MXI_GPU
+                               ${mxi_gpu_definitions})
     target_link_libraries(mxi_find
-        PRIVATE spotfinder_signal_order spotfinder_dext_gpu)
-    target_compile_options(mxi_find PRIVATE ${spotfinder_cuda_options})
+        PRIVATE mxi_signal_order mxi_dext_gpu)
+    target_compile_options(mxi_find PRIVATE ${mxi_cuda_options})
     # No separable compilation: there is one .cu file and nothing calls across
     # translation units on the device, so the extra nvcc device-link step buys
     # nothing -- and it would be handed the host linker's flags, which it does
@@ -426,27 +447,27 @@ endif()
 # the executable, because tests/spots/test_dext_gpu.cc has to link it too: a backend
 # only reachable through the tool cannot be diffed against the CPU without a
 # detector and a series.
-if(SPOTFINDER_METAL)
-    add_library(spotfinder_dext_metal STATIC
-                src/spots/dext_metal.cc ${spotfinder_metallib_cc})
-    target_include_directories(spotfinder_dext_metal PUBLIC src/spots)
+if(MXI_METAL)
+    add_library(mxi_dext_metal STATIC
+                src/dext_metal.cc ${mxi_metallib_cc})
+    target_include_directories(mxi_dext_metal PUBLIC src)
     # SYSTEM: metal-cpp is not clean under -Wall -Wextra and it is not ours to
-    # fix. The warnings that matter are the ones in src/spots/.
-    target_include_directories(spotfinder_dext_metal SYSTEM PUBLIC
+    # fix. The warnings that matter are mxi's own.
+    target_include_directories(mxi_dext_metal SYSTEM PUBLIC
                                ${METAL_CPP_INCLUDE_DIR})
-    target_link_libraries(spotfinder_dext_metal
+    target_link_libraries(mxi_dext_metal
         PUBLIC ${METAL_FRAMEWORK} ${FOUNDATION_FRAMEWORK}
-        PRIVATE spotfinder_signal_order spotfinder_dext_gpu spotfinder_warnings)
+        PRIVATE mxi_signal_order mxi_dext_gpu mxi_warnings)
 
-    target_link_libraries(mxi_find PRIVATE spotfinder_dext_metal)
+    target_link_libraries(mxi_find PRIVATE mxi_dext_metal)
     target_compile_definitions(mxi_find PRIVATE
-                               SPOTFINDER_METAL SPOTFINDER_GPU
-                               ${spotfinder_gpu_definitions})
+                               MXI_METAL MXI_GPU
+                               ${mxi_gpu_definitions})
 endif()
 
 install(TARGETS mxi_find RUNTIME DESTINATION bin)
 
-if(SPOTFINDER_TESTS)
+if(MXI_TESTS)
     enable_testing()
 
     # Not a regression: it pins the domain the 32-bit window sums are exact over,
@@ -454,21 +475,21 @@ if(SPOTFINDER_TESTS)
     # headroom.
     add_executable(test_dext_squares tests/spots/test_dext_squares.cc)
     target_link_libraries(test_dext_squares
-        PRIVATE spotfinder_dext spotfinder_warnings)
+        PRIVATE mxi_dext mxi_warnings)
     add_test(NAME dext_squares COMMAND test_dext_squares)
 
     # No GPU needed: the fused kernel's phases, run on the CPU tile by tile,
     # against dext() -- the tile arithmetic, checked where it can be.
     add_executable(test_dext_fused tests/spots/test_dext_fused.cc)
     target_link_libraries(test_dext_fused
-        PRIVATE spotfinder_dext spotfinder_warnings)
+        PRIVATE mxi_dext mxi_warnings)
     add_test(NAME dext_fused COMMAND test_dext_fused)
 
     # No GPU needed: the ordering is host code, and this is where its heap
     # overflow was caught.
     add_executable(test_signal_order tests/spots/test_signal_order.cc)
     target_link_libraries(test_signal_order
-        PRIVATE spotfinder_signal_order spotfinder_warnings)
+        PRIVATE mxi_signal_order mxi_warnings)
     add_test(NAME signal_order COMMAND test_signal_order)
 
     # The DIALS side: the grouping, the file, the experiment list, and the three
@@ -477,7 +498,7 @@ if(SPOTFINDER_TESTS)
     # what dials.index is handed means what it says.
     add_executable(test_dials_spots tests/spots/test_dials_spots.cc)
     target_link_libraries(test_dials_spots
-        PRIVATE spotfinder_dials_spots spotfinder_warnings)
+        PRIVATE mxi_spots mxi_warnings)
     add_test(NAME dials_spots COMMAND test_dials_spots)
 
     # Not a ctest: it is a measurement to read, not a pass or a fail. It is
@@ -486,7 +507,7 @@ if(SPOTFINDER_TESTS)
     # it is a tenth of a per cent of one. The numbers are in its header.
     add_executable(bench_dials_spots tests/spots/bench_dials_spots.cc)
     target_link_libraries(bench_dials_spots
-        PRIVATE spotfinder_dials_spots spotfinder_warnings)
+        PRIVATE mxi_spots mxi_warnings)
 
     # mxi_integrate needs pixels, so it lives here with the HDF5 guard rather
     # than in the top-level list: everything else in apps/ builds without HDF5.
@@ -500,55 +521,55 @@ if(SPOTFINDER_TESTS)
 
     add_executable(mxi_integrate ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_integrate.cc)
     target_link_libraries(mxi_integrate
-                          PRIVATE mxi spotfinder_series spotfinder_decompress
-                                  spotfinder_warnings)
-    target_include_directories(mxi_integrate PRIVATE src src/spots apps)
+                          PRIVATE mxi mxi_image_series mxi_decompress
+                                  mxi_warnings)
+    target_include_directories(mxi_integrate PRIVATE src apps)
 
     # An experiment list from an NXmx master, as dials.import writes it.
     add_executable(mxi_import ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_import.cc
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nxmx_import.cc)
-    target_link_libraries(mxi_import PRIVATE mxi spotfinder_warnings ${HDF5_C_LIBRARIES})
+    target_link_libraries(mxi_import PRIVATE mxi mxi_warnings ${HDF5_C_LIBRARIES})
     target_include_directories(mxi_import PRIVATE src apps)
     target_include_directories(mxi_import SYSTEM PRIVATE ${HDF5_C_INCLUDE_DIRS})
 
     # The largest count on a valid pixel, and whether it fits in 16 bits.
     add_executable(mxi_max ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_max.cc)
     target_link_libraries(mxi_max
-                          PRIVATE mxi spotfinder_series spotfinder_decompress
-                                  spotfinder_expt spotfinder_warnings)
-    target_include_directories(mxi_max PRIVATE src src/spots apps)
+                          PRIVATE mxi mxi_image_series mxi_decompress
+                                  mxi_spot_expt mxi_warnings)
+    target_include_directories(mxi_max PRIVATE src apps)
 
     # How fast the images can be read and decompressed, apart from the
     # programs: H5Dread_chunk against pread. Not used by the pipeline.
     add_executable(mxi_readtest ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_readtest.cc)
     target_link_libraries(mxi_readtest
-                          PRIVATE mxi spotfinder_series spotfinder_decompress
-                                  spotfinder_warnings)
-    target_include_directories(mxi_readtest PRIVATE src src/spots apps)
+                          PRIVATE mxi mxi_image_series mxi_decompress
+                                  mxi_warnings)
+    target_include_directories(mxi_readtest PRIVATE src apps)
     target_include_directories(mxi_readtest SYSTEM PRIVATE ${HDF5_C_INCLUDE_DIRS})
     target_link_libraries(mxi_readtest PRIVATE ${HDF5_C_LIBRARIES})
 
     add_executable(test_refl tests/spots/test_refl.cc)
-    target_link_libraries(test_refl PRIVATE spotfinder_refl spotfinder_warnings)
+    target_link_libraries(test_refl PRIVATE mxi_spot_refl mxi_warnings)
     add_test(NAME refl COMMAND test_refl)
 
     # Holds the writer's output to what it produces today, so that replacing it
     # with the general writer in ../src/refl.cc can be shown to change nothing.
     # See docs/spotfinder.md: this must not be weakened to pass.
     add_executable(test_refl_golden tests/spots/test_refl_golden.cc)
-    # spotfinder_refl links spotfinder_dials_spots PUBLIC, so naming it here
+    # mxi_spot_refl links mxi_spots PUBLIC, so naming it here
     # too puts the archive on the link line twice and ld warns about it.
     target_link_libraries(test_refl_golden
-                          PRIVATE spotfinder_refl spotfinder_warnings)
+                          PRIVATE mxi_spot_refl mxi_warnings)
     add_test(NAME refl_golden COMMAND test_refl_golden)
 
     add_executable(test_expt tests/spots/test_expt.cc)
-    target_link_libraries(test_expt PRIVATE spotfinder_expt spotfinder_warnings)
+    target_link_libraries(test_expt PRIVATE mxi_spot_expt mxi_warnings)
     add_test(NAME expt COMMAND test_expt)
 
     add_executable(test_dials_end_to_end tests/spots/test_dials_end_to_end.cc)
     target_link_libraries(test_dials_end_to_end
-        PRIVATE spotfinder_dext spotfinder_refl spotfinder_warnings)
+        PRIVATE mxi_dext mxi_spot_refl mxi_warnings)
     add_test(NAME dials_end_to_end COMMAND test_dials_end_to_end)
 
     # The CPU and the device must agree exactly, so this is only built when there
@@ -556,23 +577,23 @@ if(SPOTFINDER_TESTS)
     # is compiled in but the machine has none. Either backend: the CUDA kernels
     # are compiled into the executable rather than a library, so the test needs
     # the .cu too.
-    if(SPOTFINDER_CUDA OR SPOTFINDER_METAL)
-        set(spotfinder_gpu_test_libs spotfinder_dext spotfinder_signal_order
-                                     spotfinder_dext_gpu spotfinder_warnings)
-        if(SPOTFINDER_METAL)
-            list(APPEND spotfinder_gpu_test_libs spotfinder_dext_metal)
-            set(spotfinder_gpu_test_sources "")
+    if(MXI_CUDA OR MXI_METAL)
+        set(mxi_gpu_test_libs mxi_dext mxi_signal_order
+                                     mxi_dext_gpu mxi_warnings)
+        if(MXI_METAL)
+            list(APPEND mxi_gpu_test_libs mxi_dext_metal)
+            set(mxi_gpu_test_sources "")
         else()
-            set(spotfinder_gpu_test_sources src/spots/dext_cuda.cu)
+            set(mxi_gpu_test_sources src/dext_cuda.cu)
         endif()
 
         add_executable(test_dext_gpu tests/spots/test_dext_gpu.cc
-                       ${spotfinder_gpu_test_sources})
+                       ${mxi_gpu_test_sources})
         target_include_directories(test_dext_gpu PRIVATE tests/spots)
-        target_link_libraries(test_dext_gpu PRIVATE ${spotfinder_gpu_test_libs})
+        target_link_libraries(test_dext_gpu PRIVATE ${mxi_gpu_test_libs})
         target_compile_definitions(test_dext_gpu PRIVATE
-                                   ${spotfinder_gpu_definitions})
-        target_compile_options(test_dext_gpu PRIVATE ${spotfinder_cuda_options})
+                                   ${mxi_gpu_definitions})
+        target_compile_options(test_dext_gpu PRIVATE ${mxi_cuda_options})
         add_test(NAME dext_gpu COMMAND test_dext_gpu)
         set_tests_properties(dext_gpu PROPERTIES SKIP_RETURN_CODE 77)
 
@@ -580,12 +601,12 @@ if(SPOTFINDER_TESTS)
         # answered by measurement. Not a ctest: it takes minutes and its output
         # is a number to read, not a pass or a fail.
         add_executable(bench_dext_gpu tests/spots/bench_dext_gpu.cc
-                       ${spotfinder_gpu_test_sources})
+                       ${mxi_gpu_test_sources})
         target_include_directories(bench_dext_gpu PRIVATE tests/spots)
         target_link_libraries(bench_dext_gpu
-            PRIVATE ${spotfinder_gpu_test_libs} Threads::Threads)
+            PRIVATE ${mxi_gpu_test_libs} Threads::Threads)
         target_compile_definitions(bench_dext_gpu PRIVATE
-                                   ${spotfinder_gpu_definitions})
-        target_compile_options(bench_dext_gpu PRIVATE ${spotfinder_cuda_options})
+                                   ${mxi_gpu_definitions})
+        target_compile_options(bench_dext_gpu PRIVATE ${mxi_cuda_options})
     endif()
 endif()

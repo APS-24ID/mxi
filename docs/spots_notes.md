@@ -48,22 +48,22 @@ one implementation of them.
 
 | Path | What it is |
 | --- | --- |
-| `src/spots/find_spots.cc` | `main`: option parsing, the thread pool, the chunked ordering |
-| `src/spots/series.hh` | `Series`, `Reader`, `Frame`: what the tool reads, above HDF5 |
-| `src/spots/nxmx.cc` | VDS unpacking and `H5Dread_chunk`; the only file including hdf5.h |
+| `apps/mxi_find.cc` | `main`: option parsing, the thread pool, the chunked ordering |
+| `src/image_series.hh` | `Series`, `Reader`, `Frame`: what the tool reads, above HDF5 |
+| `src/nxmx_reader.cc` | VDS unpacking and `H5Dread_chunk`; the only file including hdf5.h |
 | `src/decompress.{hh,cc}` | bslz4, lz4 and uncompressed chunks, via bitshuffle |
 | `src/dext.{hh,cc}` | Extended dispersion threshold, CPU. **Given code** |
-| `src/spots/dext_gpu.hh` | The device interface. One header, two implementations, one linked |
-| `src/spots/dext_gpu.cc` | The backend-agnostic half: window choice, profiling, splits |
-| `src/spots/dext_gpu_internal.hh` | What a backend calls into that, and a caller does not |
+| `src/dext_gpu.hh` | The device interface. One header, two implementations, one linked |
+| `src/dext_gpu.cc` | The backend-agnostic half: window choice, profiling, splits |
+| `src/dext_gpu_internal.hh` | What a backend calls into that, and a caller does not |
 | `src/dext_cuda.cu` | The same on CUDA, typed from dext.hh's traits |
 | `src/dext_metal.{cc,metal}` | The same on Apple silicon, 16-bit only, via metal-cpp |
-| `src/spots/signal_pixel.hh` | What the threshold emits: 16 bytes a surviving pixel |
+| `src/signal_pixel.hh` | What the threshold emits: 16 bytes a surviving pixel |
 | `src/signal_order.{hh,cc}` | Signal pixels into index order, O(n). Host, shared |
 | `src/dials_spots.{hh,cc}` | Six-connected grouping in 3D, DIALS' centroids, streaming |
 | `src/refl.{hh,cc}` | A DIALS reflection table: msgpack, written by hand |
 | `src/expt.{hh,cc}` | The scan range, panel size and identifier out of an .expt |
-| `src/spots/queue.hh` | Bounded blocking queue, the backpressure between threads |
+| `src/queue.hh` | Bounded blocking queue, the backpressure between threads |
 | `python/src/mxeq/fixtures/nxmx.py` | A synthetic series with reflections planted across frames |
 | `python/src/mxeq/checks/spotfinder_spots.py` | That series' manifest against the table it produced |
 | `python/src/mxeq/checks/spotfinder_refl.py` | Validates a .refl, and diffs two of them by centroid |
@@ -163,9 +163,9 @@ could.
 * **There is one GPU interface and two implementations of it**, `dext_gpu.hh`
   with `dext_cuda.cu` and `dext_metal.cc` behind it. Exactly one is compiled in;
   configuring both is a hard error in `CMakeLists.txt`, because the linker would
-  otherwise pick one and `--gpu` would run a device nobody chose. `SPOTFINDER_GPU`
-  at the call sites means "there is a backend"; `SPOTFINDER_CUDA` and
-  `SPOTFINDER_METAL` mean which, and stay in `CMakeLists.txt` and in the
+  otherwise pick one and `--gpu` would run a device nobody chose. `MXI_GPU`
+  at the call sites means "there is a backend"; `MXI_CUDA` and
+  `MXI_METAL` mean which, and stay in `CMakeLists.txt` and in the
   backend's own file.
 * **The Metal backend is 16-bit only, and that is a decision rather than a gap.**
   `real_t<std::uint32_t>` is `double` and Apple GPUs have no double precision at
@@ -221,7 +221,7 @@ could.
   cannot land in one and not the other. `tests/spots/test_dext_gpu.cc` runs its whole
   comparison under both variants for the same reason.
 * **Both backends have all four window kernels**, chosen at run time by
-  `SPOTFINDER_GPU_STAGE0` and `SPOTFINDER_GPU_STAGE2`, and the two devices do not
+  `MXI_GPU_STAGE0` and `MXI_GPU_STAGE2`, and the two devices do not
   agree about `stage0` -- which is why it is a run-time choice and not a decision
   in the source. The table is in the README. The *default* for each stage is
   asked of the backend, through `internal::default_stage0_window()`, because the
@@ -234,7 +234,7 @@ could.
   all four combinations against the CPU is a real cross-check on the tiles' index
   arithmetic that nothing else provides.
 * **The window choice, the profiling flag and the last frame's split live in
-  `src/spots/dext_gpu.cc`, not in either backend.** None of them is about a device:
+  `src/dext_gpu.cc`, not in either backend.** None of them is about a device:
   they are configuration, and two copies is how "tile" ends up spelled two ways.
 * **The per-stage split is trustworthy on CUDA and only indicative on Metal.**
   CUDA records events around each kernel in the one stream, which costs nothing
@@ -349,7 +349,7 @@ could.
   pointed the old name at the new function through its versioned-API macros, so
   no preprocessor macro distinguishes them and `H5_VERSION_GE` is a guess --
   vcpkg ships 2.0, the distributions mostly do not. A compile probe in
-  `CMakeLists.txt` defines `SPOTFINDER_H5DREAD_CHUNK_TAKES_SIZE`, and
+  `CMakeLists.txt` defines `MXI_H5DREAD_CHUNK_TAKES_SIZE`, and
   `read_chunk` in `nxmx.cc` has both calls.
 * **`-x` unpacks the VDS rather than trusting a layout.** The mapping names its
   own source files, datasets and offsets, and the source datasets state their own

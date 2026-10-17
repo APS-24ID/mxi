@@ -12,8 +12,8 @@
 // one in four at 32. Both are far beyond anything a real frame produces; the
 // device path checks the bound rather than trusting it.
 
-#ifndef SPOTFINDER_SIGNAL_PIXEL_HH
-#define SPOTFINDER_SIGNAL_PIXEL_HH
+#ifndef MXI_SIGNAL_PIXEL_HH
+#define MXI_SIGNAL_PIXEL_HH
 
 #include <cstdint>
 
@@ -27,4 +27,4 @@ struct SignalPixel {
 
 static_assert(sizeof(SignalPixel) == 16, "SignalPixel must pack to 128 bits");
 
-#endif // SPOTFINDER_SIGNAL_PIXEL_HH
+#endif // MXI_SIGNAL_PIXEL_HH

@@ -6,8 +6,8 @@
 // second. Both directions live here: what a backend records into the shared
 // part, and the two things the shared part has to ask of the backend.
 
-#ifndef SPOTFINDER_DEXT_GPU_INTERNAL_HH
-#define SPOTFINDER_DEXT_GPU_INTERNAL_HH
+#ifndef MXI_DEXT_GPU_INTERNAL_HH
+#define MXI_DEXT_GPU_INTERNAL_HH
 
 #include "dext_gpu.hh"
 
@@ -42,4 +42,4 @@ Window default_stage2_window();
 } // namespace internal
 } // namespace gpu
 
-#endif // SPOTFINDER_DEXT_GPU_INTERNAL_HH
+#endif // MXI_DEXT_GPU_INTERNAL_HH

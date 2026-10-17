@@ -26,12 +26,10 @@
 // calculation from the CPU's and disagree with it. find<std::uint32_t> throws
 // rather than pretending; see the note in dext_metal.metal.
 
-#define NS_PRIVATE_IMPLEMENTATION
-#define MTL_PRIVATE_IMPLEMENTATION
-
 #include "dext_gpu.hh"
 #include "dext_gpu_internal.hh"
 
+#include "metal_device.hh"
 #include <Foundation/Foundation.hpp>
 #include <Metal/Metal.hpp>
 #include <dispatch/dispatch.h>
@@ -64,10 +62,6 @@ namespace {
   if (error != nullptr && error->localizedDescription() != nullptr)
     message += std::string(": ") + error->localizedDescription()->utf8String();
   throw std::runtime_error(message);
-}
-
-NS::String *literal(const char *text) {
-  return NS::String::string(text, NS::UTF8StringEncoding);
 }
 
 // metal-cpp returns autoreleased objects from most methods, exactly as the
@@ -121,30 +115,17 @@ public:
   }
 
 private:
-  Device() : device_(MTL::CreateSystemDefaultDevice()) {}
+  Device() : device_(mxi::metal::device()) {}
 
   MTL::ComputePipelineState *pipeline(MTL::Library *library, const char *name) {
-    MTL::Function *function = library->newFunction(literal(name));
-    if (function == nullptr)
-      throw std::runtime_error(std::string("Metal: no kernel named ") + name);
-    NS::Error *error = nullptr;
-    MTL::ComputePipelineState *state =
-        device_->newComputePipelineState(function, &error);
-    function->release();
-    if (state == nullptr)
-      fail(name, error);
-
     // stage2's tile is the threadgroup plus its halo, so the kernel is only
-    // correct at 32 x 32. The limit is per pipeline, not per device -- it falls
-    // with register pressure -- so it is checked here rather than assumed.
-    const NS::UInteger limit = state->maxTotalThreadsPerThreadgroup();
-    if (limit < 1024) {
-      state->release();
-      throw std::runtime_error(
-          std::string("Metal: ") + name + " will only take " +
-          std::to_string(limit) +
-          " threads per threadgroup, and the kernels need 1024");
-    }
+    // correct at 32 x 32: 1024 threads a threadgroup (mxi::metal::pipeline
+    // checks the pipeline's own limit).
+    std::string why;
+    MTL::ComputePipelineState *state =
+        mxi::metal::pipeline(device_, library, name, 1024, &why);
+    if (state == nullptr)
+      throw std::runtime_error("Metal: " + why);
     return state;
   }
 
@@ -153,14 +134,12 @@ private:
       return;
     Pool pool;
 
-    dispatch_data_t data = dispatch_data_create(
-        mxi_dext_metallib, mxi_dext_metallib_size, nullptr,
-        DISPATCH_DATA_DESTRUCTOR_DEFAULT);
-    NS::Error *error = nullptr;
-    MTL::Library *library = device_->newLibrary(data, &error);
-    dispatch_release(data);
+    std::string why;
+    MTL::Library *library = mxi::metal::load_library(
+        device_, mxi_dext_metallib, mxi_dext_metallib_size, &why);
     if (library == nullptr)
-      fail("loading the embedded shader library", error);
+      throw std::runtime_error("Metal: loading the embedded shader library: " +
+                               why);
 
     stage0_direct_ = pipeline(library, "dext_stage0_u16");
     stage0_tile_ = pipeline(library, "dext_stage0_tile_u16");

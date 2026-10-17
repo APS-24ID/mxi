@@ -14,6 +14,7 @@
 // Device buffers and a stream are held per thread and reused between frames, in
 // the same lifetime the original's worker() gave them.
 
+#include "cuda_device.hh"
 #include "dext_gpu.hh"
 
 #include <cstdlib>
@@ -563,44 +564,10 @@ Window default_stage2_window() { return Window::Tile; }
 
 } // namespace internal
 
-bool available() {
-  int devices = 0;
-  return cudaGetDeviceCount(&devices) == cudaSuccess && devices > 0;
-}
+bool available() { return mxi::cuda::available(); }
 
-//: Why no CUDA device is usable, in CUDA's own words, with what most often
-//: explains it: the driver older than the runtime this was built with, or no
-//: device visible to the process -- a login node, a job with no GPU, an empty
-//: CUDA_VISIBLE_DEVICES. Empty when a device is usable.
-std::string unavailable_reason() {
-  int devices = 0;
-  const cudaError_t error = cudaGetDeviceCount(&devices);
-  if (error == cudaSuccess && devices > 0)
-    return std::string();
-  std::string why = error != cudaSuccess
-                        ? std::string(cudaGetErrorName(error)) + ", " +
-                              cudaGetErrorString(error)
-                        : std::string("CUDA found no devices");
-  int driver = 0, runtime = 0;
-  cudaDriverGetVersion(&driver);
-  cudaRuntimeGetVersion(&runtime);
-  char versions[160];
-  if (driver == 0)
-    std::snprintf(versions, sizeof versions,
-                  "; no CUDA driver is installed, and this was built "
-                  "with the CUDA %d.%d runtime",
-                  runtime / 1000, (runtime % 1000) / 10);
-  else
-    std::snprintf(versions, sizeof versions,
-                  "; the driver supports CUDA %d.%d, and this was built "
-                  "with the CUDA %d.%d runtime",
-                  driver / 1000, (driver % 1000) / 10, runtime / 1000,
-                  (runtime % 1000) / 10);
-  why += versions;
-  if (const char *visible = std::getenv("CUDA_VISIBLE_DEVICES"))
-    why += std::string("; CUDA_VISIBLE_DEVICES is \"") + visible + "\"";
-  return why;
-}
+//: Why no CUDA device is usable: the shared layer's (cuda_device.hh).
+std::string unavailable_reason() { return mxi::cuda::unavailable_reason(); }
 
 std::size_t memory_free() {
   std::size_t free = 0;

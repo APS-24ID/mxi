@@ -1,6 +1,6 @@
 # Integrating the spot finder into mxi
 
-STATUS: commit 1, steps 2a and 2b done, 16 October 2026.
+STATUS: commit 1, steps 2a and 2b done; 2b-GPU written, to be built on the GPU machines; 16 October 2026.
 
 **Remove this document when the series is complete:** it is a plan, and once
 done it belongs to the project's history (git log), not to its documents.
@@ -58,10 +58,15 @@ read once by the reader and applied by `apply_pixel_mask`, which integration
 already uses: nothing duplicated. Checked: the .refl byte for byte, the two
 spot tables and insulin's integration every column, ctest, the Python suite.
 
-**2b-GPU, next: one Metal layer and one CUDA layer.** The threshold's kernels
-and profile fitting's each create the device, load their embedded library,
-build pipelines and queues; one layer for each, shared. Neither toolchain is
-here: built first on Graeme's machines.
+**2b-GPU (written, for Graeme to build): one Metal layer and one CUDA layer.**
+`metal_device.*` (library `mxi_metal`): the device, created once for the
+process; an embedded shader library loaded; a pipeline with its threads per
+threadgroup checked; and metal-cpp's implementation, compiled there alone.
+`cuda_device.*`: whether there is a device, why not (the reason had been the
+same forty lines twice), its name. The threshold and profile fitting each
+keep their own error policy -- the threshold throws, fitting falls back to
+the CPU. Neither toolchain is here: the CUDA layer syntax-checked against a
+stand-in for the runtime's header, the Metal changes read line by line.
 
 **2c, after:**
 

@@ -4,8 +4,7 @@
 // back where the GPU wrote them. Two batches may be in flight, each in its own
 // buffers, so that one fits while the CPU packs the next.
 
-#define NS_PRIVATE_IMPLEMENTATION
-#define MTL_PRIVATE_IMPLEMENTATION
+#include "metal_device.hh"
 #include <Foundation/Foundation.hpp>
 #include <Metal/Metal.hpp>
 #include <dispatch/dispatch.h>
@@ -76,44 +75,25 @@ struct FitMetal {
 
   void build() {
     Pool pool;
-    device = MTL::CreateSystemDefaultDevice();
+    device = mxi::metal::device();
     if (device == nullptr)
       return;
-    dispatch_data_t bytes =
-        dispatch_data_create(mxi_fit_metallib, mxi_fit_metallib_size, nullptr,
-                             DISPATCH_DATA_DESTRUCTOR_DEFAULT);
-    NS::Error *error = nullptr;
-    MTL::Library *library = device->newLibrary(bytes, &error);
-    dispatch_release(bytes);
+    std::string why;
+    MTL::Library *library = mxi::metal::load_library(
+        device, mxi_fit_metallib, mxi_fit_metallib_size, &why);
     if (library == nullptr) {
-      std::fprintf(
-          stderr, "Metal profile fitting: could not load the shader library\n");
-      return;
-    }
-    MTL::Function *function = library->newFunction(
-        NS::String::string("fit_kernel", NS::UTF8StringEncoding));
-    if (function == nullptr) {
       std::fprintf(stderr,
-                   "Metal profile fitting: no fit_kernel in the library\n");
-      library->release();
+                   "Metal profile fitting: could not load the shader library: "
+                   "%s\n",
+                   why.c_str());
       return;
     }
     MTL::ComputePipelineState *state =
-        device->newComputePipelineState(function, &error);
-    function->release();
+        mxi::metal::pipeline(device, library, "fit_kernel",
+                             static_cast<NS::UInteger>(kThreads), &why);
     library->release();
     if (state == nullptr) {
-      std::fprintf(stderr,
-                   "Metal profile fitting: could not make the pipeline\n");
-      return;
-    }
-    if (state->maxTotalThreadsPerThreadgroup() <
-        static_cast<NS::UInteger>(kThreads)) {
-      std::fprintf(
-          stderr,
-          "Metal profile fitting: the pipeline takes fewer than %d threads\n",
-          kThreads);
-      state->release();
+      std::fprintf(stderr, "Metal profile fitting: %s\n", why.c_str());
       return;
     }
     queue = device->newCommandQueue();
@@ -122,7 +102,7 @@ struct FitMetal {
       return;
     }
     pipeline = state;
-    name = std::string(device->name()->utf8String()) + " (Metal)";
+    name = mxi::metal::device_name(device) + " (Metal)";
   }
 
   static FitMetal &instance() {

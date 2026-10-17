@@ -1,4 +1,4 @@
-// series::nxmx -- read a series out of an NXmx HDF5 file.
+// mxi::series::nxmx -- read a series out of an NXmx HDF5 file.
 //
 // The master file's /entry/data/data is a virtual dataset spanning a set of
 // data files. A virtual dataset cannot be chunk-read, so the VDS mapping is
@@ -32,7 +32,7 @@
 #include "hdf5_handle.hh"
 #include "image_series.hh"
 
-namespace series {
+namespace mxi::series {
 namespace {
 
 constexpr const char *kImageData = "/entry/data/data";
@@ -831,4 +831,4 @@ std::vector<SourceBlock> nxmx_blocks(const std::string &master, Info *info) {
   return out;
 }
 
-} // namespace series
+} // namespace mxi::series

@@ -1,5 +1,5 @@
-// What a backend and the shared part of gpu:: say to each other, and a caller
-// should not.
+// What a backend and the shared part of mxi::gpu:: say to each other, and a
+// caller should not.
 //
 // dext_gpu.hh is the interface find_spots.cc uses; this is everything behind
 // it, and it is separate so that including the first does not offer the
@@ -11,7 +11,7 @@
 
 #include "dext_gpu.hh"
 
-namespace gpu {
+namespace mxi::gpu {
 namespace internal {
 
 // Records the split for the calling thread, which last_stage_times() returns.
@@ -40,6 +40,6 @@ Window default_stage0_window();
 Window default_stage2_window();
 
 } // namespace internal
-} // namespace gpu
+} // namespace mxi::gpu
 
 #endif // MXI_DEXT_GPU_INTERNAL_HH

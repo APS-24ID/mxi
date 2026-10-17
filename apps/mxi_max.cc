@@ -147,8 +147,8 @@ int main(int argc, char **argv) {
     if (threads == 0)
       threads = std::max(1u, std::thread::hardware_concurrency());
 
-    std::unique_ptr<series::Series> s = series::nxmx(master);
-    series::Info info;
+    std::unique_ptr<mxi::series::Series> s = mxi::series::nxmx(master);
+    mxi::series::Info info;
     if (!s->try_open(&info))
       throw std::runtime_error("cannot open " + master + " as an NXmx series");
     // The frames the series has, by its own keys, as mxi_find reads them: not
@@ -169,8 +169,8 @@ int main(int argc, char **argv) {
     for (std::size_t w = 0; w < threads; ++w)
       workers.emplace_back([&] {
         try {
-          std::unique_ptr<series::Reader> reader = s->reader();
-          series::Frame frame;
+          std::unique_ptr<mxi::series::Reader> reader = s->reader();
+          mxi::series::Frame frame;
           std::vector<std::uint8_t> out;
           for (std::uint64_t f = next.fetch_add(1); f < frames;
                f = next.fetch_add(1)) {
@@ -178,11 +178,11 @@ int main(int argc, char **argv) {
               continue; // never written
             const std::size_t h = frame.height, wd = frame.width;
             const std::size_t bytes =
-                decompress::frame_bytes(h, wd, frame.bit_depth);
+                mxi::decompress::frame_bytes(h, wd, frame.bit_depth);
             out.resize(bytes);
-            decompress::image(frame.data, frame.algorithm, frame.bit_depth, h,
-                              wd, {out.data(), out.size()});
-            series::apply_pixel_mask(frame, {out.data(), out.size()});
+            mxi::decompress::image(frame.data, frame.algorithm, frame.bit_depth,
+                                   h, wd, {out.data(), out.size()});
+            mxi::series::apply_pixel_mask(frame, {out.data(), out.size()});
             std::uint64_t largest = 0, bad = 0, joins = 0, over = 0;
             if (frame.bit_depth == 16)
               scan<std::uint16_t>(out.data(), h * wd, &largest, &bad, &joins,

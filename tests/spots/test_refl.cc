@@ -16,9 +16,12 @@
 #include <string>
 #include <vector>
 
+#include "../check.hh"
 #include "signal_pixel.hh"
 #include "spot_table.hh"
 #include "spots.hh"
+
+namespace {
 
 namespace {
 
@@ -301,17 +304,17 @@ void check_columns(const Table &table, bool shoeboxes) {
 
 } // namespace
 
-int main() {
+int run() {
   const std::size_t height = 8;
   const std::size_t width = 10;
 
   // Two spots: three pixels in a row on frame 0, and a two-frame pair. Both
   // are cases whose numbers tests/test_dials_spots.cc has already pinned down,
   // so what is being checked here is only how they are written.
-  dials_spots::Options options;
+  mxi::spots::Options options;
   options.min_spot_size = 1;
   options.max_separation = 0.0;
-  dials_spots::Labeller labeller(height, width, options);
+  mxi::spots::Labeller labeller(height, width, options);
   labeller.add(0, {{0, 1, 0.0F, 0, 0}, {1, 2, 0.0F, 0, 0}, {2, 1, 0.0F, 0, 0}});
   labeller.add(1, {{25, 7, 0.0F, 0, 0}});
   labeller.add(2, {{25, 3, 0.0F, 0, 0}});
@@ -353,7 +356,7 @@ int main() {
       check("bbox is six ints a row", bbox->bytes, table.rows * 24);
       check("a centroid is three doubles", value->bytes, table.rows * 24);
       for (std::size_t row = 0; row < labeller.spots().size(); row++) {
-        const dials_spots::Spot &spot = labeller.spots()[row];
+        const mxi::spots::Spot &spot = labeller.spots()[row];
         for (int i = 0; i < 6; i++) {
           check("bbox element",
                 static_cast<std::uint32_t>(reader.value<std::int32_t>(
@@ -457,4 +460,12 @@ int main() {
   std::printf("%s: the reflection table writer, %d failures\n",
               failures == 0 ? "PASS" : "FAILED", failures);
   return failures == 0 ? 0 : 1;
+}
+
+} // namespace
+
+// In mxi_tests: every check above, through the file's own count of
+// failures, which must be none.
+TEST(spots_table_format) {
+  check::equal(static_cast<long long>(run()), 0LL, "test_refl: its checks");
 }

@@ -21,7 +21,7 @@
 #include <string_view>
 #include <vector>
 
-namespace series {
+namespace mxi::series {
 
 // One image, and the buffer its compressed bytes live in.
 //
@@ -140,6 +140,6 @@ struct SourceBlock {
 };
 std::vector<SourceBlock> nxmx_blocks(const std::string &master, Info *info);
 
-} // namespace series
+} // namespace mxi::series
 
 #endif // MXI_IMAGE_SERIES_HH

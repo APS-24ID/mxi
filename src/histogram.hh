@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace spots {
+namespace mxi::spots {
 
 //: The histogram's lines, top first. per_image[k] is the number of spots on
 //: image first_image + k. Each of up to `width` columns is a run of WHOLE
@@ -75,4 +75,4 @@ spot_histogram(const std::vector<std::size_t> &per_image, long long first_image,
   return out;
 }
 
-} // namespace spots
+} // namespace mxi::spots

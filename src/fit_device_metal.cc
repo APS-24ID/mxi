@@ -151,19 +151,20 @@ int fit_batch_submit(const FitBatch &batch) {
   const int n_boxes = static_cast<int>(batch.boxes.size());
   const double t0 = now();
   if (!s.panels.reserve(m.device,
-                        sizeof(fitdev::PanelF) * batch.panels.size()) ||
-      !s.boxes.reserve(m.device, sizeof(fitdev::BoxF) * batch.boxes.size()) ||
+                        sizeof(mxi::fitdev::PanelF) * batch.panels.size()) ||
+      !s.boxes.reserve(m.device,
+                       sizeof(mxi::fitdev::BoxF) * batch.boxes.size()) ||
       !s.data.reserve(m.device, sizeof(float) * batch.voxels) ||
       !s.mask.reserve(m.device, batch.voxels) ||
       !s.reference.reserve(m.device, sizeof(float) * batch.reference_floats) ||
       !s.corners.reserve(m.device, sizeof(float) * batch.corner_floats) ||
       !s.profile.reserve(m.device, sizeof(float) * batch.voxels) ||
-      !s.out.reserve(m.device, sizeof(fitdev::FitF) * batch.boxes.size()))
+      !s.out.reserve(m.device, sizeof(mxi::fitdev::FitF) * batch.boxes.size()))
     return -1;
   std::memcpy(s.panels.contents(), batch.panels.data(),
-              sizeof(fitdev::PanelF) * batch.panels.size());
+              sizeof(mxi::fitdev::PanelF) * batch.panels.size());
   std::memcpy(s.boxes.contents(), batch.boxes.data(),
-              sizeof(fitdev::BoxF) * batch.boxes.size());
+              sizeof(mxi::fitdev::BoxF) * batch.boxes.size());
   // Packed straight into these buffers, when the batch is in place: nothing
   // to copy.
   if (!batch.in_place) {
@@ -181,7 +182,7 @@ int fit_batch_submit(const FitBatch &batch) {
   if (encoder == nullptr)
     return -1;
   encoder->setComputePipelineState(m.pipeline);
-  encoder->setBytes(&batch.setup, sizeof(fitdev::Setup), 0);
+  encoder->setBytes(&batch.setup, sizeof(mxi::fitdev::Setup), 0);
   encoder->setBuffer(s.panels.buffer, 0, 1);
   encoder->setBuffer(s.boxes.buffer, 0, 2);
   encoder->setBytes(&n_boxes, sizeof(int), 3);
@@ -204,7 +205,7 @@ int fit_batch_submit(const FitBatch &batch) {
   return ticket;
 }
 
-bool fit_batch_collect(int ticket, std::vector<fitdev::FitF> *out) {
+bool fit_batch_collect(int ticket, std::vector<mxi::fitdev::FitF> *out) {
   FitMetal &m = FitMetal::instance();
   FitMetal::Slot &s = m.slots[ticket % kFitSlots];
   if (s.command == nullptr)
@@ -222,12 +223,14 @@ bool fit_batch_collect(int ticket, std::vector<fitdev::FitF> *out) {
     return false;
   const double t0 = now();
   out->resize(s.n_boxes);
-  std::memcpy(out->data(), s.out.contents(), sizeof(fitdev::FitF) * s.n_boxes);
+  std::memcpy(out->data(), s.out.contents(),
+              sizeof(mxi::fitdev::FitF) * s.n_boxes);
   m.seconds[2] += now() - t0;
   return true;
 }
 
-bool fit_batch_device(const FitBatch &batch, std::vector<fitdev::FitF> *out) {
+bool fit_batch_device(const FitBatch &batch,
+                      std::vector<mxi::fitdev::FitF> *out) {
   if (batch.boxes.empty()) {
     out->clear();
     return true;

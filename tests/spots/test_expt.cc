@@ -11,7 +11,10 @@
 #include <cstring>
 #include <string>
 
+#include "../check.hh"
 #include "experiment_images.hh"
+
+namespace {
 
 namespace {
 
@@ -189,7 +192,7 @@ const char *kMismatchedImageset = R"({
 
 } // namespace
 
-int main() {
+int run() {
   {
     put(kSweep);
     const mxi::ExperimentImages info = mxi::experiment_images(kPath);
@@ -402,4 +405,12 @@ int main() {
   std::printf("%s: the experiment list reader, %d failures\n",
               failures == 0 ? "PASS" : "FAILED", failures);
   return failures == 0 ? 0 : 1;
+}
+
+} // namespace
+
+// In mxi_tests: every check above, through the file's own count of
+// failures, which must be none.
+TEST(spots_experiment_images) {
+  check::equal(static_cast<long long>(run()), 0LL, "test_expt: its checks");
 }

@@ -340,6 +340,14 @@ endif()
 
 add_executable(mxi_tests
   tests/main.cc
+  tests/spots/test_dext_squares.cc
+  tests/spots/test_dext_fused.cc
+  tests/spots/test_signal_order.cc
+  tests/spots/test_dials_spots.cc
+  tests/spots/test_refl.cc
+  tests/spots/test_refl_golden.cc
+  tests/spots/test_expt.cc
+  tests/spots/test_dials_end_to_end.cc
   tests/test_geometry.cc
   tests/test_real_geometry.cc
   tests/test_multi_axis.cc
@@ -375,6 +383,6 @@ add_executable(mxi_tests
   tests/test_mask.cc
   tests/test_profile_model.cc
 )
-target_link_libraries(mxi_tests PRIVATE mxi)
+target_link_libraries(mxi_tests PRIVATE mxi mxi_dext mxi_signal_order mxi_spots)
 target_compile_options(mxi_tests PRIVATE -Wall -Wextra)
 add_test(NAME mxi_tests COMMAND mxi_tests)

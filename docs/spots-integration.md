@@ -1,6 +1,6 @@
 # Integrating the spot finder into mxi
 
-STATUS: commit 1, steps 2a and 2b done; 2b-GPU written, to be built on the GPU machines; 16 October 2026.
+STATUS: commits 1 and 2 done (2b-GPU built and checked by Graeme); commit 3 next; 16 October 2026.
 
 **Remove this document when the series is complete:** it is a plan, and once
 done it belongs to the project's history (git log), not to its documents.
@@ -68,21 +68,17 @@ keep their own error policy -- the threshold throws, fitting falls back to
 the CPU. Neither toolchain is here: the CUDA layer syntax-checked against a
 stand-in for the runtime's header, the Metal changes read line by line.
 
-**2c, after:**
-
-
-
-* `spot_expt.*` goes: `mxi_find` reads the library's experiment list.
-* `spot_refl.*` goes: `mxi_find` writes through the library's writers, `.rflx`
-  by default and DIALS's `.refl` on request; the golden test kept against them.
-* `mxi_find`'s own argument parsing goes: `parse_arguments`, as every program;
-  `mxi_find imported.rflx`, a master given directly kept as a convenience, `-e`
-  dropped.
-* One Metal layer and one CUDA layer -- the device, its library, its errors --
-  shared by the threshold's kernels and profile fitting's; `--gpu` and
-  `--gpu-force` alike in `mxi_find` and `mxi_integrate`.
-* The namespaces (`series`, `decompress`, `dials_spots`, `gpu`, ...) into `mxi`.
-* `tests/spots/` into `mxi_tests`, the `TEST` framework.
+**2c (done): the namespaces and the tests.** The spot finder's namespaces, and
+profile fitting's `fitdev`, inside `mxi` as the library's other sub-namespaces
+are: `mxi::series`, `mxi::decompress`, `mxi::dext_fused`, `mxi::gpu`,
+`mxi::signal_order`, `mxi::work`, `mxi::fitdev`, and `mxi::spots` -- once
+`dials_spots`, now with the histogram's `spots` -- its messages "spot
+finding:". The eight spot tests that need no GPU are `TEST` cases in
+`mxi_tests` (`spots_*`): each file's checks as they were, in an anonymous
+namespace, its `main` a `run()` whose count of failures must be none. The GPU
+comparison stays its own program (it needs a device backend `mxi_tests` does
+not link), as do the two benchmarks, measurements rather than tests. ctest:
+`mxi_tests` and `log_mirror`, and `dext_gpu` on a GPU build.
 
 ## Commit 3: the documents and the framing
 

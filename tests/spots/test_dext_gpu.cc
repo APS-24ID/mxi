@@ -1,4 +1,4 @@
-// dext() against gpu::find(), over the same frames.
+// dext() against mxi::gpu::find(), over the same frames.
 //
 // The two are meant to compute the same thing -- same windows, same masked
 // pixel rule, same output contract -- so the useful test is not "does the
@@ -94,10 +94,10 @@ bool run(const Frame &frame) {
     return false;
   }
 
-  const int gpu_status = gpu::find<std::uint16_t>(frame.pixels.data(), device,
-                                                  frame.height, frame.width);
+  const int gpu_status = mxi::gpu::find<std::uint16_t>(
+      frame.pixels.data(), device, frame.height, frame.width);
   if (gpu_status != 0) {
-    std::printf("  FAIL %s: gpu::find returned %d\n", frame.name.c_str(),
+    std::printf("  FAIL %s: mxi::gpu::find returned %d\n", frame.name.c_str(),
                 gpu_status);
     return false;
   }
@@ -127,16 +127,16 @@ int run_all(const std::vector<Frame> &frames) {
 } // namespace
 
 int main() {
-  if (!gpu::available()) {
-    std::printf("no %s device available; skipping\n", gpu::backend());
+  if (!mxi::gpu::available()) {
+    std::printf("no %s device available; skipping\n", mxi::gpu::backend());
     return 77;
   }
 
   // Each section below is headed with its own configuration, so find()'s
   // running commentary on stderr would only duplicate it.
-  gpu::report_windows(false);
+  mxi::gpu::report_windows(false);
 
-  std::printf("comparing dext() against the %s backend\n", gpu::backend());
+  std::printf("comparing dext() against the %s backend\n", mxi::gpu::backend());
   if (kFastMath) {
     std::printf("this build has -DENABLE_FAST_MATH, so the device arithmetic "
                 "is not the CPU's:\n  a background differing in its last bits "
@@ -181,13 +181,14 @@ int main() {
   // The cross product rather than one stage at a time: stage1 reads what stage0
   // wrote and stage2 reads what stage1 wrote, so an interaction is possible
   // even though neither variant changes what it writes.
-  const gpu::Window windows[] = {gpu::Window::Direct, gpu::Window::Tile};
-  for (const gpu::Window window0 : windows) {
-    for (const gpu::Window window2 : windows) {
-      gpu::stage0_window(window0);
-      gpu::stage2_window(window2);
-      std::printf("\nstage0 %s, stage2 %s:\n", gpu::name(window0),
-                  gpu::name(window2));
+  const mxi::gpu::Window windows[] = {mxi::gpu::Window::Direct,
+                                      mxi::gpu::Window::Tile};
+  for (const mxi::gpu::Window window0 : windows) {
+    for (const mxi::gpu::Window window2 : windows) {
+      mxi::gpu::stage0_window(window0);
+      mxi::gpu::stage2_window(window2);
+      std::printf("\nstage0 %s, stage2 %s:\n", mxi::gpu::name(window0),
+                  mxi::gpu::name(window2));
       failures += run_all(frames);
     }
   }
@@ -195,11 +196,11 @@ int main() {
 
   // And the three stages fused into one kernel, on CUDA, where it exists: the
   // same frames against the same CPU results. On Metal the switch does nothing.
-  if (std::string(gpu::backend()) == "CUDA") {
-    gpu::fused(true);
+  if (std::string(mxi::gpu::backend()) == "CUDA") {
+    mxi::gpu::fused(true);
     std::printf("\nfused, one kernel:\n");
     failures += run_all(frames);
-    gpu::fused(false);
+    mxi::gpu::fused(false);
     checks += frames.size();
   }
 

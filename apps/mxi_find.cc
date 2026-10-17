@@ -196,7 +196,7 @@ struct Options {
   bool two_d = false;
   bool z_offset_given = false;
   std::int64_t z_offset = 0;
-  dials_spots::Options grouping;
+  mxi::spots::Options grouping;
   std::size_t chunk = 0; // frames collected before grouping; 0 picks one
 };
 
@@ -206,7 +206,7 @@ struct Options {
 void report_version(const char *program) {
   std::printf("%s %s (%s%s)\n", program, MXI_VERSION,
 #ifdef MXI_GPU
-              gpu::backend(),
+              mxi::gpu::backend(),
 #else
               "no GPU",
 #endif
@@ -470,9 +470,10 @@ void sleep_for(int milliseconds) {
 // ---------------------------------------------------------------------------
 // The frame buffer, and the threshold.
 //
-// The frame buffer is allocated through gpu::host_alloc when a device is in
-// use, which on Metal is a shared MTLBuffer: the frame is decompressed straight
-// into memory the kernels read and there is no copy in either direction.
+// The frame buffer is allocated through mxi::gpu::host_alloc when a device is
+// in use, which on Metal is a shared MTLBuffer: the frame is decompressed
+// straight into memory the kernels read and there is no copy in either
+// direction.
 // ---------------------------------------------------------------------------
 
 #ifdef MXI_GPU
@@ -495,7 +496,7 @@ public:
       // Shared with the device on Metal, so the frame is decompressed straight
       // into memory the kernels read and there is no copy at all.
       if (on_device)
-        data_ = static_cast<std::uint8_t *>(gpu::host_alloc(bytes));
+        data_ = static_cast<std::uint8_t *>(mxi::gpu::host_alloc(bytes));
       if (data_ != nullptr)
         pinned_ = true;
 #endif
@@ -516,7 +517,7 @@ private:
       // edited wrongly by the next person to read it.
 #ifdef MXI_GPU
     if (pinned_) {
-      gpu::host_free(data_);
+      mxi::gpu::host_free(data_);
     } else {
       delete[] data_;
     }
@@ -540,7 +541,7 @@ void threshold(const std::uint8_t *frame, std::vector<SignalPixel> *signal,
   int status = 0;
 #ifdef MXI_GPU
   if (on_device) {
-    status = gpu::find<T>(pixels, *signal, height, width);
+    status = mxi::gpu::find<T>(pixels, *signal, height, width);
   } else
 #endif
   {
@@ -619,12 +620,13 @@ private:
   std::vector<Found> frames_;
 };
 
-series::Info open_series(series::Series *source, const Options &options) {
+mxi::series::Info open_series(mxi::series::Series *source,
+                              const Options &options) {
   const Clock::time_point deadline =
       Clock::now() + std::chrono::seconds(options.timeout_seconds);
   bool announced = false;
   while (interrupted == 0) {
-    series::Info info;
+    mxi::series::Info info;
     if (source->try_open(&info))
       return info;
     if (Clock::now() > deadline)
@@ -642,7 +644,7 @@ series::Info open_series(series::Series *source, const Options &options) {
 // is worth stopping for: spot finding would succeed and index nothing, and the
 // reason would not be visible in either file.
 void reconcile(const mxi::ExperimentImages &experiments,
-               const series::Info &series, Options *options) {
+               const mxi::series::Info &series, Options *options) {
   mxi::detail("Experiments: %s\n", describe(experiments).c_str());
 
   // One experiment's, always: several sweeps are taken one at a time.
@@ -776,7 +778,7 @@ void report_written(const Options &options, std::size_t rows) {
 // What becomes of one experiment's spots: written as the table, for one sweep,
 // or kept to be written with the others', for several.
 using Emit =
-    std::function<int(const dials_spots::Labeller &, const series::Info &,
+    std::function<int(const mxi::spots::Labeller &, const mxi::series::Info &,
                       const mxi::ExperimentImages &)>;
 
 // One experiment's spots, from its own images: experiment `index` of the list,
@@ -784,8 +786,8 @@ using Emit =
 // written, then the timing reported.
 int find_one(Options options, std::size_t index, mxi::Timing &timing,
              const Emit &emit) {
-  std::unique_ptr<series::Series> source;
-  series::Info info;
+  std::unique_ptr<mxi::series::Series> source;
+  mxi::series::Info info;
   // How many frames will be offered, when fewer than the file holds.
   std::uint64_t restricted = 0;
   mxi::ExperimentImages experiments;
@@ -793,16 +795,16 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
     if (!options.experiments.empty())
       experiments = mxi::experiment_images(options.experiments, index);
 
-    source = series::nxmx(options.master);
+    source = mxi::series::nxmx(options.master);
 
     // Before the series is opened, so that asking for a device that is not
     // there fails at once rather than after a wait.
     if (options.gpu) {
 #ifdef MXI_GPU
-      if (!gpu::available()) {
-        throw std::runtime_error(
-            std::string("--gpu was given but no usable ") + gpu::backend() +
-            " device was found: " + gpu::unavailable_reason());
+      if (!mxi::gpu::available()) {
+        throw std::runtime_error(std::string("--gpu was given but no usable ") +
+                                 mxi::gpu::backend() + " device was found: " +
+                                 mxi::gpu::unavailable_reason());
       }
       on_device = true;
 #else
@@ -879,11 +881,12 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
       options.grouping.min_spot_size, options.grouping.max_spot_size,
       options.grouping.max_separation);
 
-  dials_spots::Labeller labeller(static_cast<std::size_t>(info.height),
-                                 static_cast<std::size_t>(info.width),
-                                 options.grouping);
+  mxi::spots::Labeller labeller(static_cast<std::size_t>(info.height),
+                                static_cast<std::size_t>(info.width),
+                                options.grouping);
 
-  work::Queue<std::string> queue(static_cast<std::size_t>(options.threads) * 4);
+  mxi::work::Queue<std::string> queue(
+      static_cast<std::size_t>(options.threads) * 4);
   Chunk chunk;
   std::atomic<std::uint64_t> read{0};
   std::atomic<std::uint64_t> missing{0};
@@ -904,10 +907,10 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
   mxi::ThreadSeconds t_upload, t_stage0, t_stage1, t_stage2, t_fused,
       t_readback, t_sort;
 #ifdef MXI_GPU
-  const bool split =
-      options.timing && options.gpu && std::string(gpu::backend()) == "CUDA";
+  const bool split = options.timing && options.gpu &&
+                     std::string(mxi::gpu::backend()) == "CUDA";
   if (split)
-    gpu::profile_stages(true);
+    mxi::gpu::profile_stages(true);
 #else
   const bool split = false;
 #endif
@@ -927,7 +930,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
         }
       } leaving{live, chunk};
 
-      std::unique_ptr<series::Reader> reader;
+      std::unique_ptr<mxi::series::Reader> reader;
       try {
         reader = source->reader();
       } catch (const std::exception &error) {
@@ -939,7 +942,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
 
       FrameBuffer buffer;
       FrameBuffer narrowed; // --gpu-force: a 32-bit frame as 16 bits
-      series::Frame frame;
+      mxi::series::Frame frame;
       std::string key;
       while (queue.pop(&key)) {
         Found found;
@@ -954,12 +957,12 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
             const std::size_t height = static_cast<std::size_t>(frame.height);
             const std::size_t width = static_cast<std::size_t>(frame.width);
             const std::size_t bytes =
-                decompress::frame_bytes(height, width, frame.bit_depth);
+                mxi::decompress::frame_bytes(height, width, frame.bit_depth);
             std::uint8_t *const pixels = buffer.get(bytes);
             const double d0 = mxi::Timing::now();
-            decompress::image(frame.data, frame.algorithm, frame.bit_depth,
-                              height, width, {pixels, bytes});
-            series::apply_pixel_mask(frame, {pixels, bytes});
+            mxi::decompress::image(frame.data, frame.algorithm, frame.bit_depth,
+                                   height, width, {pixels, bytes});
+            mxi::series::apply_pixel_mask(frame, {pixels, bytes});
             const double d1 = mxi::Timing::now();
             t_decompress.add(d1 - d0);
             found.number = frame.number;
@@ -995,8 +998,8 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
             t_threshold.add(mxi::Timing::now() - d1);
 #ifdef MXI_GPU
             if (split) {
-              const gpu::StageTimes st =
-                  gpu::last_stage_times(); // milliseconds
+              const mxi::gpu::StageTimes st =
+                  mxi::gpu::last_stage_times(); // milliseconds
               t_upload.add(st.upload * 1e-3);
               t_stage0.add(st.stage0 * 1e-3);
               t_stage1.add(st.stage1 * 1e-3);
@@ -1135,7 +1138,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
 
   const double seconds =
       std::chrono::duration<double>(Clock::now() - began).count();
-  const dials_spots::Counts &counts = labeller.counts();
+  const mxi::spots::Counts &counts = labeller.counts();
 
   mxi::detail("Thresholded %llu of %llu images in %.1f s (%.1f images/s), "
               "%llu never written, %llu failures\n",
@@ -1212,7 +1215,8 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
           ++per_image[static_cast<std::size_t>(image - first)];
       }
       std::fprintf(stdout, "\nHistogram of spots per image:\n");
-      for (const std::string &line : spots::spot_histogram(per_image, first))
+      for (const std::string &line :
+           mxi::spots::spot_histogram(per_image, first))
         std::fprintf(stdout, "%s\n", line.c_str());
       std::fprintf(stdout, "\n");
       // Each sweep's, a list a sweep: the summary keeps them all.
@@ -1364,8 +1368,8 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
 namespace {
 
 // The table one sweep's spots make, written as it always was.
-int write_one(const Options &options, const dials_spots::Labeller &labeller,
-              const series::Info &info,
+int write_one(const Options &options, const mxi::spots::Labeller &labeller,
+              const mxi::series::Info &info,
               const mxi::ExperimentImages &experiments) {
   try {
     mxi::SpotPart part;
@@ -1412,8 +1416,8 @@ int main(int argc, char **argv) {
 
   if (options.sweeps <= 1) {
     return find_one(options, 0, timing,
-                    [&](const dials_spots::Labeller &labeller,
-                        const series::Info &info,
+                    [&](const mxi::spots::Labeller &labeller,
+                        const mxi::series::Info &info,
                         const mxi::ExperimentImages &e) {
                       return write_one(options, labeller, info, e);
                     });
@@ -1432,8 +1436,8 @@ int main(int argc, char **argv) {
     return 2;
   }
   struct Kept {
-    std::vector<dials_spots::Spot> spots;
-    std::vector<dials_spots::Pixel> pixels;
+    std::vector<mxi::spots::Spot> spots;
+    std::vector<mxi::spots::Pixel> pixels;
     std::size_t width = 0;
     std::string identifier;
   };
@@ -1458,16 +1462,16 @@ int main(int argc, char **argv) {
     one.master = e.image_file;
     std::fprintf(stdout, "\nExperiment %zu of %zu: images %s\n", i + 1,
                  options.sweeps, one.master.c_str());
-    status |=
-        find_one(one, i, timing,
-                 [&](const dials_spots::Labeller &labeller,
-                     const series::Info &info, const mxi::ExperimentImages &x) {
-                   kept[i].spots = labeller.spots();
-                   kept[i].pixels = labeller.pixels();
-                   kept[i].width = static_cast<std::size_t>(info.width);
-                   kept[i].identifier = x.identifier;
-                   return 0;
-                 });
+    status |= find_one(one, i, timing,
+                       [&](const mxi::spots::Labeller &labeller,
+                           const mxi::series::Info &info,
+                           const mxi::ExperimentImages &x) {
+                         kept[i].spots = labeller.spots();
+                         kept[i].pixels = labeller.pixels();
+                         kept[i].width = static_cast<std::size_t>(info.width);
+                         kept[i].identifier = x.identifier;
+                         return 0;
+                       });
     if (status != 0)
       return status;
   }

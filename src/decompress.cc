@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace decompress {
+namespace mxi::decompress {
 namespace {
 
 // Both HDF5 compression filters used here prefix their output with the same
@@ -133,4 +133,4 @@ void image(std::span<const std::uint8_t> data, std::string_view algorithm,
                            std::string(algorithm));
 }
 
-} // namespace decompress
+} // namespace mxi::decompress

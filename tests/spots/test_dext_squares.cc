@@ -42,8 +42,11 @@
 #include <string>
 #include <vector>
 
+#include "../check.hh"
 #include "dext.hh"
 #include "signal_pixel.hh"
+
+namespace {
 
 namespace {
 
@@ -116,7 +119,7 @@ void plant(std::vector<std::uint16_t> *frame, std::size_t slow,
 
 } // namespace
 
-int main() {
+int run() {
   // The three ways to reach 2^32, as arithmetic rather than as prose. If the
   // kernel size ever changes, the third of these changes with it.
   const std::uint64_t limit = 1ull << 32;
@@ -191,4 +194,13 @@ int main() {
   std::printf("%s: the 16-bit window sums, %d failures\n",
               failures == 0 ? "PASS" : "FAILED", failures);
   return failures == 0 ? 0 : 1;
+}
+
+} // namespace
+
+// In mxi_tests: every check above, through the file's own count of
+// failures, which must be none.
+TEST(spots_dext_squares) {
+  check::equal(static_cast<long long>(run()), 0LL,
+               "test_dext_squares: its checks");
 }

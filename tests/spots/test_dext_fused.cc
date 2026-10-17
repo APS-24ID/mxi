@@ -14,8 +14,11 @@
 #include <string>
 #include <vector>
 
+#include "../check.hh"
 #include "dext.hh"
 #include "dext_fused.hh"
+
+namespace {
 
 namespace {
 
@@ -79,7 +82,7 @@ void compare(std::size_t h, std::size_t w, unsigned seed, double mean) {
   const std::vector<T> f = make<T>(h, w, seed, mean);
   std::vector<SignalPixel> a, b;
   const int ra = dext<T>(f.data(), a, h, w);
-  const int rb = dext_fused::dext_fused_emulated<T>(f.data(), b, h, w);
+  const int rb = mxi::dext_fused::dext_fused_emulated<T>(f.data(), b, h, w);
   ++frames;
   const std::string what = std::to_string(h) + " x " + std::to_string(w) +
                            ", " + std::to_string(8 * sizeof(T)) +
@@ -106,7 +109,7 @@ void compare(std::size_t h, std::size_t w, unsigned seed, double mean) {
 
 } // namespace
 
-int main() {
+int run() {
   const std::size_t sizes[][2] = {{1, 1},    {5, 7},    {32, 32},   {33, 65},
                                   {100, 37}, {67, 300}, {257, 511}, {64, 96}};
   unsigned seed = 1;
@@ -123,7 +126,8 @@ int main() {
         make<std::uint16_t>(3262, 3108, 99, 1.5);
     std::vector<SignalPixel> a, b;
     dext<std::uint16_t>(f.data(), a, 3262, 3108);
-    dext_fused::dext_fused_emulated<std::uint16_t>(f.data(), b, 3262, 3108);
+    mxi::dext_fused::dext_fused_emulated<std::uint16_t>(f.data(), b, 3262,
+                                                        3108);
     ++frames;
     signal = a.size();
     if (a.size() != b.size() ||
@@ -139,4 +143,13 @@ int main() {
               "largest), %d failures\n",
               failures == 0 ? "PASS" : "FAILED", frames, signal, failures);
   return failures == 0 ? 0 : 1;
+}
+
+} // namespace
+
+// In mxi_tests: every check above, through the file's own count of
+// failures, which must be none.
+TEST(spots_dext_fused) {
+  check::equal(static_cast<long long>(run()), 0LL,
+               "test_dext_fused: its checks");
 }

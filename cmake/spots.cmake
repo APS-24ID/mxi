@@ -461,36 +461,9 @@ install(TARGETS mxi_find RUNTIME DESTINATION bin)
 if(MXI_TESTS)
     enable_testing()
 
-    # Not a regression: it pins the domain the 32-bit window sums are exact over,
-    # and fails if a change to the kernel size or to the masking eats the
-    # headroom.
-    add_executable(test_dext_squares tests/spots/test_dext_squares.cc)
-    target_link_libraries(test_dext_squares
-        PRIVATE mxi_dext mxi_warnings)
-    add_test(NAME dext_squares COMMAND test_dext_squares)
 
-    # No GPU needed: the fused kernel's phases, run on the CPU tile by tile,
-    # against dext() -- the tile arithmetic, checked where it can be.
-    add_executable(test_dext_fused tests/spots/test_dext_fused.cc)
-    target_link_libraries(test_dext_fused
-        PRIVATE mxi_dext mxi_warnings)
-    add_test(NAME dext_fused COMMAND test_dext_fused)
 
-    # No GPU needed: the ordering is host code, and this is where its heap
-    # overflow was caught.
-    add_executable(test_signal_order tests/spots/test_signal_order.cc)
-    target_link_libraries(test_signal_order
-        PRIVATE mxi_signal_order mxi_warnings)
-    add_test(NAME signal_order COMMAND test_signal_order)
 
-    # The DIALS side: the grouping, the file, the experiment list, and the three
-    # of them together over planted frames. None of these needs a GPU, a server
-    # or a detector, which is deliberate -- they are the tests that say whether
-    # what dials.index is handed means what it says.
-    add_executable(test_dials_spots tests/spots/test_dials_spots.cc)
-    target_link_libraries(test_dials_spots
-        PRIVATE mxi_spots mxi_warnings)
-    add_test(NAME dials_spots COMMAND test_dials_spots)
 
     # Not a ctest: it is a measurement to read, not a pass or a fail. It is
     # here because the grouping looks like the expensive stage -- it is the one
@@ -540,28 +513,9 @@ if(MXI_TESTS)
     target_include_directories(mxi_readtest SYSTEM PRIVATE ${HDF5_C_INCLUDE_DIRS})
     target_link_libraries(mxi_readtest PRIVATE ${HDF5_C_LIBRARIES})
 
-    add_executable(test_refl tests/spots/test_refl.cc)
-    target_link_libraries(test_refl PRIVATE mxi mxi_spots mxi_warnings)
-    add_test(NAME refl COMMAND test_refl)
 
-    # Holds the writer's output to what it produces today, so that replacing it
-    # with the general writer in ../src/refl.cc can be shown to change nothing.
-    # See docs/spotfinder.md: this must not be weakened to pass.
-    add_executable(test_refl_golden tests/spots/test_refl_golden.cc)
-    # mxi links the table writer; mxi_spots the spots themselves
-    # too puts the archive on the link line twice and ld warns about it.
-    target_link_libraries(test_refl_golden
-                          PRIVATE mxi mxi_spots mxi_warnings)
-    add_test(NAME refl_golden COMMAND test_refl_golden)
 
-    add_executable(test_expt tests/spots/test_expt.cc)
-    target_link_libraries(test_expt PRIVATE mxi mxi_warnings)
-    add_test(NAME expt COMMAND test_expt)
 
-    add_executable(test_dials_end_to_end tests/spots/test_dials_end_to_end.cc)
-    target_link_libraries(test_dials_end_to_end
-        PRIVATE mxi_dext mxi mxi_spots mxi_warnings)
-    add_test(NAME dials_end_to_end COMMAND test_dials_end_to_end)
 
     # The CPU and the device must agree exactly, so this is only built when there
     # is a device to disagree with. It skips, rather than fails, when the backend

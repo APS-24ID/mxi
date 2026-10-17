@@ -53,8 +53,8 @@
 #include "views.hh"
 
 #include "decompress.hh"
-#include "rflx.hh"
 #include "image_series.hh"
+#include "rflx.hh"
 
 #include <memory>
 #include <stdexcept>
@@ -1268,9 +1268,9 @@ int run_program(int argc, char **argv) {
     IntegrateOptions integrate_options;
     integrate_options.gain = args.number("--gain", 1.0);
 
-    // The images. series::nxmx unpacks the NXmx virtual dataset so each
+    // The images. mxi::series::nxmx unpacks the NXmx virtual dataset so each
     // frame's compressed bytes can be read without HDF5's filter pipeline;
-    // decompress::image then turns them into pixels.
+    // mxi::decompress::image then turns them into pixels.
     // Where the images are: the .expt says, and --images overrides it. The
     // experiment list already carries the path and being told it twice is how
     // the two come to disagree -- but a file moved since it was written needs
@@ -1297,7 +1297,7 @@ int run_program(int argc, char **argv) {
     }
     detail("Images: %s (from %s)\n", image_path.c_str(), image_source);
 
-    std::unique_ptr<series::Series> images = series::nxmx(image_path);
+    std::unique_ptr<mxi::series::Series> images = mxi::series::nxmx(image_path);
     // A reader a worker, for this run's images only: made when a worker first
     // reads, used by one thread at a time (a call's workers are distinct), and
     // gone with the images. Once a thread_local, kept for the thread's life:
@@ -1306,8 +1306,8 @@ int run_program(int argc, char **argv) {
     // 1's pixels where its frames existed, and threw where they did not
     // (Graeme, four sweeps, 'frame ... outside every virtual mapping'
     // uncaught).
-    std::vector<std::unique_ptr<series::Reader>> readers;
-    series::Info info;
+    std::vector<std::unique_ptr<mxi::series::Reader>> readers;
+    mxi::series::Info info;
     if (!images || !images->try_open(&info)) {
       std::fprintf(stderr,
                    "mxi_integrate: cannot open %s. If the data have moved "
@@ -1673,7 +1673,7 @@ int run_program(int argc, char **argv) {
     if (save)
       saved.resize(planned.size());
 
-    std::unique_ptr<series::Reader> reader = images->reader();
+    std::unique_ptr<mxi::series::Reader> reader = images->reader();
     // The keys, in the order the series gives them. Reading each one to build
     // a frame-number-to-key map first would read every chunk twice, which on
     // the thirty degree sweep was most of the run: 18 of 21 seconds spent
@@ -1684,7 +1684,7 @@ int run_program(int argc, char **argv) {
     // interface promises keys that can be read, not keys in sequence.
     const std::vector<std::string> keys = images->ready();
 
-    series::Frame frame;
+    mxi::series::Frame frame;
     std::vector<std::uint8_t> pixels;
     std::size_t frames_read = 0;
     std::size_t frames_missing = 0;
@@ -2264,7 +2264,7 @@ int run_program(int argc, char **argv) {
     const auto collect_oldest_fit = [&]() {
       PendingFit p = std::move(pending_fits.front());
       pending_fits.pop_front();
-      std::vector<fitdev::FitF> fits;
+      std::vector<mxi::fitdev::FitF> fits;
       const double t0 = Timing::now();
       if (!fit_batch_collect(p.ticket, &fits))
         throw std::runtime_error("profile fitting on the device failed");
@@ -2365,7 +2365,7 @@ int run_program(int argc, char **argv) {
           if (ticket >= 0) {
             pending_fits.push_back({ticket, std::move(in_batch)});
           } else {
-            const std::vector<fitdev::FitF> fits =
+            const std::vector<mxi::fitdev::FitF> fits =
                 fit_batch_emulated(fit_batch);
             for (std::size_t n = 0; n < in_batch.size(); ++n) {
               ProfileFit fit = to_profile_fit(fits[n]);
@@ -2550,13 +2550,13 @@ int run_program(int argc, char **argv) {
             // The worker's reader, for this run's images (`readers`), and
             // its TIMING lane, both by the worker number, unique within a call.
             const std::size_t slot = worker % fetch_by_thread.size();
-            std::unique_ptr<series::Reader> &mine = readers[slot];
+            std::unique_ptr<mxi::series::Reader> &mine = readers[slot];
             if (!mine)
               mine = images->reader();
             const std::int32_t z = frame_numbers[which];
             if (z < 0 || static_cast<std::size_t>(z) >= keys.size())
               return;
-            series::Frame raw;
+            mxi::series::Frame raw;
             const double t0 = now_wall();
             if (!mine->read(keys[static_cast<std::size_t>(z)], &raw)) {
               // A frame the writer never received: an unallocated chunk.
@@ -2570,11 +2570,11 @@ int run_program(int argc, char **argv) {
             const std::size_t height = static_cast<std::size_t>(raw.height);
             const std::size_t width = static_cast<std::size_t>(raw.width);
             const std::size_t bytes =
-                decompress::frame_bytes(height, width, raw.bit_depth);
+                mxi::decompress::frame_bytes(height, width, raw.bit_depth);
             std::vector<std::uint8_t> pixels(bytes);
-            decompress::image(raw.data, raw.algorithm, raw.bit_depth, height,
-                              width, {pixels.data(), bytes});
-            series::apply_pixel_mask(raw, {pixels.data(), bytes});
+            mxi::decompress::image(raw.data, raw.algorithm, raw.bit_depth,
+                                   height, width, {pixels.data(), bytes});
+            mxi::series::apply_pixel_mask(raw, {pixels.data(), bytes});
             const double t2 = now_wall();
             frames_done.fetch_add(1);
 

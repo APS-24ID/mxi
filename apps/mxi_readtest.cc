@@ -62,11 +62,11 @@ struct Place {
 //: block the dataset opened in its own file -- the external file, if the master
 //: links to it -- its user block added to HDF5's addresses, and the file opened
 //: for pread.
-std::vector<Place> find_chunks(const std::vector<series::SourceBlock> &blocks,
-                               std::uint64_t frames,
-                               std::vector<int> *descriptors) {
+std::vector<Place>
+find_chunks(const std::vector<mxi::series::SourceBlock> &blocks,
+            std::uint64_t frames, std::vector<int> *descriptors) {
   std::vector<Place> places(frames);
-  for (const series::SourceBlock &b : blocks) {
+  for (const mxi::series::SourceBlock &b : blocks) {
     const hid_t file = H5Fopen(b.filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
     if (file < 0)
       throw std::runtime_error("cannot open " + b.filename);
@@ -186,8 +186,8 @@ int main(int argc, char **argv) {
 
     // The geometry and compression, from the first frame through the reader
     // the programs use -- so that --pread decompresses as they would.
-    std::unique_ptr<series::Series> s = series::nxmx(master);
-    series::Info info;
+    std::unique_ptr<mxi::series::Series> s = mxi::series::nxmx(master);
+    mxi::series::Info info;
     if (!s->try_open(&info))
       throw std::runtime_error("cannot open " + master + " as an NXmx series");
     // The frames the series has, by its own keys, as mxi_find and mxi_max
@@ -198,21 +198,22 @@ int main(int argc, char **argv) {
     if (args.has("--frames"))
       frames = std::min<std::uint64_t>(
           frames, static_cast<std::uint64_t>(args.number("--frames", 0.0)));
-    series::Frame first;
+    mxi::series::Frame first;
     if (!s->reader()->read("0", &first))
       throw std::runtime_error("the first frame could not be read");
     const unsigned bit_depth = first.bit_depth;
     const std::size_t height = first.height, width = first.width;
     const std::string algorithm(first.algorithm);
-    const std::size_t bytes = decompress::frame_bytes(height, width, bit_depth);
+    const std::size_t bytes =
+        mxi::decompress::frame_bytes(height, width, bit_depth);
 
     std::vector<Place> places;
     std::vector<int> descriptors;
     double t_find = 0.0;
     if (by_pread) {
       const double t0 = now();
-      series::Info again;
-      places = find_chunks(series::nxmx_blocks(master, &again), frames,
+      mxi::series::Info again;
+      places = find_chunks(mxi::series::nxmx_blocks(master, &again), frames,
                            &descriptors);
       t_find = now() - t0;
     }
@@ -227,10 +228,10 @@ int main(int argc, char **argv) {
     for (std::size_t w = 0; w < threads; ++w)
       workers.emplace_back([&, w] {
         try {
-          std::unique_ptr<series::Reader> reader =
+          std::unique_ptr<mxi::series::Reader> reader =
               by_pread ? nullptr : s->reader();
           std::vector<std::uint8_t> buffer, out(bytes);
-          series::Frame frame;
+          mxi::series::Frame frame;
           for (std::uint64_t f = next.fetch_add(1); f < frames;
                f = next.fetch_add(1)) {
             const double a = now();
@@ -258,8 +259,8 @@ int main(int argc, char **argv) {
             compressed.fetch_add(data.size());
             std::uint64_t h = 0;
             if (decompressing) {
-              decompress::image(data, how, bit_depth, height, width,
-                                {out.data(), out.size()});
+              mxi::decompress::image(data, how, bit_depth, height, width,
+                                     {out.data(), out.size()});
               h = fnv1a(out.data(), out.size());
               decompressing_s[w] += now() - b;
             } else {

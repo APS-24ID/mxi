@@ -23,7 +23,7 @@ bool fake() {
 
 struct FakeSlot {
   bool busy = false;
-  std::vector<fitdev::FitF> fits;
+  std::vector<mxi::fitdev::FitF> fits;
   // Its own memory, offered to pack into, as a real device's is.
   std::vector<float> data, reference;
   std::vector<std::uint8_t> mask;
@@ -60,7 +60,7 @@ int fit_batch_submit(const FitBatch &batch) {
   return ticket;
 }
 
-bool fit_batch_collect(int ticket, std::vector<fitdev::FitF> *out) {
+bool fit_batch_collect(int ticket, std::vector<mxi::fitdev::FitF> *out) {
   FakeSlot &s = g_fake[ticket % kFitSlots];
   if (!s.busy)
     return false;
@@ -69,7 +69,8 @@ bool fit_batch_collect(int ticket, std::vector<fitdev::FitF> *out) {
   return true;
 }
 
-bool fit_batch_device(const FitBatch &batch, std::vector<fitdev::FitF> *out) {
+bool fit_batch_device(const FitBatch &batch,
+                      std::vector<mxi::fitdev::FitF> *out) {
   const int ticket = fit_batch_submit(batch);
   return ticket >= 0 && fit_batch_collect(ticket, out);
 }

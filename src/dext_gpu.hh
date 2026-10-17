@@ -1,11 +1,11 @@
 // The GPU signal calculation, built only with -DMXI_CUDA=ON or
 // -DMXI_METAL=ON.
 //
-// gpu::find mirrors dext() from dext.hh exactly -- same arguments, same output
-// contract, same masked-pixel rule -- so signal.cc has one call site with a
-// branch, and the two implementations can be run over the same frames and
-// compared. Working buffers and a command stream are held per thread inside the
-// implementation and reused between frames.
+// mxi::gpu::find mirrors dext() from dext.hh exactly -- same arguments, same
+// output contract, same masked-pixel rule -- so signal.cc has one call site
+// with a branch, and the two implementations can be run over the same frames
+// and compared. Working buffers and a command stream are held per thread inside
+// the implementation and reused between frames.
 //
 // There is one header for both backends because there is one interface: CUDA
 // implements it in dext_cuda.cu and Metal in dext_metal.cc, exactly one of the
@@ -22,7 +22,7 @@
 
 #include "signal_pixel.hh"
 
-namespace gpu {
+namespace mxi::gpu {
 
 // "CUDA" or "Metal": which implementation was linked in. Reported by --version,
 // because "with GPU support" does not say enough to reproduce a result.
@@ -179,6 +179,6 @@ extern template int find<std::uint32_t>(const std::uint32_t *,
                                         std::vector<SignalPixel> &, std::size_t,
                                         std::size_t);
 
-} // namespace gpu
+} // namespace mxi::gpu
 
 #endif // MXI_DEXT_GPU_HH

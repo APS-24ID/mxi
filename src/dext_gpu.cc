@@ -1,4 +1,4 @@
-// The parts of gpu:: that are the same whichever backend is linked in.
+// The parts of mxi::gpu:: that are the same whichever backend is linked in.
 //
 // Which window each stage uses, whether to profile, and where the last frame's
 // split went are all questions about configuration rather than about a device,
@@ -14,7 +14,7 @@
 
 #include "dext_gpu_internal.hh"
 
-namespace gpu {
+namespace mxi::gpu {
 namespace {
 
 // stage2 is tile on both devices and by a wide margin: per-pixel load traffic
@@ -166,4 +166,4 @@ void announce_fused() {
 }
 
 } // namespace internal
-} // namespace gpu
+} // namespace mxi::gpu

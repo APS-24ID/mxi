@@ -20,8 +20,8 @@ namespace mxi {
 //: One experiment's spots, from the spot finder: the spots, their pixels, the
 //: image's width, and the experiment's id and identifier in the table.
 struct SpotPart {
-  const std::vector<dials_spots::Spot> *spots = nullptr;
-  const std::vector<dials_spots::Pixel> *pixels = nullptr;
+  const std::vector<mxi::spots::Spot> *spots = nullptr;
+  const std::vector<mxi::spots::Pixel> *pixels = nullptr;
   std::size_t width = 0;
   int id = 0;
   std::string identifier;
@@ -43,8 +43,8 @@ struct SpotTableOptions {
   bool shoeboxes = true;
 };
 void write_spots(const std::string &path,
-                 const std::vector<dials_spots::Spot> &spots,
-                 const std::vector<dials_spots::Pixel> &pixels,
+                 const std::vector<mxi::spots::Spot> &spots,
+                 const std::vector<mxi::spots::Pixel> &pixels,
                  std::size_t width, const SpotTableOptions &options);
 
 } // namespace mxi

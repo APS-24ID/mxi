@@ -1,4 +1,4 @@
-// signal_order::by_index against std::sort, and how much faster it is.
+// mxi::signal_order::by_index against std::sort, and how much faster it is.
 //
 // The correctness bar is exact agreement with std::sort on the index, over
 // inputs chosen to break a bucket sort if it is going to be broken: counts
@@ -18,7 +18,10 @@
 #include <string>
 #include <vector>
 
+#include "../check.hh"
 #include "signal_order.hh"
+
+namespace {
 
 namespace {
 
@@ -94,19 +97,19 @@ void agrees(std::vector<SignalPixel> pixels, const std::string &what) {
                    [](const SignalPixel &a, const SignalPixel &b) {
                      return a.index < b.index;
                    });
-  signal_order::scratch work;
-  signal_order::by_index(pixels, work);
+  mxi::signal_order::scratch work;
+  mxi::signal_order::by_index(pixels, work);
   check(same(pixels, reference), what);
 }
 
 } // namespace
 
-int main() {
+int run() {
   const std::size_t height = 4362;
   const std::size_t width = 4148;
   const std::size_t frame = height * width;
 
-  std::printf("signal_order::by_index against std::sort\n");
+  std::printf("mxi::signal_order::by_index against std::sort\n");
 
   // Nothing to do, and nothing to crash on.
   agrees({}, "empty");
@@ -162,14 +165,14 @@ int main() {
   std::printf("\nat %zu x %zu:\n", height, width);
   for (std::size_t n : {size_t(12000), size_t(126002), size_t(600000)}) {
     const std::vector<SignalPixel> source = emit_order(height, width, n, 7u);
-    signal_order::scratch work;
+    mxi::signal_order::scratch work;
 
     double mine = 1e9;
     double theirs = 1e9;
     for (int r = 0; r < 5; r++) {
       std::vector<SignalPixel> pixels = source;
       auto started = std::chrono::steady_clock::now();
-      signal_order::by_index(pixels, work);
+      mxi::signal_order::by_index(pixels, work);
       mine = std::min(mine, std::chrono::duration<double, std::milli>(
                                 std::chrono::steady_clock::now() - started)
                                 .count());
@@ -195,4 +198,13 @@ int main() {
   }
   std::printf("\nall checks passed\n");
   return 0;
+}
+
+} // namespace
+
+// In mxi_tests: every check above, through the file's own count of
+// failures, which must be none.
+TEST(spots_signal_order) {
+  check::equal(static_cast<long long>(run()), 0LL,
+               "test_signal_order: its checks");
 }

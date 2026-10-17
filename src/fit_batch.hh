@@ -18,9 +18,9 @@
 namespace mxi {
 
 struct FitBatch {
-  fitdev::Setup setup;
-  std::vector<fitdev::PanelF> panels;
-  std::vector<fitdev::BoxF> boxes;
+  mxi::fitdev::Setup setup;
+  std::vector<mxi::fitdev::PanelF> panels;
+  std::vector<mxi::fitdev::BoxF> boxes;
   std::vector<float> data;        //: every box's voxels, in turn
   std::vector<std::uint8_t> mask; //: the same
   std::vector<float> reference;   //: every box's local reference, side^3 each
@@ -73,11 +73,12 @@ void clear_batch(FitBatch *batch);
 
 //: The fits, in the order the boxes were added, on the CPU in single
 //: precision: fit_box_emulated, in parallel over the boxes.
-std::vector<fitdev::FitF> fit_batch_emulated(const FitBatch &batch);
+std::vector<mxi::fitdev::FitF> fit_batch_emulated(const FitBatch &batch);
 
 //: The fits on the device, if the build has one and the machine too; false
 //: and nothing done otherwise.
-bool fit_batch_device(const FitBatch &batch, std::vector<fitdev::FitF> *out);
+bool fit_batch_device(const FitBatch &batch,
+                      std::vector<mxi::fitdev::FitF> *out);
 
 //: Fitting without waiting, so that the CPU goes on reading frames while the
 //: device fits: a batch is copied into one of kFitSlots slots and started, and
@@ -89,7 +90,7 @@ constexpr int kFitSlots = 2;
 int fit_batch_submit(const FitBatch &batch);
 //: Waits for a submitted batch and gives its fits, in the order its boxes were
 //: added; false if the device failed.
-bool fit_batch_collect(int ticket, std::vector<fitdev::FitF> *out);
+bool fit_batch_collect(int ticket, std::vector<mxi::fitdev::FitF> *out);
 
 //: The name of the device the fits would run on, or nullptr if none.
 const char *fit_device_name();
@@ -98,6 +99,6 @@ const char *fit_device_name();
 std::string fit_device_unavailable_reason();
 
 //: A fit as ProfileFit, to record as the CPU's is recorded.
-ProfileFit to_profile_fit(const fitdev::FitF &f);
+ProfileFit to_profile_fit(const mxi::fitdev::FitF &f);
 
 } // namespace mxi

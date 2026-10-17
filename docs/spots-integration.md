@@ -1,6 +1,6 @@
 # Integrating the spot finder into mxi
 
-STATUS: commit 1 and step 2a done, 16 October 2026.
+STATUS: commit 1, steps 2a and 2b done, 16 October 2026.
 
 **Remove this document when the series is complete:** it is a plan, and once
 done it belongs to the project's history (git log), not to its documents.
@@ -46,7 +46,25 @@ master positionally, `-e` and `-gpu` gone. Checked: the .refl byte for byte,
 both .rflx every column, the golden test through the library, ctest, the
 Python suite.
 
-**2b and 2c, next:**
+**2b (done): the HDF5 handles; the queue and the mask kept.** One handle class
+for the library (`hdf5_handle.*`, with the lock around HDF5's API moved there
+from the reader), where the reader, the NXmx import and the .rflx code had one
+each -- Handle, H5 and H, the reader's alone closing under the lock. Not
+changed, on reading them: the spot finder's work queue is not a copy of
+`parallel.hh` but a bounded producer and consumer, frames taken as they are
+written -- finding spots during collection -- which a known count of work up
+front cannot do; it stays, into `mxi` with 2c. The detector's pixel mask is
+read once by the reader and applied by `apply_pixel_mask`, which integration
+already uses: nothing duplicated. Checked: the .refl byte for byte, the two
+spot tables and insulin's integration every column, ctest, the Python suite.
+
+**2b-GPU, next: one Metal layer and one CUDA layer.** The threshold's kernels
+and profile fitting's each create the device, load their embedded library,
+build pipelines and queues; one layer for each, shared. Neither toolchain is
+here: built first on Graeme's machines.
+
+**2c, after:**
+
 
 
 * `spot_expt.*` goes: `mxi_find` reads the library's experiment list.
@@ -55,12 +73,9 @@ Python suite.
 * `mxi_find`'s own argument parsing goes: `parse_arguments`, as every program;
   `mxi_find imported.rflx`, a master given directly kept as a convenience, `-e`
   dropped.
-* The work queue goes: `parallel.hh`, a reader a worker.
 * One Metal layer and one CUDA layer -- the device, its library, its errors --
   shared by the threshold's kernels and profile fitting's; `--gpu` and
   `--gpu-force` alike in `mxi_find` and `mxi_integrate`.
-* One HDF5 handle wrapper; the detector's pixel mask shared with integration's
-  masking where they duplicate.
 * The namespaces (`series`, `decompress`, `dials_spots`, `gpu`, ...) into `mxi`.
 * `tests/spots/` into `mxi_tests`, the `TEST` framework.
 

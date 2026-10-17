@@ -29,6 +29,7 @@
 #include <utility>
 #include <vector>
 
+#include "hdf5_handle.hh"
 #include "image_series.hh"
 
 namespace series {
@@ -55,10 +56,7 @@ constexpr H5Z_filter_t kLz4 = 32004;
 //
 // Recursive because the scopes nest -- read() holds it across open(), and
 // open() holds it while its temporary handles close.
-std::recursive_mutex &hdf5_mutex() {
-  static std::recursive_mutex mutex;
-  return mutex;
-}
+using mxi::hdf5_mutex;
 
 using Guard = std::lock_guard<std::recursive_mutex>;
 
@@ -93,41 +91,7 @@ hid_t opened(hid_t id, const char *what) {
 
 // HDF5 hands out integer handles with a different close function for each kind
 // of object, so the closer travels with the handle.
-class Handle {
-public:
-  Handle() = default;
-  Handle(hid_t id, herr_t (*close)(hid_t)) : id_(id), close_(close) {}
-  ~Handle() { reset(); }
-
-  Handle(Handle &&other) noexcept : id_(other.id_), close_(other.close_) {
-    other.id_ = -1;
-  }
-  Handle &operator=(Handle &&other) noexcept {
-    if (this != &other) {
-      reset();
-      id_ = other.id_;
-      close_ = other.close_;
-      other.id_ = -1;
-    }
-    return *this;
-  }
-  Handle(const Handle &) = delete;
-  Handle &operator=(const Handle &) = delete;
-
-  hid_t get() const { return id_; }
-
-private:
-  void reset() {
-    if (id_ >= 0 && close_ != nullptr) {
-      const Guard guard(hdf5_mutex());
-      close_(id_);
-    }
-    id_ = -1;
-  }
-
-  hid_t id_ = -1;
-  herr_t (*close_)(hid_t) = nullptr;
-};
+using Handle = mxi::Hdf5Handle;
 
 // Where one run of frames lives. One of these per data file, in the usual case
 // of a VDS built block by block.

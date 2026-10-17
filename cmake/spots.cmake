@@ -355,7 +355,7 @@ add_library(mxi_image_series STATIC src/nxmx_reader.cc)
 target_include_directories(mxi_image_series PUBLIC src)
 target_include_directories(mxi_image_series SYSTEM PRIVATE ${HDF5_C_INCLUDE_DIRS})
 target_link_libraries(mxi_image_series
-    PRIVATE ${HDF5_C_LIBRARIES} mxi_warnings)
+    PUBLIC mxi PRIVATE ${HDF5_C_LIBRARIES} mxi_warnings)
 target_compile_definitions(mxi_image_series PRIVATE
     $<$<BOOL:${MXI_H5DREAD_CHUNK_TAKES_SIZE}>:MXI_H5DREAD_CHUNK_TAKES_SIZE>)
 

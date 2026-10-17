@@ -409,7 +409,7 @@ target_link_libraries(mxi_find
 # The kernels go into the executable rather than a library of their own, so that
 # adding more .cu files is a one-line change here.
 if(MXI_CUDA)
-    target_sources(mxi_find PRIVATE src/dext_cuda.cu)
+    target_sources(mxi_find PRIVATE src/dext_cuda.cu src/cuda_device.cu)
     target_compile_definitions(mxi_find PRIVATE
                                MXI_CUDA MXI_GPU
                                ${mxi_gpu_definitions})
@@ -436,8 +436,18 @@ if(MXI_METAL)
     # fix. The warnings that matter are mxi's own.
     target_include_directories(mxi_dext_metal SYSTEM PUBLIC
                                ${METAL_CPP_INCLUDE_DIR})
+    # The Metal layer the GPU code shares (src/metal_device.*): the device,
+    # the shader libraries, the pipelines, and metal-cpp's implementation,
+    # compiled once for any program that links it.
+    if(NOT TARGET mxi_metal)
+        add_library(mxi_metal STATIC src/metal_device.cc)
+        target_include_directories(mxi_metal PUBLIC src)
+        target_include_directories(mxi_metal SYSTEM PUBLIC ${METAL_CPP_INCLUDE_DIR})
+        target_link_libraries(mxi_metal
+            PUBLIC ${METAL_FRAMEWORK} ${FOUNDATION_FRAMEWORK})
+    endif()
     target_link_libraries(mxi_dext_metal
-        PUBLIC ${METAL_FRAMEWORK} ${FOUNDATION_FRAMEWORK}
+        PUBLIC mxi_metal ${METAL_FRAMEWORK} ${FOUNDATION_FRAMEWORK}
         PRIVATE mxi_signal_order mxi_dext_gpu mxi_warnings)
 
     target_link_libraries(mxi_find PRIVATE mxi_dext_metal)
@@ -565,7 +575,7 @@ if(MXI_TESTS)
             list(APPEND mxi_gpu_test_libs mxi_dext_metal)
             set(mxi_gpu_test_sources "")
         else()
-            set(mxi_gpu_test_sources src/dext_cuda.cu)
+            set(mxi_gpu_test_sources src/dext_cuda.cu src/cuda_device.cu)
         endif()
 
         add_executable(test_dext_gpu tests/spots/test_dext_gpu.cc

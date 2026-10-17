@@ -301,7 +301,8 @@ target_compile_definitions(mxi PRIVATE MXI_HAVE_BITSHUFFLE)
 # spot finder's CUDA is on, and otherwise the stubs, which fit in single
 # precision on the CPU instead.
 if(MXI_CUDA)
-    target_sources(mxi_integrate PRIVATE src/fit_device_cuda.cc src/fit_cuda.cu)
+    target_sources(mxi_integrate PRIVATE src/fit_device_cuda.cc src/fit_cuda.cu
+                                         src/cuda_device.cu)
 elseif(MXI_METAL)
     # The shader compiled, linked and embedded as the spot finder's is, with the
     # same flags, under a name of its own.
@@ -329,6 +330,7 @@ elseif(MXI_METAL)
         DEPENDS ${fit_metallib} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_metallib.cmake"
         COMMENT "Embedding fit_metal.metallib")
     target_sources(mxi_integrate PRIVATE src/fit_device_metal.cc ${fit_metallib_cc})
+    target_link_libraries(mxi_integrate PRIVATE mxi_metal)
     # SYSTEM: metal-cpp is not clean under -Wall -Wextra.
     target_include_directories(mxi_integrate SYSTEM PRIVATE ${METAL_CPP_INCLUDE_DIR})
     target_link_libraries(mxi_integrate PRIVATE ${METAL_FRAMEWORK} ${FOUNDATION_FRAMEWORK})

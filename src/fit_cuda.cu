@@ -11,6 +11,7 @@
 // out again for every slice rather than kept: that is arithmetic, which a
 // device has, where keeping them is memory, which it has less of.
 
+#include "cuda_device.hh"
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -158,7 +159,8 @@ __global__ void fit_kernel(Setup setup, const PanelF *panels, const BoxF *boxes,
       const float v =
           setup.gain * (expected > kLeastVariance ? expected : kLeastVariance);
       const float k =
-          1.0f / (setup.gain * (expected > kWeightFloor ? expected : kWeightFloor));
+          1.0f /
+          (setup.gain * (expected > kWeightFloor ? expected : kWeightFloor));
       const float p = profile[i];
       num += p * (d[i] - bg) * k;
       den += p * p * k;
@@ -423,55 +425,16 @@ void fit_cuda_times(double out[3]) {
     out[m] = g_seconds[m];
 }
 
-//: Why no CUDA device is usable, in CUDA's own words, with what most often
-//: explains it: the driver older than the runtime this was built with, or no
-//: device visible to the process -- a login node, a job with no GPU, an empty
-//: CUDA_VISIBLE_DEVICES. Empty when a device is usable.
+//: Why no CUDA device is usable: the shared layer's (cuda_device.hh).
 std::string fit_cuda_unavailable_reason() {
-  int devices = 0;
-  const cudaError_t error = cudaGetDeviceCount(&devices);
-  if (error == cudaSuccess && devices > 0)
-    return std::string();
-  std::string why = error != cudaSuccess
-                        ? std::string(cudaGetErrorName(error)) + ", " +
-                              cudaGetErrorString(error)
-                        : std::string("CUDA found no devices");
-  int driver = 0, runtime = 0;
-  cudaDriverGetVersion(&driver);
-  cudaRuntimeGetVersion(&runtime);
-  char versions[160];
-  if (driver == 0)
-    std::snprintf(versions, sizeof versions,
-                  "; no CUDA driver is installed, and this was built "
-                  "with the CUDA %d.%d runtime",
-                  runtime / 1000, (runtime % 1000) / 10);
-  else
-    std::snprintf(versions, sizeof versions,
-                  "; the driver supports CUDA %d.%d, and this was built "
-                  "with the CUDA %d.%d runtime",
-                  driver / 1000, (driver % 1000) / 10, runtime / 1000,
-                  (runtime % 1000) / 10);
-  why += versions;
-  if (const char *visible = std::getenv("CUDA_VISIBLE_DEVICES"))
-    why += std::string("; CUDA_VISIBLE_DEVICES is \"") + visible + "\"";
-  return why;
+  return mxi::cuda::unavailable_reason();
 }
 
 const char *fit_cuda_name() {
-  static char name[256] = {0};
-  static int state = 0; // 0 unknown, 1 present, 2 absent
-  if (state == 0) {
-    int count = 0;
-    cudaDeviceProp prop;
-    if (cudaGetDeviceCount(&count) == cudaSuccess && count > 0 &&
-        cudaGetDeviceProperties(&prop, 0) == cudaSuccess) {
-      std::snprintf(name, sizeof name, "%s (CUDA)", prop.name);
-      state = 1;
-    } else {
-      state = 2;
-    }
-  }
-  return state == 1 ? name : nullptr;
+  static const std::string name = mxi::cuda::device_name().empty()
+                                      ? std::string()
+                                      : mxi::cuda::device_name() + " (CUDA)";
+  return name.empty() ? nullptr : name.c_str();
 }
 
 } // namespace fitdev

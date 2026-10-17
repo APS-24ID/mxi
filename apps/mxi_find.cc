@@ -47,15 +47,15 @@
 #include <utility>
 #include <vector>
 
-#include "../expt.hh"
-#include "../log_mirror.hh"
-#include "../processing.hh"
-#include "../rflx.hh"
-#include "../timing.hh"
+#include "expt.hh"
+#include "log_mirror.hh"
+#include "processing.hh"
+#include "rflx.hh"
+#include "timing.hh"
 #include "decompress.hh"
 #include "dext.hh"
-#include "dials_spots.hh"
-#include "expt.hh"
+#include "spots.hh"
+#include "spot_expt.hh"
 #include "histogram.hh"
 #include "queue.hh"
 
@@ -158,11 +158,11 @@ void report_resolution(const std::vector<double> &dstar) {
   find_summary().set("ice_rings", mxi::json::Value(std::move(crowded)));
 }
 } // namespace
-#include "refl.hh"
-#include "series.hh"
+#include "spot_refl.hh"
+#include "image_series.hh"
 #include "signal_pixel.hh"
 
-#ifdef SPOTFINDER_GPU
+#ifdef MXI_GPU
 #include "dext_gpu.hh"
 #endif
 
@@ -203,13 +203,13 @@ struct Options {
 // from a fast-math build is not one to compare against DIALS without knowing
 // that, so it is in the one line that identifies the binary.
 void report_version(const char *program) {
-  std::printf("%s %s (%s%s)\n", program, SPOTFINDER_VERSION,
-#ifdef SPOTFINDER_GPU
+  std::printf("%s %s (%s%s)\n", program, MXI_VERSION,
+#ifdef MXI_GPU
               gpu::backend(),
 #else
               "no GPU",
 #endif
-#ifdef SPOTFINDER_FAST_MATH
+#ifdef MXI_FAST_MATH
               ", fast math"
 #else
               ""
@@ -475,7 +475,7 @@ void sleep_for(int milliseconds) {
 // into memory the kernels read and there is no copy in either direction.
 // ---------------------------------------------------------------------------
 
-#ifdef SPOTFINDER_GPU
+#ifdef MXI_GPU
 // Only meaningful in a build that has a device to be on; without one the
 // threshold has a single path and this would be an unused variable.
 bool on_device = false;
@@ -491,7 +491,7 @@ public:
   std::uint8_t *get(std::size_t bytes) {
     if (bytes > capacity_) {
       release();
-#ifdef SPOTFINDER_GPU
+#ifdef MXI_GPU
       // Shared with the device on Metal, so the frame is decompressed straight
       // into memory the kernels read and there is no copy at all.
       if (on_device)
@@ -514,7 +514,7 @@ private:
       // 'else' used here left a bare delete indented as though it belonged to
       // the early return above it -- correct, and exactly the shape that gets
       // edited wrongly by the next person to read it.
-#ifdef SPOTFINDER_GPU
+#ifdef MXI_GPU
     if (pinned_) {
       gpu::host_free(data_);
     } else {
@@ -538,7 +538,7 @@ void threshold(const std::uint8_t *frame, std::vector<SignalPixel> *signal,
                std::size_t height, std::size_t width) {
   const T *const pixels = reinterpret_cast<const T *>(frame);
   int status = 0;
-#ifdef SPOTFINDER_GPU
+#ifdef MXI_GPU
   if (on_device) {
     status = gpu::find<T>(pixels, *signal, height, width);
   } else
@@ -799,7 +799,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
     // Before the series is opened, so that asking for a device that is not
     // there fails at once rather than after a wait.
     if (options.gpu) {
-#ifdef SPOTFINDER_GPU
+#ifdef MXI_GPU
       if (!gpu::available()) {
         throw std::runtime_error(
             std::string("--gpu was given but no usable ") + gpu::backend() +
@@ -809,7 +809,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
 #else
       throw std::runtime_error(
           "--gpu was given but this build has no GPU support; configure with "
-          "-DSPOTFINDER_METAL=ON or -DSPOTFINDER_CUDA=ON");
+          "-DMXI_METAL=ON or -DMXI_CUDA=ON");
 #endif
     }
 
@@ -904,7 +904,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
   // where measuring the split serialises the stages it would measure.
   mxi::ThreadSeconds t_upload, t_stage0, t_stage1, t_stage2, t_fused,
       t_readback, t_sort;
-#ifdef SPOTFINDER_GPU
+#ifdef MXI_GPU
   const bool split =
       options.timing && options.gpu && std::string(gpu::backend()) == "CUDA";
   if (split)
@@ -994,7 +994,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
                                        "-bit data");
             }
             t_threshold.add(mxi::Timing::now() - d1);
-#ifdef SPOTFINDER_GPU
+#ifdef MXI_GPU
             if (split) {
               const gpu::StageTimes st =
                   gpu::last_stage_times(); // milliseconds

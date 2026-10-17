@@ -31,8 +31,8 @@
 #include "expt.hh"
 #include "log_mirror.hh"
 #include "rflx.hh"
-#include "series.hh"
-#include "spots/expt.hh"
+#include "image_series.hh"
+#include "spot_expt.hh"
 
 namespace {
 

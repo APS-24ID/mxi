@@ -46,11 +46,11 @@ Boost is not needed, and neither is a msgpack library: the grouping owns its
 union-find and the reflection table is written by hand.
 
 ```sh
-cmake -S . -B build -DSPOTFINDER_METAL=ON -DMETAL_CPP_DIR=/path/to/metal-cpp
-cmake -S . -B build -DSPOTFINDER_CUDA=ON
-cmake -S . -B build -DSPOTFINDER_AVX2=OFF     # portable SSE2 bitshuffle
-cmake -S . -B build -DSPOTFINDER_SANITIZE=address,undefined
-cmake -S . -B build -DSPOTFINDER_METAL=ON -DENABLE_FAST_MATH=ON
+cmake -S . -B build -DMXI_METAL=ON -DMETAL_CPP_DIR=/path/to/metal-cpp
+cmake -S . -B build -DMXI_CUDA=ON
+cmake -S . -B build -DMXI_AVX2=OFF     # portable SSE2 bitshuffle
+cmake -S . -B build -DMXI_SANITIZE=address,undefined
+cmake -S . -B build -DMXI_METAL=ON -DENABLE_FAST_MATH=ON
 ```
 
 Configuring both backends at once is a hard error rather than a race at the
@@ -376,7 +376,7 @@ rather than analysed as a frame of saturated pixels.
 ### Metal
 
 ```sh
-cmake -S . -B build -DSPOTFINDER_METAL=ON -DMETAL_CPP_DIR=/path/to/metal-cpp
+cmake -S . -B build -DMXI_METAL=ON -DMETAL_CPP_DIR=/path/to/metal-cpp
 ```
 
 metal-cpp is Apple's header-only C++ wrapper over the Metal API, distributed as
@@ -400,7 +400,7 @@ pixels that is 36 MB of traffic per frame that does not happen.
 ### CUDA
 
 ```sh
-cmake -S . -B build -DSPOTFINDER_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="80;90"
+cmake -S . -B build -DMXI_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="80;90"
 ```
 
 Architectures come from `CMAKE_CUDA_ARCHITECTURES`, since the right answer is
@@ -413,7 +413,7 @@ a fifth of a frame.
 ### Fast math, and what it costs
 
 ```sh
-cmake -S . -B build -DSPOTFINDER_METAL=ON -DENABLE_FAST_MATH=ON
+cmake -S . -B build -DMXI_METAL=ON -DENABLE_FAST_MATH=ON
 cmake --build build -j
 ctest --test-dir build -R dext_gpu --output-on-failure   # what it changed
 build/bench_dext_gpu                                     # what it bought
@@ -452,8 +452,8 @@ pixels directly or build summed-area tables in threadgroup memory, and each
 choice is independent:
 
 ```sh
-SPOTFINDER_GPU_STAGE0=tile   mxi_find --gpu series.nxs
-SPOTFINDER_GPU_STAGE2=direct mxi_find --gpu series.nxs
+MXI_GPU_STAGE0=tile   mxi_find --gpu series.nxs
+MXI_GPU_STAGE2=direct mxi_find --gpu series.nxs
 ```
 
 `tile` touches each pixel about twice but fills its tables with a few dozen of
@@ -562,8 +562,8 @@ threshold too, which is how that is tested where there is no GPU.
 
 ## The fused kernel
 
-`SPOTFINDER_GPU_FUSED=1` runs the three stages as one CUDA kernel
-(`src/spots/dext_fused.hh`), for 16-bit frames; 32-bit frames and Metal run the
+`MXI_GPU_FUSED=1` runs the three stages as one CUDA kernel
+(`src/dext_fused.hh`), for 16-bit frames; 32-bit frames and Metal run the
 three kernels whatever it says. On an RTX 4060 the three kernels were the limit,
 8.9 ms a frame, and each read the whole frame, the first two writing a
 whole-frame mask back to device memory: five passes over memory a frame. The
@@ -600,7 +600,7 @@ compute capability 8.9, no warnings; it has not run, there being no GPU here.
   1917439 signal pixels, 194150 spots extracted, 48006 and 1 removed for size,
   146118 kept. 9.2 seconds, 196 images a second, against Metal's 3.6 and 502.
   Its 32-bit instantiation, and its `stage0_tile` and `stage2_direct` kernels,
-  have still not been run; `SPOTFINDER_GPU_STAGE0=tile SPOTFINDER_GPU_STAGE2=direct`
+  have still not been run; `MXI_GPU_STAGE0=tile MXI_GPU_STAGE2=direct`
   selects the two kernels.
 * **Real diffraction, since.** On a 300 image insulin sweep every filtering count
   matches `dials.find_spots` exactly -- 18755 extracted, 5683 and 5 removed for

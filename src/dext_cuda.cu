@@ -107,7 +107,7 @@ __global__ void stage0(const T *image_in, T *mask_out, int height, int width) {
 // Whether this beats the direct sum above is a hardware question and the answer
 // is not obvious on a discrete card, where bandwidth is plentiful and shared
 // memory is 48 KB or more. It won on Apple silicon at stage2 by 1.76x, which is
-// why it exists here; SPOTFINDER_GPU_STAGE0 selects it and
+// why it exists here; MXI_GPU_STAGE0 selects it and
 // tests/bench_dext_gpu.cc settles it.
 //
 // The deliberate overflow of p * p survives the change of method. The
@@ -395,7 +395,7 @@ __global__ void stage2(const T *image_in, const T *mask_in, SignalPixel *out,
 
 // The same test with the window summed straight, 121 pixels a thread against
 // the table's two. Slower on Apple silicon by 1.76x; whether that holds on a
-// discrete card, where bandwidth is plentiful, is what SPOTFINDER_GPU_STAGE2
+// discrete card, where bandwidth is plentiful, is what MXI_GPU_STAGE2
 // and tests/bench_dext_gpu.cc are for.
 //
 // It is also the second, independent way of summing this window, which is what

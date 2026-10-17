@@ -248,7 +248,7 @@ where something is missing.
 
 * **34.** **untested -- Two paths of the CUDA backend**: its 32-bit
   instantiation, which wants 32-bit data, and its `stage2_direct` kernel
-  (`SPOTFINDER_GPU_STAGE2=direct`). `stage0_tile` has run on real data on an RTX
+  (`MXI_GPU_STAGE2=direct`). `stage0_tile` has run on real data on an RTX
   4060, output byte-identical to the direct kernel's, and slower. The paths it
   runs agree with Metal exactly. `docs/spots.md`.
 * **35.** **speed -- Where the spot finder's time goes.** `mxi_find --timing`,
@@ -267,7 +267,7 @@ where something is missing.
     card, 37.4 thread-seconds against 32.4, so direct stays the default there,
     the reverse of Apple silicon. Faster means the windowed sums cost less:
     running sums independent of the window's size, or fused stages, measured on
-    the card. A fused kernel for that is written (`SPOTFINDER_GPU_FUSED=1`,
+    the card. A fused kernel for that is written (`MXI_GPU_FUSED=1`,
     `docs/spots.md`), verified against the CPU tile by tile and compiled for the
     4060, not yet run: `ctest -R dext_gpu`, then `cmp` and `--timing` against the
     three kernels on real data. HDF5's lock shows too: reading takes 4.6 thread-seconds on 8

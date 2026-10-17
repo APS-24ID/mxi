@@ -11,7 +11,7 @@
 #include <cstring>
 #include <string>
 
-#include "expt.hh"
+#include "spot_expt.hh"
 
 namespace {
 

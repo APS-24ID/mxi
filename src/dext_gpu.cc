@@ -52,10 +52,10 @@ StageTimes &thread_times() {
   return times;
 }
 
-// SPOTFINDER_GPU_<name>, taking "tile" or "direct".
+// MXI_GPU_<name>, taking "tile" or "direct".
 void resolve_one(const char *name_suffix, std::atomic<Window> &into) {
   char variable[64];
-  std::snprintf(variable, sizeof(variable), "SPOTFINDER_GPU_%s", name_suffix);
+  std::snprintf(variable, sizeof(variable), "MXI_GPU_%s", name_suffix);
   const char *const asked = std::getenv(variable);
   if (asked == nullptr)
     return;
@@ -80,14 +80,14 @@ void resolve_windows() {
   chosen2.store(internal::default_stage2_window(), std::memory_order_relaxed);
   resolve_one("STAGE0", chosen0);
   resolve_one("STAGE2", chosen2);
-  if (const char *asked = std::getenv("SPOTFINDER_GPU_FUSED")) {
+  if (const char *asked = std::getenv("MXI_GPU_FUSED")) {
     if (std::strcmp(asked, "1") == 0)
       chosen_fused.store(true, std::memory_order_relaxed);
     else if (std::strcmp(asked, "0") == 0)
       chosen_fused.store(false, std::memory_order_relaxed);
     else
       std::fprintf(stderr,
-                   "warning: SPOTFINDER_GPU_FUSED=%s is not '1' or '0'; "
+                   "warning: MXI_GPU_FUSED=%s is not '1' or '0'; "
                    "leaving it alone\n",
                    asked);
   }

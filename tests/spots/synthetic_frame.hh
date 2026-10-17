@@ -8,8 +8,8 @@
 // the plumbing rather than the science, which is the same caveat the whole
 // signal calculation carries.
 
-#ifndef SPOTFINDER_TESTS_SYNTHETIC_FRAME_HH
-#define SPOTFINDER_TESTS_SYNTHETIC_FRAME_HH
+#ifndef MXI_TESTS_SYNTHETIC_FRAME_HH
+#define MXI_TESTS_SYNTHETIC_FRAME_HH
 
 #include <cmath>
 #include <cstddef>
@@ -158,4 +158,4 @@ inline Frame make_frame(const std::string &name, std::size_t height,
 
 } // namespace synthetic
 
-#endif // SPOTFINDER_TESTS_SYNTHETIC_FRAME_HH
+#endif // MXI_TESTS_SYNTHETIC_FRAME_HH

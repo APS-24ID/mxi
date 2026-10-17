@@ -58,10 +58,10 @@ Build options:
 
 | option | |
 | --- | --- |
-| `-DSPOTFINDER_CUDA=ON` | spot finding and profile fitting on an NVIDIA GPU; `-DCMAKE_CUDA_ARCHITECTURES="80;90"` for cards other than this machine's |
-| `-DSPOTFINDER_METAL=ON -DMETAL_CPP_DIR=DIR` | the same on Apple silicon; `DIR` holds `Metal/Metal.hpp`, Apple's metal-cpp from <https://developer.apple.com/metal/cpp/>. One device backend at a time. |
+| `-DMXI_CUDA=ON` | spot finding and profile fitting on an NVIDIA GPU; `-DCMAKE_CUDA_ARCHITECTURES="80;90"` for cards other than this machine's |
+| `-DMXI_METAL=ON -DMETAL_CPP_DIR=DIR` | the same on Apple silicon; `DIR` holds `Metal/Metal.hpp`, Apple's metal-cpp from <https://developer.apple.com/metal/cpp/>. One device backend at a time. |
 | `-DMXI_FFTW=ON` | indexing's transform by FFTW, about three times the built-in's speed; GPL, so opt-in. `-DFFTW3_LIBRARY=... -DFFTW3_INCLUDE_DIR=...` where it is not found. |
-| `-DSPOTFINDER_AVX2=OFF` | a binary for x86 CPUs without AVX2 |
+| `-DMXI_AVX2=OFF` | a binary for x86 CPUs without AVX2 |
 | `-DMXI_SSE41=OFF` | for x86 CPUs without SSE4.1 (before 2009) |
 | `-DMXI_SANITIZE=ON` | AddressSanitizer and UndefinedBehaviorSanitizer, for the tests |
 

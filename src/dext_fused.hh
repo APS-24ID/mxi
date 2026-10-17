@@ -23,8 +23,8 @@
 // 1 skips a neighbour outside the frame; and stage 2 leaves it out of the
 // background, as it leaves out one outside the frame.
 
-#ifndef SPOTFINDER_DEXT_FUSED_HH
-#define SPOTFINDER_DEXT_FUSED_HH
+#ifndef MXI_DEXT_FUSED_HH
+#define MXI_DEXT_FUSED_HH
 
 #include <algorithm>
 #include <cmath>
@@ -286,4 +286,4 @@ int dext_fused_emulated(const T *frame, std::vector<SignalPixel> &out,
 
 } // namespace dext_fused
 
-#endif // SPOTFINDER_DEXT_FUSED_HH
+#endif // MXI_DEXT_FUSED_HH

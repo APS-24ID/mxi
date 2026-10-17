@@ -33,8 +33,8 @@
 // numbering is not an error: no reflection can bridge a frame that was never
 // written, so everything open is closed at the gap.
 
-#ifndef SPOTFINDER_DIALS_SPOTS_HH
-#define SPOTFINDER_DIALS_SPOTS_HH
+#ifndef MXI_SPOTS_HH
+#define MXI_SPOTS_HH
 
 #include <cstddef>
 #include <cstdint>
@@ -171,4 +171,4 @@ private:
 
 } // namespace dials_spots
 
-#endif // SPOTFINDER_DIALS_SPOTS_HH
+#endif // MXI_SPOTS_HH

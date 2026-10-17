@@ -13,8 +13,8 @@
 // Written for -DENABLE_FAST_MATH, where the question stops being "are they
 // identical" and becomes "how far apart are they".
 
-#ifndef SPOTFINDER_COMPARE_SIGNAL_HH
-#define SPOTFINDER_COMPARE_SIGNAL_HH
+#ifndef MXI_COMPARE_SIGNAL_HH
+#define MXI_COMPARE_SIGNAL_HH
 
 #include <cmath>
 #include <cstddef>
@@ -160,4 +160,4 @@ inline void report(const char *what, const Difference &d, std::size_t height,
 
 } // namespace compare_signal
 
-#endif // SPOTFINDER_COMPARE_SIGNAL_HH
+#endif // MXI_COMPARE_SIGNAL_HH

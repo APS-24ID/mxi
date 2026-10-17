@@ -14,12 +14,12 @@
 // So the parsing is shared and the interpretation is not. `expt::Info` is what
 // the spot finder needs and deliberately is not a dxtbx experiment list.
 
-#include "expt.hh"
+#include "spot_expt.hh"
 
 #include <stdexcept>
 
-#include "../expt.hh"
-#include "../json.hh"
+#include "expt.hh"
+#include "json.hh"
 
 namespace expt {
 

@@ -40,8 +40,8 @@ that caused bugs, and what not to do again. It is worth reading for the same
 reason a DIALS developer's notes would be.
 
 Its size, excluding third-party code: the library 26167 lines in `src/` and the
-spot finder 7435 in `src/spots/`; nineteen programs in 10873 lines in `apps/`,
-and `mxi_find` in `src/spots/find_spots.cc`; C++ tests 14963 lines; a Python
+spot finder 7435 in `src/`; nineteen programs in 10873 lines in `apps/`,
+and `mxi_find` in `apps/mxi_find.cc`; C++ tests 14963 lines; a Python
 package of comparison and regression tools, `mxeq`, 10258 lines, with 7687 of
 tests; 9842 lines of documents. Some 494 commits over five weeks.
 `docs/algorithms.md` lists each stage's methods and their sources.
@@ -66,7 +66,7 @@ build/mxi_tests                  # 297 unit tests
 build/mxi_tests parallel         # only those whose name contains 'parallel'
 ```
 
-Add `-DSPOTFINDER_METAL=ON` or `-DSPOTFINDER_CUDA=ON` for the GPU threshold and profile fitting,
+Add `-DMXI_METAL=ON` or `-DMXI_CUDA=ON` for the GPU threshold and profile fitting,
 `-DMXI_FFTW=ON` for FFTW. The `README.md` has the details and the dependencies
 by platform.
 
@@ -104,7 +104,7 @@ takes 36.6 s of wall time and 3m42 of CPU (30 September 2026).
 | step | library | program | reference document |
 |---|---|---|---|
 | import | `nxmx_import` (the NXmx geometry, its transformation chains) | `mxi_import` | `docs/import.md` |
-| spot finding | `src/spots/` -- `dext.cc` the threshold on the CPU, `dext_metal.cc` and `dext_cuda.cu` on the GPU, `dext_fused.hh` a fused CUDA kernel, `decompress.cc`, `nxmx.cc`, `find_spots.cc` the program | `mxi_find` | `docs/spots.md` |
+| spot finding | `src/` -- `dext.cc` the threshold on the CPU, `dext_metal.cc` and `dext_cuda.cu` on the GPU, `dext_fused.hh` a fused CUDA kernel, `decompress.cc`, `nxmx.cc`, `find_spots.cc` the program | `mxi_find` | `docs/spots.md` |
 | geometry | `geometry` (models, conventions), `predict`, `derivatives`, `derivatives_t` | | `docs/conventions.md` |
 | indexing | `index` (3D FFT), `fft`, `fft_fftw` | `mxi_index` | `CLAUDE.md`, indexing sections; `docs/gpu.md`, Indexing |
 | refinement | `refine`, `target`, `linalg` | `mxi_refine` | `CLAUDE.md`, refinement sections; `docs/gpu.md`, Refinement |
@@ -120,7 +120,7 @@ Kabsch space and rendered onto the pixels, `mxi_residuals` decomposes centroid
 residuals, and `mxi_background` fits backgrounds to given pixels.
 
 The spot finder was a repository of its own and keeps its own `.expt` reader
-and `.refl` writer in `src/spots/`; `docs/spotfinder.md` is how it came in, and
+and `.refl` writer in `src/`; `docs/spotfinder.md` is how it came in, and
 merging the duplicates is item 30 of `docs/outstanding.md`.
 
 ## What follows DIALS, and where it departs

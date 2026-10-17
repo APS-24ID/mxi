@@ -25,8 +25,8 @@
 #include <vector>
 
 #include "dext.hh"
-#include "dials_spots.hh"
-#include "refl.hh"
+#include "spots.hh"
+#include "spot_refl.hh"
 #include "signal_pixel.hh"
 
 namespace {

@@ -28,8 +28,8 @@
 // deliberate: the order is a property of the threadgroup shape and the
 // scheduler, and a sort that broke when either changed would break quietly.
 
-#ifndef SPOTFINDER_SIGNAL_ORDER_HH
-#define SPOTFINDER_SIGNAL_ORDER_HH
+#ifndef MXI_SIGNAL_ORDER_HH
+#define MXI_SIGNAL_ORDER_HH
 
 #include <cstddef>
 #include <cstdint>
@@ -67,4 +67,4 @@ void by_index(std::vector<SignalPixel> &pixels);
 
 } // namespace signal_order
 
-#endif // SPOTFINDER_SIGNAL_ORDER_HH
+#endif // MXI_SIGNAL_ORDER_HH

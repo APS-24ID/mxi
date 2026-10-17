@@ -11,8 +11,8 @@
 // two classes, and a Reader is per thread because the HDF5 C library cannot be
 // entered from two threads at once.
 
-#ifndef SPOTFINDER_SERIES_HH
-#define SPOTFINDER_SERIES_HH
+#ifndef MXI_IMAGE_SERIES_HH
+#define MXI_IMAGE_SERIES_HH
 
 #include <cstdint>
 #include <memory>
@@ -142,4 +142,4 @@ std::vector<SourceBlock> nxmx_blocks(const std::string &master, Info *info);
 
 } // namespace series
 
-#endif // SPOTFINDER_SERIES_HH
+#endif // MXI_IMAGE_SERIES_HH

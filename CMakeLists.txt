@@ -270,13 +270,7 @@ endif()
 # sanitizer run that cannot fail. Global, so the spot finder and the libraries
 # are instrumented as well as the tests: memory misused in a library and
 # noticed in a test is only caught if both are built this way.
-option(MXI_SANITIZE "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
-if(MXI_SANITIZE)
-    add_compile_options(-fsanitize=address,undefined -fno-sanitize-recover=undefined
-                        -fno-omit-frame-pointer)
-    add_link_options(-fsanitize=address,undefined)
-    message(STATUS "sanitizers: address and undefined behaviour")
-endif()
+# MXI_SANITIZE itself is in cmake/spots.cmake: ON, or a list of sanitizers.
 
 
 enable_testing()
@@ -303,9 +297,9 @@ target_compile_definitions(mxi PRIVATE MXI_HAVE_BITSHUFFLE)
 # Profile fitting on a device, for mxi_integrate --gpu: CUDA's kernel where the
 # spot finder's CUDA is on, and otherwise the stubs, which fit in single
 # precision on the CPU instead.
-if(SPOTFINDER_CUDA)
+if(MXI_CUDA)
     target_sources(mxi_integrate PRIVATE src/fit_device_cuda.cc src/fit_cuda.cu)
-elseif(SPOTFINDER_METAL)
+elseif(MXI_METAL)
     # The shader compiled, linked and embedded as the spot finder's is, with the
     # same flags, under a name of its own.
     set(fit_metal_air "${CMAKE_CURRENT_BINARY_DIR}/fit_metal.air")
@@ -313,15 +307,15 @@ elseif(SPOTFINDER_METAL)
     set(fit_metallib_cc "${CMAKE_CURRENT_BINARY_DIR}/fit_metal_library.cc")
     add_custom_command(
         OUTPUT ${fit_metal_air}
-        COMMAND ${SPOTFINDER_XCRUN} -sdk macosx metal
-                -std=metal3.0 ${spotfinder_metal_math} -Wall -Werror
+        COMMAND ${MXI_XCRUN} -sdk macosx metal
+                -std=metal3.0 ${mxi_metal_math} -Wall -Werror
                 -c "${CMAKE_CURRENT_SOURCE_DIR}/src/fit_metal.metal"
                 -o ${fit_metal_air}
         DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/fit_metal.metal"
         COMMENT "Compiling src/fit_metal.metal")
     add_custom_command(
         OUTPUT ${fit_metallib}
-        COMMAND ${SPOTFINDER_XCRUN} -sdk macosx metallib ${fit_metal_air} -o ${fit_metallib}
+        COMMAND ${MXI_XCRUN} -sdk macosx metallib ${fit_metal_air} -o ${fit_metallib}
         DEPENDS ${fit_metal_air}
         COMMENT "Linking fit_metal.metallib")
     add_custom_command(

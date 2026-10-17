@@ -5,8 +5,8 @@
 // blocks, rather than the backlog growing until the machine runs out of
 // memory.
 
-#ifndef SPOTFINDER_QUEUE_HH
-#define SPOTFINDER_QUEUE_HH
+#ifndef MXI_QUEUE_HH
+#define MXI_QUEUE_HH
 
 #include <condition_variable>
 #include <cstddef>
@@ -76,4 +76,4 @@ private:
 
 } // namespace work
 
-#endif // SPOTFINDER_QUEUE_HH
+#endif // MXI_QUEUE_HH

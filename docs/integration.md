@@ -436,7 +436,7 @@ pread names its offset -- after a descriptor a reader, as first written, took
 16 threads x 18 data files past macOS's 256 a process (Graeme). On one thread the two cost the same, warm (insulin 2.2 s direct, 2.6
   through HDF5); a 14.2 s to 2.8 once written here was a cold file cache;
   the frames, the spots and the integrated intensities the same to the bit.
-  It is `read_chunk` in `src/spots/nxmx.cc`: H5Dread_chunk's arguments and
+  It is `read_chunk` in `src/nxmx_reader.cc`: H5Dread_chunk's arguments and
   result, the bytes read where HDF5 says they are, only on HDF5's default
   driver, H5Dread_chunk itself otherwise or with `MXI_READ_CHUNK=hdf5` in the
   environment; tests/test_read_chunk.py finds the same spots both ways.

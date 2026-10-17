@@ -2,7 +2,7 @@
 #include <limits>
 
 #include "../src/refl.hh"
-#include "../src/spots/histogram.hh"
+#include "../src/histogram.hh"
 #include "../src/summary.hh"
 #include "check.hh"
 

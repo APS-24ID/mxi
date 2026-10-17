@@ -39,15 +39,15 @@
 // ever fills the signal pixels and leaves the background at zero, so it is
 // worth writing for the image viewer and worth leaving out for indexing.
 
-#ifndef SPOTFINDER_REFL_HH
-#define SPOTFINDER_REFL_HH
+#ifndef MXI_SPOT_REFL_HH
+#define MXI_SPOT_REFL_HH
 
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-#include "dials_spots.hh"
+#include "spots.hh"
 
 namespace refl {
 
@@ -98,4 +98,4 @@ std::string encode_parts(const std::vector<Part> &parts,
 
 } // namespace refl
 
-#endif // SPOTFINDER_REFL_HH
+#endif // MXI_SPOT_REFL_HH

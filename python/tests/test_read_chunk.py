@@ -1,4 +1,4 @@
-"""read_chunk (src/spots/nxmx.cc) is H5Dread_chunk with the bytes read by
+"""read_chunk (src/nxmx_reader.cc) is H5Dread_chunk with the bytes read by
 pread outside HDF5's lock; MXI_READ_CHUNK=hdf5 sends every read through
 H5Dread_chunk itself. The two must find the same spots, to the bit."""
 

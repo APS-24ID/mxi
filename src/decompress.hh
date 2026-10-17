@@ -5,8 +5,8 @@
 // path through the analysis however it arrived, and so that the check on the
 // filter header lives in one place.
 
-#ifndef SPOTFINDER_DECOMPRESS_HH
-#define SPOTFINDER_DECOMPRESS_HH
+#ifndef MXI_DECOMPRESS_HH
+#define MXI_DECOMPRESS_HH
 
 #include <cstdint>
 #include <span>
@@ -32,4 +32,4 @@ void image(std::span<const std::uint8_t> data, std::string_view algorithm,
 
 } // namespace decompress
 
-#endif // SPOTFINDER_DECOMPRESS_HH
+#endif // MXI_DECOMPRESS_HH

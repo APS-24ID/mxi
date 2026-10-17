@@ -1628,7 +1628,7 @@ that plus exactly 2^32, and everything past the declared end was unreachable.
 The file opened, parsed, and was wrong.
 
 It now refuses, naming the limit and saying to write a slice. The spot finder's
-own writer in `src/spots/refl.cc` already had this guard; the one the pipeline
+own writer in `src/spot_refl.cc` already had this guard; the one the pipeline
 uses did not, which is what two copies of a format get you.
 
 **Shoeboxes cost about 37.5 kB a reflection**, so:

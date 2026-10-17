@@ -16,8 +16,8 @@
 // document with a regular expression is the kind of thing that works until an
 // experiment list gains a field.
 
-#ifndef SPOTFINDER_EXPT_HH
-#define SPOTFINDER_EXPT_HH
+#ifndef MXI_SPOT_EXPT_HH
+#define MXI_SPOT_EXPT_HH
 
 #include <cstddef>
 #include <cstdint>
@@ -97,4 +97,4 @@ std::string describe(const Info &info);
 
 } // namespace expt
 
-#endif // SPOTFINDER_EXPT_HH
+#endif // MXI_SPOT_EXPT_HH

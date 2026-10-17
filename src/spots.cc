@@ -1,4 +1,4 @@
-#include "dials_spots.hh"
+#include "spots.hh"
 
 #include <cmath>
 #include <limits>

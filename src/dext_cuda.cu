@@ -32,7 +32,7 @@
 #include "dext_gpu_internal.hh"
 #include "signal_order.hh"
 
-namespace gpu {
+namespace mxi::gpu {
 namespace {
 
 // A compile-time constant, so no <limits> is needed in device code.
@@ -594,45 +594,46 @@ template <typename T>
 __global__ void fused_kernel(const T *image_in, SignalPixel *out,
                              unsigned *counter, unsigned capacity, int height,
                              int width) {
-  __shared__ dext_fused::Tile<T> t;
-  constexpr int R0 = dext_fused::kR0, R1 = dext_fused::kR1,
-                R2 = dext_fused::kR2, TILE = dext_fused::kTile;
+  __shared__ mxi::dext_fused::Tile<T> t;
+  constexpr int R0 = mxi::dext_fused::kR0, R1 = mxi::dext_fused::kR1,
+                R2 = mxi::dext_fused::kR2, TILE = mxi::dext_fused::kTile;
   const int ti = static_cast<int>(blockIdx.y) * TILE;
   const int tj = static_cast<int>(blockIdx.x) * TILE;
   const int tid = static_cast<int>(threadIdx.y * blockDim.x + threadIdx.x);
   const int step = static_cast<int>(blockDim.x * blockDim.y);
 
   for (int n = tid; n < R0 * R0; n += step)
-    dext_fused::load(t, image_in, height, width, ti, tj, n / R0, n % R0);
+    mxi::dext_fused::load(t, image_in, height, width, ti, tj, n / R0, n % R0);
   __syncthreads();
   for (int n = tid; n < R0 * R1; n += step)
-    dext_fused::stage0_row(t, n / R1, n % R1);
+    mxi::dext_fused::stage0_row(t, n / R1, n % R1);
   __syncthreads();
   for (int n = tid; n < R1 * R1; n += step)
-    dext_fused::stage0_test(t, n / R1, n % R1);
+    mxi::dext_fused::stage0_test(t, n / R1, n % R1);
   __syncthreads();
   for (int n = tid; n < R1 * R2; n += step)
-    dext_fused::stage1_row(t, n / R2, n % R2);
+    mxi::dext_fused::stage1_row(t, n / R2, n % R2);
   __syncthreads();
   for (int n = tid; n < R2 * R2; n += step)
-    dext_fused::stage1_erode(t, n / R2, n % R2);
+    mxi::dext_fused::stage1_erode(t, n / R2, n % R2);
   __syncthreads();
   // Stage 2's row sums take the storage stage 0's had: those were last read
   // before the barrier ahead of stage 1.
   for (int n = tid; n < R2 * TILE; n += step)
-    dext_fused::stage2_row(t, n / TILE, n % TILE);
+    mxi::dext_fused::stage2_row(t, n / TILE, n % TILE);
   __syncthreads();
 
   // The test and the emit. A warp is one row of the tile -- blockDim.x is 32 --
   // and every lane of it takes the same rows, so every lane reaches the ballot.
-  const T masked = dext_fused::masked_value<T>();
+  const T masked = mxi::dext_fused::masked_value<T>();
   (void)masked;
   for (int r = static_cast<int>(threadIdx.y); r < TILE;
        r += static_cast<int>(blockDim.y)) {
     const int c = static_cast<int>(threadIdx.x);
     const int i = ti + r, j = tj + c;
     const bool in_frame = i < height && j < width;
-    const dext_fused::Decision d = dext_fused::stage2_test(t, r, c, in_frame);
+    const mxi::dext_fused::Decision d =
+        mxi::dext_fused::stage2_test(t, r, c, in_frame);
 
     const unsigned lane = threadIdx.x;
     const unsigned ballot = __ballot_sync(0xffffffffu, d.signal);
@@ -662,10 +663,11 @@ void launch_fused(const T *in, SignalPixel *out, unsigned *counter,
                   cudaStream_t stream) {
   if constexpr (std::is_same<T, std::uint16_t>::value) {
     const dim3 block(32, 8);
-    const dim3 grid(static_cast<unsigned>((columns + dext_fused::kTile - 1) /
-                                          dext_fused::kTile),
-                    static_cast<unsigned>((rows + dext_fused::kTile - 1) /
-                                          dext_fused::kTile));
+    const dim3 grid(
+        static_cast<unsigned>((columns + mxi::dext_fused::kTile - 1) /
+                              mxi::dext_fused::kTile),
+        static_cast<unsigned>((rows + mxi::dext_fused::kTile - 1) /
+                              mxi::dext_fused::kTile));
     fused_kernel<T>
         <<<grid, block, 0, stream>>>(in, out, counter, capacity, rows, columns);
   } else {
@@ -823,9 +825,9 @@ int find(const T *image_in, std::vector<SignalPixel> &signal_out,
   // gets the same several milliseconds a frame back.
   const double copy_ms = since(copy_started);
 
-  static thread_local signal_order::scratch order;
+  static thread_local mxi::signal_order::scratch order;
   const auto sort_started = mark();
-  signal_order::by_index(signal_out, order);
+  mxi::signal_order::by_index(signal_out, order);
 
   if (timing) {
     times.copy = copy_ms;
@@ -842,4 +844,4 @@ template int find<std::uint32_t>(const std::uint32_t *,
                                  std::vector<SignalPixel> &, std::size_t,
                                  std::size_t);
 
-} // namespace gpu
+} // namespace mxi::gpu

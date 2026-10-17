@@ -15,8 +15,15 @@
 #include <string>
 #include <vector>
 
+#include "../check.hh"
 #include "spot_table.hh"
 #include "spots.hh"
+
+// Holds the table's bytes to what the spot finder's own writer produced,
+// so that replacing it with the library's could be shown to change
+// nothing: this must not be weakened to pass.
+
+namespace {
 
 namespace {
 
@@ -30,11 +37,11 @@ void check(bool condition, const std::string &what) {
 }
 
 // A fixed, arbitrary set of spots: repeatability is the point, not realism.
-void build(std::vector<dials_spots::Spot> *spots,
-           std::vector<dials_spots::Pixel> *pixels, std::size_t width) {
+void build(std::vector<mxi::spots::Spot> *spots,
+           std::vector<mxi::spots::Pixel> *pixels, std::size_t width) {
   std::size_t at = 0;
   for (int s = 0; s < 5; ++s) {
-    dials_spots::Spot spot;
+    mxi::spots::Spot spot;
     spot.first = at;
     spot.n_signal = 0;
     spot.bbox[0] = 12 + s * 5;
@@ -53,7 +60,7 @@ void build(std::vector<dials_spots::Spot> *spots,
     for (int z = 0; z < 2 + s % 2; ++z) {
       for (int y = 0; y < 3; ++y) {
         for (int x = 0; x < 3; ++x) {
-          dials_spots::Pixel p;
+          mxi::spots::Pixel p;
           p.index = static_cast<std::uint32_t>((10 + s * 7 + y) * width + 12 +
                                                s * 5 + x);
           p.frame = static_cast<std::int32_t>(z + s);
@@ -72,9 +79,9 @@ void build(std::vector<dials_spots::Spot> *spots,
 
 } // namespace
 
-int main() {
-  std::vector<dials_spots::Spot> spots;
-  std::vector<dials_spots::Pixel> pixels;
+int run() {
+  std::vector<mxi::spots::Spot> spots;
+  std::vector<mxi::spots::Pixel> pixels;
   const std::size_t width = 64;
   build(&spots, &pixels, width);
 
@@ -121,4 +128,13 @@ int main() {
   std::printf("%s: the golden reflection table, %d failures\n",
               failures == 0 ? "PASS" : "FAIL", failures);
   return failures == 0 ? 0 : 1;
+}
+
+} // namespace
+
+// In mxi_tests: every check above, through the file's own count of
+// failures, which must be none.
+TEST(spots_table_golden) {
+  check::equal(static_cast<long long>(run()), 0LL,
+               "test_refl_golden: its checks");
 }

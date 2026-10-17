@@ -42,7 +42,7 @@
 
 #include "signal_pixel.hh"
 
-namespace dials_spots {
+namespace mxi::spots {
 
 // One signal pixel of an accepted spot, kept so that a shoebox can be written
 // without going back to the images. Twelve bytes: the frame, the row-major
@@ -169,6 +169,6 @@ private:
   std::vector<char> open_;
 };
 
-} // namespace dials_spots
+} // namespace mxi::spots
 
 #endif // MXI_SPOTS_HH

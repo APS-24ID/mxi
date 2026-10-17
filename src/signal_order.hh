@@ -2,13 +2,13 @@
 //
 // Every device backend needs this and neither should have its own: the emit is
 // compacted per SIMD group, so the list comes back in whatever order the groups
-// finished, and `spots::merge_labelled` needs it ascending -- its
+// finished, and `mxi::spots::merge_labelled` needs it ascending -- its
 // left-neighbour test is only O(1) because `k - 1` can only be the entry
 // immediately before.
 //
 // std::sort was doing this and it was the single most expensive thing in
-// gpu::find(). Measured at 4362 x 4148 with 126,002 signal pixels, which is a
-// real frame's worth:
+// mxi::gpu::find(). Measured at 4362 x 4148 with 126,002 signal pixels, which
+// is a real frame's worth:
 //
 //     std::sort               8.78 ms
 //     this                    1.61 ms
@@ -37,7 +37,7 @@
 
 #include "signal_pixel.hh"
 
-namespace signal_order {
+namespace mxi::signal_order {
 
 // Working buffers. Hold one per thread and reuse it across frames: after the
 // first frame of a given size nothing is allocated. Passing it explicitly keeps
@@ -65,6 +65,6 @@ void by_index(std::vector<SignalPixel> &pixels, scratch &work);
 // a streaming loop.
 void by_index(std::vector<SignalPixel> &pixels);
 
-} // namespace signal_order
+} // namespace mxi::signal_order
 
 #endif // MXI_SIGNAL_ORDER_HH

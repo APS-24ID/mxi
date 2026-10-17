@@ -1,8 +1,8 @@
 #include <cmath>
 #include <limits>
 
-#include "../src/refl.hh"
 #include "../src/histogram.hh"
+#include "../src/refl.hh"
 #include "../src/summary.hh"
 #include "check.hh"
 
@@ -95,7 +95,7 @@ TEST(the_spot_histogram_is_what_the_hand_says) {
   // starred where a column exceeds half the largest, the bottom wherever there
   // are any spots at all.
   const std::vector<std::string> h =
-      spots::spot_histogram({0, 5, 10}, 1, 60, 2);
+      mxi::spots::spot_histogram({0, 5, 10}, 1, 60, 2);
   check::equal(static_cast<long long>(h.size()), 4,
                "a header, two rows, an axis");
   check::is_true(h[0] == "15 spots found on 3 images (max 10 / bin)", h[0]);
@@ -108,7 +108,7 @@ TEST(the_spot_histogram_sums_runs_of_images_into_a_column) {
   // A hundred images of one spot each, ten columns: each column is ten images
   // and holds ten spots, so every row is full.
   const std::vector<std::string> h =
-      spots::spot_histogram(std::vector<std::size_t>(100, 1), 1, 10, 3);
+      mxi::spots::spot_histogram(std::vector<std::size_t>(100, 1), 1, 10, 3);
   check::is_true(h[0] == "100 spots found on 100 images (max 10 / bin)", h[0]);
   for (std::size_t row = 1; row <= 3; ++row)
     check::is_true(h[row] == "**********", "a flat scan is a full block");
@@ -119,7 +119,8 @@ TEST(a_column_under_a_twentieth_of_the_tallest_shows_no_star) {
   // Heights are rounded, as dials.find_spots rounds them: a column of 1
   // against a tallest of 25 scales to 0.4 of a row and draws nothing, where
   // rounding up would have drawn it on the bottom row.
-  const std::vector<std::string> h = spots::spot_histogram({1, 25}, 1, 60, 10);
+  const std::vector<std::string> h =
+      mxi::spots::spot_histogram({1, 25}, 1, 60, 10);
   check::is_true(h[10] == " *", "the bottom row: the small column is blank");
   check::is_true(h[1] == " *", "the top row: the tallest reaches it");
 }

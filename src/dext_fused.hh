@@ -42,7 +42,7 @@
 #define DEXT_FUSED_HD
 #endif
 
-namespace dext_fused {
+namespace mxi::dext_fused {
 
 constexpr int kTile = 32;
 constexpr int kR2 = kTile + 2 * 5; // 42: stage 2's 11 x 11 window
@@ -284,6 +284,6 @@ int dext_fused_emulated(const T *frame, std::vector<SignalPixel> &out,
   return 0;
 }
 
-} // namespace dext_fused
+} // namespace mxi::dext_fused
 
 #endif // MXI_DEXT_FUSED_HH

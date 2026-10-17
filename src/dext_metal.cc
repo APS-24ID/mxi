@@ -1,15 +1,15 @@
-// The Metal backend for gpu::find, for Apple silicon.
+// The Metal backend for mxi::gpu::find, for Apple silicon.
 //
 // The same three stages as dext_cuda.cu, dispatched through metal-cpp. What is
 // different is not the calculation -- src/dext_metal.metal is a transcription
 // of the kernels, window for window -- but the memory model underneath it:
 //
 //   * The device shares memory with the host, so there is no upload and no
-//     download. gpu::host_alloc hands back the contents of a shared MTLBuffer,
-//     the frame is decompressed straight into it, and the kernels read it where
-//     it lies. The packed list comes back the same way. On CUDA the equivalent
-//     call returns page-locked memory so the copies can at least be
-//     asynchronous; here the copies are gone, which is most of why this is
+//     download. mxi::gpu::host_alloc hands back the contents of a shared
+//     MTLBuffer, the frame is decompressed straight into it, and the kernels
+//     read it where it lies. The packed list comes back the same way. On CUDA
+//     the equivalent call returns page-locked memory so the copies can at least
+//     be asynchronous; here the copies are gone, which is most of why this is
 //     worth doing on an M-series machine at all.
 //
 //   * There is no cudaStream_t. A command queue per worker thread is the
@@ -52,7 +52,7 @@
 extern "C" const unsigned char mxi_dext_metallib[];
 extern "C" const unsigned long mxi_dext_metallib_size;
 
-namespace gpu {
+namespace mxi::gpu {
 namespace {
 
 // Metal reports failures as an NS::Error rather than a return code, and the
@@ -583,9 +583,9 @@ int find(const T *image_in, std::vector<SignalPixel> &signal_out,
     // 5.8 ms of a 6.7 ms frame at 126,002 signal pixels, against 1.7 for the
     // bucket pass. Reused across frames, so after the first it allocates
     // nothing.
-    static thread_local signal_order::scratch order;
+    static thread_local mxi::signal_order::scratch order;
     const auto sort_started = mark();
-    signal_order::by_index(signal_out, order);
+    mxi::signal_order::by_index(signal_out, order);
 
     if (timing) {
       StageTimes times = last_stage_times();
@@ -605,4 +605,4 @@ template int find<std::uint32_t>(const std::uint32_t *,
                                  std::vector<SignalPixel> &, std::size_t,
                                  std::size_t);
 
-} // namespace gpu
+} // namespace mxi::gpu

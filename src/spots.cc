@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace dials_spots {
+namespace mxi::spots {
 namespace {
 
 constexpr std::uint32_t kNone = std::numeric_limits<std::uint32_t>::max();
@@ -22,12 +22,12 @@ constexpr double kPixelVariance = 1.0 / 12.0;
 Labeller::Labeller(std::size_t height, std::size_t width, Options options)
     : height_(height), width_(width), options_(options) {
   if (height == 0 || width == 0)
-    throw std::runtime_error("dials_spots: a frame with no pixels in it");
+    throw std::runtime_error("spot finding: a frame with no pixels in it");
   if (options_.max_spot_size < options_.min_spot_size)
-    throw std::runtime_error("dials_spots: max_spot_size is below "
+    throw std::runtime_error("spot finding: max_spot_size is below "
                              "min_spot_size, so nothing can be accepted");
   if (options_.min_spot_size == 0)
-    throw std::runtime_error("dials_spots: min_spot_size must be at least 1");
+    throw std::runtime_error("spot finding: min_spot_size must be at least 1");
 }
 
 // Path halving. The trees never get deep -- a union is between neighbouring
@@ -56,7 +56,7 @@ void Labeller::merge(std::uint32_t a, std::uint32_t b) {
 
 void Labeller::add(std::int64_t frame, const std::vector<SignalPixel> &signal) {
   if (started_ && frame <= last_frame_) {
-    throw std::runtime_error("dials_spots: frame " + std::to_string(frame) +
+    throw std::runtime_error("spot finding: frame " + std::to_string(frame) +
                              " arrived after frame " +
                              std::to_string(last_frame_) +
                              "; frames must be added in ascending order");
@@ -74,20 +74,20 @@ void Labeller::add(std::int64_t frame, const std::vector<SignalPixel> &signal) {
 
   if (base + signal.size() > static_cast<std::size_t>(kNone)) {
     throw std::runtime_error(
-        "dials_spots: more than 4 billion pixels are held open at once");
+        "spot finding: more than 4 billion pixels are held open at once");
   }
 
   live_.reserve(base + signal.size());
   parent_.reserve(base + signal.size());
   for (const SignalPixel &pixel : signal) {
     if (pixel.index >= pixels) {
-      throw std::runtime_error("dials_spots: signal pixel " +
+      throw std::runtime_error("spot finding: signal pixel " +
                                std::to_string(pixel.index) +
                                " is off the end of the frame");
     }
     if (live_.size() > base && pixel.index <= live_.back().index) {
       throw std::runtime_error(
-          "dials_spots: signal pixels are not ascending by index");
+          "spot finding: signal pixels are not ascending by index");
     }
     Pixel held;
     held.frame = static_cast<std::int32_t>(frame);
@@ -374,4 +374,4 @@ void Labeller::emit(const std::uint32_t *members, std::size_t n) {
   counts_.accepted++;
 }
 
-} // namespace dials_spots
+} // namespace mxi::spots

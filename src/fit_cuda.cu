@@ -23,7 +23,7 @@
 
 #include "fit_device.hh"
 
-namespace fitdev {
+namespace mxi::fitdev {
 
 namespace {
 
@@ -437,4 +437,4 @@ const char *fit_cuda_name() {
   return name.empty() ? nullptr : name.c_str();
 }
 
-} // namespace fitdev
+} // namespace mxi::fitdev

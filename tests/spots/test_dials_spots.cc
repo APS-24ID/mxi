@@ -17,8 +17,11 @@
 #include <string>
 #include <vector>
 
-#include "spots.hh"
+#include "../check.hh"
 #include "signal_pixel.hh"
+#include "spots.hh"
+
+namespace {
 
 namespace {
 
@@ -60,15 +63,15 @@ std::vector<SignalPixel> flat(const std::vector<std::uint32_t> &indices,
   return result;
 }
 
-dials_spots::Options plain() {
-  dials_spots::Options options;
+mxi::spots::Options plain() {
+  mxi::spots::Options options;
   options.max_separation = 0.0; // one thing at a time
   return options;
 }
 
 } // namespace
 
-int main() {
+int run() {
   const std::size_t height = 8;
   const std::size_t width = 10;
 
@@ -84,13 +87,13 @@ int main() {
   //   z: one frame, so 0.5 by definition, and 1/12
   // -------------------------------------------------------------------------
   {
-    dials_spots::Labeller labeller(height, width, plain());
+    mxi::spots::Labeller labeller(height, width, plain());
     labeller.add(0, pixels({{0, 1}, {1, 2}, {2, 1}}));
     labeller.finish();
-    const std::vector<dials_spots::Spot> &spots = labeller.spots();
+    const std::vector<mxi::spots::Spot> &spots = labeller.spots();
     check("one spot from three pixels in a row", spots.size(), 1);
     if (spots.size() == 1) {
-      const dials_spots::Spot &spot = spots[0];
+      const mxi::spots::Spot &spot = spots[0];
       check("its pixel count", spot.n_signal, 3);
       close("its intensity", spot.intensity, 4.0);
       close("its variance, which is the intensity", spot.intensity_variance,
@@ -124,14 +127,14 @@ int main() {
   // 0.75. In z the same shape: 6 * 9 / 72 = 0.75.
   // -------------------------------------------------------------------------
   {
-    dials_spots::Labeller labeller(height, width, plain());
+    mxi::spots::Labeller labeller(height, width, plain());
     for (std::int64_t frame = 0; frame < 3; frame++)
       labeller.add(frame, flat({0, 1, 2}, 1));
     labeller.finish();
     check("three frames of one streak are one spot", labeller.spots().size(),
           1);
     if (labeller.spots().size() == 1) {
-      const dials_spots::Spot &spot = labeller.spots()[0];
+      const mxi::spots::Spot &spot = labeller.spots()[0];
       check("nine pixels", spot.n_signal, 9);
       close("intensity", spot.intensity, 9.0);
       close("centroid x", spot.position[0], 1.5);
@@ -143,9 +146,9 @@ int main() {
     }
   }
   {
-    dials_spots::Options options = plain();
+    mxi::spots::Options options = plain();
     options.two_d = true;
-    dials_spots::Labeller labeller(height, width, options);
+    mxi::spots::Labeller labeller(height, width, options);
     for (std::int64_t frame = 0; frame < 3; frame++)
       labeller.add(frame, flat({0, 1, 2}, 1));
     labeller.finish();
@@ -165,7 +168,7 @@ int main() {
   // across it, so the streak is two spots and not one.
   // -------------------------------------------------------------------------
   {
-    dials_spots::Labeller labeller(height, width, plain());
+    mxi::spots::Labeller labeller(height, width, plain());
     labeller.add(0, flat({0, 1, 2}, 1));
     labeller.add(1, flat({0, 1, 2}, 1));
     labeller.add(3, flat({0, 1, 2}, 1));
@@ -186,17 +189,17 @@ int main() {
   // on opposite sides of the detector.
   // -------------------------------------------------------------------------
   {
-    dials_spots::Options options = plain();
+    mxi::spots::Options options = plain();
     options.min_spot_size = 1;
-    dials_spots::Labeller labeller(height, width, options);
+    mxi::spots::Labeller labeller(height, width, options);
     labeller.add(0, flat({9, 10}, 1));
     labeller.finish();
     check("a row wrap is not an edge", labeller.spots().size(), 2);
   }
   {
-    dials_spots::Options options = plain();
+    mxi::spots::Options options = plain();
     options.min_spot_size = 1;
-    dials_spots::Labeller labeller(height, width, options);
+    mxi::spots::Labeller labeller(height, width, options);
     labeller.add(0, flat({0, 10}, 1)); // (0,0) and (1,0)
     labeller.finish();
     check("the pixel above row one is an edge", labeller.spots().size(), 1);
@@ -204,18 +207,18 @@ int main() {
   {
     // Diagonal only: six-connected, so these are two spots, where a
     // twenty-six-connected grouping would call them one.
-    dials_spots::Options options = plain();
+    mxi::spots::Options options = plain();
     options.min_spot_size = 1;
-    dials_spots::Labeller labeller(height, width, options);
+    mxi::spots::Labeller labeller(height, width, options);
     labeller.add(0, flat({0, 11}, 1)); // (0,0) and (1,1)
     labeller.finish();
     check("a diagonal is not an edge", labeller.spots().size(), 2);
   }
   {
     // The same, across frames: (0, y, x) and (1, y+1, x) do not touch.
-    dials_spots::Options options = plain();
+    mxi::spots::Options options = plain();
     options.min_spot_size = 1;
-    dials_spots::Labeller labeller(height, width, options);
+    mxi::spots::Labeller labeller(height, width, options);
     labeller.add(0, flat({0}, 1));
     labeller.add(1, flat({10}, 1));
     labeller.finish();
@@ -227,7 +230,7 @@ int main() {
   // still grow, so the table is empty until finish().
   // -------------------------------------------------------------------------
   {
-    dials_spots::Labeller labeller(height, width, plain());
+    mxi::spots::Labeller labeller(height, width, plain());
     labeller.add(0, flat({0, 1, 2}, 1));
     check("an open component is not emitted yet", labeller.spots().size(), 0);
     check("and its pixels are still held", labeller.live(), 3);
@@ -245,7 +248,7 @@ int main() {
   // max_spot_size.
   // -------------------------------------------------------------------------
   {
-    dials_spots::Labeller labeller(height, width, plain());
+    mxi::spots::Labeller labeller(height, width, plain());
     labeller.add(0, flat({0, 1}, 1));       // two: too small
     labeller.add(1, flat({40, 41, 42}, 1)); // three: kept
     labeller.finish();
@@ -255,9 +258,9 @@ int main() {
     check("signal pixels handed in", labeller.counts().signal_pixels, 5);
   }
   {
-    dials_spots::Options options = plain();
+    mxi::spots::Options options = plain();
     options.max_spot_size = 5;
-    dials_spots::Labeller labeller(height, width, options);
+    mxi::spots::Labeller labeller(height, width, options);
     labeller.add(0, flat({0, 1, 2, 3, 4, 5}, 1));
     labeller.finish();
     check("six pixels is too large for a limit of five",
@@ -283,9 +286,9 @@ int main() {
   // does it -- one bright pixel and a long faint line away from it.
   // -------------------------------------------------------------------------
   {
-    dials_spots::Options options;
+    mxi::spots::Options options;
     options.max_separation = 2.0;
-    dials_spots::Labeller labeller(height, width, options);
+    mxi::spots::Labeller labeller(height, width, options);
     // x = 0 bright, then a faint tail out to x = 9 on row 0.
     std::vector<std::pair<std::uint32_t, std::uint32_t>> at{{0, 1000}};
     for (std::uint32_t x = 1; x < 10; x++)
@@ -299,9 +302,9 @@ int main() {
     check("nothing rejected by separation", labeller.counts().separated, 0);
   }
   {
-    dials_spots::Options options;
+    mxi::spots::Options options;
     options.max_separation = 2.0;
-    dials_spots::Labeller labeller(height, width, options);
+    mxi::spots::Labeller labeller(height, width, options);
     // Two equal lumps four pixels apart, joined by a single faint pixel: the
     // centroid lands between them and the peak is in one of them.
     std::vector<std::pair<std::uint32_t, std::uint32_t>> at{
@@ -322,15 +325,15 @@ int main() {
   // code catches the assertion. Reproduced: no variance, and 1/12 all round.
   // -------------------------------------------------------------------------
   {
-    dials_spots::Options options = plain();
+    mxi::spots::Options options = plain();
     options.min_spot_size = 1;
-    dials_spots::Labeller labeller(height, width, options);
+    mxi::spots::Labeller labeller(height, width, options);
     labeller.add(0, flat({35}, 700));
     labeller.finish();
     check("a single pixel can be a spot when asked for",
           labeller.spots().size(), 1);
     if (labeller.spots().size() == 1) {
-      const dials_spots::Spot &spot = labeller.spots()[0];
+      const mxi::spots::Spot &spot = labeller.spots()[0];
       close("centroid x", spot.position[0], 5.5); // 35 = row 3, column 5
       close("centroid y", spot.position[1], 3.5);
       close("variance x is the fallback", spot.variance[0], 1.0 / 12.0);
@@ -344,7 +347,7 @@ int main() {
   // silently mis-grouped: the whole streaming argument rests on the order.
   // -------------------------------------------------------------------------
   {
-    dials_spots::Labeller labeller(height, width, plain());
+    mxi::spots::Labeller labeller(height, width, plain());
     labeller.add(5, flat({0, 1, 2}, 1));
     bool threw = false;
     try {
@@ -362,7 +365,7 @@ int main() {
     check("the same frame twice throws", threw ? 1 : 0, 1);
   }
   {
-    dials_spots::Labeller labeller(height, width, plain());
+    mxi::spots::Labeller labeller(height, width, plain());
     bool threw = false;
     try {
       labeller.add(0, flat({2, 1}, 1)); // descending
@@ -372,7 +375,7 @@ int main() {
     check("pixels out of index order throw", threw ? 1 : 0, 1);
   }
   {
-    dials_spots::Labeller labeller(height, width, plain());
+    mxi::spots::Labeller labeller(height, width, plain());
     bool threw = false;
     try {
       labeller.add(0, flat({static_cast<std::uint32_t>(height * width)}, 1));
@@ -388,7 +391,7 @@ int main() {
   // component's root has to survive being renumbered every time.
   // -------------------------------------------------------------------------
   {
-    dials_spots::Labeller labeller(height, width, plain());
+    mxi::spots::Labeller labeller(height, width, plain());
     const int frames = 200;
     for (std::int64_t frame = 0; frame < frames; frame++) {
       // The streak, plus a three-pixel spot that closes on the next frame, so
@@ -421,9 +424,9 @@ int main() {
   // off the backgrounds are ignored, as DIALS' spot finder has none.
   // -------------------------------------------------------------------------
   for (const bool subtract : {false, true}) {
-    dials_spots::Options options = plain();
+    mxi::spots::Options options = plain();
     options.subtract_background = subtract;
-    dials_spots::Labeller labeller(height, width, options);
+    mxi::spots::Labeller labeller(height, width, options);
     labeller.add(0, std::vector<SignalPixel>{{0, 20, 10.0F, 121, 0},
                                              {1, 12, 10.0F, 121, 0},
                                              {2, 11, 10.0F, 121, 0}});
@@ -431,7 +434,7 @@ int main() {
     const std::string how = subtract ? "less its background" : "raw";
     check("one spot, " + how, labeller.spots().size(), 1);
     if (labeller.spots().size() == 1) {
-      const dials_spots::Spot &spot = labeller.spots()[0];
+      const mxi::spots::Spot &spot = labeller.spots()[0];
       close("centroid x, " + how, spot.position[0],
             subtract ? 10.5 / 13.0 : 55.5 / 43.0);
       close("intensity, " + how, spot.intensity, subtract ? 13.0 : 43.0);
@@ -442,4 +445,13 @@ int main() {
   std::printf("%s: DIALS-compatible grouping, %d failures\n",
               failures == 0 ? "PASS" : "FAILED", failures);
   return failures == 0 ? 0 : 1;
+}
+
+} // namespace
+
+// In mxi_tests: every check above, through the file's own count of
+// failures, which must be none.
+TEST(spots_grouping) {
+  check::equal(static_cast<long long>(run()), 0LL,
+               "test_dials_spots: its checks");
 }

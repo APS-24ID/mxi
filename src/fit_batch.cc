@@ -6,23 +6,23 @@
 
 namespace mxi {
 
-static_assert(fitdev::kValid == shoebox_mask::kValid, "the mask's bits");
-static_assert(fitdev::kBackground == shoebox_mask::kBackground,
+static_assert(mxi::fitdev::kValid == shoebox_mask::kValid, "the mask's bits");
+static_assert(mxi::fitdev::kBackground == shoebox_mask::kBackground,
               "the mask's bits");
-static_assert(fitdev::kForeground == shoebox_mask::kForeground,
+static_assert(mxi::fitdev::kForeground == shoebox_mask::kForeground,
               "the mask's bits");
 // fit_metal.metal declares these structs again, the shading language unable to
 // include fit_device.hh: every field four bytes, in the same order, and these
 // sizes are what it assumes.
-static_assert(sizeof(fitdev::F3) == 12, "F3 as the shader has it");
-static_assert(sizeof(fitdev::PanelF) == 72, "PanelF as the shader has it");
-static_assert(sizeof(fitdev::Setup) == 68, "Setup as the shader has it");
-static_assert(sizeof(fitdev::BoxF) == 60, "BoxF as the shader has it");
-static_assert(sizeof(fitdev::FitF) == 28, "FitF as the shader has it");
+static_assert(sizeof(mxi::fitdev::F3) == 12, "F3 as the shader has it");
+static_assert(sizeof(mxi::fitdev::PanelF) == 72, "PanelF as the shader has it");
+static_assert(sizeof(mxi::fitdev::Setup) == 68, "Setup as the shader has it");
+static_assert(sizeof(mxi::fitdev::BoxF) == 60, "BoxF as the shader has it");
+static_assert(sizeof(mxi::fitdev::FitF) == 28, "FitF as the shader has it");
 
 namespace {
 
-fitdev::F3 f3(const Vec3 &v) {
+mxi::fitdev::F3 f3(const Vec3 &v) {
   return {static_cast<float>(v.x), static_cast<float>(v.y),
           static_cast<float>(v.z)};
 }
@@ -32,7 +32,7 @@ fitdev::F3 f3(const Vec3 &v) {
 FitBatch make_fit_batch(const Experiment &e, const GridSpec &spec,
                         double gain) {
   FitBatch b;
-  fitdev::Setup &s = b.setup;
+  mxi::fitdev::Setup &s = b.setup;
   s.s0 = f3(e.beam.s0());
   s.axis_lab = f3(e.goniometer.lab_axis());
   s.osc_start = static_cast<float>(Scan::radians(e.scan.osc_start));
@@ -50,7 +50,7 @@ FitBatch make_fit_batch(const Experiment &e, const GridSpec &spec,
   s.iterations = 3;
   for (std::size_t k = 0; k < e.detector.size(); ++k) {
     const Panel &p = e.detector[k];
-    fitdev::PanelF f;
+    mxi::fitdev::PanelF f;
     f.origin = f3(p.origin);
     f.fast = f3(p.fast);
     f.slow = f3(p.slow);
@@ -71,7 +71,7 @@ void add_to_batch(FitBatch *batch, const std::vector<BatchEntry> &entries,
   std::size_t voxels = 0, corners = 0, reference = 0;
   for (const BatchEntry &x : entries) {
     const Shoebox &box = *x.box;
-    fitdev::BoxF f;
+    mxi::fitdev::BoxF f;
     f.x0 = box.bbox[0];
     f.y0 = box.bbox[2];
     f.z0 = box.bbox[4];
@@ -108,7 +108,7 @@ void add_to_batch(FitBatch *batch, const std::vector<BatchEntry> &entries,
   batch->reference_at = into.reference;
   for_each_index(entries.size(), [&](std::size_t k) {
     const BatchEntry &x = entries[k];
-    const fitdev::BoxF &f = batch->boxes[k];
+    const mxi::fitdev::BoxF &f = batch->boxes[k];
     std::copy(x.box->data.begin(), x.box->data.end(), into.data + f.voxels_at);
     std::copy(x.box->mask.begin(), x.box->mask.end(), into.mask + f.voxels_at);
     for (std::size_t i = 0; i < x.reference->size(); ++i)
@@ -129,10 +129,10 @@ void clear_batch(FitBatch *batch) {
   batch->in_place = false;
 }
 
-std::vector<fitdev::FitF> fit_batch_emulated(const FitBatch &batch) {
-  std::vector<fitdev::FitF> out(batch.boxes.size());
+std::vector<mxi::fitdev::FitF> fit_batch_emulated(const FitBatch &batch) {
+  std::vector<mxi::fitdev::FitF> out(batch.boxes.size());
   for_each_index(batch.boxes.size(), [&](std::size_t k) {
-    const fitdev::BoxF &box = batch.boxes[k];
+    const mxi::fitdev::BoxF &box = batch.boxes[k];
     std::vector<float> corners(2 * static_cast<std::size_t>(box.nx + 1) *
                                static_cast<std::size_t>(box.ny + 1));
     std::vector<float> profile(static_cast<std::size_t>(box.nx) * box.ny *
@@ -140,7 +140,7 @@ std::vector<fitdev::FitF> fit_batch_emulated(const FitBatch &batch) {
     std::vector<float> blend(
         static_cast<std::size_t>(box.nz) *
         static_cast<std::size_t>(batch.setup.side * batch.setup.side));
-    out[k] = fitdev::fit_box_emulated(
+    out[k] = mxi::fitdev::fit_box_emulated(
         batch.setup, batch.panels.data(), box, batch.data_at + box.voxels_at,
         batch.mask_at + box.voxels_at, batch.reference_at + box.reference_at,
         corners.data(), profile.data(), blend.data());
@@ -148,7 +148,7 @@ std::vector<fitdev::FitF> fit_batch_emulated(const FitBatch &batch) {
   return out;
 }
 
-ProfileFit to_profile_fit(const fitdev::FitF &f) {
+ProfileFit to_profile_fit(const mxi::fitdev::FitF &f) {
   ProfileFit p;
   p.valid = f.valid != 0;
   p.intensity = static_cast<double>(f.intensity);

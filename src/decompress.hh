@@ -12,7 +12,7 @@
 #include <span>
 #include <string_view>
 
-namespace decompress {
+namespace mxi::decompress {
 
 // How many bytes `image` will write, given the frame geometry.
 std::size_t frame_bytes(std::size_t height, std::size_t width,
@@ -30,6 +30,6 @@ void image(std::span<const std::uint8_t> data, std::string_view algorithm,
            unsigned bit_depth, std::size_t height, std::size_t width,
            std::span<std::uint8_t> out);
 
-} // namespace decompress
+} // namespace mxi::decompress
 
 #endif // MXI_DECOMPRESS_HH

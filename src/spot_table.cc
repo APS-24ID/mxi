@@ -57,7 +57,7 @@ Table spot_table(const std::vector<SpotPart> &parts, std::size_t panel,
   // row by row.
   std::size_t r = 0;
   for (const SpotPart &part : parts)
-    for (const dials_spots::Spot &spot : *part.spots) {
+    for (const mxi::spots::Spot &spot : *part.spots) {
       for (std::size_t i = 0; i < 6; ++i)
         bbox.ints[r * 6 + i] = spot.bbox[i];
       flags.ints[r] = kStrong;
@@ -85,7 +85,7 @@ Table spot_table(const std::vector<SpotPart> &parts, std::size_t panel,
     std::vector<float> data, background;
     std::vector<std::uint8_t> mask;
     for (const SpotPart &part : parts)
-      for (const dials_spots::Spot &spot : *part.spots) {
+      for (const mxi::spots::Spot &spot : *part.spots) {
         const auto xsize =
             static_cast<std::size_t>(spot.bbox[1] - spot.bbox[0]);
         const auto ysize =
@@ -97,7 +97,7 @@ Table spot_table(const std::vector<SpotPart> &parts, std::size_t panel,
         background.assign(n, 0.0f);
         mask.assign(n, 0);
         for (std::uint32_t k = 0; k < spot.n_signal; ++k) {
-          const dials_spots::Pixel &pixel = (*part.pixels)[spot.first + k];
+          const mxi::spots::Pixel &pixel = (*part.pixels)[spot.first + k];
           const std::size_t x =
               static_cast<std::size_t>(pixel.index % part.width) -
               static_cast<std::size_t>(spot.bbox[0]);
@@ -127,8 +127,8 @@ Table spot_table(const std::vector<SpotPart> &parts, std::size_t panel,
 }
 
 void write_spots(const std::string &path,
-                 const std::vector<dials_spots::Spot> &spots,
-                 const std::vector<dials_spots::Pixel> &pixels,
+                 const std::vector<mxi::spots::Spot> &spots,
+                 const std::vector<mxi::spots::Pixel> &pixels,
                  std::size_t width, const SpotTableOptions &options) {
   SpotPart part;
   part.spots = &spots;

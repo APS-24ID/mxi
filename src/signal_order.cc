@@ -2,7 +2,7 @@
 
 #include "signal_order.hh"
 
-namespace signal_order {
+namespace mxi::signal_order {
 namespace {
 
 bool ascending(const SignalPixel &a, const SignalPixel &b) {
@@ -76,4 +76,4 @@ void by_index(std::vector<SignalPixel> &pixels) {
   by_index(pixels, work);
 }
 
-} // namespace signal_order
+} // namespace mxi::signal_order

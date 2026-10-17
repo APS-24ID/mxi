@@ -14,7 +14,7 @@
 #include <mutex>
 #include <utility>
 
-namespace work {
+namespace mxi::work {
 
 template <typename T> class Queue {
 public:
@@ -74,6 +74,6 @@ private:
   bool closed_ = false;
 };
 
-} // namespace work
+} // namespace mxi::work
 
 #endif // MXI_QUEUE_HH

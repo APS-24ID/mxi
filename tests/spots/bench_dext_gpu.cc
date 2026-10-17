@@ -22,10 +22,10 @@
 // something to reason about -- reasoning got it backwards once already -- so
 // all four combinations are timed on the machine that will run them.
 //
-// What is timed is whole frames through gpu::find, not stage2 in isolation.
-// That is deliberate: frames per second is the number that decides whether an
-// acquisition keeps up, and isolating stage2 would need counter sample buffers
-// and would answer a question nobody asked.
+// What is timed is whole frames through mxi::gpu::find, not stage2 in
+// isolation. That is deliberate: frames per second is the number that decides
+// whether an acquisition keeps up, and isolating stage2 would need counter
+// sample buffers and would answer a question nobody asked.
 //
 // Correctness is not assumed. The two variants are compared against each other
 // before anything is timed, and the run stops if they disagree: a faster
@@ -105,7 +105,7 @@ bool identical(const std::vector<SignalPixel> &a,
 }
 
 // The frame in the memory the tool hands find(), which is memory the device can
-// read without a copy: gpu::host_alloc, as src/find_spots.cc's FrameBuffer
+// read without a copy: mxi::gpu::host_alloc, as src/find_spots.cc's FrameBuffer
 // does. Ordinary memory works and is copied into a staging buffer once per
 // frame instead -- correct, but half a millisecond of a four millisecond frame
 // that production does not spend, which is exactly the sort of thing a
@@ -116,14 +116,14 @@ public:
   explicit Shared(const synthetic::Frame &frame)
       : fallback_(frame.pixels.data()),
         bytes_(frame.pixels.size() * sizeof(std::uint16_t)) {
-    buffer_ = gpu::host_alloc(bytes_);
+    buffer_ = mxi::gpu::host_alloc(bytes_);
     if (buffer_ != nullptr)
       std::memcpy(buffer_, frame.pixels.data(), bytes_);
   }
 
   ~Shared() {
     if (buffer_ != nullptr)
-      gpu::host_free(buffer_);
+      mxi::gpu::host_free(buffer_);
   }
 
   Shared(const Shared &) = delete;
@@ -143,17 +143,17 @@ private:
 };
 
 // One configuration, timed. Returns the median frame time in milliseconds.
-Timing time_windows(gpu::Window window0, gpu::Window window2,
+Timing time_windows(mxi::gpu::Window window0, mxi::gpu::Window window2,
                     const synthetic::Frame &frame, const std::uint16_t *pixels,
                     int repeats, std::vector<SignalPixel> *out) {
-  gpu::stage0_window(window0);
-  gpu::stage2_window(window2);
+  mxi::gpu::stage0_window(window0);
+  mxi::gpu::stage2_window(window2);
   std::vector<SignalPixel> signal;
 
   // One untimed frame first: it pays for the pipelines, the buffers and the
   // first touch of the shared allocation, none of which a steady stream does.
-  if (gpu::find<std::uint16_t>(pixels, signal, frame.height, frame.width) !=
-      0) {
+  if (mxi::gpu::find<std::uint16_t>(pixels, signal, frame.height,
+                                    frame.width) != 0) {
     std::printf("  find() failed\n");
     return Timing();
   }
@@ -162,8 +162,8 @@ Timing time_windows(gpu::Window window0, gpu::Window window2,
   samples.reserve(static_cast<std::size_t>(repeats));
   for (int n = 0; n < repeats; n++) {
     const Clock::time_point started = Clock::now();
-    const int status =
-        gpu::find<std::uint16_t>(pixels, signal, frame.height, frame.width);
+    const int status = mxi::gpu::find<std::uint16_t>(pixels, signal,
+                                                     frame.height, frame.width);
     const Clock::time_point finished = Clock::now();
     if (status != 0) {
       std::printf("  find() returned %d on repeat %d\n", status, n);
@@ -180,19 +180,19 @@ Timing time_windows(gpu::Window window0, gpu::Window window2,
 // The same configuration under concurrency: `threads` workers, each with its
 // own frame buffer, all analysing at once. Returns aggregate frames per second.
 //
-// Each worker gets its frame from gpu::host_alloc, which is what signal.cc
+// Each worker gets its frame from mxi::gpu::host_alloc, which is what signal.cc
 // does, so the no-copy path is exercised rather than the staging fallback --
 // otherwise this would be measuring a memcpy that production does not do.
-double time_threaded(gpu::Window window0, gpu::Window window2,
+double time_threaded(mxi::gpu::Window window0, mxi::gpu::Window window2,
                      const synthetic::Frame &frame, int repeats, int threads) {
-  gpu::stage0_window(window0);
-  gpu::stage2_window(window2);
+  mxi::gpu::stage0_window(window0);
+  mxi::gpu::stage2_window(window2);
 
   const std::size_t bytes = frame.pixels.size() * sizeof(std::uint16_t);
   std::atomic<int> failed{0};
 
   const auto worker = [&]() {
-    void *const buffer = gpu::host_alloc(bytes);
+    void *const buffer = mxi::gpu::host_alloc(bytes);
     std::uint16_t *const pixels =
         buffer != nullptr ? static_cast<std::uint16_t *>(buffer) : nullptr;
     if (pixels != nullptr)
@@ -203,19 +203,19 @@ double time_threaded(gpu::Window window0, gpu::Window window2,
     std::vector<SignalPixel> signal;
     // Warm this thread's workspace before the timed section, so the first
     // frame's allocations are not counted against everyone else.
-    if (gpu::find<std::uint16_t>(source, signal, frame.height, frame.width) !=
-        0)
+    if (mxi::gpu::find<std::uint16_t>(source, signal, frame.height,
+                                      frame.width) != 0)
       failed++;
 
     for (int n = 0; n < repeats; n++) {
-      if (gpu::find<std::uint16_t>(source, signal, frame.height, frame.width) !=
-          0) {
+      if (mxi::gpu::find<std::uint16_t>(source, signal, frame.height,
+                                        frame.width) != 0) {
         failed++;
         break;
       }
     }
     if (buffer != nullptr)
-      gpu::host_free(buffer);
+      mxi::gpu::host_free(buffer);
   };
 
   // No barrier between each worker's warm-up frame and its timed loop. One
@@ -246,26 +246,26 @@ double time_threaded(gpu::Window window0, gpu::Window window2,
 // in its own command buffer, which serialises what Metal may have been
 // overlapping, so the sum here is expected to exceed the unprofiled frame time.
 // That gap is information too, and it is printed rather than hidden.
-void profile(gpu::Window window0, gpu::Window window2,
+void profile(mxi::gpu::Window window0, mxi::gpu::Window window2,
              const synthetic::Frame &frame, const std::uint16_t *pixels,
              int repeats, double unprofiled) {
-  gpu::stage0_window(window0);
-  gpu::stage2_window(window2);
-  gpu::profile_stages(true);
+  mxi::gpu::stage0_window(window0);
+  mxi::gpu::stage2_window(window2);
+  mxi::gpu::profile_stages(true);
 
   std::vector<SignalPixel> signal;
   std::vector<double> up, zero, one, two, copied, sorted;
   for (int n = 0; n < repeats; n++) {
-    if (gpu::find<std::uint16_t>(pixels, signal, frame.height, frame.width) !=
-        0) {
-      gpu::profile_stages(false);
+    if (mxi::gpu::find<std::uint16_t>(pixels, signal, frame.height,
+                                      frame.width) != 0) {
+      mxi::gpu::profile_stages(false);
       std::printf("  profiling: find() failed\n");
       return;
     }
     // The first frame pays for the pipelines and the buffers.
     if (n == 0)
       continue;
-    const gpu::StageTimes times = gpu::last_stage_times();
+    const mxi::gpu::StageTimes times = mxi::gpu::last_stage_times();
     up.push_back(times.upload);
     zero.push_back(times.stage0);
     one.push_back(times.stage1);
@@ -273,7 +273,7 @@ void profile(gpu::Window window0, gpu::Window window2,
     copied.push_back(times.copy);
     sorted.push_back(times.sort);
   }
-  gpu::profile_stages(false);
+  mxi::gpu::profile_stages(false);
 
   if (zero.empty()) {
     std::printf("  not enough repeats to profile\n");
@@ -296,7 +296,7 @@ void profile(gpu::Window window0, gpu::Window window2,
   // two were comparable; they are not, and the difference between them is
   // exactly the host work now itemised below.
   std::printf("\nwhere a frame's time goes, stage0 %s and stage2 %s:\n",
-              gpu::name(window0), gpu::name(window2));
+              mxi::gpu::name(window0), mxi::gpu::name(window2));
   // First, because on CUDA it is a fifth of the frame and on Metal it is zero,
   // which is the difference between the two backends in one line.
   std::printf("  getting the frame to the device:\n");
@@ -307,7 +307,7 @@ void profile(gpu::Window window0, gpu::Window window2,
   // by backend: CUDA records events in the one stream and does not perturb the
   // schedule, Metal submits each stage separately and gives up the overlap.
   // Saying so here rather than leaving it in a header nobody has open.
-  const bool serialised = std::strcmp(gpu::backend(), "Metal") == 0;
+  const bool serialised = std::strcmp(mxi::gpu::backend(), "Metal") == 0;
   std::printf("  gpu, per stage%s:\n",
               serialised ? " (submitted alone, so read the shares not the sum)"
                          : "");
@@ -368,18 +368,18 @@ int main(int argc, char **argv) {
     return 2;
   }
 
-  if (!gpu::available()) {
-    std::printf("no %s device available\n", gpu::backend());
+  if (!mxi::gpu::available()) {
+    std::printf("no %s device available\n", mxi::gpu::backend());
     return 77;
   }
 
   // Every row below names its own configuration, so find()'s running
   // commentary would only interleave duplicate lines between the numbers.
-  gpu::report_windows(false);
+  mxi::gpu::report_windows(false);
 
   const std::size_t pixels = height * width;
   std::printf("%zu x %zu, %.1f Mpixel, %d repeats, %s backend\n", height, width,
-              static_cast<double>(pixels) / 1e6, repeats, gpu::backend());
+              static_cast<double>(pixels) / 1e6, repeats, mxi::gpu::backend());
 
   // The frame the finder is asked about is the same one the correctness test
   // compares, so a number here is a number about checked code.
@@ -395,7 +395,8 @@ int main(int argc, char **argv) {
                 "not. Read the timings with that in mind.\n");
   }
 
-  const gpu::Window windows[2] = {gpu::Window::Direct, gpu::Window::Tile};
+  const mxi::gpu::Window windows[2] = {mxi::gpu::Window::Direct,
+                                       mxi::gpu::Window::Tile};
 
   // Every combination, and the results of every combination compared: a faster
   // configuration that computes something else is not faster.
@@ -429,7 +430,7 @@ int main(int argc, char **argv) {
     for (int b = 0; b < 2; b++) {
       char label[64];
       std::snprintf(label, sizeof(label), "stage0 %-6s stage2 %-6s",
-                    gpu::name(windows[a]), gpu::name(windows[b]));
+                    mxi::gpu::name(windows[a]), mxi::gpu::name(windows[b]));
       report(label, timings[a][b], pixels);
     }
   }
@@ -461,8 +462,8 @@ int main(int argc, char **argv) {
             timings[a][b].median > 0.0 ? 1000.0 / timings[a][b].median : 0.0;
         std::printf("  stage0 %-6s stage2 %-6s %7.1f frame/s  %5.2f Gpixel/s  "
                     "(%.1fx one worker)\n",
-                    gpu::name(windows[a]), gpu::name(windows[b]), rate,
-                    rate * static_cast<double>(pixels) / 1e9,
+                    mxi::gpu::name(windows[a]), mxi::gpu::name(windows[b]),
+                    rate, rate * static_cast<double>(pixels) / 1e9,
                     alone > 0.0 ? rate / alone : 0.0);
       }
     }
@@ -533,7 +534,7 @@ int main(int argc, char **argv) {
           repeats > 6 ? 6 : repeats, timings[best_a][best_b].median);
 
   std::printf("\nfastest here: stage0 %s, stage2 %s at %.2f ms\n",
-              gpu::name(windows[best_a]), gpu::name(windows[best_b]),
+              mxi::gpu::name(windows[best_a]), mxi::gpu::name(windows[best_b]),
               timings[best_a][best_b].median);
   if (cpu.median > 0.0 && timings[best_a][best_b].median > 0.0) {
     std::printf("that is %.1fx one CPU thread.\n",

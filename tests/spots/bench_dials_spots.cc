@@ -38,8 +38,8 @@
 #include <string>
 #include <vector>
 
-#include "spots.hh"
 #include "signal_pixel.hh"
+#include "spots.hh"
 
 namespace {
 
@@ -120,7 +120,7 @@ Result run(std::size_t pixels_a_frame, int span, int repeats) {
   // reading a 20% variance as a real difference between two implementations.
   double best = 0.0;
   for (int repeat = 0; repeat < repeats; repeat++) {
-    dials_spots::Labeller labeller(kHeight, kWidth, dials_spots::Options{});
+    mxi::spots::Labeller labeller(kHeight, kWidth, mxi::spots::Options{});
     std::size_t high = 0;
     const Clock::time_point began = Clock::now();
     for (int frame = 0; frame < kFrames; frame++) {

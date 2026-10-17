@@ -24,10 +24,13 @@
 #include <string>
 #include <vector>
 
+#include "../check.hh"
 #include "dext.hh"
 #include "signal_pixel.hh"
 #include "spot_table.hh"
 #include "spots.hh"
+
+namespace {
 
 namespace {
 
@@ -87,7 +90,7 @@ std::vector<std::uint16_t> frame(std::size_t height, std::size_t width,
 
 } // namespace
 
-int main(int argc, char **argv) {
+int run(int argc, char **argv) {
   const std::size_t height = 240;
   const std::size_t width = 320;
 
@@ -110,8 +113,8 @@ int main(int argc, char **argv) {
   // two-dimensional grouping would report as three.
   const double curve[5] = {0.0, 0.35, 1.0, 0.35, 0.0};
 
-  dials_spots::Options options; // the dials.find_spots defaults
-  dials_spots::Labeller labeller(height, width, options);
+  mxi::spots::Options options; // the dials.find_spots defaults
+  mxi::spots::Labeller labeller(height, width, options);
 
   dext_scratch<std::uint16_t> scratch;
   std::vector<SignalPixel> signal;
@@ -127,7 +130,7 @@ int main(int argc, char **argv) {
   }
   labeller.finish();
 
-  const std::vector<dials_spots::Spot> &spots = labeller.spots();
+  const std::vector<mxi::spots::Spot> &spots = labeller.spots();
   std::printf("  %llu signal pixels over five frames, %zu spots kept of %llu "
               "groups\n",
               static_cast<unsigned long long>(pixels_found), spots.size(),
@@ -138,9 +141,9 @@ int main(int argc, char **argv) {
   // Match by position rather than by order: the emission order follows the
   // frame a component closed on, which is not the order they were planted in.
   for (const Planted &want : planted) {
-    const dials_spots::Spot *best = nullptr;
+    const mxi::spots::Spot *best = nullptr;
     double closest = 0.0;
-    for (const dials_spots::Spot &spot : spots) {
+    for (const mxi::spots::Spot &spot : spots) {
       const double dx =
           spot.position[0] - (static_cast<double>(want.fast) + 0.5);
       const double dy =
@@ -191,7 +194,7 @@ int main(int argc, char **argv) {
   // bottom of what the dispersion test will call signal.
   {
     double weakest = 0.0;
-    for (const dials_spots::Spot &spot : spots) {
+    for (const mxi::spots::Spot &spot : spots) {
       if (weakest == 0.0 || spot.intensity < weakest)
         weakest = spot.intensity;
     }
@@ -212,4 +215,13 @@ int main(int argc, char **argv) {
   std::printf("%s: frames to a reflection table, %d failures\n",
               failures == 0 ? "PASS" : "FAILED", failures);
   return failures == 0 ? 0 : 1;
+}
+
+} // namespace
+
+// In mxi_tests: every check above, through the file's own count of
+// failures, which must be none.
+TEST(spots_end_to_end) {
+  check::equal(static_cast<long long>(run(1, nullptr)), 0LL,
+               "test_dials_end_to_end: its checks");
 }

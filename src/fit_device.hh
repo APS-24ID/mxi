@@ -34,7 +34,7 @@
 #define FIT_HD
 #endif
 
-namespace fitdev {
+namespace mxi::fitdev {
 
 // shoebox_mask's bits and reference.cc's least variance; the host checks they
 // agree (fit_batch.cc).
@@ -457,6 +457,6 @@ inline FitF fit_box_emulated(const Setup &setup, const PanelF *panels,
   return fit_profile(setup, box, data, mask, profile);
 }
 
-} // namespace fitdev
+} // namespace mxi::fitdev
 
 #endif // MXI_FIT_DEVICE_HH

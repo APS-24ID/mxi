@@ -3,6 +3,8 @@
 
 #include "rflx.hh"
 
+#include "hdf5_handle.hh"
+
 #ifdef MXI_HAVE_BITSHUFFLE
 extern "C" {
 #include "bshuf_h5filter.h"
@@ -44,18 +46,7 @@ std::mutex &lock() {
   return m;
 }
 
-struct H {
-  hid_t id;
-  herr_t (*close)(hid_t);
-  H(hid_t i, herr_t (*c)(hid_t)) : id(i), close(c) {}
-  ~H() {
-    if (id >= 0)
-      close(id);
-  }
-  H(const H &) = delete;
-  H &operator=(const H &) = delete;
-  bool ok() const { return id >= 0; }
-};
+using H = Hdf5Handle;
 
 hid_t checked(hid_t id, const std::string &what) {
   if (id < 0)
@@ -267,15 +258,15 @@ void write_leaf(hid_t parent, const std::string &name, const json::Value &v,
   H type(type_id, H5Tclose);
   hid_t target;
   if (as_attribute)
-    target = checked(H5Acreate2(parent, name.c_str(), type.id, sp.id,
+    target = checked(H5Acreate2(parent, name.c_str(), type.get(), sp.get(),
                                 H5P_DEFAULT, H5P_DEFAULT),
                      "creating attribute " + name);
   else {
     H dcpl(s.dims.empty() ? H5Pcreate(H5P_DATASET_CREATE)
-                          : creation(s.dims, type.id),
+                          : creation(s.dims, type.get()),
            H5Pclose);
-    target = checked(H5Dcreate2(parent, name.c_str(), type.id, sp.id,
-                                H5P_DEFAULT, dcpl.id, H5P_DEFAULT),
+    target = checked(H5Dcreate2(parent, name.c_str(), type.get(), sp.get(),
+                                H5P_DEFAULT, dcpl.get(), H5P_DEFAULT),
                      "creating dataset " + name);
   }
   H t(target, as_attribute ? H5Aclose : H5Dclose);
@@ -285,10 +276,11 @@ void write_leaf(hid_t parent, const std::string &name, const json::Value &v,
   flatten(v, &flat);
   const auto put = [&](const void *buffer) {
     if (as_attribute)
-      check(H5Awrite(t.id, type.id, buffer), "writing attribute " + name);
+      check(H5Awrite(t.get(), type.get(), buffer), "writing attribute " + name);
     else
-      check(H5Dwrite(t.id, type.id, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer),
-            "writing dataset " + name);
+      check(
+          H5Dwrite(t.get(), type.get(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer),
+          "writing dataset " + name);
   };
   switch (leaf) {
   case Leaf::Bool: {
@@ -327,15 +319,15 @@ void write_strings_attribute(hid_t object, const char *name,
   H type(utf8_string(), H5Tclose);
   const hsize_t n = values.size();
   H space(H5Screate_simple(1, &n, nullptr), H5Sclose);
-  H a(checked(
-          H5Acreate2(object, name, type.id, space.id, H5P_DEFAULT, H5P_DEFAULT),
-          std::string("creating attribute ") + name),
+  H a(checked(H5Acreate2(object, name, type.get(), space.get(), H5P_DEFAULT,
+                         H5P_DEFAULT),
+              std::string("creating attribute ") + name),
       H5Aclose);
   std::vector<const char *> pointers;
   for (const std::string &s : values)
     pointers.push_back(s.c_str());
   if (n)
-    check(H5Awrite(a.id, type.id, pointers.data()),
+    check(H5Awrite(a.get(), type.get(), pointers.data()),
           std::string("writing attribute ") + name);
 }
 
@@ -343,21 +335,22 @@ void write_string_attribute(hid_t object, const char *name,
                             const std::string &value) {
   H type(utf8_string(), H5Tclose);
   H space(H5Screate(H5S_SCALAR), H5Sclose);
-  H a(checked(
-          H5Acreate2(object, name, type.id, space.id, H5P_DEFAULT, H5P_DEFAULT),
-          std::string("creating attribute ") + name),
+  H a(checked(H5Acreate2(object, name, type.get(), space.get(), H5P_DEFAULT,
+                         H5P_DEFAULT),
+              std::string("creating attribute ") + name),
       H5Aclose);
   const char *p = value.c_str();
-  check(H5Awrite(a.id, type.id, &p), std::string("writing attribute ") + name);
+  check(H5Awrite(a.get(), type.get(), &p),
+        std::string("writing attribute ") + name);
 }
 
 void write_int64_attribute(hid_t object, const char *name, std::int64_t value) {
   H space(H5Screate(H5S_SCALAR), H5Sclose);
-  H a(checked(H5Acreate2(object, name, H5T_NATIVE_INT64, space.id, H5P_DEFAULT,
-                         H5P_DEFAULT),
+  H a(checked(H5Acreate2(object, name, H5T_NATIVE_INT64, space.get(),
+                         H5P_DEFAULT, H5P_DEFAULT),
               std::string("creating attribute ") + name),
       H5Aclose);
-  check(H5Awrite(a.id, H5T_NATIVE_INT64, &value),
+  check(H5Awrite(a.get(), H5T_NATIVE_INT64, &value),
         std::string("writing attribute ") + name);
 }
 
@@ -389,7 +382,7 @@ void write_value(hid_t parent, const std::string &name, const json::Value &v) {
                            H5P_DEFAULT),
                 "creating group " + name),
         H5Gclose);
-    write_dict(g.id, v.as_object());
+    write_dict(g.get(), v.as_object());
     return;
   }
   if (v.is_array()) {
@@ -407,7 +400,7 @@ void write_value(hid_t parent, const std::string &name, const json::Value &v) {
                            H5P_DEFAULT),
                 "creating group " + name),
         H5Gclose);
-    write_list(g.id, v.as_array());
+    write_list(g.get(), v.as_array());
     return;
   }
   write_leaf(parent, name, v, Shape{{}, leaf_of(v)});
@@ -453,38 +446,38 @@ json::Value nest(const std::vector<std::uint8_t> &buffer, H5T_class_t cls,
 json::Value read_leaf(hid_t object, bool attribute) {
   H type(attribute ? H5Aget_type(object) : H5Dget_type(object), H5Tclose);
   H space(attribute ? H5Aget_space(object) : H5Dget_space(object), H5Sclose);
-  if (H5Sget_simple_extent_type(space.id) == H5S_NULL)
+  if (H5Sget_simple_extent_type(space.get()) == H5S_NULL)
     return json::Value();
-  const H5T_class_t cls = H5Tget_class(type.id);
-  const int rank = H5Sget_simple_extent_ndims(space.id);
+  const H5T_class_t cls = H5Tget_class(type.get());
+  const int rank = H5Sget_simple_extent_ndims(space.get());
   std::vector<hsize_t> dims(static_cast<std::size_t>(std::max(rank, 0)));
   if (rank > 0)
-    H5Sget_simple_extent_dims(space.id, dims.data(), nullptr);
+    H5Sget_simple_extent_dims(space.get(), dims.data(), nullptr);
   std::size_t n = 1;
   for (hsize_t d : dims)
     n *= static_cast<std::size_t>(d);
   hid_t memory_id;
   if (cls == H5T_ENUM)
-    memory_id = H5Tget_native_type(type.id, H5T_DIR_ASCEND);
+    memory_id = H5Tget_native_type(type.get(), H5T_DIR_ASCEND);
   else if (cls == H5T_INTEGER)
     memory_id = H5Tcopy(H5T_NATIVE_INT64);
   else if (cls == H5T_FLOAT)
     memory_id = H5Tcopy(H5T_NATIVE_DOUBLE);
   else if (cls == H5T_STRING) {
     memory_id = utf8_string();
-    H5Tset_cset(memory_id, H5Tget_cset(type.id));
+    H5Tset_cset(memory_id, H5Tget_cset(type.get()));
   } else
     throw Error("a value of a type the format has no place for");
   H memory(memory_id, H5Tclose);
-  std::vector<std::uint8_t> buffer(n * H5Tget_size(memory.id) + 1);
-  if (cls == H5T_STRING && H5Tis_variable_str(type.id) <= 0) {
+  std::vector<std::uint8_t> buffer(n * H5Tget_size(memory.get()) + 1);
+  if (cls == H5T_STRING && H5Tis_variable_str(type.get()) <= 0) {
     // fixed-length strings: read as they are, then as std::strings
-    const std::size_t size = H5Tget_size(type.id);
+    const std::size_t size = H5Tget_size(type.get());
     std::vector<char> fixed(n * size);
     if (n)
-      check(attribute ? H5Aread(object, type.id, fixed.data())
-                      : H5Dread(object, type.id, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                                fixed.data()),
+      check(attribute ? H5Aread(object, type.get(), fixed.data())
+                      : H5Dread(object, type.get(), H5S_ALL, H5S_ALL,
+                                H5P_DEFAULT, fixed.data()),
             "reading strings");
     std::vector<std::string> strings;
     for (std::size_t i = 0; i < n; ++i) {
@@ -498,19 +491,20 @@ json::Value read_leaf(hid_t object, bool attribute) {
     std::memcpy(as_pointers.data(), pointers.data(), as_pointers.size());
     H pointer_type(utf8_string(), H5Tclose);
     std::size_t at = 0;
-    return nest(as_pointers, cls, pointer_type.id, dims, 0, &at);
+    return nest(as_pointers, cls, pointer_type.get(), dims, 0, &at);
   }
   if (n)
-    check(attribute ? H5Aread(object, memory.id, buffer.data())
-                    : H5Dread(object, memory.id, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                              buffer.data()),
+    check(attribute ? H5Aread(object, memory.get(), buffer.data())
+                    : H5Dread(object, memory.get(), H5S_ALL, H5S_ALL,
+                              H5P_DEFAULT, buffer.data()),
           "reading a value");
   std::size_t at = 0;
-  json::Value out = nest(buffer, cls, memory.id, dims, 0, &at);
+  json::Value out = nest(buffer, cls, memory.get(), dims, 0, &at);
   if (cls == H5T_STRING && n) {
     H reclaim_space(attribute ? H5Aget_space(object) : H5Dget_space(object),
                     H5Sclose);
-    H5Dvlen_reclaim(memory.id, reclaim_space.id, H5P_DEFAULT, buffer.data());
+    H5Dvlen_reclaim(memory.get(), reclaim_space.get(), H5P_DEFAULT,
+                    buffer.data());
   }
   return out;
 }
@@ -519,7 +513,7 @@ std::string string_attribute(hid_t object, const char *name) {
   if (H5Aexists(object, name) <= 0)
     return "";
   H a(H5Aopen(object, name, H5P_DEFAULT), H5Aclose);
-  const json::Value v = read_leaf(a.id, true);
+  const json::Value v = read_leaf(a.get(), true);
   return v.is_string() ? v.as_string() : "";
 }
 
@@ -528,7 +522,7 @@ std::vector<std::string> strings_attribute(hid_t object, const char *name) {
   if (H5Aexists(object, name) <= 0)
     return out;
   H a(H5Aopen(object, name, H5P_DEFAULT), H5Aclose);
-  const json::Value v = read_leaf(a.id, true);
+  const json::Value v = read_leaf(a.get(), true);
   if (v.is_array())
     for (const json::Value &e : v.as_array())
       out.push_back(e.as_string());
@@ -542,7 +536,7 @@ std::vector<std::int64_t> ints_attribute(hid_t object, const char *name) {
   if (H5Aexists(object, name) <= 0)
     return out;
   H a(H5Aopen(object, name, H5P_DEFAULT), H5Aclose);
-  const json::Value v = read_leaf(a.id, true);
+  const json::Value v = read_leaf(a.get(), true);
   if (v.is_array())
     for (const json::Value &e : v.as_array())
       out.push_back(static_cast<std::int64_t>(std::llround(e.as_number())));
@@ -604,17 +598,17 @@ json::Value read_group(hid_t group);
 json::Value read_member(hid_t group, const std::string &name) {
   if (H5Aexists(group, name.c_str()) > 0) {
     H a(H5Aopen(group, name.c_str(), H5P_DEFAULT), H5Aclose);
-    return read_leaf(a.id, true);
+    return read_leaf(a.get(), true);
   }
   if (H5Lexists(group, name.c_str(), H5P_DEFAULT) <= 0)
     throw Error("no value " + name);
   if (is_group(group, name)) {
     H g(H5Gopen2(group, name.c_str(), H5P_DEFAULT), H5Gclose);
-    return read_group(g.id);
+    return read_group(g.get());
   }
   H d(checked(H5Dopen2(group, name.c_str(), H5P_DEFAULT), "opening " + name),
       H5Dclose);
-  return read_leaf(d.id, false);
+  return read_leaf(d.get(), false);
 }
 
 json::Value read_group(hid_t group) {
@@ -751,15 +745,15 @@ void write_dataset(hid_t group, const std::string &name,
   H space(H5Screate_simple(static_cast<int>(dims.size()), dims.data(), nullptr),
           H5Sclose);
   H dcpl(creation(dims, file_type), H5Pclose);
-  H d(checked(H5Dcreate2(group, name.c_str(), file_type, space.id, H5P_DEFAULT,
-                         dcpl.id, H5P_DEFAULT),
+  H d(checked(H5Dcreate2(group, name.c_str(), file_type, space.get(),
+                         H5P_DEFAULT, dcpl.get(), H5P_DEFAULT),
               "creating column " + name),
       H5Dclose);
   bool empty = false;
   for (hsize_t x : dims)
     empty = empty || x == 0;
   if (!empty)
-    check(H5Dwrite(d.id, memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, data),
+    check(H5Dwrite(d.get(), memory_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, data),
           "writing column " + name);
 }
 
@@ -781,24 +775,27 @@ void write_column(hid_t group, const std::string &name, const Column &c,
     std::vector<std::int8_t> b;
     for (std::int64_t v : c.ints)
       b.push_back(v != 0 ? 1 : 0);
-    write_dataset(group, name, dims, file_type.id, file_type.id, b.data());
+    write_dataset(group, name, dims, file_type.get(), file_type.get(),
+                  b.data());
   } else if (c.type == "std::size_t") {
     std::vector<std::uint64_t> b;
     for (std::int64_t v : c.ints)
       b.push_back(static_cast<std::uint64_t>(v));
-    write_dataset(group, name, dims, file_type.id, H5T_NATIVE_UINT64, b.data());
+    write_dataset(group, name, dims, file_type.get(), H5T_NATIVE_UINT64,
+                  b.data());
   } else if (kind->integral) {
     std::vector<std::int32_t> b;
     for (std::int64_t v : c.ints)
       b.push_back(static_cast<std::int32_t>(v));
-    write_dataset(group, name, dims, file_type.id, H5T_NATIVE_INT32, b.data());
+    write_dataset(group, name, dims, file_type.get(), H5T_NATIVE_INT32,
+                  b.data());
   } else {
-    write_dataset(group, name, dims, file_type.id, H5T_NATIVE_DOUBLE,
+    write_dataset(group, name, dims, file_type.get(), H5T_NATIVE_DOUBLE,
                   c.reals.data());
   }
   H d(checked(H5Dopen2(group, name.c_str(), H5P_DEFAULT), "reopening " + name),
       H5Dclose);
-  write_string_attribute(d.id, "dials_type", kind->tag);
+  write_string_attribute(d.get(), "dials_type", kind->tag);
 }
 
 void write_shoeboxes(hid_t group, const Table::Opaque &opaque) {
@@ -810,7 +807,7 @@ void write_shoeboxes(hid_t group, const Table::Opaque &opaque) {
           H5Gcreate2(group, "shoebox", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT),
           "creating the shoebox group"),
       H5Gclose);
-  write_string_attribute(g.id, "dials_type", "shoebox");
+  write_string_attribute(g.get(), "dials_type", "shoebox");
   const hsize_t n = boxes.size();
   std::vector<std::int32_t> bbox;
   std::vector<std::uint64_t> panel;
@@ -825,16 +822,16 @@ void write_shoeboxes(hid_t group, const Table::Opaque &opaque) {
     mask.insert(mask.end(), b.mask.begin(), b.mask.end());
   }
   const hsize_t m = data.size();
-  write_dataset(g.id, "bbox", {n, 6}, H5T_NATIVE_INT32, H5T_NATIVE_INT32,
+  write_dataset(g.get(), "bbox", {n, 6}, H5T_NATIVE_INT32, H5T_NATIVE_INT32,
                 bbox.data());
-  write_dataset(g.id, "panel", {n}, H5T_NATIVE_UINT64, H5T_NATIVE_UINT64,
+  write_dataset(g.get(), "panel", {n}, H5T_NATIVE_UINT64, H5T_NATIVE_UINT64,
                 panel.data());
-  write_dataset(g.id, "shoebox_data", {m}, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT,
-                data.data());
-  write_dataset(g.id, "shoebox_background", {m}, H5T_NATIVE_FLOAT,
+  write_dataset(g.get(), "shoebox_data", {m}, H5T_NATIVE_FLOAT,
+                H5T_NATIVE_FLOAT, data.data());
+  write_dataset(g.get(), "shoebox_background", {m}, H5T_NATIVE_FLOAT,
                 H5T_NATIVE_FLOAT, background.data());
-  write_dataset(g.id, "shoebox_mask", {m}, H5T_NATIVE_UINT8, H5T_NATIVE_UINT8,
-                mask.data());
+  write_dataset(g.get(), "shoebox_mask", {m}, H5T_NATIVE_UINT8,
+                H5T_NATIVE_UINT8, mask.data());
 }
 
 void write_table(hid_t file, const Table &table) {
@@ -842,7 +839,7 @@ void write_table(hid_t file, const Table &table) {
                                    H5P_DEFAULT, H5P_DEFAULT),
                         "creating /reflections"),
                 H5Gclose);
-  H g(checked(H5Gcreate2(reflections.id, "0", H5P_DEFAULT, H5P_DEFAULT,
+  H g(checked(H5Gcreate2(reflections.get(), "0", H5P_DEFAULT, H5P_DEFAULT,
                          H5P_DEFAULT),
               "creating /reflections/0"),
       H5Gclose);
@@ -852,24 +849,25 @@ void write_table(hid_t file, const Table &table) {
     ids.push_back(id);
     identifiers.push_back(identifier);
   }
-  write_strings_attribute(g.id, "identifiers", identifiers);
+  write_strings_attribute(g.get(), "identifiers", identifiers);
   {
     const hsize_t n = ids.size();
     H space(H5Screate_simple(1, &n, nullptr), H5Sclose);
-    H a(checked(H5Acreate2(g.id, "experiment_ids", H5T_NATIVE_UINT64, space.id,
-                           H5P_DEFAULT, H5P_DEFAULT),
+    H a(checked(H5Acreate2(g.get(), "experiment_ids", H5T_NATIVE_UINT64,
+                           space.get(), H5P_DEFAULT, H5P_DEFAULT),
                 "creating experiment_ids"),
         H5Aclose);
     if (n)
-      check(H5Awrite(a.id, H5T_NATIVE_UINT64, ids.data()),
+      check(H5Awrite(a.get(), H5T_NATIVE_UINT64, ids.data()),
             "writing experiment_ids");
   }
-  write_int64_attribute(g.id, "nrows", static_cast<std::int64_t>(table.nrows));
+  write_int64_attribute(g.get(), "nrows",
+                        static_cast<std::int64_t>(table.nrows));
   for (const std::string &name : table.names())
-    write_column(g.id, name, table.at(name), table.nrows);
+    write_column(g.get(), name, table.at(name), table.nrows);
   for (const auto &[name, opaque] : table.opaque()) {
     if (name == "shoebox")
-      write_shoeboxes(g.id, opaque);
+      write_shoeboxes(g.get(), opaque);
     else
       throw Error("the column " + name + " is of type " + opaque.type +
                   ", which a .rflx has no place for");
@@ -896,8 +894,8 @@ std::string type_of(hid_t d, std::size_t width, int rank) {
     return it == names.end() ? std::string() : it->second;
   }
   H type(H5Dget_type(d), H5Tclose);
-  const H5T_class_t cls = H5Tget_class(type.id);
-  const std::size_t size = H5Tget_size(type.id);
+  const H5T_class_t cls = H5Tget_class(type.get());
+  const std::size_t size = H5Tget_size(type.get());
   if (cls == H5T_ENUM && width == 1 && size == 1)
     return "bool";
   if (cls == H5T_FLOAT && size == 8) {
@@ -911,7 +909,7 @@ std::string type_of(hid_t d, std::size_t width, int rank) {
       return "mat3<double>";
   }
   if (cls == H5T_INTEGER) {
-    const bool is_unsigned = H5Tget_sign(type.id) == H5T_SGN_NONE;
+    const bool is_unsigned = H5Tget_sign(type.get()) == H5T_SGN_NONE;
     if (width == 3 && rank == 2 && !is_unsigned)
       return "cctbx::miller::index<>"; // there is no vec3 of integers
     if (width == 6 && !is_unsigned)
@@ -926,11 +924,11 @@ std::string type_of(hid_t d, std::size_t width, int rank) {
 
 std::size_t rows_of(hid_t d, std::size_t *width, int *rank) {
   H space(H5Dget_space(d), H5Sclose);
-  *rank = H5Sget_simple_extent_ndims(space.id);
+  *rank = H5Sget_simple_extent_ndims(space.get());
   if (*rank < 1 || *rank > 3)
     throw Error("a column not one row a reflection");
   hsize_t dims[3] = {0, 1, 1};
-  H5Sget_simple_extent_dims(space.id, dims, nullptr);
+  H5Sget_simple_extent_dims(space.get(), dims, nullptr);
   *width = 1;
   for (int k = 1; k < *rank; ++k)
     *width *= static_cast<std::size_t>(dims[k]);
@@ -942,18 +940,18 @@ void read_column(hid_t d, const std::string &type, std::size_t n,
   c->type = type;
   c->width = width;
   H file_type(H5Dget_type(d), H5Tclose);
-  if (H5Tget_class(file_type.id) == H5T_ENUM) {
-    H native(H5Tget_native_type(file_type.id, H5T_DIR_ASCEND), H5Tclose);
+  if (H5Tget_class(file_type.get()) == H5T_ENUM) {
+    H native(H5Tget_native_type(file_type.get(), H5T_DIR_ASCEND), H5Tclose);
     std::vector<std::int8_t> b(n * width);
     if (!b.empty())
-      check(H5Dread(d, native.id, H5S_ALL, H5S_ALL, H5P_DEFAULT, b.data()),
+      check(H5Dread(d, native.get(), H5S_ALL, H5S_ALL, H5P_DEFAULT, b.data()),
             "reading a bool column");
     c->integral = true;
     for (std::int8_t v : b)
       c->ints.push_back(v);
     return;
   }
-  if (H5Tget_class(file_type.id) == H5T_FLOAT) {
+  if (H5Tget_class(file_type.get()) == H5T_FLOAT) {
     std::vector<double> b(n * width);
     if (!b.empty())
       check(H5Dread(d, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
@@ -982,31 +980,31 @@ void read_shoeboxes(hid_t g, std::vector<Shoebox> *out) {
       mask_d(open("shoebox_mask"), H5Dclose);
   std::size_t width = 0;
   int rank = 0;
-  const std::size_t n = rows_of(bbox_d.id, &width, &rank);
+  const std::size_t n = rows_of(bbox_d.get(), &width, &rank);
   if (width != 6)
     throw Error("a shoebox group's bbox is not six a row");
   std::vector<std::int32_t> bbox(n * 6);
   std::vector<std::int64_t> panel(n);
   if (n) {
-    check(H5Dread(bbox_d.id, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+    check(H5Dread(bbox_d.get(), H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT,
                   bbox.data()),
           "reading the shoeboxes' bbox");
-    check(H5Dread(panel_d.id, H5T_NATIVE_INT64, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                  panel.data()),
+    check(H5Dread(panel_d.get(), H5T_NATIVE_INT64, H5S_ALL, H5S_ALL,
+                  H5P_DEFAULT, panel.data()),
           "reading the shoeboxes' panel");
   }
   std::size_t w = 0;
-  const std::size_t pixels = rows_of(data_d.id, &w, &rank);
+  const std::size_t pixels = rows_of(data_d.get(), &w, &rank);
   std::vector<float> data(pixels), background(pixels);
   std::vector<std::uint8_t> mask(pixels);
   if (pixels) {
-    check(H5Dread(data_d.id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+    check(H5Dread(data_d.get(), H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
                   data.data()),
           "reading shoebox_data");
-    check(H5Dread(background_d.id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL,
+    check(H5Dread(background_d.get(), H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL,
                   H5P_DEFAULT, background.data()),
           "reading shoebox_background");
-    check(H5Dread(mask_d.id, H5T_NATIVE_UINT8, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+    check(H5Dread(mask_d.get(), H5T_NATIVE_UINT8, H5S_ALL, H5S_ALL, H5P_DEFAULT,
                   mask.data()),
           "reading shoebox_mask");
   }
@@ -1051,7 +1049,7 @@ bool has_experiments(const std::string &path) {
   const std::lock_guard<std::mutex> guard(lock());
   const Quiet quiet;
   H file(H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
-  return file.ok() && is_group(file.id, "experiments");
+  return file.ok() && is_group(file.get(), "experiments");
 }
 
 namespace {
@@ -1124,10 +1122,10 @@ std::optional<json::Value> read_summary(const std::string &path) {
   H file(H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
   if (!file.ok())
     throw Error("cannot open " + path + " as HDF5");
-  if (!is_group(file.id, "summary"))
+  if (!is_group(file.get(), "summary"))
     return std::nullopt;
-  H g(H5Gopen2(file.id, "summary", H5P_DEFAULT), H5Gclose);
-  return read_group(g.id);
+  H g(H5Gopen2(file.get(), "summary", H5P_DEFAULT), H5Gclose);
+  return read_group(g.get());
 }
 
 std::optional<json::Value> read_experiments(const std::string &path) {
@@ -1136,10 +1134,10 @@ std::optional<json::Value> read_experiments(const std::string &path) {
   H file(H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
   if (!file.ok())
     throw Error("cannot open " + path + " as HDF5");
-  if (!is_group(file.id, "experiments"))
+  if (!is_group(file.get(), "experiments"))
     return std::nullopt;
-  H g(H5Gopen2(file.id, "experiments", H5P_DEFAULT), H5Gclose);
-  return read_group(g.id);
+  H g(H5Gopen2(file.get(), "experiments", H5P_DEFAULT), H5Gclose);
+  return read_group(g.get());
 }
 
 std::optional<Table> read_reflections(const std::string &path,
@@ -1149,13 +1147,13 @@ std::optional<Table> read_reflections(const std::string &path,
   H file(H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
   if (!file.ok())
     throw Error("cannot open " + path + " as HDF5");
-  if (!is_group(file.id, "reflections"))
+  if (!is_group(file.get(), "reflections"))
     return std::nullopt;
-  H top(H5Gopen2(file.id, "reflections", H5P_DEFAULT), H5Gclose);
+  H top(H5Gopen2(file.get(), "reflections", H5P_DEFAULT), H5Gclose);
   // The tables in order: 0, 1 and on, as numbers.
   std::vector<std::string> names;
-  for (const std::string &n : links(top.id))
-    if (is_group(top.id, n))
+  for (const std::string &n : links(top.get()))
+    if (is_group(top.get(), n))
       names.push_back(n);
   std::sort(names.begin(), names.end(),
             [](const std::string &a, const std::string &b) {
@@ -1168,24 +1166,24 @@ std::optional<Table> read_reflections(const std::string &path,
   std::vector<Shoebox> shoeboxes;
   bool has_shoeboxes = false;
   for (std::size_t t = 0; t < names.size(); ++t) {
-    H g(H5Gopen2(top.id, names[t].c_str(), H5P_DEFAULT), H5Gclose);
+    H g(H5Gopen2(top.get(), names[t].c_str(), H5P_DEFAULT), H5Gclose);
     const std::vector<std::int64_t> ids =
-        ints_attribute(g.id, "experiment_ids");
+        ints_attribute(g.get(), "experiment_ids");
     const std::vector<std::string> identifiers =
-        strings_attribute(g.id, "identifiers");
+        strings_attribute(g.get(), "identifiers");
     for (std::size_t i = 0; i < ids.size() && i < identifiers.size(); ++i)
       table.identifiers[static_cast<std::size_t>(ids[i])] = identifiers[i];
     std::size_t rows = 0;
     bool known = false;
-    const std::vector<std::int64_t> nrows = ints_attribute(g.id, "nrows");
+    const std::vector<std::int64_t> nrows = ints_attribute(g.get(), "nrows");
     if (!nrows.empty()) {
       rows = static_cast<std::size_t>(nrows[0]);
       known = true;
     }
-    for (const std::string &name : links(g.id)) {
-      if (is_group(g.id, name)) {
-        H sub(H5Gopen2(g.id, name.c_str(), H5P_DEFAULT), H5Gclose);
-        if (H5Lexists(sub.id, "shoebox_data", H5P_DEFAULT) <= 0)
+    for (const std::string &name : links(g.get())) {
+      if (is_group(g.get(), name)) {
+        H sub(H5Gopen2(g.get(), name.c_str(), H5P_DEFAULT), H5Gclose);
+        if (H5Lexists(sub.get(), "shoebox_data", H5P_DEFAULT) <= 0)
           continue;
         if (name != "shoebox")
           throw Error("a shoebox column named " + name +
@@ -1193,7 +1191,7 @@ std::optional<Table> read_reflections(const std::string &path,
         if (t > 0 && !has_shoeboxes)
           throw Error("shoeboxes in one table and not another");
         const std::size_t before = shoeboxes.size();
-        read_shoeboxes(sub.id, &shoeboxes);
+        read_shoeboxes(sub.get(), &shoeboxes);
         has_shoeboxes = true;
         const std::size_t n = shoeboxes.size() - before;
         if (known && n != rows)
@@ -1203,18 +1201,18 @@ std::optional<Table> read_reflections(const std::string &path,
         known = true;
         continue;
       }
-      H d(H5Dopen2(g.id, name.c_str(), H5P_DEFAULT), H5Dclose);
+      H d(H5Dopen2(g.get(), name.c_str(), H5P_DEFAULT), H5Dclose);
       if (!d.ok())
         continue;
       std::size_t width = 0;
       int rank = 0;
-      const std::size_t n = rows_of(d.id, &width, &rank);
+      const std::size_t n = rows_of(d.get(), &width, &rank);
       if (known && n != rows)
         throw Error("the column " + name + " has " + std::to_string(n) +
                     " rows where the table has " + std::to_string(rows));
       rows = n;
       known = true;
-      const std::string type = type_of(d.id, width, rank);
+      const std::string type = type_of(d.get(), width, rank);
       if (type.empty()) { // a column mxi has no type for: left out
         if (skipped &&
             std::find(skipped->begin(), skipped->end(), name) == skipped->end())
@@ -1223,7 +1221,7 @@ std::optional<Table> read_reflections(const std::string &path,
       }
       if (t > 0 && !columns.count(name))
         throw Error("the column " + name + " is in one table and not another");
-      read_column(d.id, type, n, width, &columns[name]);
+      read_column(d.get(), type, n, width, &columns[name]);
     }
     table.nrows += rows;
   }
@@ -1257,30 +1255,30 @@ void write(const std::string &path, const json::Value *experiments,
            H5Fclose);
     if (!file.ok())
       throw Error("cannot create " + partial);
-    write_string_attribute(file.id, "format", "dxtbx_h5");
-    write_int64_attribute(file.id, "format_version", 1);
-    write_string_attribute(file.id, "creator", creator);
+    write_string_attribute(file.get(), "format", "dxtbx_h5");
+    write_int64_attribute(file.get(), "format_version", 1);
+    write_string_attribute(file.get(), "creator", creator);
     char stamp[32];
     const std::time_t t = now();
     std::strftime(stamp, sizeof stamp, "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&t));
-    write_string_attribute(file.id, "timestamp", stamp);
+    write_string_attribute(file.get(), "timestamp", stamp);
     if (experiments) {
       if (!experiments->is_object())
         throw Error("an experiment list that is not a dictionary");
-      H g(checked(H5Gcreate2(file.id, "experiments", H5P_DEFAULT, H5P_DEFAULT,
-                             H5P_DEFAULT),
+      H g(checked(H5Gcreate2(file.get(), "experiments", H5P_DEFAULT,
+                             H5P_DEFAULT, H5P_DEFAULT),
                   "creating /experiments"),
           H5Gclose);
-      write_dict(g.id, experiments->as_object());
+      write_dict(g.get(), experiments->as_object());
     }
     if (reflections)
-      write_table(file.id, *reflections);
+      write_table(file.get(), *reflections);
     if (summary && summary->is_object()) {
-      H g(checked(H5Gcreate2(file.id, "summary", H5P_DEFAULT, H5P_DEFAULT,
+      H g(checked(H5Gcreate2(file.get(), "summary", H5P_DEFAULT, H5P_DEFAULT,
                              H5P_DEFAULT),
                   "creating /summary"),
           H5Gclose);
-      write_dict(g.id, summary->as_object());
+      write_dict(g.get(), summary->as_object());
     }
   }
   // Whole or not at all: the file appears under its name only once written.

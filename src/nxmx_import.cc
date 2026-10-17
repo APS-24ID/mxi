@@ -1,5 +1,7 @@
 #include "nxmx_import.hh"
 
+#include "hdf5_handle.hh"
+
 #include <hdf5.h>
 
 #include <algorithm>
@@ -31,22 +33,7 @@ using LinkInfo = H5L_info_t;
 constexpr double kHcKeVA = 12.398419843320026; // h c, keV A
 
 //: An HDF5 identifier closed with its owner.
-class H5 {
-public:
-  H5(hid_t id, herr_t (*close)(hid_t)) : id_(id), close_(close) {}
-  H5(const H5 &) = delete;
-  H5 &operator=(const H5 &) = delete;
-  ~H5() {
-    if (id_ >= 0)
-      close_(id_);
-  }
-  hid_t get() const { return id_; }
-  bool ok() const { return id_ >= 0; }
-
-private:
-  hid_t id_;
-  herr_t (*close_)(hid_t);
-};
+using H5 = Hdf5Handle;
 
 bool exists(hid_t file, const std::string &path) {
   if (path.empty() || path == "/")

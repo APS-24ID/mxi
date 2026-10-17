@@ -115,6 +115,7 @@ add_library(mxi
   src/correlation.cc
   src/spot_table.cc
   src/experiment_images.cc
+  src/hdf5_handle.cc
   src/fft.cc
   $<$<BOOL:${MXI_FFTW}>:src/fft_fftw.cc>
   src/index.cc

@@ -91,7 +91,7 @@ echo "== from HDF5 to a reflection table"
 if [ "$?" != "0" ]; then
     fail "the spot finder exited non-zero"
     tail -3 "${WORK}/find.err"
-elif python3 -m mxeq.checks.spotfinder_refl "${WORK}/strong.refl" \
+elif python3 -m mxeq.checks.spot_table "${WORK}/strong.refl" \
         > "${WORK}/refl.log" 2>&1; then
     pass "the reflection table is well formed"
 else
@@ -99,7 +99,7 @@ else
     cat "${WORK}/refl.log"
 fi
 
-if python3 -m mxeq.checks.spotfinder_spots "${MANIFEST}" "${WORK}/strong.refl" \
+if python3 -m mxeq.checks.planted_spots "${MANIFEST}" "${WORK}/strong.refl" \
         > "${WORK}/spots.log" 2>&1; then
     pass "every planted reflection is one spot, where it was planted"
 else
@@ -109,7 +109,7 @@ fi
 
 # The identifier from the .expt has to reach the table: that string is what ties
 # the two together for dials.index.
-if python3 -m mxeq.checks.spotfinder_refl "${WORK}/strong.refl" 2>&1 |
+if python3 -m mxeq.checks.spot_table "${WORK}/strong.refl" 2>&1 |
         grep -q "$(python3 -c "
 import json,sys
 print(json.load(open('${MANIFEST}'))['identifier'])")"; then
@@ -141,7 +141,7 @@ elif [ "${filtered}" != "${centroids}" ]; then
 elif [ "${filtered}" != "$(python3 -c "
 import sys
 sys.path.insert(0, '${PY}')
-from mxeq.checks.spotfinder_refl import Table
+from mxeq.checks.spot_table import Table
 print(Table('${WORK}/strong.refl').rows)")" ]; then
     fail "the summary says ${filtered} spots and the table has a different number"
 else
@@ -157,12 +157,12 @@ echo "== the grouping is three dimensional"
 three_d=$(python3 -c "
 import sys
 sys.path.insert(0, '${PY}')
-from mxeq.checks.spotfinder_refl import Table
+from mxeq.checks.spot_table import Table
 print(Table('${WORK}/strong.refl').rows)")
 two_d=$(python3 -c "
 import sys
 sys.path.insert(0, '${PY}')
-from mxeq.checks.spotfinder_refl import Table
+from mxeq.checks.spot_table import Table
 print(Table('${WORK}/2d.refl').rows)")
 if [ "${two_d}" = "$((three_d * 3))" ]; then
     pass "--2d gives ${two_d} spots against ${three_d}, which is three frames each"
@@ -182,7 +182,7 @@ if [ "$?" != "0" ]; then
 elif ! grep -q "1 never written" "${WORK}/holey.err"; then
     fail "the missing frame was not reported as never written"
     tail -3 "${WORK}/holey.err"
-elif python3 -m mxeq.checks.spotfinder_spots "${WORK}/holey/manifest.json" \
+elif python3 -m mxeq.checks.planted_spots "${WORK}/holey/manifest.json" \
         "${WORK}/holey.refl" > "${WORK}/holey.log" 2>&1; then
     pass "a missing frame splits the reflections that spanned it, and no others"
 else
@@ -210,7 +210,7 @@ echo "== the shoeboxes are optional"
 thin=$(wc -c < "${WORK}/thin.refl")
 fat=$(wc -c < "${WORK}/strong.refl")
 if [ "${thin}" -lt "${fat}" ] &&
-        python3 -m mxeq.checks.spotfinder_spots "${MANIFEST}" "${WORK}/thin.refl" \
+        python3 -m mxeq.checks.planted_spots "${MANIFEST}" "${WORK}/thin.refl" \
             > "${WORK}/thin.log" 2>&1; then
     pass "--no-shoeboxes is ${thin} bytes against ${fat}, with the same spots"
 else
@@ -247,7 +247,7 @@ if "${FIND}" --gpu -j 2 "${EXPT}" -o "${WORK}/gpu.refl" "${MASTER}" \
         pass "the device and the CPU give the same table, byte for byte"
     else
         fail "the device and the CPU disagree"
-        python3 -m mxeq.checks.spotfinder_refl "${WORK}/strong.refl" \
+        python3 -m mxeq.checks.spot_table "${WORK}/strong.refl" \
             "${WORK}/gpu.refl" 2>&1 | tail -8
     fi
 else

@@ -1,84 +1,65 @@
-# mxi-spotfinder
+# Spot finding: mxi_find
 
-The DIALS extended dispersion spot finder, on the GPU, from an NXmx HDF5 series
-to a reflection table `dials.index` will take.
+The first step after import: every image of every sweep thresholded, the
+signal pixels grouped into spots in three dimensions, and the spots written as
+a reflection table with centroids, intensities and shoeboxes -- on the CPU, or
+on a GPU through CUDA or Metal, the same spots either way.
 
 ```sh
-dials.import /data/ins10_1_master.h5
-mxi_find --gpu -j 8 imported.rflx
-dials.index imported.expt strong.refl
+mxi_import /data/ins10_1_master.h5
+mxi_find imported.rflx            # -> strong.rflx
+mxi_find imported.rflx --gpu      # the threshold on the GPU
 ```
 
-The threshold is DIALS'. `src/dext.{hh,cc}` is a transcription of
-`DispersionExtendedThreshold` -- kernel (3,3), sigma_b 6, sigma_s 3, threshold 0,
-min_count 2, gain 1, and the same treatment of the frame border -- and
-`src/dext_metal.{cc,metal}` and `src/dext_cuda.cu` are transcriptions of that,
-window for window. What this adds is everything DIALS does afterwards: grouping
-six-connected in three dimensions, centroids, and the file format.
+**The threshold** is the extended dispersion threshold, DIALS's default
+(`DispersionExtendedThreshold`: kernel 3 x 3, sigma_b 6, sigma_s 3, threshold 0,
+min_count 2, gain 1, the same treatment of the frame's border), in
+`src/dext.{hh,cc}` and, window for window, in the GPU kernels
+(`src/dext_metal.{cc,metal}`, `src/dext_cuda.cu`); the grouping six-connected
+in three dimensions, the centroids and the table after it.
 
-It reads frames out of the HDF5 without going through HDF5's filter pipeline,
-decompresses them with bitshuffle, and runs the threshold on the CPU or on a
-device. Nothing else: there is no experiment model here, no indexing, and no
-detector-specific correction.
+**The frames** are read straight from their compressed chunks, outside HDF5's
+filter pipeline, and decompressed by bitshuffle (`src/nxmx_reader.cc`,
+`src/decompress.cc`) -- the same reader integration uses.
 
 **Sixteen-bit data on the device.** `real_t<std::uint32_t>` is `double` and
 Apple GPUs have no double precision at all, so a 32-bit path under Metal would
 be a different calculation from the CPU's. It refuses rather than quietly
-running in float. The CPU path takes both.
+running in float; `--gpu-force` narrows 32-bit frames to 16 bits where every
+count fits (`mxi_max` says whether they do). The CPU path takes both.
 
-## Build
+## Building
 
-HDF5 is the only external dependency; bitshuffle is a submodule, and lz4 comes
-with it.
-
-```sh
-git submodule update --init
-cmake -S . -B build
-cmake --build build -j
-```
-
-HDF5 must be 1.10.3 or newer, for `H5Dread_chunk`. C++20 is required, for
-`std::span` and `std::endian`. On Debian and Ubuntu that is `libhdf5-dev`; on
-macOS, `brew install hdf5`; `vcpkg install` works too, and `vcpkg.json` asks for
-nothing else.
-
-Boost is not needed, and neither is a msgpack library: the grouping owns its
-union-find and the reflection table is written by hand.
-
-```sh
-cmake -S . -B build -DMXI_METAL=ON -DMETAL_CPP_DIR=/path/to/metal-cpp
-cmake -S . -B build -DMXI_CUDA=ON
-cmake -S . -B build -DMXI_AVX2=OFF     # portable SSE2 bitshuffle
-cmake -S . -B build -DMXI_SANITIZE=address,undefined
-cmake -S . -B build -DMXI_METAL=ON -DENABLE_FAST_MATH=ON
-```
-
-Configuring both backends at once is a hard error rather than a race at the
-linker. Each is off by default and everything it needs is looked for only when
-it is asked for, so a machine with neither still configures.
+Spot finding is part of the one build (the README's "Building"); its options
+are the build's: `-DMXI_METAL=ON -DMETAL_CPP_DIR=...` or `-DMXI_CUDA=ON` for a
+device, `-DMXI_AVX2=OFF` for portable bitshuffle, `-DENABLE_FAST_MATH=ON` with
+Metal (below). Configuring both device backends at once is an error rather
+than a race at the linker; each is off by default and looked for only when
+asked for, so a machine with neither still configures.
 
 ## Running
 
 ```
-mxi_find [-j threads] [-g|--gpu] [-e imported.expt] [-o strong.refl]
-                       [options] master.nxs
+mxi_find IMPORTED.rflx [options]
+mxi_find MASTER.nxs [options]
 
-  master.nxs         an NXmx HDF5 master file, or -x master.nxs
-  -e imported.expt   what dials.import wrote, for the scan range, the panel
-                     size and the experiment identifier
-  -o file            where to write the reflection table (strong.refl)
-  -j threads         frames read and thresholded at once (every core)
-  -g, --gpu          run the threshold on the GPU
+  -x MASTER.nxs      the images, where the experiment list's have moved
+  -o file            a .rflx (strong.rflx, with the experiment list), or a
+                     DIALS .refl, the table alone
+  -j, --threads N    frames read and thresholded at once (every core)
+  -g, --gpu          the threshold on the GPU
+  --gpu-force        32-bit frames narrowed to 16 bits for a 16-bit GPU path
   --no-shoeboxes     leave out the pixel data, which is most of the file
   --min-spot-size N  contiguous pixels a spot needs (3)
   --max-spot-size N  and the most it may have (1000)
   --max-separation D peak to centroid, in pixels; 0 turns it off (2)
+  --subtract-background  centroids and intensities less the local background
   --2d               group each frame on its own, as for stills
-  --z-offset N       array index of image number 0; from -e when given
+  --z-offset N       array index of image number 0; from the experiment list
   --chunk N          frames held between groupings (a few per thread)
   -t timeout         seconds to wait for the file to appear (default 60)
   -p poll-ms         interval between checks while waiting (default 200)
-  --version          what this binary is, and what it was built with
+  --timing, --verbose, --help, --version
 ```
 
 `--version` says which backend was built in, because that is not visible from
@@ -89,8 +70,8 @@ $ mxi_find --version
 mxi_find 1.0.0 (Metal)
 ```
 
-What it prints is `dials.find_spots`' own summary, wording included, so that the
-two can be read the same way and compared line for line:
+What it prints follows `dials.find_spots`' summary, wording included, so that
+the two can be read side by side:
 
 ```
 $ mxi_find -j 4 series.expt series.nxs
@@ -108,46 +89,51 @@ Filtered 48 of 48 spots by peak-centroid distance
 Wrote 48 reflections to strong.refl (0.1 MB, most of it shoeboxes)
 ```
 
--- which is the synthetic fixture from `python/src/mxeq/fixtures/nxmx.py`, twelve frames
-with forty-eight reflections planted in them, so the numbers are small and every
-one of them is checkable. A real sweep says the same things with six digits in
-them.
+-- the synthetic fixture from `python/src/mxeq/fixtures/nxmx.py`, twelve frames
+with forty-eight reflections planted in them, so that every number is
+checkable. The centroids and the intensities are one pass here, so those
+counts are equal by construction; both lines are printed anyway. The
+peak-centroid line appears only when that filter is on, since "Filtered 48 of
+48" would otherwise read as a filter that passed everything.
 
-The centroids and the intensities are one pass here rather than two, so those
-counts are equal by construction; both lines are printed anyway, because a
-summary that reads differently from the familiar one is the thing this replaced.
-The peak-centroid line appears only when that filter is on, since "Filtered 48
-of 48" would otherwise read as a filter that passed everything rather than one
-that was switched off.
-
-`--gpu` fails, rather than falling back, if the build has no backend or no device
-is present: it is an explicit request, and quietly answering with the other
+`--gpu` fails, rather than falling back, if the build has no backend or no
+device is present: it is an explicit request, and answering with the other
 implementation would misreport where the results came from.
 
-The tool waits for a master file that does not exist yet, up to `-t`, so it can
-be pointed at a series that is still being written -- but every frame of an
-open master file is readable as soon as the file is, so it reads the lot and
-stops rather than following an acquisition.
+`mxi_find` waits for a master file that does not exist yet, up to `-t`, and
+takes frames as their files are written -- a bounded queue between the reading
+and the threads that threshold (`src/queue.hh`) -- so it can be pointed at a
+series still being collected.
 
 ### The experiment list
 
-The `.expt` is read and never written. The beam, the goniometer and the detector
-are `dials.import`'s business, and a second model of them here would be a second
-thing to keep in step with dxtbx. Three things are taken from it:
+The experiment list -- `mxi_import`'s, or a DIALS `.expt` -- says where each
+sweep's images are, and three things more (`src/experiment_images.*`, which
+unlike the full reader takes a scan with no oscillation, for stills):
 
 * **The scan's image range**, because a reflection's `z` is an array index, not
-  an image number. The array index of image *n* is *n* - 1, an NXmx series
-  numbers its frames from zero, and a sliced import starts higher -- so `-e`
-  sets `--z-offset` from `image_range` and says so when it is not zero. Getting
-  this wrong indexes nothing and neither file says why.
+  an image number: the array index of image *n* is *n* - 1, an NXmx series
+  numbers its frames from zero, and a sliced import starts higher -- so the
+  list sets `--z-offset`, and says so when it is not zero. Getting this wrong
+  indexes nothing, and neither file says why.
 * **The panel size**, so that a series which is not the one the experiment
   describes is refused here rather than surfacing as a nonsensical lattice
   later.
-* **The experiment identifier**, which is the string DIALS uses to tie a table
-  to an experiment.
+* **The experiment identifier**, which ties the table to its experiment.
 
-It is optional. Without it, `z` is the frame's own index and the table carries
-no identifier, which DIALS accepts.
+Given a master directly, `z` is the frame's own index and the table carries no
+identifier.
+
+**Only the scan's frames are read.** A series offers only the frames its scan
+covers (`Series::restrict_frames`), and a scan claiming more images than the
+file holds is an error: spot finding 1800 images of a 36000 image run once
+thresholded all 36000 with a warning. The `.expt`'s `single_file_indices` say
+which file index each scan image is, so the offset is `(first_image - 1) -
+first_index` -- nothing when the two line up, five for a slice file starting
+at zero; without them the file index of image *n* is taken as *n* - 1, the
+same assumption the restriction makes, so the frames read and the z they are
+given cannot disagree. `python/tests/test_spotfinder_scan_range.py` builds both
+layouts.
 
 ## Three dimensions, not one frame at a time
 
@@ -226,13 +212,13 @@ experiment's identifier in the table's map, as dials.find_spots writes them. The
 rows of each are exactly what that experiment alone gives, in order. A master
 file named as well is refused, as it cannot belong to them all.
 
-## Where this will not match dials.find_spots
+## Against dials.find_spots
 
 Not "it is broken" -- the list is short and each item is attributable:
 
 * `dext` evaluates the dispersion test in float where DIALS uses double, so a
   spot at the threshold can fall either side of it.
-* The detector's own pixel mask, as `dials.import` reads it: NXdetector's
+* The detector's own pixel mask, as DIALS reads it: NXdetector's
   `pixel_mask` (or, in older DECTRIS masters, `detectorSpecific/pixel_mask`), a
   pixel bad wherever it is not zero. The NXmx reader reads it when it opens the
   series, and every frame decoded has the masked pixels stamped with the
@@ -257,65 +243,52 @@ a bug.
 ## Checking it
 
 ```sh
-python -m mxeq.checks.spotfinder_refl strong.refl   # well formed, and what is in it
-mxeq check strong dials_strong.refl strong.refl     # how two spot lists differ
-tests/spots/regression.sh                           # everything, no detector needed
+python -m mxeq.checks.spot_table strong.refl      # well formed, and what is in it
+mxeq check strong dials_strong.refl strong.refl   # how two spot lists differ
+tests/spots/regression.sh                         # everything, no detector needed
 ```
 
-`check_refl.py` decodes a table the way DIALS' own adapter reads it and checks
-every column's type and length, which is worth doing before `dials.index` says
-something less specific. Given two files it matches spots by centroid and
-reports what matched, how far apart, and where the unmatched ones are -- bunched
-at a detector edge or in a block of frames says something quite different from
-scattered and weak. It needs nothing but python3, so it runs outside a DIALS
-environment.
+`mxeq.checks.spot_table` decodes a table the way DIALS's own adapter reads it
+and checks every column's type and length. Given two files it matches spots by
+centroid and reports what matched, how far apart, and where the unmatched ones
+are -- bunched at a detector edge or in a block of frames says something quite
+different from scattered and weak. It needs nothing but python3.
 
-`tests/regression.sh` generates a synthetic NXmx series with reflections planted
-at known positions, three frames each, and checks the whole path: the table
-decodes, every reflection comes back as one spot where it was planted, `--2d`
-gives exactly three times as many, a missing frame splits the reflections that
-spanned it and no others, one thread and eight agree byte for byte, and a
-mismatched experiment list is refused. Where there is a device it also compares
-the device against the CPU, byte for byte; where there is not, it says so and
-skips.
-
-```sh
-python3 tests/make_test_nxmx.py /tmp/series 12
-./build/mxi_find /tmp/series/series.expt /tmp/series/series.nxs
-python3 tests/check_spots.py /tmp/series/manifest.json strong.refl
-```
-
-is that fixture by hand, and is the quickest way to see whether a change has
-moved anything.
+`tests/spots/regression.sh` generates a synthetic NXmx series with reflections
+planted at known positions, three frames each, and checks the whole path: the
+table decodes, every reflection comes back as one spot where it was planted,
+`--2d` gives exactly three times as many, a missing frame splits the
+reflections that spanned it and no others, one thread and eight agree byte for
+byte, and a mismatched experiment list is refused. `python3 -m
+mxeq.fixtures.nxmx DIR 12`, `mxi_find DIR/series.expt DIR/series.nxs` and
+`python -m mxeq.checks.planted_spots DIR/manifest.json strong.rflx` do the same
+by hand.
 
 ## Tests
 
-```sh
-ctest --test-dir build --output-on-failure
-```
-
-Everything under `ctest` is self-contained -- no detector, no server, no
+In `mxi_tests` (`./build/mxi_tests spots_`), self-contained -- no detector, no
 fixtures to generate first:
 
 | | |
 | --- | --- |
-| `dext_squares` | where the 32-bit window sums stop being exact, and the margin |
-| `signal_order` | the O(n) index sort against `std::sort` |
-| `dials_spots` | the grouping, its centroids and its filters, by hand |
-| `refl` | the reflection table, decoded again by a second implementation |
-| `expt` | the experiment list reader, including the awkward shapes |
-| `dials_end_to_end` | the threshold, the grouping and the table together |
-| `dext_gpu` | the device against the CPU, with no tolerance at all |
+| `spots_dext_squares` | where the 32-bit window sums stop being exact, and the margin |
+| `spots_dext_fused` | the fused kernel's phases, on the CPU, against the threshold |
+| `spots_signal_order` | the O(n) index sort against `std::sort` |
+| `spots_grouping` | the grouping, its centroids and its filters, by hand |
+| `spots_table_format` | the reflection table, decoded again by a second implementation |
+| `spots_table_golden` | the table's bytes, held to what they have been |
+| `spots_experiment_images` | the experiment list reader, including the awkward shapes |
+| `spots_end_to_end` | the threshold, the grouping and the table together |
 
-`dext_gpu` is the claim the device backends make. It runs both finders over
-synthetic frames chosen for the edges -- sizes that are not multiples of the
-32 x 32 threadgroup, spots planted hard against every border, both masked
-sentinels -- under both window variants, and compares every field of every
-signal pixel. It skips rather than fails on a machine with no device.
-`dials_end_to_end` is the one that says the coordinate conventions are right: a
-mistake in fast against slow, pixel corners against centres, or frames against
-array indices shows up there as a systematic offset and nowhere else as
-anything at all.
+And `dext_gpu`, a program of its own on a GPU build: the device against the
+CPU, with no tolerance at all. It runs both over synthetic frames chosen for
+the edges -- sizes that are not multiples of the 32 x 32 threadgroup, spots
+planted hard against every border, both masked sentinels -- under both window
+variants, and compares every field of every signal pixel; it skips rather
+than fails on a machine with no device. `spots_end_to_end` is the one that says
+the coordinate conventions are right: a mistake in fast against slow, pixel
+corners against centres, or frames against array indices shows up there as a
+systematic offset and nowhere else as anything at all.
 
 ## The threshold
 
@@ -338,7 +311,7 @@ has a limit -- a uniform 7 x 7 window reaches 2^32 at 9362 counts a pixel -- and
 real frames are nowhere near it: the busiest window that can be built out of
 reflections, two 2500-count spots two pixels apart, is a factor of 30 short, and
 saturated pixels are masked before they can contribute at all.
-`ctest -R dext_squares` measures that margin rather than assuming it, so a
+`mxi_tests spots_dext_squares` measures that margin rather than assuming it, so a
 change to the kernel size or to the masking shows up as a failure there.
 
 ## Reading NXmx
@@ -432,7 +405,7 @@ configure warning rather than a silent no-op.
 
 Both instruments change their minds about what to do with a disagreement:
 
-* `ctest -R dext_gpu` tolerates a background differing in its last bits, says
+* `dext_gpu` tolerates a background differing in its last bits, says
   how many pixels differ and by how much in absolute and relative terms, and
   still fails if the *set* of pixels found has changed. That is the part fast
   math is not allowed to do quietly -- a spot that appears or disappears is a
@@ -590,30 +563,24 @@ compute capability 8.9, no warnings; it has not run, there being no GPU here.
 
 ## Status
 
-* **The Metal backend works.** On a Mac, 16 threads and the GPU: 1800 images of
-  3108 x 3262 pixels thresholded in 3.6 seconds, 502 a second, 1917439 signal
-  pixels and 146118 spots, with the stage 0 and stage 2 tile windows.
-  `ctest -R dext_gpu` is still the first thing to run on a new machine.
-* **The CUDA backend agrees with the Metal one exactly.** On the same 1800
-  images of 3108 x 3262 pixels -- 16-bit, stage 0 direct and stage 2 tile, on
-  an NVIDIA GeForce RTX 4060 with 16 threads -- every count matches Metal's:
-  1917439 signal pixels, 194150 spots extracted, 48006 and 1 removed for size,
-  146118 kept. 9.2 seconds, 196 images a second, against Metal's 3.6 and 502.
-  Its 32-bit instantiation, and its `stage0_tile` and `stage2_direct` kernels,
-  have still not been run; `MXI_GPU_STAGE0=tile MXI_GPU_STAGE2=direct`
-  selects the two kernels.
-* **Real diffraction, since.** On a 300 image insulin sweep every filtering count
+* **The Metal backend:** 1800 images of 3108 x 3262 pixels thresholded at 502
+  images a second on a Mac's GPU, 1917439 signal pixels and 146118 spots, with
+  the stage 0 and stage 2 tile windows. `dext_gpu` is the first thing to run
+  on a new machine.
+* **The CUDA backend agrees with Metal exactly** on the same images -- 16-bit,
+  stage 0 direct and stage 2 tile, an RTX 4060 -- every count the same, at 196
+  images a second. Its 32-bit instantiation, and its `stage0_tile` and
+  `stage2_direct` kernels, have not been run; `MXI_GPU_STAGE0=tile
+  MXI_GPU_STAGE2=direct` selects those two.
+* **Real diffraction:** on a 300 image insulin sweep every filtering count
   matches `dials.find_spots` exactly -- 18755 extracted, 5683 and 5 removed for
-  size, 13067 centroids, 12915 kept -- and this pipeline indexes, refines and
-  integrates what it writes. `docs/spotfinder.md`.
-* **This writer's tables have not been read by DIALS.** The spot finder writes
-  through a writer of its own (`refl::Options`), not the pipeline's, whose tables
-  dials.scale has scaled. The format was written from the DIALS source, not from a
-  file DIALS wrote. If DIALS refuses the file, the column type names and
-  `Shoebox<>` being `float` rather than `double` are where to look first.
-* The pixel mask is read; see the list of differences above.
+  size, 13067 centroids, 12915 kept -- and the pipeline indexes, refines and
+  integrates what it writes.
+* **The table** is written by the library's writer, as every program's is,
+  which DIALS reads; the bytes are those the spot finder's own writer gave
+  (`spots_table_golden`).
 
-## Licence
+## What it uses
 
-BSD 3-Clause, in `LICENSE`. bitshuffle is MIT and lz4, which comes with it, is
-BSD 2-Clause. HDF5 has a BSD-style licence of its own.
+bitshuffle, MIT, and lz4, which comes with it, BSD 2-Clause; HDF5, a BSD-style
+licence of its own.

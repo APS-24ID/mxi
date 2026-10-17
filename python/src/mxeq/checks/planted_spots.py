@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Check a reflection table against what tests/make_test_nxmx.py planted.
+"""Check a reflection table against what mxeq.fixtures.nxmx planted.
 
-    check_spots.py <directory>/manifest.json <strong.refl>
+    python -m mxeq.checks.planted_spots <directory>/manifest.json <strong.refl>
 
 This is the only test here that goes all the way from HDF5 on disk to a
 reflection table, so it is where a mistake in the reading path shows up: a
@@ -18,7 +18,7 @@ What it checks:
   * every bounding box spanning exactly the frames the reflection was on
   * nothing else in the table
 
-Reuses the table reader in spotfinder_refl, which is beside it.
+Reuses the table reader in spot_table, which is beside it.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from __future__ import annotations
 import json
 import sys
 
-from .spotfinder_refl import Table
+from .spot_table import Table
 
 # A pixel in x and y. The profile is symmetric, so the centroid should land on
 # the pixel it was planted in; anything approaching a pixel is a systematic

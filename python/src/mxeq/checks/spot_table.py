@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Read a DIALS .refl file, and compare two of them.
 
-    check_refl.py strong.refl                 # what is in it, and is it well formed
-    check_refl.py strong.refl dials.refl      # how do the two spot lists differ
+    python -m mxeq.checks.spot_table strong.refl              # what is in it, and is it well formed
+    python -m mxeq.checks.spot_table strong.refl dials.refl   # how do the two spot lists differ
 
 The first form is the one to run on the output of mxi_find before
 handing it to dials.index: it decodes the file the way DIALS' own msgpack

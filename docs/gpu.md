@@ -795,7 +795,10 @@ rather than an answer.
 The static case measured above, under "It is the only thing worth moving", is
 not the command anyone actually runs. This is:
 
-    mxi_refine indexed.expt indexed.refl --scan-varying 18 --beam --analytic
+    mxi_refine indexed.rflx --scan-varying 18
+
+(the beam refined and the derivatives analytic, both the defaults now; when
+this was measured they were `--beam` and `--analytic`).
 
 Eighteen control points takes the parameter count from about ten to about a
 hundred and seventy, and the normal equations are quadratic in it. Measured:

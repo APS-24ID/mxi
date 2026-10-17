@@ -1,20 +1,16 @@
-// mxi_find -- the extended dispersion spot finder on an Apple
-// GPU, writing a DIALS reflection table.
+// mxi_find: spot finding, the first step after import -- each image
+// thresholded, on the CPU or a GPU, the signal pixels grouped in three
+// dimensions, and the spots written as a reflection table (docs/spots.md).
 //
-// The threshold in src/dext.{hh,cc} is a transcription of DIALS'
-// DispersionExtendedThreshold and the kernels in src/dext_metal.{cc,metal} are
-// a transcription of that. What this adds is everything DIALS does after the
-// per-frame pixel list: three-dimensional grouping, centroids, and the file
-// format -- src/dials_spots.{hh,cc} and src/refl.{hh,cc}.
+//   mxi_import /data/ins10_1_master.h5
+//   mxi_find imported.rflx --gpu
 //
-//   dials.import /data/ins10_1_master.h5
-//   mxi_find --gpu -e imported.expt
-//   dials.index imported.expt strong.refl
-//
-// The .expt is dials.import's business and is read rather than written: the
-// beam, the goniometer and the detector belong to dxtbx, and a second model of
-// them here would be a second thing to keep in step. What is taken from it is
-// the scan's image range, the panel size and the experiment identifier.
+// The threshold (src/dext.{hh,cc}, and the device kernels after it) is the
+// extended dispersion threshold, DIALS's default; the grouping, the centroids
+// and the table are src/spots.{hh,cc} and src/spot_table.{hh,cc}. The
+// experiment list is read, never written: where each sweep's images are, the
+// scan's image range, the panel size and the experiment identifier
+// (src/experiment_images.{hh,cc}).
 //
 // Frames are read and thresholded in parallel and grouped in one thread, since
 // the grouping is inherently sequential -- a reflection spans frames and a
@@ -182,7 +178,7 @@ struct Options {
   std::string master;                 // the NXmx HDF5 master file
   bool master_given = false;          // named on the command line
   std::size_t sweeps = 1;             // experiments in the list
-  std::string experiments;            // -e: what dials.import wrote
+  std::string experiments;            // the experiment list, if given
   std::string output = "strong.refl"; // -o
   // The .rflx to write (docs/rflx.md), with the experiment list given if one
   // was; empty when -o named a .refl, written then as before.

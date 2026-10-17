@@ -1,16 +1,15 @@
 # The spot finder: notes for working on it
 
-STATUS: the notes of the spot finder when it was a repository of its own,
-kept as they were and brought up to date where they name files. Its reference
-is `docs/spots.md`; `docs/spotfinder.md` is how it came into this tree. This one
-records the conventions, the invariants
-that are expensive to rediscover, and what is not yet proven.
+Notes for working on mxi's spot finding: the conventions, the invariants that
+are expensive to rediscover, and what is not yet proven. Its reference is
+`docs/spots.md`.
 
-## The .expt says where the images are
+## The experiment list says where the images are
 
-`dials.import` records the file in the imageset block -- `template` names it,
-`single_file_indices` lists the array indices within it -- so `-e imported.expt`
-alone is enough and the master file need not be named twice. `-x` still wins,
+The import records the file in the imageset block -- `template` names it,
+`single_file_indices` lists the array indices within it -- so `mxi_find
+imported.rflx` alone is enough and the master file need not be named twice.
+`-x` still wins,
 because the recorded path is absolute and a dataset that has moved since import
 would otherwise be unusable.
 
@@ -29,16 +28,13 @@ assumed:
 * an imageset and a scan disagreeing about how many images there are means one
   has been sliced and the other has not; warned, because z follows the scan.
 
-## What this is
+## Where it came from
 
-One C++20 tool: `mxi_find` reads an NXmx HDF5 series, runs the
-DIALS extended dispersion threshold over each frame on the CPU or on a GPU,
-groups the surviving pixels six-connected in three dimensions, and writes a
-DIALS reflection table for `dials.index`.
-
-Extracted from redhorn, a detector-stream relay and analyser that had this as
-one of its tools; the object store, the wire format and the rest of that
-machinery stayed behind. Worth knowing only for one reason: if something here
+The spot finder was extracted from redhorn, a detector-stream relay and
+analyser that had it as one of its tools, then lived as a project of its own
+before becoming a stage of mxi; the object store, the wire format and the rest
+of redhorn's machinery stayed behind. Worth knowing only for one reason: if
+something here
 looks like the remains of a larger design -- the `Series` / `Reader` split with
 a single implementation, say -- check this file before removing it, because some
 of those seams are load-bearing for a reason that is not obvious when there is
@@ -48,7 +44,7 @@ one implementation of them.
 
 | Path | What it is |
 | --- | --- |
-| `apps/mxi_find.cc` | `main`: option parsing, the thread pool, the chunked ordering |
+| `apps/mxi_find.cc` | the program: its options, the thread pool, the chunked ordering |
 | `src/image_series.hh` | `Series`, `Reader`, `Frame`: what the tool reads, above HDF5 |
 | `src/nxmx_reader.cc` | VDS unpacking and `H5Dread_chunk`; the only file including hdf5.h |
 | `src/decompress.{hh,cc}` | bslz4, lz4 and uncompressed chunks, via bitshuffle |
@@ -60,33 +56,32 @@ one implementation of them.
 | `src/dext_metal.{cc,metal}` | The same on Apple silicon, 16-bit only, via metal-cpp |
 | `src/signal_pixel.hh` | What the threshold emits: 16 bytes a surviving pixel |
 | `src/signal_order.{hh,cc}` | Signal pixels into index order, O(n). Host, shared |
-| `src/dials_spots.{hh,cc}` | Six-connected grouping in 3D, DIALS' centroids, streaming |
-| `src/refl.{hh,cc}` | A DIALS reflection table: msgpack, written by hand |
-| `src/expt.{hh,cc}` | The scan range, panel size and identifier out of an .expt |
+| `src/spots.{hh,cc}` | Six-connected grouping in 3D, DIALS's centroids, streaming |
+| `src/spot_table.{hh,cc}` | The spots as a library table, for the library's writers |
+| `src/experiment_images.{hh,cc}` | Where the images are, the scan range, panel size and identifier, from an experiment list |
 | `src/queue.hh` | Bounded blocking queue, the backpressure between threads |
 | `python/src/mxeq/fixtures/nxmx.py` | A synthetic series with reflections planted across frames |
-| `python/src/mxeq/checks/spotfinder_spots.py` | That series' manifest against the table it produced |
-| `python/src/mxeq/checks/spotfinder_refl.py` | Validates a .refl, and diffs two of them by centroid |
+| `python/src/mxeq/checks/planted_spots.py` | That series' manifest against the table it produced |
+| `python/src/mxeq/checks/spot_table.py` | Validates a .refl, and diffs two of them by centroid |
 | `tests/spots/synthetic_frame.hh` | The frames the device test and the benchmark share |
 | `third_party/bitshuffle` | Submodule; lz4 comes with it |
 
 ## Commands
 
 ```sh
-git submodule update --init
-cmake -S . -B build && cmake --build build -j
-ctest --test-dir build --output-on-failure
-tests/regression.sh
+cmake --build build && ./build/mxi_tests spots_
+tests/spots/regression.sh
 ```
 
-`tests/regression.sh` is the one command to run before and after any change. It
+`tests/spots/regression.sh` is the one command to run before and after any
+change. It
 generates the fixtures, runs `ctest`, and then checks the whole path from HDF5 to
 a reflection table. No detector, no server, and it says so and skips where there
 is no device.
 
 **There are no recorded baselines here, deliberately.** The fixture plants
 reflections at known positions, so the expectation is the plant rather than a
-previous run: `python/src/mxeq/checks/spotfinder_spots.py` compares the table against the manifest.
+previous run: `python/src/mxeq/checks/planted_spots.py` compares the table against the manifest.
 That is worth more than a baseline, because a baseline records what the code did
 and this records what it should do -- and it means no `--record` step that can be
 run without reading the diff.
@@ -94,8 +89,8 @@ run without reading the diff.
 ## Before changing anything
 
 **When a performance or behaviour problem is reported, check the invocation
-before touching the code.** This is a standing instruction from the person who
-owns this repository, and it was earned in redhorn: a report of poor threading
+before touching the code.** This is a standing instruction from Graeme, and it
+was earned in redhorn: a report of poor threading
 turned out to be `-t 16` where `-j 16` was meant -- `-t` is the idle timeout.
 Two clues were on screen and missed. The startup line said four threads while
 the report described sixteen, and `-t 1` and `-t 16` gave identical timings,
@@ -324,13 +319,13 @@ could.
   writing something that will not read back. A column type name DIALS does not
   know makes the whole file unreadable, so the names are checked against the list
   in `reflection_table_msgpack_adapter.h`.
-* **One panel, one experiment.** A segmented detector would need a panel number
-  per spot and several experiments would need the `id` column to mean something.
-  Each is refused rather than guessed at.
-* **The `.expt` is read and never written.** The beam, the goniometer and the
-  detector hierarchy are `dials.import`'s business; a second model of them here
-  would be a second thing to keep in step with dxtbx.
-* **Where this will not match `dials.find_spots`** is in the README, with the
+* **One panel.** A segmented detector would need a panel number per spot; it is
+  refused rather than guessed at. Several sweeps are fine: each its own
+  experiment, its spots its `id`.
+* **The experiment list is read, never written.** The beam, the goniometer and
+  the detector are the import's; spot finding takes only what it needs
+  (`experiment_images`), so there is one model of them, the library's.
+* **Where this will not match `dials.find_spots`** is in `docs/spots.md`, with the
   reasons. The pixel mask, once the one real omission, is read since October
   2026, as these notes said it should be: no kernel change, the sentinel
   stamped into each frame as it is decoded (`series::apply_pixel_mask`).
@@ -461,7 +456,7 @@ Worth knowing before trusting any of it:
 * **The Metal backend has never been compiled**, on any machine. It is a
   transcription of working kernels. The likeliest first failures are the
   attribute list on `dext_stage2_u16` and the `static_assert` on
-  `sizeof(SignalPixel)` in MSL. **Run `ctest -R dext_gpu` before believing any
+  `sizeof(SignalPixel)` in MSL. **Run `dext_gpu` before believing any
   number this backend produces.**
 * **`stage0_tile` and `stage2_direct` in `dext_cuda.cu` have never been
   compiled**, let alone run, and neither has the 32-bit instantiation. What to

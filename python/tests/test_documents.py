@@ -28,7 +28,6 @@ DOCUMENTS = [
     "docs/integration.md",
     "docs/integration_history.md",
     "docs/gpu.md",
-    "docs/spotfinder.md",
     "docs/scaling.md",
     "docs/symmetry.md",
     "docs/outstanding.md",

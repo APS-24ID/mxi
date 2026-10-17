@@ -243,8 +243,6 @@ where something is missing.
 
 ## The spot finder
 
-* **30.** **structure -- What is still duplicated** between the spot finder and the
-    rest. `docs/spotfinder.md`.
 
 * **34.** **untested -- Two paths of the CUDA backend**: its 32-bit
   instantiation, which wants 32-bit data, and its `stage2_direct` kernel
@@ -359,10 +357,17 @@ where something is missing.
 * **31.** **The C++ suite takes about two minutes**, most of it a handful of older
     refinement and indexing tests at 10 to 13 seconds each.
 * **32.** **The device port is designed but not written.** `docs/gpu.md`.
-* **33.** **Three documents describe the spot finder** -- `docs/spots.md`,
-    `docs/spots_notes.md`, `docs/spotfinder.md` -- which could be one.
 
 ## Closed
+
+* **30.** Closed 16 October. **What was still duplicated between the spot finder
+  and the rest.** Integrated in three commits: the tree and the build one, the
+  spot finder's table, experiment list, arguments, HDF5 handles and namespaces
+  the library's, the GPU code's device set-up one layer for Metal and one for
+  CUDA, its tests in `mxi_tests` -- the spots byte for byte throughout.
+* **33.** Closed 16 October. **Three documents described the spot finder.** Now
+  `docs/spots.md`, the reference, and `docs/spots_notes.md`, the notes for
+  working on it; how it came in is the history's.
 
 * **70.** Closed 15 October. **mxi_symmetry takes its input's cell as
   primitive.** Input already in a centred setting is now taken to its

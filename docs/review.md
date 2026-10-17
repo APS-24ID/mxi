@@ -119,9 +119,10 @@ at a step rather than doing it: `mxi_profile` estimates the profile model,
 Kabsch space and rendered onto the pixels, `mxi_residuals` decomposes centroid
 residuals, and `mxi_background` fits backgrounds to given pixels.
 
-The spot finder was a repository of its own and keeps its own `.expt` reader
-and `.refl` writer in `src/`; `docs/spotfinder.md` is how it came in, and
-merging the duplicates is item 30 of `docs/outstanding.md`.
+The spot finder began as a project of its own and is now a stage of mxi like
+the others: its table written by the library's writers, its experiment list
+read by the library, its namespaces in `mxi`, its tests in `mxi_tests`
+(`docs/spots.md`).
 
 ## What follows DIALS, and where it departs
 

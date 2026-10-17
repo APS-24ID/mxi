@@ -12,7 +12,7 @@ Three pieces share this repository and are not one program:
 
 | | where | its notes |
 | --- | --- | --- |
-| the spot finder and image reader | `src/` | `docs/spots.md`, `docs/spots_notes.md`, `docs/spotfinder.md` |
+| the spot finder and image reader | `src/` | `docs/spots.md`, `docs/spots_notes.md` |
 | the pipeline | `src/`, `apps/` | this file; `docs/integration.md`, `docs/symmetry.md`, `docs/scaling.md` |
 | `mxeq`, the referee | `python/` | `python/CLAUDE.md` |
 

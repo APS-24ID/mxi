@@ -703,7 +703,7 @@ void write_reflections(const std::string &path, const Table &table) {
   // them: the shoeboxes had come after the rest. The same table either way, but
   // in DIALS's order a table mxi writes is byte for byte what DIALS writes --
   // which let mxi_find give up its own writer for this one
-  // (docs/spots-integration.md).
+  // (its writer was removed).
   std::vector<std::pair<std::string, bool>> order; // name, opaque
   for (const std::string &name : names)
     order.emplace_back(name, false);

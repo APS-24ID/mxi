@@ -1,6 +1,6 @@
 # Integrating the spot finder into mxi
 
-STATUS: commit 1 of 3 done, 16 October 2026.
+STATUS: commit 1 and step 2a done, 16 October 2026.
 
 **Remove this document when the series is complete:** it is a plan, and once
 done it belongs to the project's history (git log), not to its documents.
@@ -34,7 +34,20 @@ Moves and renames, the spots unchanged to the bit:
   as before; the DIALS `.refl` byte for byte; integration on insulin the same;
   a fresh configure and build with no warnings; every test.
 
-## Commit 2: the shared functions (next)
+## Commit 2: the shared functions (in steps)
+
+**2a (done): mxi_find as every program.** `spot_refl.*` gone: the spots are a
+library table (`spot_table.*`), written by the library's writers -- which now
+write every column in name order, shoeboxes among them, as DIALS does, so that
+the .refl is byte for byte what it was. `spot_expt.*` is the library's
+`experiment_images.*`, still tolerant of stills (the full reader refuses a
+scan with no oscillation). The shared argument parser: an experiment list or a
+master positionally, `-e` and `-gpu` gone. Checked: the .refl byte for byte,
+both .rflx every column, the golden test through the library, ctest, the
+Python suite.
+
+**2b and 2c, next:**
+
 
 * `spot_expt.*` goes: `mxi_find` reads the library's experiment list.
 * `spot_refl.*` goes: `mxi_find` writes through the library's writers, `.rflx`

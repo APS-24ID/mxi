@@ -25,7 +25,7 @@ than skip one part.
 ## What is shared now
 
 **The JSON parser.** The spot finder's expt.cc, then spotfinder/src/expt.cc and
-now `src/spot_expt.cc`, was 461 lines, of which about 400
+now `src/experiment_images.cc`, was 461 lines, of which about 400
 were a second parser for a format this repository already parses. It is now 152
 and uses `src/json.cc`.
 
@@ -46,7 +46,7 @@ silently none of the spot finder's.
 
 ## What is still duplicated
 
-`src/spot_refl.cc` is 353 lines that write a reflection table, which
+`src/spot_table.cc` is 353 lines that write a reflection table, which
 `src/refl.cc` also does and does more generally -- opaque columns, every dtype,
 round-tripped against real DIALS files.
 

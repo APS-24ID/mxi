@@ -28,11 +28,11 @@
 
 #include "args.hh"
 #include "decompress.hh"
+#include "experiment_images.hh"
 #include "expt.hh"
+#include "image_series.hh"
 #include "log_mirror.hh"
 #include "rflx.hh"
-#include "image_series.hh"
-#include "spot_expt.hh"
 
 namespace {
 
@@ -126,7 +126,8 @@ int main(int argc, char **argv) {
       std::set<std::string> files;
       std::string first;
       for (std::size_t i = 0; i < n; ++i) {
-        const expt::Info e = expt::read(args.positional[0], i);
+        const mxi::ExperimentImages e =
+            mxi::experiment_images(args.positional[0], i);
         if (!e.has_imageset || e.templated || e.image_file.empty())
           continue;
         if (first.empty())

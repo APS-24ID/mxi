@@ -11,7 +11,7 @@
 #include <cstring>
 #include <string>
 
-#include "spot_expt.hh"
+#include "experiment_images.hh"
 
 namespace {
 
@@ -192,7 +192,7 @@ const char *kMismatchedImageset = R"({
 int main() {
   {
     put(kSweep);
-    const expt::Info info = expt::read(kPath);
+    const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check("one experiment", info.experiments, 1);
     check_text("the identifier", info.identifier,
                "f2d0a1c4-6b3e-4a11-9e77-0c5f1b2d3e4f");
@@ -224,7 +224,7 @@ int main() {
       text.replace(at, std::strlen("\"image_range\": [1, 600]"),
                    "\"image_range\": [501, 600]");
       put(text);
-      const expt::Info info = expt::read(kPath);
+      const mxi::ExperimentImages info = mxi::experiment_images(kPath);
       check("the first image of a slice",
             static_cast<unsigned long long>(info.first_image), 501);
       check("and its length", static_cast<unsigned long long>(info.images()),
@@ -239,7 +239,7 @@ int main() {
     const std::size_t at = text.find("\"scan\": 0");
     text.replace(at, std::strlen("\"scan\": 0"), "\"scan\": null");
     put(text);
-    const expt::Info info = expt::read(kPath);
+    const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check("a still has no scan", info.has_scan ? 1 : 0, 0);
     check("and no images to speak of",
           static_cast<unsigned long long>(info.images()), 0);
@@ -258,7 +258,7 @@ int main() {
         text.substr(open, close + std::strlen("\n        }") - open);
     text.insert(close + std::strlen("\n        }"), ", " + panel);
     put(text);
-    const expt::Info info = expt::read(kPath);
+    const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check("two panels are reported", info.panels, 2);
     check("with the first one's size", info.image_fast, 4148);
   }
@@ -266,7 +266,7 @@ int main() {
   // No experiments at all, which is a valid empty list.
   {
     put("{\"__id__\": \"ExperimentList\", \"experiment\": []}");
-    const expt::Info info = expt::read(kPath);
+    const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check("an empty list has no experiments", info.experiments, 0);
   }
 
@@ -277,7 +277,7 @@ int main() {
     put("{\"nrows\": 12, \"data\": {}}");
     bool threw = false;
     try {
-      expt::read(kPath);
+      mxi::experiment_images(kPath);
     } catch (const std::exception &) {
       threw = true;
     }
@@ -287,7 +287,7 @@ int main() {
     put(std::string("\x93\xbb") + "dials::af::reflection_table");
     bool threw = false;
     try {
-      expt::read(kPath);
+      mxi::experiment_images(kPath);
     } catch (const std::exception &) {
       threw = true;
     }
@@ -297,7 +297,7 @@ int main() {
     put(R"({"experiment": [{"scan": 0}], "scan": [{"image_range": [1, 2)");
     bool threw = false;
     try {
-      expt::read(kPath);
+      mxi::experiment_images(kPath);
     } catch (const std::exception &) {
       threw = true;
     }
@@ -306,7 +306,7 @@ int main() {
   {
     bool threw = false;
     try {
-      expt::read("no_such_file_at_all.expt");
+      mxi::experiment_images("no_such_file_at_all.expt");
     } catch (const std::exception &) {
       threw = true;
     }
@@ -316,7 +316,7 @@ int main() {
   // An identifier with an escape in it, since the reader has to decode one.
   {
     put(R"({"experiment": [{"identifier": "a\/b\u00e9c", "scan": null}]})");
-    const expt::Info info = expt::read(kPath);
+    const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check_text("escapes are decoded", info.identifier,
                "a/b\xc3\xa9"
                "c");
@@ -324,7 +324,7 @@ int main() {
 
   {
     put(kWithImageset);
-    const expt::Info info = expt::read(kPath);
+    const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check("it has an imageset", info.has_imageset ? 1 : 0, 1);
     check_text("the image file", info.image_file, "/data/ins10_1.nxs");
     check("one imageset", info.imagesets, 1);
@@ -345,7 +345,7 @@ int main() {
 
   {
     put(kTemplatedImageset);
-    const expt::Info info = expt::read(kPath);
+    const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check("templated is seen", info.templated ? 1 : 0, 1);
     // Kept verbatim. Working out what the hashes stand for is dials.import's
     // job and it has already done it; a second guess here could differ.
@@ -356,7 +356,7 @@ int main() {
 
   {
     put(kGappyImageset);
-    const expt::Info info = expt::read(kPath);
+    const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check("four frames", info.frames, 4);
     check("first index", static_cast<unsigned long long>(info.first_index), 0);
     check("last index", static_cast<unsigned long long>(info.last_index), 5);
@@ -365,7 +365,7 @@ int main() {
 
   {
     put(kMismatchedImageset);
-    const expt::Info info = expt::read(kPath);
+    const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check("ten frames", info.frames, 10);
     check("five images in the scan",
           static_cast<unsigned long long>(info.images()), 5);
@@ -378,7 +378,7 @@ int main() {
     // check that this is read out of a document written the way dials.import
     // writes one rather than only out of the cut-down examples above.
     put(kSweep);
-    const expt::Info info = expt::read(kPath);
+    const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check("the existing fixture has an imageset", info.has_imageset ? 1 : 0, 1);
     check_text("and names its file", info.image_file,
                "/data/ins10_1_master.h5");
@@ -388,7 +388,7 @@ int main() {
     // An .expt without one is not an error, and everything that worked before
     // this field existed must still work.
     put(kNoImageset);
-    const expt::Info info = expt::read(kPath);
+    const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check("no imageset here", info.has_imageset ? 1 : 0, 0);
     check("no frames", info.frames, 0);
     check("contiguous by default", info.contiguous_indices ? 1 : 0, 1);

@@ -26,7 +26,7 @@ built and tested here. Without HDF5 both are left out of the build silently.
 
 Two overlaps, neither resolved:
 
-* `src/spot_refl.cc` writes reflection tables and so does `src/refl.cc`. The
+* `src/spot_table.cc` writes reflection tables and so does `src/refl.cc`. The
   spot finder's is specialised to its Spot type; the other is a general reader
   and writer validated against real DIALS files. The cost of two is real: the
   4 GB msgpack limit was guarded in one and not the other, and a shoebox table
@@ -34,7 +34,7 @@ Two overlaps, neither resolved:
   doing and is exactly the kind of change that quietly breaks a format that
   works, so: not in the same commit as anything else, and with both writers'
   output compared byte for byte before and after.
-* `src/spot_expt.cc` reads experiment lists too, but only for the scan range,
+* `src/experiment_images.cc` reads experiment lists too, but only for the scan range,
   the panel size, the identifier and the image mapping, and its header says it
   is not trying to be dxtbx. The geometry conventions still live in one place,
   `src/geometry.hh`.
@@ -310,7 +310,7 @@ Graeme's objection, and never built.
 * **The reference chain**, 300 images of insulin, from the uploads, one
   `.rflx` a step (`docs/rflx.md`; `--output-expt` and `--output-refl` for the
   DIALS pair instead):
-  `mxi_find -e /mnt/user-data/uploads/imported.expt -j 4` (strong.rflx: the
+  `mxi_find /mnt/user-data/uploads/imported.expt -j 4` (strong.rflx: the
   models with the spots);
   `mxi_index strong.rflx`;
   `mxi_refine indexed.rflx --analytic --scan-varying 5` (on 30

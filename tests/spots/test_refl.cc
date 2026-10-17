@@ -1,5 +1,5 @@
-// What comes out of refl::write, read back with a msgpack decoder written here
-// rather than with the encoder's own helpers.
+// What comes out of mxi::write_spots, read back with a msgpack decoder written
+// here rather than with the encoder's own helpers.
 //
 // The point of the duplication is that this test fails if the encoder is wrong,
 // where a round trip through shared code would agree with itself whatever it
@@ -16,9 +16,9 @@
 #include <string>
 #include <vector>
 
-#include "spots.hh"
-#include "spot_refl.hh"
 #include "signal_pixel.hh"
+#include "spot_table.hh"
+#include "spots.hh"
 
 namespace {
 
@@ -321,9 +321,9 @@ int main() {
   const std::string path = "test_refl.refl";
 
   {
-    refl::Options writing;
+    mxi::SpotTableOptions writing;
     writing.identifier = "b3a1f0c2";
-    refl::write(path, labeller.spots(), labeller.pixels(), width, writing);
+    mxi::write_spots(path, labeller.spots(), labeller.pixels(), width, writing);
 
     Reader reader(slurp(path));
     const Table table = decode(reader);
@@ -429,9 +429,9 @@ int main() {
   // Without shoeboxes, which is what indexing wants: nine columns, and much
   // smaller.
   {
-    refl::Options writing;
+    mxi::SpotTableOptions writing;
     writing.shoeboxes = false;
-    refl::write(path, labeller.spots(), labeller.pixels(), width, writing);
+    mxi::write_spots(path, labeller.spots(), labeller.pixels(), width, writing);
     Reader reader(slurp(path));
     const Table table = decode(reader);
     check("still two rows", table.rows, 2);
@@ -444,8 +444,8 @@ int main() {
   // says so; the file is still well formed here, which is what a caller that
   // writes unconditionally needs.
   {
-    refl::Options writing;
-    refl::write(path, {}, {}, width, writing);
+    mxi::SpotTableOptions writing;
+    mxi::write_spots(path, {}, {}, width, writing);
     Reader reader(slurp(path));
     const Table table = decode(reader);
     check("no rows", table.rows, 0);

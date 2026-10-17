@@ -25,7 +25,7 @@ def test_a_step_is_added_after_those_the_input_carried(tmp_path):
     expt = str(tmp_path / "s" / "series.expt")
     master = str(tmp_path / "s" / "series.nxs")
     first = subprocess.run(
-        [FIND, "-e", expt, master, "-o", "first.rflx"],
+        [FIND, expt, master, "-o", "first.rflx"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -45,7 +45,7 @@ def test_a_step_is_added_after_those_the_input_carried(tmp_path):
     assert by_d is None or len(by_d["spots"]) == 50
 
     second = subprocess.run(
-        [FIND, "-e", "first.rflx", master, "-o", "second.rflx"],
+        [FIND, "first.rflx", master, "-o", "second.rflx"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -75,7 +75,6 @@ def test_the_report_draws_each_step_it_finds(tmp_path):
     found = subprocess.run(
         [
             FIND,
-            "-e",
             str(s / "series.expt"),
             str(s / "series.nxs"),
             "-o",

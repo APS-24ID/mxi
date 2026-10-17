@@ -16,16 +16,16 @@
 // document with a regular expression is the kind of thing that works until an
 // experiment list gains a field.
 
-#ifndef MXI_SPOT_EXPT_HH
-#define MXI_SPOT_EXPT_HH
+#ifndef MXI_EXPERIMENT_IMAGES_HH
+#define MXI_EXPERIMENT_IMAGES_HH
 
 #include <cstddef>
 #include <cstdint>
 #include <string>
 
-namespace expt {
+namespace mxi {
 
-struct Info {
+struct ExperimentImages {
   std::size_t experiments = 0;
   std::size_t index = 0; // which of them this describes
 
@@ -90,11 +90,12 @@ struct Info {
 // list. A missing scan or detector is not an error: a still has no scan.
 // Experiment `index` of the list: its identifier, scan, detector and image
 // set, through its own model indices. `experiments` is how many the list has.
-Info read(const std::string &path, std::size_t index = 0);
+ExperimentImages experiment_images(const std::string &path,
+                                   std::size_t index = 0);
 
 // One line for the startup banner.
-std::string describe(const Info &info);
+std::string describe(const ExperimentImages &info);
 
-} // namespace expt
+} // namespace mxi
 
-#endif // MXI_SPOT_EXPT_HH
+#endif // MXI_EXPERIMENT_IMAGES_HH

@@ -5,7 +5,7 @@ to a reflection table `dials.index` will take.
 
 ```sh
 dials.import /data/ins10_1_master.h5
-mxi_find --gpu -j 8 -e imported.expt /data/ins10_1_master.h5
+mxi_find --gpu -j 8 imported.rflx
 dials.index imported.expt strong.refl
 ```
 
@@ -93,7 +93,7 @@ What it prints is `dials.find_spots`' own summary, wording included, so that the
 two can be read the same way and compared line for line:
 
 ```
-$ mxi_find -j 4 -e series.expt series.nxs
+$ mxi_find -j 4 series.expt series.nxs
 Experiments: 1 experiment, images 1 to 12, 1 panel of 256 x 384, identifier 1c0ffee0
 Series series: 12 images of 256 x 384, from series.nxs, 4 threads, on the CPU
 Grouping in three dimensions, 3 to 1000 pixels a spot, peak within 2.0 of the centroid
@@ -281,7 +281,7 @@ skips.
 
 ```sh
 python3 tests/make_test_nxmx.py /tmp/series 12
-./build/mxi_find -e /tmp/series/series.expt /tmp/series/series.nxs
+./build/mxi_find /tmp/series/series.expt /tmp/series/series.nxs
 python3 tests/check_spots.py /tmp/series/manifest.json strong.refl
 ```
 

@@ -87,7 +87,7 @@ def find(expt, directory):
     out = directory / "strong.refl"
     # In the test's own directory, where the program writes its mxi_find.log.
     run = subprocess.run(
-        [BINARY, "-e", str(expt), "-o", str(out)],
+        [BINARY, str(expt), "-o", str(out)],
         capture_output=True,
         text=True,
         cwd=directory,

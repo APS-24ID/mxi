@@ -72,18 +72,19 @@ by platform.
 
 The chain on your own data needs nothing of DIALS -- `mxi_import` reads the
 NXmx master, and `dials.import`'s `imported.expt` serves as well; every
-program answers `--help`, takes `--timing`, and mirrors its output to
-`mxi_<program>.log`:
+program answers `--help` and `--version` and mirrors its output to
+`mxi_<program>.log`, and the main sequence's take `--timing`. Each step reads
+the last one's `.rflx` and writes its own:
 
 ```sh
-mxi_import    master.nxs                                 # imported.expt
-mxi_find      imported.expt -o strong.refl               # --gpu for the GPU
-mxi_index     imported.expt strong.refl                  # indexed.expt, .refl
-mxi_refine    indexed.expt indexed.refl              # scan-varying, one point per 10 degrees
-mxi_integrate refined.expt refined.refl                  # --gpu: fitting on the GPU, in float
-mxi_symmetry  integrated.expt integrated.refl            # symmetrized.expt, .refl
-mxi_scale     symmetrized.expt symmetrized.refl          # scaled.expt, .refl
-mxi_export    scaled.expt scaled.refl                    # scaled.mtz, unmerged
+mxi_import    master.nxs          # imported.rflx
+mxi_find      imported.rflx       # strong.rflx; --gpu for the GPU
+mxi_index     strong.rflx         # indexed.rflx
+mxi_refine    indexed.rflx        # refined.rflx: scan-varying, a point per 10 degrees
+mxi_integrate refined.rflx        # integrated.rflx; --gpu: fitting on the GPU, in float
+mxi_symmetry  integrated.rflx     # symmetrized.rflx
+mxi_scale     symmetrized.rflx    # scaled.rflx
+mxi_export    scaled.rflx         # scaled.mtz, unmerged
 ```
 
 Beside a DIALS run of the same data, `mxeq` (in `python/`) compares the two at

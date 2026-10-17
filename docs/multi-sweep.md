@@ -133,13 +133,13 @@ As for one sweep, each program given the list of several; every reflection
 carries its sweep's index as `id` from spot finding on:
 
 ```sh
-mxi_import    a.nxs b.nxs                          # one experiment a master
-mxi_find      imported.expt -o strong.refl         # each sweep from its own images
-mxi_index     imported.expt strong.refl            # one matrix, then a crystal a sweep
-mxi_refine    indexed.expt indexed.refl
-mxi_integrate refined.expt refined.refl            # each sweep alone, then joined
-mxi_symmetry  integrated.expt integrated.refl      # pooled
-mxi_scale     symmetrized.expt symmetrized.refl    # a model a sweep
+mxi_import    a.nxs b.nxs           # one experiment a master   -> imported.rflx
+mxi_find      imported.rflx         # each sweep from its own images
+mxi_index     strong.rflx           # one matrix, then a crystal a sweep
+mxi_refine    indexed.rflx
+mxi_integrate refined.rflx          # each sweep alone, then joined
+mxi_symmetry  integrated.rflx       # pooled
+mxi_scale     symmetrized.rflx      # a model a sweep
 ```
 
 Integration wants the refined reflections, as for one sweep: its profile model

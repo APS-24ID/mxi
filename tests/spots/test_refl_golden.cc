@@ -15,8 +15,8 @@
 #include <string>
 #include <vector>
 
+#include "spot_table.hh"
 #include "spots.hh"
-#include "spot_refl.hh"
 
 namespace {
 
@@ -78,14 +78,14 @@ int main() {
   const std::size_t width = 64;
   build(&spots, &pixels, width);
 
-  refl::Options options;
+  mxi::SpotTableOptions options;
   options.panel = 0;
   options.id = 0;
   options.identifier = "0123abcd-0000-1111-2222-333344445555";
   options.shoeboxes = true;
 
   const std::string path = "test_refl_golden.refl";
-  refl::write(path, spots, pixels, width, options);
+  mxi::write_spots(path, spots, pixels, width, options);
 
   std::FILE *file = std::fopen(path.c_str(), "rb");
   check(file != nullptr, "the file was written");

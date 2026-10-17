@@ -86,7 +86,7 @@ echo "== from HDF5 to a reflection table"
 # The whole path, and the only check here that exercises the reading of a real
 # virtual dataset: the spots have to come back where they were planted, one per
 # reflection rather than one per frame it touches.
-"${FIND}" -j 4 -e "${EXPT}" -o "${WORK}/strong.refl" "${MASTER}" \
+"${FIND}" -j 4 "${EXPT}" -o "${WORK}/strong.refl" "${MASTER}" \
     > "${WORK}/find.err" 2>&1
 if [ "$?" != "0" ]; then
     fail "the spot finder exited non-zero"
@@ -194,8 +194,8 @@ echo "== the result does not depend on how it was scheduled"
 # Frames reach the grouping in order whatever -j and --chunk are, so the table
 # has to be byte-identical. If this ever fails, the ordering has broken and the
 # centroids of anything spanning a chunk boundary are wrong.
-"${FIND}" -j 1 -e "${EXPT}" -o "${WORK}/j1.refl" "${MASTER}" > /dev/null 2>&1
-"${FIND}" -j 8 --chunk 3 -e "${EXPT}" -o "${WORK}/j8.refl" "${MASTER}" \
+"${FIND}" -j 1 "${EXPT}" -o "${WORK}/j1.refl" "${MASTER}" > /dev/null 2>&1
+"${FIND}" -j 8 --chunk 3 "${EXPT}" -o "${WORK}/j8.refl" "${MASTER}" \
     > /dev/null 2>&1
 if cmp -s "${WORK}/j1.refl" "${WORK}/j8.refl" &&
         cmp -s "${WORK}/j1.refl" "${WORK}/strong.refl"; then
@@ -205,7 +205,7 @@ else
 fi
 
 echo "== the shoeboxes are optional"
-"${FIND}" -j 2 --no-shoeboxes -e "${EXPT}" -o "${WORK}/thin.refl" "${MASTER}" \
+"${FIND}" -j 2 --no-shoeboxes "${EXPT}" -o "${WORK}/thin.refl" "${MASTER}" \
     > "${WORK}/thin.err" 2>&1
 thin=$(wc -c < "${WORK}/thin.refl")
 fat=$(wc -c < "${WORK}/strong.refl")
@@ -227,7 +227,7 @@ cat > "${WORK}/wrong.expt" <<'JSON'
   "scan": [{"image_range": [1, 12]}]
 }
 JSON
-if "${FIND}" -t 5 -e "${WORK}/wrong.expt" -o "${WORK}/never.refl" "${MASTER}" \
+if "${FIND}" -t 5 "${WORK}/wrong.expt" -o "${WORK}/never.refl" "${MASTER}" \
         > "${WORK}/wrong.err" 2>&1; then
     fail "a mismatched experiment list was accepted"
 elif grep -q "not the same images" "${WORK}/wrong.err"; then
@@ -241,7 +241,7 @@ echo "== the device, if there is one"
 # Same series, same threshold, on the GPU: the two implementations agree bit for
 # bit by design, so the tables have to be identical. --gpu fails rather than
 # falling back when there is no device, which is what tells this to skip.
-if "${FIND}" --gpu -j 2 -e "${EXPT}" -o "${WORK}/gpu.refl" "${MASTER}" \
+if "${FIND}" --gpu -j 2 "${EXPT}" -o "${WORK}/gpu.refl" "${MASTER}" \
         > "${WORK}/gpu.err" 2>&1; then
     if cmp -s "${WORK}/gpu.refl" "${WORK}/strong.refl"; then
         pass "the device and the CPU give the same table, byte for byte"

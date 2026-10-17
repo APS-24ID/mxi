@@ -396,33 +396,14 @@ target_link_libraries(mxi_spots PRIVATE mxi_warnings)
 # so this needs neither DIALS nor a msgpack library; what it does need is the
 # column type names to be exactly right, since DIALS refuses a name it does not
 # know.
-add_library(mxi_spot_refl STATIC src/spot_refl.cc)
-target_include_directories(mxi_spot_refl PUBLIC src)
-target_link_libraries(mxi_spot_refl
-    PUBLIC mxi_spots
-    PRIVATE mxi_warnings)
 
-# Reading the three facts a spot list needs out of what dials.import wrote.
-# The experiment reader parses JSON with the shared parser rather than a second
-# copy of one. It does NOT use the shared experiment reader: that one refuses a
-# scan without an oscillation, and the spot finder does not need one.
-add_library(mxi_spot_expt STATIC src/spot_expt.cc)
-target_include_directories(mxi_spot_expt PUBLIC src)
-target_link_libraries(mxi_spot_expt PRIVATE mxi_warnings)
-if(TARGET mxi)
-  target_link_libraries(mxi_spot_expt PRIVATE mxi)
-else()
-  # Standalone: compile the one file it needs from the parent tree.
-  target_sources(mxi_spot_expt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/json.cc)
-  target_include_directories(mxi_spot_expt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-endif()
 
 add_executable(mxi_find apps/mxi_find.cc)
 target_compile_definitions(mxi_find PRIVATE
                            MXI_VERSION="${PROJECT_VERSION}")
 target_link_libraries(mxi_find
-    PRIVATE mxi_image_series mxi_decompress mxi_dext
-            mxi_spots mxi_spot_refl mxi_spot_expt
+    PRIVATE mxi mxi_image_series mxi_decompress mxi_dext
+            mxi_spots
             Threads::Threads mxi_warnings)
 
 # The kernels go into the executable rather than a library of their own, so that
@@ -536,7 +517,7 @@ if(MXI_TESTS)
     add_executable(mxi_max ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_max.cc)
     target_link_libraries(mxi_max
                           PRIVATE mxi mxi_image_series mxi_decompress
-                                  mxi_spot_expt mxi_warnings)
+                                  mxi_warnings)
     target_include_directories(mxi_max PRIVATE src apps)
 
     # How fast the images can be read and decompressed, apart from the
@@ -550,26 +531,26 @@ if(MXI_TESTS)
     target_link_libraries(mxi_readtest PRIVATE ${HDF5_C_LIBRARIES})
 
     add_executable(test_refl tests/spots/test_refl.cc)
-    target_link_libraries(test_refl PRIVATE mxi_spot_refl mxi_warnings)
+    target_link_libraries(test_refl PRIVATE mxi mxi_spots mxi_warnings)
     add_test(NAME refl COMMAND test_refl)
 
     # Holds the writer's output to what it produces today, so that replacing it
     # with the general writer in ../src/refl.cc can be shown to change nothing.
     # See docs/spotfinder.md: this must not be weakened to pass.
     add_executable(test_refl_golden tests/spots/test_refl_golden.cc)
-    # mxi_spot_refl links mxi_spots PUBLIC, so naming it here
+    # mxi links the table writer; mxi_spots the spots themselves
     # too puts the archive on the link line twice and ld warns about it.
     target_link_libraries(test_refl_golden
-                          PRIVATE mxi_spot_refl mxi_warnings)
+                          PRIVATE mxi mxi_spots mxi_warnings)
     add_test(NAME refl_golden COMMAND test_refl_golden)
 
     add_executable(test_expt tests/spots/test_expt.cc)
-    target_link_libraries(test_expt PRIVATE mxi_spot_expt mxi_warnings)
+    target_link_libraries(test_expt PRIVATE mxi mxi_warnings)
     add_test(NAME expt COMMAND test_expt)
 
     add_executable(test_dials_end_to_end tests/spots/test_dials_end_to_end.cc)
     target_link_libraries(test_dials_end_to_end
-        PRIVATE mxi_dext mxi_spot_refl mxi_warnings)
+        PRIVATE mxi_dext mxi mxi_spots mxi_warnings)
     add_test(NAME dials_end_to_end COMMAND test_dials_end_to_end)
 
     # The CPU and the device must agree exactly, so this is only built when there

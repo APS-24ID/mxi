@@ -47,17 +47,18 @@
 #include <utility>
 #include <vector>
 
-#include "expt.hh"
-#include "log_mirror.hh"
-#include "processing.hh"
-#include "rflx.hh"
-#include "timing.hh"
+#include "args.hh"
 #include "decompress.hh"
 #include "dext.hh"
-#include "spots.hh"
-#include "spot_expt.hh"
+#include "experiment_images.hh"
+#include "expt.hh"
 #include "histogram.hh"
+#include "log_mirror.hh"
+#include "processing.hh"
 #include "queue.hh"
+#include "rflx.hh"
+#include "spots.hh"
+#include "timing.hh"
 
 namespace {
 // This run's step of the processing's summary (docs/output.md): begun once,
@@ -158,9 +159,9 @@ void report_resolution(const std::vector<double> &dstar) {
   find_summary().set("ice_rings", mxi::json::Value(std::move(crowded)));
 }
 } // namespace
-#include "spot_refl.hh"
 #include "image_series.hh"
 #include "signal_pixel.hh"
+#include "spot_table.hh"
 
 #ifdef MXI_GPU
 #include "dext_gpu.hh"
@@ -223,19 +224,14 @@ void report_version(const char *program) {
 void usage(const char *program, std::FILE *to = stderr) {
   std::fprintf(
       to,
-      "usage: %s [-j|--threads N] [-g|--gpu] [-e imported.expt] [-o "
-      "strong.rflx]\n"
-      "       [options] [master.nxs | imported.expt]\n"
+      "usage: %s IMPORTED.rflx [options]\n"
+      "       %s MASTER.nxs [options]\n"
       "\n"
-      "  imported.expt      an experiment list, as -e: the images are the "
-      "ones\n"
-      "                     its imageset names\n"
-      "  master.nxs         an NXmx HDF5 master file, or -x master.nxs.\n"
-      "                     Optional when -e names an .expt: dials.import\n"
-      "                     already recorded the file in its imageset block,\n"
-      "                     and -x overrides it if the data has moved.\n"
-      "  -e imported.expt   what dials.import wrote, for the scan range, the\n"
-      "                     panel size and the experiment identifier\n"
+      "Strong spots on every image of every sweep: the input an experiment\n"
+      "list, as mxi_import writes it (or a DIALS .expt), naming where each\n"
+      "sweep's images are; or an NXmx master file directly.\n"
+      "\n"
+      "  -x MASTER.nxs      the images, where the experiment list's are moved\n"
       "  -o file            where to write: a .rflx, with the experiment list\n"
       "                     if one was given (strong.rflx), or a .refl, the\n"
       "                     reflection table alone\n"
@@ -270,15 +266,16 @@ void usage(const char *program, std::FILE *to = stderr) {
       "profile\n"
       "                     model uses it; off, as DIALS has it\n"
       "  --2d               group each frame on its own, as for stills\n"
-      "  --z-offset N       array index of image number 0; taken from -e when\n"
-      "                     that is given, and 0 otherwise\n"
+      "  --z-offset N       array index of image number 0; taken from the\n"
+      "                     experiment list when one is given, and 0 "
+      "otherwise\n"
       "  --chunk N          frames held between groupings (a few per thread)\n"
       "  -t timeout         seconds to wait for the file to appear (default "
       "60)\n"
       "  -p poll-ms         interval between checks while waiting (default "
       "200)\n"
       "  --version          what this binary is, and what it was built with\n",
-      program);
+      program, program);
 }
 
 //: Whether a file is JSON, as an experiment list is: its first character that
@@ -317,85 +314,104 @@ bool looks_like_json(const std::string &path) {
 }
 
 bool parse_options(int argc, char **argv, Options *options) {
-  for (int i = 1; i < argc; i++) {
-    const std::string flag = argv[i];
-    const bool has_value = i + 1 < argc;
-    if ((flag == "-j" || flag == "--threads") && has_value) {
-      options->threads = std::atoi(argv[++i]);
-    } else if (flag == "-t" && has_value) {
-      options->timeout_seconds = std::atoi(argv[++i]);
-    } else if (flag == "-p" && has_value) {
-      options->poll_milliseconds = std::atoi(argv[++i]);
-    } else if (flag == "-x" && has_value) {
-      options->master = argv[++i];
-    } else if (flag == "-e" && has_value) {
-      if (!options->experiments.empty()) {
-        std::fprintf(stderr, "%s: two experiment lists, %s and %s\n", argv[0],
-                     options->experiments.c_str(), argv[i + 1]);
-        return false;
-      }
-      options->experiments = argv[++i];
-    } else if (flag == "-o" && has_value) {
-      options->output = argv[++i];
-      options->output_named = true;
-    } else if (flag == "-gpu") {
-      // The old spelling, one dash for a long option: kept for scripts that
-      // have it, for now, and said so.
-      std::fprintf(
-          stderr,
-          "warning: -gpu is now --gpu, or -g; the old spelling will go\n");
-      options->gpu = true;
-    } else if (flag == "--subtract-background") {
-      options->grouping.subtract_background = true;
-    } else if (flag == "--gpu-force") {
-      options->gpu_force = true;
-    } else if (flag == "--gpu" || flag == "-g") {
-      options->gpu = true;
-    } else if (flag == "--timing") {
-      options->timing = true;
-    } else if (flag == "--verbose") {
-      mxi::set_verbose(true);
-    } else if (flag == "--no-shoeboxes") {
-      options->shoeboxes = false;
-    } else if (flag == "--2d") {
-      options->two_d = true;
-    } else if (flag == "--min-spot-size" && has_value) {
-      options->grouping.min_spot_size =
-          static_cast<std::size_t>(std::atoll(argv[++i]));
-    } else if (flag == "--max-spot-size" && has_value) {
-      options->grouping.max_spot_size =
-          static_cast<std::size_t>(std::atoll(argv[++i]));
-    } else if (flag == "--max-separation" && has_value) {
-      options->grouping.max_separation = std::atof(argv[++i]);
-    } else if (flag == "--z-offset" && has_value) {
-      options->z_offset = std::atoll(argv[++i]);
-      options->z_offset_given = true;
-    } else if (flag == "--chunk" && has_value) {
-      options->chunk = static_cast<std::size_t>(std::atoll(argv[++i]));
-    } else if (flag == "--version") {
+  // --version first: mxi_find's says which threshold backend it was built with,
+  // more than the shared parser's.
+  for (int i = 1; i < argc; ++i)
+    if (std::string(argv[i]) == "--version") {
       report_version("mxi_find");
       std::exit(0);
-    } else if (flag == "-h" || flag == "--help") {
-      // Asked for, so not an error: it exited 2, like an unknown flag, which
-      // made a script checking whether this is installed think it was broken.
-      usage(argv[0], stdout);
-      std::exit(0);
-    } else if (!flag.empty() && flag[0] != '-' &&
-               (looks_like_json(flag) || mxi::rflx::has_experiments(flag))) {
-      // An experiment list given as the argument, as dials.find_spots takes
-      // it: the images are then the ones its imageset names, as with -e. An
-      // .expt, or a .rflx holding one (docs/rflx.md) -- HDF5, as a master is,
-      // but with /experiments where a master has /entry.
+    }
+  // As every program: the shared parser (args.hh), -j and --threads alike.
+  const std::set<std::string> known = {"-j",
+                                       "--threads",
+                                       "-t",
+                                       "-p",
+                                       "-x",
+                                       "-o",
+                                       "-g",
+                                       "--gpu",
+                                       "--gpu-force",
+                                       "--subtract-background",
+                                       "--timing",
+                                       "--verbose",
+                                       "--no-shoeboxes",
+                                       "--2d",
+                                       "--min-spot-size",
+                                       "--max-spot-size",
+                                       "--max-separation",
+                                       "--z-offset",
+                                       "--chunk",
+                                       "-h",
+                                       "--help"};
+  const std::set<std::string> takes_value = {"-j",
+                                             "--threads",
+                                             "-t",
+                                             "-p",
+                                             "-x",
+                                             "-o",
+                                             "--min-spot-size",
+                                             "--max-spot-size",
+                                             "--max-separation",
+                                             "--z-offset",
+                                             "--chunk"};
+  mxi::Arguments args = mxi::parse_arguments(argc, argv, known, takes_value);
+  if (args.help) {
+    usage(argv[0], stdout);
+    std::exit(0);
+  }
+  if (!args.ok) {
+    std::fprintf(stderr, "mxi_find: %s\n", args.error.c_str());
+    return false;
+  }
+  options->threads = static_cast<int>(
+      args.number("-j", args.number("--threads", options->threads)));
+  options->timeout_seconds =
+      static_cast<int>(args.number("-t", options->timeout_seconds));
+  options->poll_milliseconds =
+      static_cast<int>(args.number("-p", options->poll_milliseconds));
+  if (args.has("-x"))
+    options->master = args.value("-x", "");
+  if (args.has("-o")) {
+    options->output = args.value("-o", "");
+    options->output_named = true;
+  }
+  options->gpu = args.has("--gpu") || args.has("-g");
+  options->gpu_force = args.has("--gpu-force");
+  options->grouping.subtract_background = args.has("--subtract-background");
+  options->timing = args.has("--timing");
+  if (args.has("--verbose"))
+    mxi::set_verbose(true);
+  options->shoeboxes = !args.has("--no-shoeboxes");
+  options->two_d = args.has("--2d");
+  if (args.has("--min-spot-size"))
+    options->grouping.min_spot_size = static_cast<std::size_t>(
+        std::atoll(args.value("--min-spot-size", "").c_str()));
+  if (args.has("--max-spot-size"))
+    options->grouping.max_spot_size = static_cast<std::size_t>(
+        std::atoll(args.value("--max-spot-size", "").c_str()));
+  if (args.has("--max-separation"))
+    options->grouping.max_separation =
+        std::atof(args.value("--max-separation", "").c_str());
+  if (args.has("--z-offset")) {
+    options->z_offset = std::atoll(args.value("--z-offset", "").c_str());
+    options->z_offset_given = true;
+  }
+  if (args.has("--chunk"))
+    options->chunk =
+        static_cast<std::size_t>(std::atoll(args.value("--chunk", "").c_str()));
+  // The inputs: an experiment list (JSON, or a .rflx, as mxi_import writes
+  // it), as every program takes it; or an NXmx master given directly; or both,
+  // the master then overriding where the list says the images are.
+  for (const std::string &input : args.positional) {
+    if (looks_like_json(input) || mxi::rflx::has_experiments(input)) {
       if (!options->experiments.empty()) {
         std::fprintf(stderr, "%s: two experiment lists, %s and %s\n", argv[0],
-                     options->experiments.c_str(), flag.c_str());
+                     options->experiments.c_str(), input.c_str());
         return false;
       }
-      options->experiments = flag;
-    } else if (!flag.empty() && flag[0] != '-' && options->master.empty()) {
-      // The master file may be named without -x, since flagging the one file
-      // this reads would be ceremony.
-      options->master = flag;
+      options->experiments = input;
+    } else if (options->master.empty()) {
+      options->master = input;
     } else {
       usage(argv[0]);
       return false;
@@ -408,30 +424,17 @@ bool parse_options(int argc, char **argv, Options *options) {
   if (options->threads == 0)
     options->threads =
         static_cast<int>(std::max(1u, std::thread::hardware_concurrency()));
-  // The master file may come from the .expt instead of the command line.
-  // dials.import already recorded where the images are, in the imageset block,
-  // so making the operator repeat it only creates an opportunity for the two to
-  // disagree -- and spots found in one file and indexed against the geometry of
-  // another is a mistake nothing downstream catches.
-  //
-  // An explicit -x still wins, because the .expt records an absolute path and a
-  // dataset that has moved since import would otherwise be unusable.
   options->master_given = !options->master.empty();
   if (!options->experiments.empty()) {
-    expt::Info info;
+    mxi::ExperimentImages info;
     try {
-      info = expt::read(options->experiments);
+      info = mxi::experiment_images(options->experiments);
     } catch (const std::exception &error) {
       std::fprintf(stderr, "%s\n", error.what());
       return false;
     }
-    // Several sweeps each read their own images, named by their own image
-    // sets, one at a time: main() takes each in turn -- counted whether or not
-    // a master was named, or one named with several would read the first
-    // experiment alone, silently.
     options->sweeps = std::max<std::size_t>(info.experiments, 1);
     if (!options->master.empty() || info.experiments > 1) {
-      // Nothing to infer.
     } else if (!info.has_imageset) {
       std::fprintf(stderr,
                    "%s has no imageset, so it does not say where the images "
@@ -439,9 +442,6 @@ bool parse_options(int argc, char **argv, Options *options) {
                    options->experiments.c_str());
       return false;
     } else if (info.templated) {
-      // Hashes stand for a numbered sequence of files, which this reads none
-      // of. Saying so beats handing the path to HDF5 and reporting whatever it
-      // makes of it.
       std::fprintf(stderr,
                    "%s names a file template, '%s', which is a numbered "
                    "sequence rather than one NXmx file; this reads NXmx only\n",
@@ -641,8 +641,8 @@ series::Info open_series(series::Series *source, const Options &options) {
 // What the experiment list says, against what the series says. A mismatch here
 // is worth stopping for: spot finding would succeed and index nothing, and the
 // reason would not be visible in either file.
-void reconcile(const expt::Info &experiments, const series::Info &series,
-               Options *options) {
+void reconcile(const mxi::ExperimentImages &experiments,
+               const series::Info &series, Options *options) {
   mxi::detail("Experiments: %s\n", describe(experiments).c_str());
 
   // One experiment's, always: several sweeps are taken one at a time.
@@ -737,18 +737,16 @@ void reconcile(const expt::Info &experiments, const series::Info &series,
 
 } // namespace
 
-// The table written: to its .refl, or -- for a .rflx (docs/rflx.md) -- encoded
-// in memory, read back as mxi's reader reads a file, and written into the
-// .rflx with the experiment list given, if one was: no file written only to be
-// read again. Throws as the writers do.
-void write_table(const Options &options, const std::vector<refl::Part> &parts,
-                 const refl::Options &writing) {
+// The table written, through the library's writers: to its .refl, or into a
+// .rflx (docs/rflx.md) with the experiment list given, if one was. Throws as
+// the writers do.
+void write_table(const Options &options,
+                 const std::vector<mxi::SpotPart> &parts, bool shoeboxes) {
+  const mxi::Table table = mxi::spot_table(parts, 0, shoeboxes);
   if (options.rflx.empty()) {
-    refl::write_parts(options.output, parts, writing);
+    mxi::write_reflections(options.output, table);
     return;
   }
-  const mxi::Table table =
-      mxi::decode_reflections(refl::encode_parts(parts, writing));
   std::optional<mxi::json::Value> document;
   if (!options.experiments.empty())
     document = mxi::read_experiment_document(options.experiments);
@@ -777,8 +775,9 @@ void report_written(const Options &options, std::size_t rows) {
 
 // What becomes of one experiment's spots: written as the table, for one sweep,
 // or kept to be written with the others', for several.
-using Emit = std::function<int(const dials_spots::Labeller &,
-                               const series::Info &, const expt::Info &)>;
+using Emit =
+    std::function<int(const dials_spots::Labeller &, const series::Info &,
+                      const mxi::ExperimentImages &)>;
 
 // One experiment's spots, from its own images: experiment `index` of the list,
 // or the master file alone without one. Handed to `emit` where they would be
@@ -789,10 +788,10 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
   series::Info info;
   // How many frames will be offered, when fewer than the file holds.
   std::uint64_t restricted = 0;
-  expt::Info experiments;
+  mxi::ExperimentImages experiments;
   try {
     if (!options.experiments.empty())
-      experiments = expt::read(options.experiments, index);
+      experiments = mxi::experiment_images(options.experiments, index);
 
     source = series::nxmx(options.master);
 
@@ -1366,18 +1365,16 @@ namespace {
 
 // The table one sweep's spots make, written as it always was.
 int write_one(const Options &options, const dials_spots::Labeller &labeller,
-              const series::Info &info, const expt::Info &experiments) {
-  refl::Options writing;
-  writing.identifier = experiments.identifier;
-  writing.shoeboxes = options.shoeboxes;
+              const series::Info &info,
+              const mxi::ExperimentImages &experiments) {
   try {
-    refl::Part part;
+    mxi::SpotPart part;
     part.spots = &labeller.spots();
     part.pixels = &labeller.pixels();
     part.width = static_cast<std::size_t>(info.width);
-    part.id = writing.id;
-    part.identifier = writing.identifier;
-    write_table(options, {part}, writing);
+    part.id = 0;
+    part.identifier = experiments.identifier;
+    write_table(options, {part}, options.shoeboxes);
   } catch (const std::exception &error) {
     std::fprintf(stderr, "%s\n", error.what());
     return 1;
@@ -1416,7 +1413,8 @@ int main(int argc, char **argv) {
   if (options.sweeps <= 1) {
     return find_one(options, 0, timing,
                     [&](const dials_spots::Labeller &labeller,
-                        const series::Info &info, const expt::Info &e) {
+                        const series::Info &info,
+                        const mxi::ExperimentImages &e) {
                       return write_one(options, labeller, info, e);
                     });
   }
@@ -1442,9 +1440,9 @@ int main(int argc, char **argv) {
   std::vector<Kept> kept(options.sweeps);
   int status = 0;
   for (std::size_t i = 0; i < options.sweeps; ++i) {
-    expt::Info e;
+    mxi::ExperimentImages e;
     try {
-      e = expt::read(options.experiments, i);
+      e = mxi::experiment_images(options.experiments, i);
     } catch (const std::exception &error) {
       std::fprintf(stderr, "%s\n", error.what());
       return 1;
@@ -1460,22 +1458,23 @@ int main(int argc, char **argv) {
     one.master = e.image_file;
     std::fprintf(stdout, "\nExperiment %zu of %zu: images %s\n", i + 1,
                  options.sweeps, one.master.c_str());
-    status |= find_one(one, i, timing,
-                       [&](const dials_spots::Labeller &labeller,
-                           const series::Info &info, const expt::Info &x) {
-                         kept[i].spots = labeller.spots();
-                         kept[i].pixels = labeller.pixels();
-                         kept[i].width = static_cast<std::size_t>(info.width);
-                         kept[i].identifier = x.identifier;
-                         return 0;
-                       });
+    status |=
+        find_one(one, i, timing,
+                 [&](const dials_spots::Labeller &labeller,
+                     const series::Info &info, const mxi::ExperimentImages &x) {
+                   kept[i].spots = labeller.spots();
+                   kept[i].pixels = labeller.pixels();
+                   kept[i].width = static_cast<std::size_t>(info.width);
+                   kept[i].identifier = x.identifier;
+                   return 0;
+                 });
     if (status != 0)
       return status;
   }
-  std::vector<refl::Part> parts;
+  std::vector<mxi::SpotPart> parts;
   std::size_t total = 0;
   for (std::size_t i = 0; i < kept.size(); ++i) {
-    refl::Part part;
+    mxi::SpotPart part;
     part.spots = &kept[i].spots;
     part.pixels = &kept[i].pixels;
     part.width = kept[i].width;
@@ -1484,10 +1483,8 @@ int main(int argc, char **argv) {
     parts.push_back(part);
     total += kept[i].spots.size();
   }
-  refl::Options writing;
-  writing.shoeboxes = options.shoeboxes;
   try {
-    write_table(options, parts, writing);
+    write_table(options, parts, options.shoeboxes);
   } catch (const std::exception &error) {
     std::fprintf(stderr, "%s\n", error.what());
     return 1;

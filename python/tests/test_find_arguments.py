@@ -41,12 +41,17 @@ def test_json_in_the_images_place_is_taken_for_an_experiment_list(tmp_path):
 
 
 @needs_find
-@pytest.mark.parametrize(
-    "order", [("a.expt", "-e", "b.expt"), ("-e", "a.expt", "b.expt")]
-)
-def test_two_experiment_lists_are_refused_either_way_round(tmp_path, order):
+def test_two_experiment_lists_are_refused(tmp_path):
     for name in ("a.expt", "b.expt"):
         (tmp_path / name).write_text("{}\n")
-    result = run(tmp_path, *order)
+    result = run(tmp_path, "a.expt", "b.expt")
     assert result.returncode == 2
     assert "two experiment lists" in result.stderr
+
+
+@needs_find
+def test_dash_e_is_gone(tmp_path):
+    (tmp_path / "a.expt").write_text("{}\n")
+    result = run(tmp_path, "-e", "a.expt")
+    assert result.returncode == 2
+    assert "unknown option '-e'" in result.stderr

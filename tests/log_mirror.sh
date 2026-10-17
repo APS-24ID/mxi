@@ -30,9 +30,9 @@ cmp -s saved mxi_index.log || fail "--help overwrote mxi_index.log"
 "$find" --help > /dev/null 2>&1
 [ -f mxi_find.log ] && fail "--help created mxi_find.log"
 
-# The spot finder, whose main is its own.
+# The spot finder: its complaint, as every program's, mirrored to its log.
 "$find" --no-such-flag > out 2> err
 [ -s err ] || fail "mxi_find reported nothing for a bad flag"
-grep -q "usage" mxi_find.log || fail "mxi_find's complaint is not in mxi_find.log"
+grep -q "unknown option" mxi_find.log || fail "mxi_find's complaint is not in mxi_find.log"
 
 echo "log mirror: every check passed"

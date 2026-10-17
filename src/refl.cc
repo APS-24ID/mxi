@@ -2,6 +2,7 @@
 
 #include "rflx.hh"
 
+#include <algorithm>
 #include <bit>
 #include <cstring>
 #include <fstream>
@@ -698,39 +699,50 @@ void write_reflections(const std::string &path, const Table &table) {
 
   put_text(out, "data");
   put_map_header(out, names.size() + opaque_names.size());
-  for (const std::string &name : names) {
-    const Column &c = table.at(name);
-    const auto info = type_table().find(c.type);
-    put_text(out, name);
-    put(out, 0x92);
-    put_text(out, c.type);
-    put(out, 0x92);
-    put_uint(out, table.nrows);
-    const std::size_t count = table.nrows * c.width;
-    if (c.integral) {
-      put_blob_header(out, count * info->second.element_bytes);
-      put_ints(out, c.ints, count, info->second.element_bytes);
-    } else {
-      put_blob_header(out, count * sizeof(double));
-      if constexpr (std::endian::native == std::endian::little) {
-        raw(reinterpret_cast<const char *>(c.reals.data()),
-            count * sizeof(double));
+  // Every column in name order, typed and opaque together, as DIALS writes
+  // them: the shoeboxes had come after the rest. The same table either way, but
+  // in DIALS's order a table mxi writes is byte for byte what DIALS writes --
+  // which let mxi_find give up its own writer for this one
+  // (docs/spots-integration.md).
+  std::vector<std::pair<std::string, bool>> order; // name, opaque
+  for (const std::string &name : names)
+    order.emplace_back(name, false);
+  for (const std::string &name : opaque_names)
+    order.emplace_back(name, true);
+  std::sort(order.begin(), order.end());
+  for (const auto &[name, opaque] : order) {
+    if (!opaque) {
+      const Column &c = table.at(name);
+      const auto info = type_table().find(c.type);
+      put_text(out, name);
+      put(out, 0x92);
+      put_text(out, c.type);
+      put(out, 0x92);
+      put_uint(out, table.nrows);
+      const std::size_t count = table.nrows * c.width;
+      if (c.integral) {
+        put_blob_header(out, count * info->second.element_bytes);
+        put_ints(out, c.ints, count, info->second.element_bytes);
       } else {
-        put_reals(out, c.reals.data(), count);
+        put_blob_header(out, count * sizeof(double));
+        if constexpr (std::endian::native == std::endian::little) {
+          raw(reinterpret_cast<const char *>(c.reals.data()),
+              count * sizeof(double));
+        } else {
+          put_reals(out, c.reals.data(), count);
+        }
       }
+      flush();
+    } else {
+      const Table::Opaque &keep = table.opaque().at(name);
+      put_text(out, name);
+      put(out, 0x92);
+      put_text(out, keep.type);
+      put(out, 0x92);
+      put_uint(out, table.nrows);
+      put_blob_header(out, keep.bytes.size());
+      raw(keep.bytes.data(), keep.bytes.size());
     }
-    flush();
-  }
-
-  for (const std::string &name : opaque_names) {
-    const Table::Opaque &keep = table.opaque().at(name);
-    put_text(out, name);
-    put(out, 0x92);
-    put_text(out, keep.type);
-    put(out, 0x92);
-    put_uint(out, table.nrows);
-    put_blob_header(out, keep.bytes.size());
-    raw(keep.bytes.data(), keep.bytes.size());
   }
   flush();
   file.close();

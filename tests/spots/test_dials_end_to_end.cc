@@ -25,9 +25,9 @@
 #include <vector>
 
 #include "dext.hh"
-#include "spots.hh"
-#include "spot_refl.hh"
 #include "signal_pixel.hh"
+#include "spot_table.hh"
+#include "spots.hh"
 
 namespace {
 
@@ -202,9 +202,9 @@ int main(int argc, char **argv) {
 
   // And the table itself, which check_refl.py can then be pointed at.
   const std::string path = argc > 1 ? argv[1] : "test_dials_end_to_end.refl";
-  refl::Options writing;
+  mxi::SpotTableOptions writing;
   writing.identifier = "end-to-end";
-  refl::write(path, spots, labeller.pixels(), width, writing);
+  mxi::write_spots(path, spots, labeller.pixels(), width, writing);
   std::printf("  wrote %s\n", path.c_str());
   if (argc <= 1)
     std::remove(path.c_str());

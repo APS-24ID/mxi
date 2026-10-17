@@ -113,6 +113,8 @@ add_library(mxi
   src/processing.cc
   src/two_theta.cc
   src/correlation.cc
+  src/spot_table.cc
+  src/experiment_images.cc
   src/fft.cc
   $<$<BOOL:${MXI_FFTW}>:src/fft_fftw.cc>
   src/index.cc

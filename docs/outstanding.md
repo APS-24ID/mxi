@@ -9,6 +9,21 @@ where something is missing.
 
 ## Integration
 
+* **73.** **A small molecule, mxi against DIALS (Graeme, 18 October).** Four
+  sweeps, a 5.4 x 8.1 x 12.0 A cell; mxi's merging a little worse (I/sigma 28
+  against 44, inner R_merge 0.033 against 0.024, the error model's a 2.0
+  against 1.05). Fixed: refinement -- the scan-varying pass re-admitted the
+  static pass's outliers (a quarter to a third of the reflections), which
+  dragged its first cycles off: RMSDs 2-5 times DIALS's and a cell edge
+  running 5.32 to 6.51 A within a sweep. Now it starts from the static pass's
+  reflections, the crystal tied weakly to the static one, and a crystal that
+  changes more than a crystal can is a WARNING: RMSDs 0.15/0.19 px, 0.12
+  images and like, as DIALS's. Open: (a) sweep 1 still 0.30/0.49 px, its
+  static fit poor from indexing; (b) 23 reflections 6.7-12 A integrated but
+  neither scaled nor excluded by mxi_scale, unsaid, so the merge starts at
+  6.73 A against DIALS's 12.03; (c) sigma_m 0.15-0.21 deg against DIALS's
+  0.078 -- to see again now the rotation residuals are DIALS's (item 63); and
+  then the merged figures, from Graeme's images.
 * **62.** **parked -- Graeme's 6S0R set** (P 1 21 1, 50.2 183.9 110.0 A, beta
     94.2; 2026-10-14). Strong reflections out by about a tenth of their
     intensity -- raw calibration 79 for the strongest sixth, 1.2 to 1.6 for

@@ -10,6 +10,7 @@
 #include "../src/combine.hh"
 #include "../src/expt.hh"
 #include "../src/json.hh"
+#include "../src/postrefine.hh"
 #include "../src/refl.hh"
 #include "check.hh"
 
@@ -155,4 +156,23 @@ TEST(experiments_sharing_nothing_refinement_fits_are_independent) {
     {"beam": 0, "detector": 0, "imageset": 0, "scan": 0, "crystal": 1}]})");
   check::equal(static_cast<long long>(independent_groups(lattices).size()), 1,
                "one sweep's two lattices together");
+}
+
+// Control points one per `interval` degrees of a scan, at least `minimum`:
+// the default one per 10, at least five; mxi_refine --interval 30 on a 170
+// degree sweep, six -- for sparse data, a small molecule's (18 October).
+TEST(control_points_follow_the_interval) {
+  Scan scan;
+  scan.osc_width = 0.1;
+  scan.first_image = 1;
+  scan.last_image = 1700; // 170 degrees
+  check::equal(static_cast<long long>(scan_varying_points(scan)), 17,
+               "one per 10 degrees");
+  check::equal(static_cast<long long>(scan_varying_points(scan, 30.0, 4)), 6,
+               "one per 30");
+  scan.last_image = 300; // 30 degrees
+  check::equal(static_cast<long long>(scan_varying_points(scan)), 5,
+               "at least five by default");
+  check::equal(static_cast<long long>(scan_varying_points(scan, 30.0, 4)), 4,
+               "at least four with an interval");
 }

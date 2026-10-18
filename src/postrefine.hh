@@ -34,7 +34,11 @@ std::vector<std::size_t> rows_for_postrefinement(const Table &integrated);
 //: the scan, as the reference profiles have a scan block per 10 degrees, and at
 //: least five -- 36 on a full turn, five on 30 degrees. mxi_refine's
 //: --scan-varying with no number and --postrefine both use it.
-std::size_t scan_varying_points(const Scan &scan);
+//: Control points for a scan: one per `interval` degrees, at least `minimum`
+//: (by default one per 10, at least five; mxi_refine --interval, at least
+//: four, the least a cubic spline takes).
+std::size_t scan_varying_points(const Scan &scan, double interval = 10.0,
+                                std::size_t minimum = 5);
 std::size_t postrefinement_points(const Scan &scan);
 
 struct PostrefineResult {

@@ -181,6 +181,14 @@ predicted the anisotropy. Most of the disagreement had been the comparison.
 - 18 October: mxi_refine refines each sweep on its own by default, even one
   crystal's sweeps sharing a beam and detector (Graeme: better results
   throughout); --joint for one fit until a test case needs it.
+- 18 October: refinement's scan-varying pass starts from the static pass's
+  reflections (it had re-admitted its outliers -- on a small molecule, a third
+  of them, RMSDs 2-5x DIALS's and a wandering cell); the crystal tied weakly
+  to the static one (--crystal-restraint, 1e6); --interval DEG; a WARNING when
+  a crystal changes more than a crystal can. Insulin identical to the digit.
+  Lesson: a tie that only bites at weights nobody would call weak, with a
+  response that is not monotonic, is a symptom -- look for what is dragging
+  the fit before tuning the tie.
 - Lessons: a tie must be to the right thing -- tied to one, the scale pulled a
   weak crystal's level, tied to its own level it does not; test with what
   differs in the user's case (different files, different geometry), not only

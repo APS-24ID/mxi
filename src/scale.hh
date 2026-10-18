@@ -138,6 +138,14 @@ struct ScaleFitOptions {
   //: surface_weight at the default absorption level, low -- 5e5. It was 1000,
   //: 500 times weaker, for no recorded reason.
   double decay_restraint = 0.1;
+  //: Weight of the restraint of each sweep's scale towards a constant, its
+  //: own mean -- sum (C_i - mean)^2 over the sweep's values: a weak tie, so
+  //: that where the equivalents do not hold the scale it stays level rather
+  //: than wandering (through zero, on a short wedge; item 71), while where they
+  //: do, it is the data's. Not towards one: crystals differ in their overall
+  //: scale, and a tie to one pulled a weak crystal's up. A prior of about
+  //: 1/sqrt(W) on each value's departure from its sweep's level.
+  double scale_restraint = 0.0;
   double absorption_restraint = 5e5;
 };
 

@@ -116,6 +116,28 @@ TEST(a_planted_scale_decay_and_absorption_are_recovered) {
                  "the absorption surface, to " + std::to_string(worst_p));
 }
 
+// The tie of the scale to its sweep's level (item 71) decides only what the
+// data leave open: a planted scale varying by 30% across the sweep, which the
+// equivalents hold, is recovered through it at mxi_scale's default weight as
+// it is without -- the data overrule the tie.
+TEST(a_planted_varying_scale_is_recovered_through_the_tie_to_its_level) {
+  ScaleModel truth({6, 5, 0});
+  const double c[6] = {0.85, 1.05, 1.15, 1.0, 0.85, 1.1};
+  for (std::size_t i = 0; i < 6; ++i)
+    truth.parameters[i] = c[i];
+  truth.normalise();
+  const ScaleData data = planted(truth, 7);
+  ScaleFitOptions options;
+  options.scale_restraint = 1.0;
+  ScaleModel fit({6, 5, 0});
+  const ScaleFitResult r = fit_scale_model(fit, data, options);
+  check::is_true(r.converged, "converged in " + std::to_string(r.iterations));
+  double worst = 0.0;
+  for (std::size_t i = 0; i < 6; ++i)
+    worst = std::fmax(worst, std::abs(fit.parameters[i] - truth.parameters[i]));
+  check::is_true(worst < 0.003, "the scale, to " + std::to_string(worst));
+}
+
 TEST(fitting_selects_whole_groups_until_both_thresholds_are_met) {
   ScaleModel truth({6, 0, 0});
   const ScaleData data = planted(truth, 3);

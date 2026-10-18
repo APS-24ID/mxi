@@ -69,6 +69,13 @@ void usage() {
       "  --l-max L         the absorption surface to degree L, lmax (lmax + "
       "2)\n"
       "                    terms: 4 by default from 60 degrees (24), 6 for 48\n"
+      "  --scale-restraint W  each sweep's scale tied to a constant, its own\n"
+      "                    level, with weight W -- a prior of about "
+      "1/sqrt(W):\n"
+      "                    where the data hold the scale it is theirs, where\n"
+      "                    they do not it stays level (1; 0 for none)\n"
+      "  --decay-restraint W  each relative B tied to zero with weight W\n"
+      "                    (0.1, dials.scale's)\n"
       "  --profile-only    profile-fitted intensities alone, not a mix with\n"
       "                    summation chosen by Rmeas\n"
       "  --shells N        resolution shells in the table (20)\n"
@@ -102,6 +109,8 @@ int run_program(int argc, char **argv) {
                                        "--d-max",
                                        "--no-model-variances",
                                        "--error-model-fit",
+                                       "--scale-restraint",
+                                       "--decay-restraint",
                                        "--verbose"};
   const std::set<std::string> takes_value = {
       "--error-model-fit",  "--l-max",
@@ -109,7 +118,8 @@ int run_program(int argc, char **argv) {
       "--threads",          "--space-group",
       "--change-of-basis",  "--d-min",
       "--shells",           "-o",
-      "--output-expt",      "--d-max"};
+      "--output-expt",      "--d-max",
+      "--scale-restraint",  "--decay-restraint"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   set_verbose(args.has("--verbose"));
   // One .rflx stands for the experiment list and the reflections
@@ -223,6 +233,15 @@ int run_program(int argc, char **argv) {
     options.level_lmax = level == "low" ? 4 : 6;
     options.fit.absorption_restraint =
         level == "low" ? 5e5 : (level == "medium" ? 5e4 : 5e3);
+    // The weak ties of the scale towards one and the relative B towards zero:
+    // where the equivalents hold them they are the data's, and where they do
+    // not, they stay there rather than wander (item 71).
+    // 1 by default here: the weakest tie that held a 7.5 degree wedge which
+    // had wandered through zero, and changed nothing measurable on full data
+    // (docs/scaling.md). The library's default stays 0, unrestrained.
+    options.fit.scale_restraint = args.number("--scale-restraint", 1.0);
+    options.fit.decay_restraint =
+        args.number("--decay-restraint", options.fit.decay_restraint);
     options.anomalous = args.has("--anomalous");
     options.model_variances = !args.has("--no-model-variances");
     {
@@ -339,6 +358,14 @@ int run_program(int argc, char **argv) {
       if (own.decay_points > 0)
         std::printf("; relative B %.3f to %.3f A^2", bmin, bmax);
       std::printf("\n");
+      // A scale at or below zero is no scale: the fit went where the data did
+      // not hold it, and every intensity it touches is meaningless. Said, not
+      // written as a result in silence (item 71).
+      if (cmin <= 0.0)
+        std::printf("  WARNING: experiment %zu's scale reaches %.4f -- at or "
+                    "below zero, which no scale can be; the fit is not to be "
+                    "trusted (try a stronger --scale-restraint)\n",
+                    w, cmin);
     }
     if (run.i_mid == 0.0)
       std::printf("Intensities: profile fitted\n");

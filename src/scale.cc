@@ -366,6 +366,16 @@ double restraint_of(const ScaleModel &model, const ScaleFitOptions &options,
                     double r = 0.0) {
   for (std::size_t w = 0; w < model.sweeps(); ++w) {
     const ScaleModelShape &s = model.shape(w);
+    if (options.scale_restraint > 0.0 && s.scale_points > 1) {
+      double mean = 0.0;
+      for (std::size_t k = 0; k < s.scale_points; ++k)
+        mean += model.parameters[model.first_scale(w) + k];
+      mean /= static_cast<double>(s.scale_points);
+      for (std::size_t k = 0; k < s.scale_points; ++k) {
+        const double d = model.parameters[model.first_scale(w) + k] - mean;
+        r += options.scale_restraint * d * d;
+      }
+    }
     for (std::size_t k = 0; k < s.decay_points; ++k)
       r += options.decay_restraint *
            model.parameters[model.first_decay(w) + k] *
@@ -528,6 +538,26 @@ void normal_equations(const ScaleModel &model, const ScaleData &data,
 
   for (std::size_t w = 0; w < model.sweeps(); ++w) {
     const ScaleModelShape &s = model.shape(w);
+    // The scale tied to its sweep's own mean, W sum (C_i - mean)^2: the
+    // Hessian W (I - 11^T / m) over the sweep's scale values, the gradient
+    // W (C_i - mean). A sweep's overall level is left to the data -- crystals
+    // differ, a weak one rightly at 0.2 -- and fixed in all by normalise().
+    if (options.scale_restraint > 0.0 && s.scale_points > 1) {
+      const std::size_t first = model.first_scale(w);
+      const std::size_t m = s.scale_points;
+      double mean = 0.0;
+      for (std::size_t k = 0; k < m; ++k)
+        mean += model.parameters[first + k];
+      mean /= static_cast<double>(m);
+      const double off = options.scale_restraint / static_cast<double>(m);
+      for (std::size_t i = 0; i < m; ++i) {
+        for (std::size_t j = 0; j < m; ++j)
+          N[(first + i) * n + first + j] -= off;
+        N[(first + i) * n + first + i] += options.scale_restraint;
+        b[first + i] -=
+            options.scale_restraint * (model.parameters[first + i] - mean);
+      }
+    }
     for (std::size_t k = 0; k < s.decay_points; ++k) {
       const std::size_t a = model.first_decay(w) + k;
       N[a * n + a] += options.decay_restraint;

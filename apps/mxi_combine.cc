@@ -33,8 +33,9 @@ const char *const kUsage =
     "mxi_symmetry and mxi_scale together; mxi_split does the reverse.\n"
     "\n"
     "The same experiment twice (one identifier in two inputs) is refused. The\n"
-    "columns kept are those every input has; any other, and shoeboxes, are\n"
-    "left out, and named. A DIALS pair is made a .rflx first by mxi_convert.\n"
+    "columns kept are those every input has, shoeboxes included where every\n"
+    "input has them; any other is left out, and named. A DIALS pair is made a\n"
+    ".rflx first by mxi_convert.\n"
     "\n"
     "  -o PATH           where to write (combined.rflx)\n"
     "  --help, --version\n";

@@ -9,6 +9,23 @@ where something is missing.
 
 ## Integration
 
+* **72.** **correctness -- 16 data sets processed together scale much worse
+  than processed apart (Graeme, 17 October).** One import of 16 masters, found,
+  indexed --no-joint, refined and integrated together, split and each scaled
+  alone: R_merge much worse than each processed in isolation (about 0.03 in
+  the inner shell); the 11 good ones scaled together, inner R_merge 0.125 and
+  b 0.125 jointly, 0.049 and 0.050 from the isolated runs combined. Ruled out,
+  on insulin as four sweeps of one file and as two different files (--no-joint
+  included): refinement (Graeme: split after indexing, identical), integration
+  (every intensity and background identical, joint against each alone),
+  symmetry and scaling (each data set identical to the last digit). Not yet
+  tested: masters of *different* geometry imported together -- whether each
+  data set keeps its own detector, beam and scan through the import. Next:
+  mxi_show of the joint import against each isolated one; and the joint
+  refined file split, each integrated alone, against the joint integration.
+  Found on the way, fixed: a list's images were its document's first image
+  set's, not its experiments' -- a split or combined file integrated one data
+  set from another's images.
 * **62.** **parked -- Graeme's 6S0R set** (P 1 21 1, 50.2 183.9 110.0 A, beta
     94.2; 2026-10-14). Strong reflections out by about a tenth of their
     intensity -- raw calibration 79 for the strongest sixth, 1.2 to 1.6 for

@@ -28,8 +28,8 @@ struct ExperimentsAndReflections {
 //: The experiments `keep` marks (by index), each with the crystal-less sweep
 //: experiment it shares an image set and scan with, if there is one -- without
 //: it the data set could not be integrated or converted again -- and their
-//: reflections, the ids and identifiers renumbered to match. Shoeboxes, which
-//: cannot be split by row, are left out.
+//: reflections, the ids and identifiers renumbered to match, the shoeboxes
+//: with them -- integration's profile model wants a sweep's own spots'.
 ExperimentsAndReflections select_experiments(const json::Value &document,
                                              const Table &reflections,
                                              const std::vector<bool> &keep);
@@ -38,8 +38,8 @@ ExperimentsAndReflections select_experiments(const json::Value &document,
 //: appended, its experiments' references to them offset, its reflections'
 //: ids and identifiers offset by the experiments before. The same experiment
 //: twice -- the same identifier in two inputs -- is refused. The columns kept
-//: are those every table has, of the same type; any other, and shoeboxes, are
-//: left out and named in `dropped`.
+//: are those every table has, of the same type, and the shoeboxes where every
+//: input has them; any other is left out and named in `dropped`.
 struct Combined : ExperimentsAndReflections {
   std::vector<std::string> dropped;
 };

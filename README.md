@@ -114,7 +114,7 @@ The options most often wanted:
 | --- | --- |
 | `mxi_find` | `-g`/`--gpu`; `--min-spot-size N`; `--no-shoeboxes` |
 | `mxi_index` | `--d-min D`; `--max-cell A`; `--max-lattices N`; `--no-joint` sweeps indexed apart |
-| `mxi_refine` | `--static` one crystal setting for the scan; `--scan-varying N` N control points; `--shared-crystal`; `--joint` independent experiments in one fit, where by default each is refined alone |
+| `mxi_refine` | `--static` one crystal setting for the scan; `--scan-varying N` N control points; `--shared-crystal`; `--joint` several sweeps in one fit, where by default each sweep is refined on its own |
 | `mxi_integrate` | `-g`/`--gpu`; `--d-min D`, `--d-max D`; `--postrefine`; `--summation-only` |
 | `mxi_symmetry` | `--max-delta D` the lattice's tolerance; `--no-cosym` |
 | `mxi_scale` | `--d-min-auto`, `--d-min D`, `--d-max D`; `--space-group NAME`; `--anomalous`; `--absorption-level low|medium|high`; `--error-model-fit regression|individual`; `--scale-restraint W` each sweep's scale tied to its level (1) |

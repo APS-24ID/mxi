@@ -185,8 +185,8 @@ Combined combine_experiments(const std::vector<json::Value> &documents,
 // its own (Graeme: with no shared models, one experiment at a time, not one
 // huge joint refinement -- 16 crystals' data sets refined together had been
 // the one joined step left in question).
-std::vector<std::vector<std::size_t>>
-independent_groups(const json::Value &doc) {
+std::vector<std::vector<std::size_t>> independent_groups(const json::Value &doc,
+                                                         bool by_models) {
   const json::Array &all = doc["experiment"].as_array();
   const std::size_t n = all.size();
   std::vector<std::size_t> parent(n);
@@ -215,6 +215,8 @@ independent_groups(const json::Value &doc) {
       if (!fresh)
         join(i, at->second);
     }
+    if (!by_models)
+      continue;
     for (const char *key : {"detector", "beam", "crystal"}) {
       const long long m = index_of(e, key);
       if (m < 0)

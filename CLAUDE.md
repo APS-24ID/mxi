@@ -178,6 +178,9 @@ predicted the anisotropy. Most of the disagreement had been the comparison.
   beam for 14 crystals; now each sweep keeps its own and independent
   experiments are refined apart. And a list's images come from its
   experiments' own image set, not the document's first.
+- 18 October: mxi_refine refines each sweep on its own by default, even one
+  crystal's sweeps sharing a beam and detector (Graeme: better results
+  throughout); --joint for one fit until a test case needs it.
 - Lessons: a tie must be to the right thing -- tied to one, the scale pulled a
   weak crystal's level, tied to its own level it does not; test with what
   differs in the user's case (different files, different geometry), not only

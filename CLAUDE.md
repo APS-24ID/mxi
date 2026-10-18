@@ -163,6 +163,28 @@ integrating the same model over the same pixels inside the same mask put the
 positions within a hundredth of a pixel, the widths within four per cent, and
 predicted the anisotropy. Most of the disagreement had been the comparison.
 
+**Done 16 and 17 October, to 1.0.2:**
+- The spot finder made one stage of mxi, in three commits (1.0.1): the flat
+  tree and one build, MXI_* options; the library's table writers, experiment
+  lists, arguments, HDF5 handles and namespaces; one Metal and one CUDA layer
+  shared with profile fitting; its tests in mxi_tests; its documents mxi's.
+  Strong spots byte for byte throughout.
+- mxi_combine and mxi_split, shoeboxes kept (src/combine.*); every program's
+  --help works (seven had been errors); the documents' commands checked
+  against the programs' options by a test.
+- mxi_scale: each sweep's scale tied weakly to its own level (W 1), a scale at
+  or below zero a warning (item 71).
+- Item 72: --no-joint had merged identical beams, and mxi_refine fitted one
+  beam for 14 crystals; now each sweep keeps its own and independent
+  experiments are refined apart. And a list's images come from its
+  experiments' own image set, not the document's first.
+- Lessons: a tie must be to the right thing -- tied to one, the scale pulled a
+  weak crystal's level, tied to its own level it does not; test with what
+  differs in the user's case (different files, different geometry), not only
+  what is to hand (one file split) -- three of today's bugs were invisible to
+  one-file tests; and a print of a list's models that leaves one out (the
+  beam) can hide exactly what is wrong.
+
 **Done 15 October, to 494:**
 - mxi_correlation, whole (`docs/correlation.md`): the sigma-weighted matrix as
   DIALS's weighted_cchalf, cosym coordinates and their dimension as

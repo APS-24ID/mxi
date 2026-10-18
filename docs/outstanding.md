@@ -9,25 +9,6 @@ where something is missing.
 
 ## Integration
 
-* **72.** **correctness -- 16 data sets processed together scale much worse
-  than processed apart (Graeme, 17 October).** One import of 16 masters, found,
-  indexed --no-joint, refined and integrated together: inner R_merge 0.125 and
-  b 0.125, against 0.049 and 0.050 from the isolated runs combined. **The likely
-  cause, found:** `mxi_index --no-joint` joined its sweeps with their identical
-  beams merged into one -- 14 of the 16 share a header wavelength -- and
-  mxi_refine fitted that one beam for all of them, each data set's geometry
-  pulled from where it lies alone (reproduced on two data sets: the first's
-  beam centre 1081.14, 1121.28 alone, 1081.32, 1121.64 with the beam shared,
-  its cell's c 67.477 to 67.396). Graeme's mxi_show listed each sweep's
-  detector, not its beam, so the sharing did not show. Fixed: --no-joint keeps
-  each sweep's beam and detector; mxi_refine refines independent groups apart
-  (each identical to the data set refined alone). **To confirm on the 16:**
-  index --no-joint again with this build, refine, integrate, and compare with
-  the isolated route. Ruled out on the way: the import (each master keeps its
-  own geometry), integration (identical, joint against alone, one file, two
-  files and two detectors), symmetry and scaling. Also fixed: a list's images
-  were its document's first image set's -- a split or combined file
-  integrated one data set from another's images.
 * **62.** **parked -- Graeme's 6S0R set** (P 1 21 1, 50.2 183.9 110.0 A, beta
     94.2; 2026-10-14). Strong reflections out by about a tenth of their
     intensity -- raw calibration 79 for the strongest sixth, 1.2 to 1.6 for
@@ -378,6 +359,18 @@ where something is missing.
 * **32.** **The device port is designed but not written.** `docs/gpu.md`.
 
 ## Closed
+
+* **72.** Closed 17 October, confirmed by Graeme on his 16 data sets. **Data
+  sets processed together scaled much worse than processed apart** -- inner
+  R_merge 0.125 and b 0.125, against 0.049 and 0.050. `mxi_index --no-joint`
+  joined its sweeps with identical beams merged into one, 14 of the 16
+  sharing a header wavelength, and mxi_refine fitted that one beam for all of
+  them. Now --no-joint keeps each sweep's beam and detector, and mxi_refine
+  refines independent experiments apart (`--joint` for one fit). Ruled out on
+  the way, each by an identical comparison: the import, integration (one file,
+  two files, two detectors), symmetry and scaling. Also fixed on the way: a
+  list's images were its document's first image set's, so a split or combined
+  file integrated one data set from another's images.
 
 * **71.** Closed 17 October. **mxi_scale's scale wandered, through zero, where
   the data did not hold it, and said nothing.** Reproduced on 7.5 degree wedges

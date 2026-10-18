@@ -17,7 +17,7 @@ of them -- and mxi should, from `mxi_import` to `mxi_scale`.
 | `mxi_import` | built: several masters, one experiment each (step 1) |
 | `mxi_find` | built: each experiment from its own images, one table with `id`s (step 2) |
 | `mxi_index` | joint indexing with one matrix, then each sweep's crystal refined apart (step 3) |
-| `mxi_refine` | several experiments, a crystal each by default |
+| `mxi_refine` | each sweep refined on its own, its beam and detector its own; `--joint` for one fit |
 | `mxi_integrate` | built: each sweep alone, its own profile model, one table with `id`s (step 4) |
 | `mxi_symmetry` | built: the sweeps pooled, every experiment reindexed alike (step 5) |
 | `mxi_scale` | built: a model a sweep, sharing the merged intensities (step 6) |
@@ -169,9 +169,20 @@ Each sweep keeps its own beam and detector through the join, even where
 their values agree: these are different crystals, and a beam merged because
 two headers agree was refined as one for all of them -- 14 of Graeme's 16
 data sets shared one beam, each pulled from where it lies alone (17 October).
-mxi_refine then refines each sweep on its own: experiments sharing no sweep,
-detector, beam or crystal are independent groups, each refined in a run of its
-own and the results joined in order (`--joint` for one fit of them all).
+mxi_refine then refines each sweep on its own, in a run of its own, the results
+joined in order (`--joint` for one fit of them all).
+
+## Each sweep refined on its own (18 October)
+
+Every sweep is refined alone by default -- even several sweeps of one crystal
+sharing a beam and detector, each sweep then refining its own copy -- the
+lattices of one sweep together, since they share its detector. Graeme found
+better results this way even for one crystal's sweeps in different
+orientations; on insulin's four sweeps of one master, each sweep's detector
+comes out its own (169.84 to 169.91 mm, against one 169.870 jointly) and the
+inner shell a little better (I/sigma 26.3 against 26.1, R_merge 0.032 against
+0.033). `--joint` refines all in one fit, sharing what they share, until a case
+needs it; `--shared-crystal`, one crystal across sweeps, implies it.
 mxi_symmetry then finds the crystals' orientations apart and runs cosym, which
 puts them in one setting. Insulin as four sweeps (mxi_import --split 4),
 indexed apart: four cells, cosym's cosines 0.999 to 1.000, I 2 3, R merge 0.040

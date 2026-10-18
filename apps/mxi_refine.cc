@@ -38,9 +38,9 @@ void usage() {
       "  --no-beam         hold the beam direction fixed (refined by default;\n"
       "                    on a single sweep it is correlated with the\n"
       "                    detector)\n"
-      "  --joint           several independent experiments -- sharing no\n"
-      "                    detector, beam, crystal or sweep -- refined in one\n"
-      "                    fit, where by default each group is refined alone\n"
+      "  --joint           several sweeps refined in one fit, sharing what\n"
+      "                    models they share, where by default each sweep is\n"
+      "                    refined on its own\n"
       "  --shared-crystal  several sweeps: one crystal for them all, where by\n"
       "                    default each refines its own (--separate, as was)\n"
       "  --conditional-depth  mean depth given absorption, not eqn (6)\n"
@@ -191,9 +191,9 @@ int refine_apart(const Arguments &args,
     argv.push_back(nullptr);
     return run_program(static_cast<int>(words.size()), argv.data());
   };
-  std::printf("Refining %zu experiments in %zu independent groups, each on its "
-              "own: no detector, beam, crystal or sweep shared between them "
-              "(--joint for one refinement of them all)\n",
+  std::printf("Refining %zu experiments sweep by sweep, %zu runs, each "
+              "sweep's beam and detector its own (--joint for one refinement "
+              "of them all)\n",
               n, groups.size());
   std::vector<json::Value> lists(groups.size());
   std::vector<Table> tables(groups.size());
@@ -371,9 +371,10 @@ int run_program(int argc, char **argv) {
     usage();
     return 2;
   }
-  // Independent experiments refined one group at a time (refine_apart),
-  // unless asked for one refinement of all (--joint) or a crystal shared
-  // across sweeps (--shared-crystal), which joins them.
+  // Each sweep refined on its own (refine_apart) -- even one crystal's
+  // sweeps, a shared beam or detector a copy each: better results throughout
+  // (Graeme, 18 October) -- unless asked for one refinement of all (--joint)
+  // or a crystal shared across sweeps (--shared-crystal), which joins them.
   if (!args.has("--joint") && !args.has("--shared-crystal")) {
     const json::Value document = read_experiment_document(args.positional[0]);
     if (document.is_object() && document["experiment"].is_array() &&

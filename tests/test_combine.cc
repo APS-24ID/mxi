@@ -137,12 +137,22 @@ TEST(experiments_sharing_nothing_refinement_fits_are_independent) {
   json::Value shared = json::parse(R"({"experiment": [
     {"beam": 0, "detector": 0, "imageset": 0, "scan": 0, "crystal": 0},
     {"beam": 0, "detector": 1, "imageset": 1, "scan": 1, "crystal": 1}]})");
-  check::equal(static_cast<long long>(independent_groups(shared).size()), 1,
-               "a shared beam joins them");
+  check::equal(static_cast<long long>(independent_groups(shared).size()), 2,
+               "by sweep, the default: a shared beam does not join them");
+  check::equal(static_cast<long long>(independent_groups(shared, true).size()),
+               1, "by models: a shared beam joins them");
   // One crystal across two sweeps: one group.
   json::Value crystal = json::parse(R"({"experiment": [
     {"beam": 0, "detector": 0, "imageset": 0, "scan": 0, "crystal": 0},
     {"beam": 1, "detector": 1, "imageset": 1, "scan": 1, "crystal": 0}]})");
-  check::equal(static_cast<long long>(independent_groups(crystal).size()), 1,
-               "a shared crystal joins them");
+  check::equal(static_cast<long long>(independent_groups(crystal).size()), 2,
+               "by sweep: a shared crystal does not join them");
+  check::equal(static_cast<long long>(independent_groups(crystal, true).size()),
+               1, "by models: a shared crystal joins them");
+  // Two lattices on one sweep: together either way, its detector theirs.
+  json::Value lattices = json::parse(R"({"experiment": [
+    {"beam": 0, "detector": 0, "imageset": 0, "scan": 0, "crystal": 0},
+    {"beam": 0, "detector": 0, "imageset": 0, "scan": 0, "crystal": 1}]})");
+  check::equal(static_cast<long long>(independent_groups(lattices).size()), 1,
+               "one sweep's two lattices together");
 }

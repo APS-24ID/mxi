@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "args.hh"
+#include "combine.hh"
 #include "correlation.hh"
 #include "expt.hh"
 #include "json.hh"
@@ -520,34 +521,16 @@ int main(int argc, char **argv) {
       labels.erase(-1);
       std::printf("\n");
       for (int label : labels) {
+        // The cluster's data sets, each with its sweep, and their rows
+        // renumbered: as mxi_split writes them (src/combine.hh).
         std::vector<bool> keep(all.size(), false);
-        std::set<std::pair<long, long>> sweeps; // image set, scan
         for (std::size_t i = 0; i < clusters.labels.size(); ++i)
-          if (clusters.labels[i] == label) {
+          if (clusters.labels[i] == label)
             keep[which[i]] = true;
-            const json::Value &x = all[which[i]];
-            if (x["imageset"].is_number() && x["scan"].is_number())
-              sweeps.insert({static_cast<long>(x["imageset"].as_number()),
-                             static_cast<long>(x["scan"].as_number())});
-          }
-        for (std::size_t e = 0; e < all.size(); ++e)
-          if (!all[e]["crystal"].is_number() &&
-              all[e]["imageset"].is_number() && all[e]["scan"].is_number() &&
-              sweeps.count({static_cast<long>(all[e]["imageset"].as_number()),
-                            static_cast<long>(all[e]["scan"].as_number())}))
-            keep[e] = true;
-        std::vector<std::size_t> rows;
-        if (reflections.has("id")) {
-          const Column &id = reflections.at("id");
-          for (std::size_t r = 0; r < reflections.nrows; ++r) {
-            const std::int64_t e = id.integer(r);
-            if (e >= 0 && static_cast<std::size_t>(e) < keep.size() &&
-                keep[static_cast<std::size_t>(e)])
-              rows.push_back(r);
-          }
-        }
-        Table table = select_rows(reflections, rows);
-        const json::Value sub = keep_experiments(document, keep, &table);
+        const ExperimentsAndReflections part =
+            select_experiments(document, reflections, keep);
+        const json::Value &sub = part.document;
+        const Table &table = part.reflections;
         const std::string path = prefix + "_" + std::to_string(label) + ".rflx";
         rflx::write(path, &sub, &table, "mxi_correlation", false,
                     summary ? &*summary : nullptr);

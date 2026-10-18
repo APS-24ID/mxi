@@ -50,7 +50,11 @@ Arguments parse_arguments(int argc, char **argv,
              known.count("-j"))
       arg = "-j";
     if (arg == "-h" || arg == "--help") {
+      // Both ways of asking: args.help, and has("--help") as seven programs
+      // asked it -- which this never set, so their --help was an error.
       out.help = true;
+      out.options["--help"] = "";
+      out.options["-h"] = "";
       return out;
     }
     // A bare "-" is a filename by convention, not an option.

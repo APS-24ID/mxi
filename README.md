@@ -103,6 +103,11 @@ cosym bringing them to one setting in `mxi_symmetry`
 together by their intensities, writes each as its own `.rflx` to scale alone,
 and an HTML report ([`docs/correlation.md`](docs/correlation.md)).
 
+**Data sets processed separately** -- each integrated on its own, say -- are
+joined by `mxi_combine a.rflx b.rflx ... -o combined.rflx`, then go through
+`mxi_symmetry` and `mxi_scale` together; `mxi_split` takes data sets out
+again, each alone or a chosen few together.
+
 The options most often wanted:
 
 | program | options |
@@ -123,6 +128,8 @@ The options most often wanted:
 | `mxi_show` | what a file holds: the models, the reflections by what has been done to them, each program's summary ([`docs/output.md`](docs/output.md)) |
 | `mxi_report` | an HTML report of a file's processing, every step's figures and plots ([`docs/output.md`](docs/output.md)) |
 | `mxi_convert` | between `.rflx` and DIALS' `.expt` and `.refl` (below) |
+| `mxi_combine` | several runs' files joined into one: data sets processed separately, to go through symmetry and scaling together |
+| `mxi_split` | a file's data sets apart, each into its own file, or the ones named into one |
 | `mxi_max` | the largest count on a valid pixel, and whether the images fit in 16 bits (for `mxi_find --gpu-force`) |
 | `mxi_profile` | the profile model estimated from strong spots, and how much of each spot it holds |
 | `mxi_residuals` | refinement's residuals by resolution, detector module, or anything else |

@@ -9,6 +9,15 @@ where something is missing.
 
 ## Integration
 
+* **71.** **correctness -- mxi_scale diverges at low multiplicity rather than
+  saying so.** A quarter of an insulin sweep scaled alone (mxi_split of the
+  four-sweep set: 5011 observations, multiplicity 1.3, 60% complete): mean
+  intensities negative (-1241 in the first shell), R_merge 301341, the scales'
+  sigma(g)/g averaging -0.039 -- which cannot be negative -- and the error model
+  fitted from 0 observations. Too little to scale is a fair outcome; a
+  diverged model written as a result is not. To decide: refuse below some
+  multiplicity, restrain the model more strongly, or detect the divergence (a
+  negative variance, negative mean intensities) and say so. Found 17 October.
 * **62.** **parked -- Graeme's 6S0R set** (P 1 21 1, 50.2 183.9 110.0 A, beta
     94.2; 2026-10-14). Strong reflections out by about a tenth of their
     intensity -- raw calibration 79 for the strongest sixth, 1.2 to 1.6 for

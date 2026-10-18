@@ -225,6 +225,34 @@ dials.scale's (0.991, 0.956 against 0.994, 0.967). So what remains is the
 sigmas, by the error model's larger b, which caps I / sigma at 1 / (a b):
 outstanding item 69.
 
+## The scale tied to its level (17 October)
+
+Each sweep's scale values are tied to their own mean, W sum (C_i - mean)^2,
+`--scale-restraint W`, 1 by default: a weak tie, a prior of about 1/sqrt(W) on
+each value's departure from its sweep's level. Where the equivalents hold the
+scale it is theirs; where they do not, it stays level rather than wandering.
+The relative B was already tied to zero, dials.scale's 0.1 (`--decay-restraint`).
+
+Why: a 7.5 degree wedge of insulin scaled alone (item 71) had its scale wander
+from -0.71 to 0.41 -- through zero -- with negative mean intensities, R_meas
+1.9e6 and a negative sigma(g)/g. Tied at W = 1: scale 0.95 to 1.05, R_meas
+0.050, CC half 0.994. A wedge the data hold (0.94 to 1.07) does not move at
+W = 1 to 16; a planted 30% variation is recovered through the tie
+(`a_planted_varying_scale_is_recovered_through_the_tie_to_its_level`); the
+full four-sweep insulin is the same to every digit printed.
+
+To its level, not to one: crystals differ in their overall scale, and a tie to
+one pulled the weakest of the 36 insulin crystals' up (0.20-0.43 to
+0.22-0.44). Tied to its level it keeps its level (about 0.33) and its
+variation within the sweep narrows, 0.20-0.43 to 0.23-0.42; the merged
+figures the same (R_meas 0.229, b 0.0555). A large real variation within a
+sweep -- threefold, from a sample poorly centred in a beam smaller than it,
+its illuminated volume changing as it turns (Graeme) -- is held by the data
+and stays.
+
+And where a scale reaches zero or below regardless, mxi_scale says so: a
+WARNING naming the experiment, rather than a result written in silence.
+
 ## The error model's fit: which is dials.scale's default (15 October)
 
 The fit by regression (below) was introduced on 14 October as "dials.scale's

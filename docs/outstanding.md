@@ -9,15 +9,30 @@ where something is missing.
 
 ## Integration
 
-* **71.** **correctness -- mxi_scale diverges at low multiplicity rather than
-  saying so.** A quarter of an insulin sweep scaled alone (mxi_split of the
-  four-sweep set: 5011 observations, multiplicity 1.3, 60% complete): mean
-  intensities negative (-1241 in the first shell), R_merge 301341, the scales'
-  sigma(g)/g averaging -0.039 -- which cannot be negative -- and the error model
-  fitted from 0 observations. Too little to scale is a fair outcome; a
-  diverged model written as a result is not. To decide: refuse below some
-  multiplicity, restrain the model more strongly, or detect the divergence (a
-  negative variance, negative mean intensities) and say so. Found 17 October.
+* **71.** **correctness -- mxi_scale's scale function wanders, and can cross
+  zero, when it is weakly determined -- and says nothing.** Reproduce: Graeme's
+  insulin `ins10_1` (300 images of 0.1 deg) imported in four (`mxi_import
+  ins10_1_master.h5 --split 4`), found, indexed, refined and integrated
+  together; `mxi_split integrated.rflx` (split_4 to split_7, a 7.5 deg wedge
+  each, about 5000 observations at multiplicity 1.3-1.6); each through
+  `mxi_symmetry` (all I 2 3) and `mxi_scale`. The model is 6 scale and 5 decay
+  parameters, no absorption. Quarters 4 and 6: scale 0.94-1.07 and 0.96-1.04,
+  relative B within 1 A^2, R_meas 0.05, CC half 0.996-0.998. Quarter 7: scale
+  0.52-1.25, B -5.7 to 7.6, the error model from 2 observations, <I/sI> 3.8;
+  `--profile-only` brings it to 0.77-1.13. Quarter 5: **scale -0.71 to 0.41,
+  crossing zero**, B -15 to 16; negative mean intensities, R_meas 1.9e6, a
+  mean sigma(g)/g of -0.039 (impossible), the error model from 0 observations;
+  `--profile-only` no better. The signature in the log: fit 2's target jumps
+  (13266 to 885360 for quarter 5, 30435 to 6.3e6 for 7), then many steps.
+  Not the cause: multiplicity alone (the four alike), partiality (none below
+  0.5), malformed input (intensities and variances alike in 4 and 5). The
+  scale function is not kept positive or near one where the equivalents do not
+  hold it -- unrestrained, it is free to wander. The same, milder, may be in
+  full data: Graeme's 12-experiment scaling had one experiment's scale 0.16 to
+  0.57 and another's 0.37 to 1.14 within a sweep. To decide: a restraint on
+  the scale term (towards smooth, or one), positivity, and saying so when the
+  fit wanders -- a scale's range, a negative variance, negative mean
+  intensities. Found 17 October.
 * **62.** **parked -- Graeme's 6S0R set** (P 1 21 1, 50.2 183.9 110.0 A, beta
     94.2; 2026-10-14). Strong reflections out by about a tenth of their
     intensity -- raw calibration 79 for the strongest sixth, 1.2 to 1.6 for

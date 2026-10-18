@@ -46,6 +46,13 @@ struct Combined : ExperimentsAndReflections {
 Combined combine_experiments(const std::vector<json::Value> &documents,
                              const std::vector<Table> &tables);
 
+//: The experiments in groups that must be refined together: those on one
+//: sweep (one image set and scan), or sharing a detector, a beam or a crystal
+//: model. Each group shares nothing refinement fits with any other, so each
+//: can be refined on its own (mxi_refine; --joint for one fit of them all).
+std::vector<std::vector<std::size_t>>
+independent_groups(const json::Value &document);
+
 } // namespace mxi
 
 #endif // MXI_COMBINE_HH

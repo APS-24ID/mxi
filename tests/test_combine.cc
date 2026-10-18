@@ -117,3 +117,32 @@ TEST(a_lists_images_are_its_experiments_own_image_set) {
   check::is_true(got == "/b/second.nxs",
                  "the second file, its experiment's: " + got);
 }
+
+// Which experiments refinement must fit together: one sweep's, or any sharing
+// a detector, beam or crystal. Two data sets sharing one beam had been refined
+// as one, each pulled from where it lies alone (17 October).
+TEST(experiments_sharing_nothing_refinement_fits_are_independent) {
+  // Two sweeps, each a crystal-less experiment and a lattice, nothing shared.
+  json::Value apart = json::parse(R"({"experiment": [
+    {"beam": 0, "detector": 0, "imageset": 0, "scan": 0},
+    {"beam": 0, "detector": 0, "imageset": 0, "scan": 0, "crystal": 0},
+    {"beam": 1, "detector": 1, "imageset": 1, "scan": 1},
+    {"beam": 1, "detector": 1, "imageset": 1, "scan": 1, "crystal": 1}]})");
+  const auto g = independent_groups(apart);
+  check::equal(static_cast<long long>(g.size()), 2, "two groups");
+  check::is_true(g[0] == std::vector<std::size_t>{0, 1} &&
+                     g[1] == std::vector<std::size_t>{2, 3},
+                 "each sweep's two together");
+  // The same, the beam shared: one group.
+  json::Value shared = json::parse(R"({"experiment": [
+    {"beam": 0, "detector": 0, "imageset": 0, "scan": 0, "crystal": 0},
+    {"beam": 0, "detector": 1, "imageset": 1, "scan": 1, "crystal": 1}]})");
+  check::equal(static_cast<long long>(independent_groups(shared).size()), 1,
+               "a shared beam joins them");
+  // One crystal across two sweeps: one group.
+  json::Value crystal = json::parse(R"({"experiment": [
+    {"beam": 0, "detector": 0, "imageset": 0, "scan": 0, "crystal": 0},
+    {"beam": 1, "detector": 1, "imageset": 1, "scan": 1, "crystal": 0}]})");
+  check::equal(static_cast<long long>(independent_groups(crystal).size()), 1,
+               "a shared crystal joins them");
+}

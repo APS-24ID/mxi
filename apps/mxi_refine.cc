@@ -6,12 +6,15 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <map>
 #include <set>
 #include <string>
 
 #include "../src/expt.hh"
 #include "../src/refl.hh"
+#include "../src/shoebox.hh"
 #include "args.hh"
+#include "combine.hh"
 #include "log_mirror.hh"
 #include "postrefine.hh"
 #include "processing.hh"
@@ -35,6 +38,9 @@ void usage() {
       "  --no-beam         hold the beam direction fixed (refined by default;\n"
       "                    on a single sweep it is correlated with the\n"
       "                    detector)\n"
+      "  --joint           several independent experiments -- sharing no\n"
+      "                    detector, beam, crystal or sweep -- refined in one\n"
+      "                    fit, where by default each group is refined alone\n"
       "  --shared-crystal  several sweeps: one crystal for them all, where by\n"
       "                    default each refines its own (--separate, as was)\n"
       "  --conditional-depth  mean depth given absorption, not eqn (6)\n"
@@ -154,6 +160,150 @@ void print_residuals(const mxi::Table &t,
 
 } // namespace
 
+int run_program(int argc, char **argv);
+
+// Each independent group refined in a run of its own, on files of its own, as
+// mxi_index --no-joint and mxi_integrate's sweeps are; then the lists joined
+// in the original order, a slice an experiment, and the reflections' ids
+// mapped back. Each group's refinement figures kept in the summary.
+int refine_apart(const Arguments &args,
+                 const std::set<std::string> &takes_value,
+                 const std::vector<std::vector<std::size_t>> &groups) {
+  const rflx::Outputs outputs = rflx::outputs(args, "refined");
+  const std::string base = outputs.rflx.empty() ? outputs.refl : outputs.rflx;
+  const json::Value document = read_experiment_document(args.positional[0]);
+  const std::size_t n = document["experiment"].as_array().size();
+  const Table indexed = read_reflections(args.positional[1]);
+  if (!indexed.has("id")) {
+    std::fprintf(stderr, "mxi_refine: %s has no id column\n",
+                 args.positional[1].c_str());
+    return 1;
+  }
+  std::vector<std::string> made;
+  const auto tidy = [&] {
+    for (const std::string &f : made)
+      std::remove(f.c_str());
+  };
+  const auto run = [](std::vector<std::string> words) {
+    std::vector<char *> argv;
+    for (std::string &w : words)
+      argv.push_back(w.data());
+    argv.push_back(nullptr);
+    return run_program(static_cast<int>(words.size()), argv.data());
+  };
+  std::printf("Refining %zu experiments in %zu independent groups, each on its "
+              "own: no detector, beam, crystal or sweep shared between them "
+              "(--joint for one refinement of them all)\n",
+              n, groups.size());
+  std::vector<json::Value> lists(groups.size());
+  std::vector<Table> tables(groups.size());
+  json::Array steps;
+  const Column &id = indexed.at("id");
+  std::size_t unassigned = 0;
+  for (std::size_t r = 0; r < indexed.nrows; ++r)
+    if (id.integer(r) < 0 || static_cast<std::size_t>(id.integer(r)) >= n)
+      ++unassigned;
+  for (std::size_t g = 0; g < groups.size(); ++g) {
+    const std::vector<std::size_t> &members = groups[g];
+    const std::string stem = base + ".group" + std::to_string(g);
+    const std::string in_expt = stem + ".in.expt", in_refl = stem + ".in.refl",
+                      got = stem + ".rflx";
+    made.insert(made.end(), {in_expt, in_refl, got});
+    std::vector<json::Value> slices;
+    for (std::size_t i : members)
+      slices.push_back(slice_experiment_list(document, i));
+    json::Value own = join_experiment_lists(slices);
+    for (const char *kind :
+         {"beam", "detector", "goniometer", "scan", "imageset"})
+      share_identical(&own, kind);
+    json::dump_file(in_expt, own);
+    std::vector<long> local(n, -1);
+    for (std::size_t k = 0; k < members.size(); ++k)
+      local[members[k]] = static_cast<long>(k);
+    std::vector<std::size_t> rows;
+    for (std::size_t r = 0; r < indexed.nrows; ++r) {
+      const std::int64_t i = id.integer(r);
+      if (i >= 0 && static_cast<std::size_t>(i) < n &&
+          local[static_cast<std::size_t>(i)] >= 0)
+        rows.push_back(r);
+    }
+    Table part = select_rows_with_shoeboxes(indexed, rows);
+    for (std::int64_t &x : part.modify_int_column("id", "int", 1).ints)
+      x = local[static_cast<std::size_t>(x)];
+    part.identifiers.clear();
+    write_reflections(in_refl, part);
+    std::vector<std::string> words = {"mxi_refine", in_expt, in_refl};
+    for (const auto &[flag, value] : args.options) {
+      if (flag == "-o" || flag == "--output-expt" || flag == "--output-refl")
+        continue;
+      words.push_back(flag);
+      if (takes_value.count(flag))
+        words.push_back(value);
+    }
+    words.insert(words.end(), {"-o", got});
+    std::printf("\n=== Group %zu of %zu: experiment%s", g + 1, groups.size(),
+                members.size() == 1 ? "" : "s");
+    for (std::size_t i : members)
+      std::printf(" %zu", i);
+    std::printf(" ===\n");
+    std::fflush(stdout);
+    if (run(words) != 0) {
+      std::fprintf(stderr, "mxi_refine: group %zu did not refine\n", g);
+      tidy();
+      return 1;
+    }
+    lists[g] = *rflx::read_experiments(got);
+    tables[g] = read_reflections(got);
+    if (const auto s = rflx::read_summary(got)) {
+      const std::vector<json::Value> theirs = Summary::steps(*s);
+      if (!theirs.empty()) {
+        json::Object entry = theirs.back().as_object();
+        json::Array which;
+        for (std::size_t i : members)
+          which.push_back(json::Value(static_cast<long>(i)));
+        entry["experiments"] = json::Value(std::move(which));
+        steps.push_back(json::Value(std::move(entry)));
+      }
+    }
+  }
+  // The lists joined in the original order, a slice an experiment.
+  std::vector<std::pair<std::size_t, std::size_t>> where(n); // group, local
+  for (std::size_t g = 0; g < groups.size(); ++g)
+    for (std::size_t k = 0; k < groups[g].size(); ++k)
+      where[groups[g][k]] = {g, k};
+  std::vector<json::Value> slices;
+  for (std::size_t i = 0; i < n; ++i)
+    slices.push_back(
+        slice_experiment_list(lists[where[i].first], where[i].second));
+  json::Value joined_expt = join_experiment_lists(slices);
+  for (const char *kind :
+       {"beam", "detector", "goniometer", "scan", "imageset"})
+    share_identical(&joined_expt, kind);
+  // The tables, each group's ids mapped back to the whole.
+  for (std::size_t g = 0; g < groups.size(); ++g)
+    for (std::int64_t &x : tables[g].modify_int_column("id", "int", 1).ints)
+      if (x >= 0 && static_cast<std::size_t>(x) < groups[g].size())
+        x = static_cast<std::int64_t>(groups[g][static_cast<std::size_t>(x)]);
+  Table joined = concat_rows_with_shoeboxes(tables);
+  joined.identifiers.clear();
+  const json::Array &all = joined_expt["experiment"].as_array();
+  for (std::size_t k = 0; k < all.size(); ++k)
+    if (all[k]["identifier"].is_string())
+      joined.identifiers[k] = all[k]["identifier"].as_string();
+  Summary step("mxi_refine", args.positional[0]);
+  step.set("apart", json::Value(static_cast<long>(groups.size())));
+  step.set("groups", json::Value(std::move(steps)));
+  const json::Value summary_document = step.document();
+  rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_refine",
+                      &summary_document);
+  tidy();
+  if (unassigned > 0)
+    std::printf("\n%zu reflections with no experiment left out\n", unassigned);
+  std::printf("\n%zu experiments refined in %zu groups, each on its own: %s\n",
+              n, groups.size(), rflx::describe(outputs).c_str());
+  return 0;
+}
+
 int run_program(int argc, char **argv) {
   const double t_start = now_wall();
   double t_read = 0.0;
@@ -182,7 +332,8 @@ int run_program(int argc, char **argv) {
                                        "--detector-in-scan-varying",
                                        "--jacobian-threads",
                                        "--timing",
-                                       "--normal-threads"};
+                                       "--normal-threads",
+                                       "--joint"};
   const std::set<std::string> takes_value = {
       "--macrocycles", "--outlier-sigma",    "-o",
       "--output-expt", "--output-refl",      "--z-weight",
@@ -219,6 +370,19 @@ int run_program(int argc, char **argv) {
                  args.positional.size());
     usage();
     return 2;
+  }
+  // Independent experiments refined one group at a time (refine_apart),
+  // unless asked for one refinement of all (--joint) or a crystal shared
+  // across sweeps (--shared-crystal), which joins them.
+  if (!args.has("--joint") && !args.has("--shared-crystal")) {
+    const json::Value document = read_experiment_document(args.positional[0]);
+    if (document.is_object() && document["experiment"].is_array() &&
+        document["experiment"].as_array().size() > 1) {
+      const std::vector<std::vector<std::size_t>> groups =
+          independent_groups(document);
+      if (groups.size() > 1)
+        return refine_apart(args, takes_value, groups);
+    }
   }
 
   RefineOptions options;

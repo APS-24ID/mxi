@@ -309,9 +309,14 @@ int index_apart(const Arguments &args,
         x += static_cast<std::int64_t>(offset);
     offset += lists[k]["experiment"].as_array().size();
   }
+  // Joined, each sweep keeping its own beam and detector even where their
+  // values agree: these are different crystals (--no-joint), mounted and
+  // collected apart, and a beam merged because two headers agree is refined as
+  // one for all of them -- 14 of Graeme's 16 data sets came out sharing one
+  // beam, refined jointly, each worse than processed alone (17 October). The
+  // goniometer, which nothing refines, shared as before.
   json::Value joined_expt = join_experiment_lists(lists);
-  for (const char *kind : {"beam", "detector", "goniometer"})
-    share_identical(&joined_expt, kind);
+  share_identical(&joined_expt, "goniometer");
   Table joined = concat_rows_with_shoeboxes(tables);
   joined.identifiers.clear();
   const json::Array &all = joined_expt["experiment"].as_array();

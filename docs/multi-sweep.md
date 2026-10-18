@@ -165,6 +165,13 @@ and spots written apart, mxi_index run on them with the options given, the
 lists and tables joined, each sweep's crystal-less experiment followed by its
 lattices, the ids moved past the experiments before. A sweep that will not
 index is carried without a crystal, its spots unindexed, the rest going on.
+Each sweep keeps its own beam and detector through the join, even where
+their values agree: these are different crystals, and a beam merged because
+two headers agree was refined as one for all of them -- 14 of Graeme's 16
+data sets shared one beam, each pulled from where it lies alone (17 October).
+mxi_refine then refines each sweep on its own: experiments sharing no sweep,
+detector, beam or crystal are independent groups, each refined in a run of its
+own and the results joined in order (`--joint` for one fit of them all).
 mxi_symmetry then finds the crystals' orientations apart and runs cosym, which
 puts them in one setting. Insulin as four sweeps (mxi_import --split 4),
 indexed apart: four cells, cosym's cosines 0.999 to 1.000, I 2 3, R merge 0.040

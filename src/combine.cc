@@ -179,4 +179,60 @@ Combined combine_experiments(const std::vector<json::Value> &documents,
   return combined;
 }
 
+// The experiments in groups that must be refined together: those on one sweep
+// (one image set and scan), or sharing a detector, a beam or a crystal model.
+// Every other pair shares nothing refinement fits, so each group is refined on
+// its own (Graeme: with no shared models, one experiment at a time, not one
+// huge joint refinement -- 16 crystals' data sets refined together had been
+// the one joined step left in question).
+std::vector<std::vector<std::size_t>>
+independent_groups(const json::Value &doc) {
+  const json::Array &all = doc["experiment"].as_array();
+  const std::size_t n = all.size();
+  std::vector<std::size_t> parent(n);
+  for (std::size_t i = 0; i < n; ++i)
+    parent[i] = i;
+  const auto find = [&](std::size_t i) {
+    while (parent[i] != i)
+      i = parent[i] = parent[parent[i]];
+    return i;
+  };
+  const auto join = [&](std::size_t a, std::size_t b) {
+    parent[find(a)] = find(b);
+  };
+  const auto index_of = [](const json::Value &e, const char *key) {
+    return e[key].is_number() ? static_cast<long long>(e[key].as_number())
+                              : -1LL;
+  };
+  std::map<std::pair<long long, long long>, std::size_t> sweep_first;
+  std::map<std::pair<std::string, long long>, std::size_t> model_first;
+  for (std::size_t i = 0; i < n; ++i) {
+    const json::Value &e = all[i];
+    const auto sweep =
+        std::make_pair(index_of(e, "imageset"), index_of(e, "scan"));
+    if (sweep.first >= 0 || sweep.second >= 0) {
+      const auto [at, fresh] = sweep_first.emplace(sweep, i);
+      if (!fresh)
+        join(i, at->second);
+    }
+    for (const char *key : {"detector", "beam", "crystal"}) {
+      const long long m = index_of(e, key);
+      if (m < 0)
+        continue;
+      const auto [at, fresh] = model_first.emplace(std::make_pair(key, m), i);
+      if (!fresh)
+        join(i, at->second);
+    }
+  }
+  std::map<std::size_t, std::size_t> group_of_root;
+  std::vector<std::vector<std::size_t>> groups;
+  for (std::size_t i = 0; i < n; ++i) {
+    const auto [at, fresh] = group_of_root.emplace(find(i), groups.size());
+    if (fresh)
+      groups.emplace_back();
+    groups[at->second].push_back(i);
+  }
+  return groups;
+}
+
 } // namespace mxi

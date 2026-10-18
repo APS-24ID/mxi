@@ -122,12 +122,18 @@ def test_a_sweep_that_starts_worse_keeps_its_share_of_spots(tmp_path):
 
 
 @needs
-def test_each_sweep_takes_its_own_control_points(tmp_path):
+@pytest.mark.parametrize("joint", [False, True])
+def test_each_sweep_takes_its_own_control_points(tmp_path, joint):
+    # Refined apart (the default for sweeps sharing nothing refined), each
+    # group says its own; in one fit (--joint), one line for both.
     halves(tmp_path, wide_second=True)
-    out = refine(tmp_path)
-    m = re.search(r"Scan-varying, ([0-9, ]+) control points: (\d+) parameters", out)
-    assert m, out[-1500:]
-    assert m.group(1).strip() == "5, 8"
+    out = refine(tmp_path, *(["--joint"] if joint else []))
+    found = re.findall(
+        r"Scan-varying, ([0-9, ]+) control points: (\d+) parameters", out
+    )
+    assert found, out[-1500:]
+    points = [p.strip() for line, _ in found for p in line.split(",")]
+    assert points == ["5", "8"], found
     models = json.load(open(tmp_path / "refined.expt"))
     points = [len(c.get("A_at_scan_points", [])) for c in models["crystal"]]
     # Written as samples at each image boundary, a sweep's own.

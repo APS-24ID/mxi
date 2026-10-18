@@ -22,8 +22,9 @@ where something is missing.
   static fit poor from indexing; (b) 23 reflections 6.7-12 A integrated but
   neither scaled nor excluded by mxi_scale, unsaid, so the merge starts at
   6.73 A against DIALS's 12.03; (c) sigma_m 0.15-0.21 deg against DIALS's
-  0.078 -- to see again now the rotation residuals are DIALS's (item 63); and
-  then the merged figures, from Graeme's images.
+  0.078 -- to see again now the rotation residuals are DIALS's (item 63).
+  Graeme, after the fix: SHELXT and SHELXL now give fairly comparable
+  structures from the two, DIALS's merging statistics still a little better.
 * **62.** **parked -- Graeme's 6S0R set** (P 1 21 1, 50.2 183.9 110.0 A, beta
     94.2; 2026-10-14). Strong reflections out by about a tenth of their
     intensity -- raw calibration 79 for the strongest sixth, 1.2 to 1.6 for

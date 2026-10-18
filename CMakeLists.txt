@@ -116,6 +116,7 @@ add_library(mxi
   src/spot_table.cc
   src/experiment_images.cc
   src/hdf5_handle.cc
+  src/combine.cc
   src/fft.cc
   $<$<BOOL:${MXI_FFTW}>:src/fft_fftw.cc>
   src/index.cc
@@ -228,6 +229,12 @@ target_compile_options(mxi_forward PRIVATE -Wall -Wextra)
 add_executable(mxi_convert apps/mxi_convert.cc)
 target_link_libraries(mxi_convert PRIVATE mxi)
 target_compile_options(mxi_convert PRIVATE -Wall -Wextra)
+add_executable(mxi_combine apps/mxi_combine.cc)
+target_link_libraries(mxi_combine PRIVATE mxi)
+target_compile_options(mxi_combine PRIVATE -Wall -Wextra)
+add_executable(mxi_split apps/mxi_split.cc)
+target_link_libraries(mxi_split PRIVATE mxi)
+target_compile_options(mxi_split PRIVATE -Wall -Wextra)
 
 add_executable(mxi_grid apps/mxi_grid.cc)
 target_link_libraries(mxi_grid PRIVATE mxi)
@@ -340,6 +347,7 @@ endif()
 
 add_executable(mxi_tests
   tests/main.cc
+  tests/test_combine.cc
   tests/spots/test_dext_squares.cc
   tests/spots/test_dext_fused.cc
   tests/spots/test_signal_order.cc

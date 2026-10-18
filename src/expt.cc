@@ -206,12 +206,28 @@ ExperimentList experiments_from_json(const json::Value &document) {
   ExperimentList list;
   list.source = document;
 
-  // Where the images are.
+  // Where the images are: the image set the experiments refer to -- the first
+  // experiment's -- not the document's first. A list split or combined
+  // (mxi_split, mxi_combine, mxi_correlation's clusters) keeps every image set,
+  // and taking the first read one data set's images for another's: the second
+  // of two files integrated from the first's frames, silently where they
+  // overlapped (Graeme, 17 October). The first image set only where no
+  // experiment names one.
   const json::Value &imagesets = document["imageset"];
   if (imagesets.is_array() && !imagesets.as_array().empty()) {
-    const json::Value &first = imagesets.as_array()[0];
-    if (first.is_object() && first["template"].is_string()) {
-      list.image_template = first["template"].as_string();
+    std::size_t which = 0;
+    if (document["experiment"].is_array())
+      for (const json::Value &e : document["experiment"].as_array())
+        if (e["imageset"].is_number()) {
+          const double i = e["imageset"].as_number();
+          if (i >= 0 &&
+              static_cast<std::size_t>(i) < imagesets.as_array().size())
+            which = static_cast<std::size_t>(i);
+          break;
+        }
+    const json::Value &own = imagesets.as_array()[which];
+    if (own.is_object() && own["template"].is_string()) {
+      list.image_template = own["template"].as_string();
     }
   }
 

@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <utility>
 
+#include "shoebox.hh"
 #include "views.hh"
 
 namespace mxi {
@@ -74,7 +75,7 @@ ExperimentsAndReflections select_experiments(const json::Value &document,
     }
   }
   ExperimentsAndReflections out;
-  out.reflections = select_rows(reflections, rows);
+  out.reflections = select_rows_with_shoeboxes(reflections, rows);
   out.document = keep_experiments(document, chosen, &out.reflections);
   return out;
 }
@@ -102,8 +103,17 @@ Combined combine_experiments(const std::vector<json::Value> &documents,
       if (std::find(common.begin(), common.end(), name) == common.end())
         dropped.insert(name);
     for (const auto &entry : t.opaque())
-      dropped.insert(entry.first);
+      if (entry.first != "shoebox")
+        dropped.insert(entry.first);
   }
+  // The shoeboxes kept where every input has them -- integration's profile
+  // model wants them -- and left out, said, where only some do.
+  std::size_t with_boxes = 0;
+  for (const Table &t : tables)
+    with_boxes += t.opaque().count("shoebox");
+  const bool keep_boxes = with_boxes == tables.size();
+  if (with_boxes > 0 && !keep_boxes)
+    dropped.insert("shoebox");
 
   json::Object out = documents.front().as_object();
   std::map<std::string, json::Array> models;
@@ -144,6 +154,8 @@ Combined combine_experiments(const std::vector<json::Value> &documents,
       experiments.push_back(json::Value(std::move(x)));
     }
     Table t = with_columns(tables[k], common);
+    if (keep_boxes)
+      t.set_opaque("shoebox", tables[k].opaque().at("shoebox"));
     if (t.has("id")) {
       Column &id = t.modify_int_column("id", "int", 1);
       for (std::int64_t &i : id.ints)
@@ -162,7 +174,7 @@ Combined combine_experiments(const std::vector<json::Value> &documents,
 
   Combined combined;
   combined.document = json::Value(std::move(out));
-  combined.reflections = concat_rows(renumbered);
+  combined.reflections = concat_rows_with_shoeboxes(renumbered);
   combined.dropped.assign(dropped.begin(), dropped.end());
   return combined;
 }

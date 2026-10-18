@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "../src/combine.hh"
+#include "../src/expt.hh"
 #include "../src/json.hh"
 #include "../src/refl.hh"
 #include "check.hh"
@@ -99,4 +100,20 @@ TEST(a_data_set_taken_out_with_its_sweep_and_put_back) {
   check::is_true(b.reflections.at("intensity.sum.value").reals ==
                      std::vector<double>{1.0, 2.0, 3.0},
                  "the values unchanged");
+}
+
+// Where a list's images are is its experiments' image set, not the document's
+// first: a split or combined list keeps every image set, and taking the first
+// integrated one data set from another's file (17 October).
+TEST(a_lists_images_are_its_experiments_own_image_set) {
+  const json::Value document = json::parse(R"({"__id__": "ExperimentList",
+    "experiment": [{"beam": 0, "detector": 0, "goniometer": 0, "scan": 0,
+                    "imageset": 1}],
+    "beam": [], "detector": [], "goniometer": [], "scan": [],
+    "imageset": [{"__id__": "ImageSequence", "template": "/a/first.nxs"},
+                 {"__id__": "ImageSequence", "template": "/b/second.nxs"}],
+    "crystal": [], "profile": [], "scaling_model": []})");
+  const std::string got = experiments_from_json(document).image_template;
+  check::is_true(got == "/b/second.nxs",
+                 "the second file, its experiment's: " + got);
 }

@@ -49,6 +49,15 @@ void usage() {
       "                    is the default, one per 10 degrees and at least "
       "five,\n"
       "                    on a scan of 10 degrees or more; N sets the number\n"
+      "  --interval DEG    scan-varying control points one per DEG degrees of\n"
+      "                    each sweep (10, at least five by default; at least\n"
+      "                    four here) -- 20 or 30 for sparse data\n"
+      "  --crystal-restraint W  each control point's A tied to the static A, "
+      "a\n"
+      "                    prior of about 1/sqrt(W) of A's size: where the\n"
+      "                    reflections hold a point it is theirs, where they "
+      "do\n"
+      "                    not the crystal stays static (1e6; 0 for none)\n"
       "  --static          a crystal that does not move: one A for the scan\n"
       "  --unit-weights    ignore the centroid variances\n"
       "  --strong-only     build the model from the stronger half only\n"
@@ -159,6 +168,9 @@ void print_residuals(const mxi::Table &t,
 }
 
 } // namespace
+
+// The default weight of --crystal-restraint.
+constexpr double kCrystalRestraint = 1e6;
 
 int run_program(int argc, char **argv);
 
@@ -333,11 +345,14 @@ int run_program(int argc, char **argv) {
                                        "--jacobian-threads",
                                        "--timing",
                                        "--normal-threads",
-                                       "--joint"};
+                                       "--joint",
+                                       "--interval",
+                                       "--crystal-restraint"};
   const std::set<std::string> takes_value = {
       "--macrocycles", "--outlier-sigma",    "-o",
       "--output-expt", "--output-refl",      "--z-weight",
-      "--min-volume",  "--jacobian-threads", "--normal-threads"};
+      "--min-volume",  "--jacobian-threads", "--normal-threads",
+      "--interval",    "--crystal-restraint"};
   Arguments args =
       parse_arguments(argc, argv, known, takes_value, {"--scan-varying"});
   // One .rflx stands for the experiment list and the reflections
@@ -397,6 +412,10 @@ int run_program(int argc, char **argv) {
   // goniometer quite returns between. --separate was the way to ask for this
   // and is still taken.
   options.shared_crystal = args.has("--shared-crystal");
+  // The tie of the scan-varying crystal to the static one (src/refine.hh);
+  // the default set after measuring it (docs/refinement.md).
+  options.crystal_restraint =
+      args.number("--crystal-restraint", kCrystalRestraint);
   options.unit_weights = args.has("--unit-weights");
   options.strong_only = args.has("--strong-only");
   options.analytic = !args.has("--numerical");
@@ -437,6 +456,9 @@ int run_program(int argc, char **argv) {
       } else if (args.has("--scan-varying") &&
                  !args.value("--scan-varying", "").empty()) {
         points = static_cast<std::size_t>(args.number("--scan-varying", 1));
+      } else if (degrees >= 10.0 && args.has("--interval")) {
+        points =
+            scan_varying_points(e.scan, args.number("--interval", 10.0), 4);
       } else if (degrees >= 10.0) {
         points = scan_varying_points(e.scan);
       } else {
@@ -601,6 +623,23 @@ int run_program(int argc, char **argv) {
                     "%.3f to %.3f deg; the orientation turns %.3f deg\n",
                     lo[0], hi[0], lo[1], hi[1], lo[2], hi[2], lo[3], hi[3],
                     lo[4], hi[4], lo[5], hi[5], turned);
+        // A crystal does not change shape like this within a sweep: radiation
+        // damage and goniometer wobble stay well inside these. Said, as a
+        // scale at zero is (a small molecule's cell edge had run 5.32 to
+        // 6.51 A, its orientation turning 7.8 deg, in silence).
+        double edge = 0.0, angle = 0.0;
+        for (std::size_t k = 0; k < 3; ++k)
+          edge = std::fmax(edge, (hi[k] - lo[k]) / lo[k] * 100.0);
+        for (std::size_t k = 3; k < 6; ++k)
+          angle = std::fmax(angle, hi[k] - lo[k]);
+        if (edge > 2.0 || angle > 2.0 || turned > 2.0)
+          std::printf("  WARNING: experiment %zu's crystal changes more than "
+                      "a crystal does within a sweep -- a cell edge by %.1f "
+                      "per cent, an angle by %.1f deg, the orientation by %.1f "
+                      "deg; the scan-varying model is not held by its data "
+                      "(--interval for fewer control points, or a stronger "
+                      "--crystal-restraint)\n",
+                      i, edge, angle, turned);
         for (std::size_t k = 0; k < 6; ++k) {
           jlo.push_back(json::Value(lo[k]));
           jhi.push_back(json::Value(hi[k]));

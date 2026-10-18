@@ -73,6 +73,21 @@ struct RefineOptions {
   //: control points start from the static answer, and starting them from an
   //: unrefined model lets them absorb errors that belong to the detector.
   std::size_t scan_points = 1;
+  //: Weight of the tie of each scan-varying control point's A to the static
+  //: A the scan-varying pass starts from, W sum ((A_k - A_static) / s)^2 over
+  //: the nine elements, s a ninth of |A_static| summed over them -- a prior
+  //: of about 1/sqrt(W) of A's size on each element. Weak: where reflections
+  //: hold a control point it is theirs; where they do not, the crystal stays
+  //: the static one rather than wandering -- a small molecule's 17 control
+  //: points had let a cell edge run 5.32 to 6.51 A within a sweep (Graeme,
+  //: 18 October). 0 for none.
+  double crystal_restraint = 0.0;
+  //: Rows left out of the fit from the start, sorted: the scan-varying pass is
+  //: given the static pass's outliers here, so that it starts from the static
+  //: answer on the static pass's reflections. Re-admitted, a third of a small
+  //: molecule's reflections dragged the first cycles off, and the fit ended
+  //: worse than the static one it began from.
+  std::vector<std::size_t> exclude_rows;
   //: Several sweeps: each experiment's own count, overriding scan_points --
   //: a 120 degree sweep beside three of 350 takes its own 12, not their 35,
   //: which left it so free at its ends that one minimiser could not settle

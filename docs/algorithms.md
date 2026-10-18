@@ -41,8 +41,14 @@ the rotation angle, by **Gauss-Newton with Levenberg damping**
 (`src/refine.hh`), with **analytical derivatives** for crystal, detector and
 beam, checked against finite differences. **Scan-varying** crystal as a cubic
 B-spline of control points, one every 10 degrees by default -- DIALS uses a
-Gaussian smoother; both smooth and local, not the same model. The Jacobian is
-sparse and threaded.
+Gaussian smoother; both smooth and local, not the same model. `--interval DEG`
+spaces the control points (one per 10 degrees by default; 20 or 30 for sparse
+data). Each control point's A is **tied weakly to the static A**
+(`--crystal-restraint`, 1e6: a prior of about 0.1% of A's size), so that a
+control point the reflections do not hold stays where the static crystal is
+rather than wandering; and the scan-varying pass **starts from the static
+pass's reflections**, its outliers kept out. The Jacobian is sparse and
+threaded.
 
 **Prediction** (`src/predict.hh`): a reciprocal lattice point carried round
 the rotation axis crosses the Ewald sphere where |r0|^2 + 2 s0 . R(phi) r0 = 0,

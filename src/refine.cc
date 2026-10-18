@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <set>
 #include <stdexcept>
 #include <thread>
 
@@ -147,6 +148,10 @@ std::vector<TargetRow> gather(const ExperimentList &experiments,
       if (value < threshold)
         continue;
     }
+    if (!options.exclude_rows.empty() &&
+        std::binary_search(options.exclude_rows.begin(),
+                           options.exclude_rows.end(), i))
+      continue;
     TargetRow o;
     o.row = i;
     o.h = static_cast<int>(miller.integer(i, 0));
@@ -734,6 +739,43 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
   if (n == 0)
     return result;
 
+  // The tie of the scan-varying control points to the static crystal they
+  // start from (options.crystal_restraint): each crystal block once, its
+  // anchor the static A, its scale a ninth of |A| summed over the elements.
+  struct Anchor {
+    std::size_t experiment, at, points;
+    Mat3 A;
+    double scale;
+  };
+  std::vector<Anchor> anchors;
+  if (options.crystal && options.crystal_restraint > 0.0) {
+    std::set<std::size_t> seen;
+    for (std::size_t i = 0; i < experiments.size(); ++i) {
+      const Experiment &e = experiments[i];
+      const std::size_t points = layout.points_at(i);
+      if (!e.crystal || points < 2 || !seen.insert(layout.crystal_at(i)).second)
+        continue;
+      double size = 0.0;
+      for (std::size_t k = 0; k < 9; ++k)
+        size += std::abs(e.crystal->A.m[k]);
+      if (size > 0.0)
+        anchors.push_back(
+            {i, layout.crystal_at(i), points, e.crystal->A, size / 9.0});
+    }
+  }
+  const auto restraint_of = [&](const ExperimentList &list) {
+    double r = 0.0;
+    for (const Anchor &a : anchors)
+      for (std::size_t c = 0; c < a.points; ++c)
+        for (std::size_t k = 0; k < 9; ++k) {
+          const double d =
+              (list[a.experiment].crystal->A_points[c].m[k] - a.A.m[k]) /
+              a.scale;
+          r += options.crystal_restraint * d * d;
+        }
+    return r;
+  };
+
   // A shared crystal must start from one crystal, or the first shift would be
   // applied to several different starting matrices and mean different things
   // for each.
@@ -746,7 +788,8 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
   double lambda = 1e-3;
 
   for (int macro = 0; macro < std::max(1, options.macrocycles); ++macro) {
-    double previous = residuals_of(experiments, observations, &residual);
+    double previous = residuals_of(experiments, observations, &residual) +
+                      restraint_of(experiments);
 
     for (int iteration = 0; iteration < options.max_iterations; ++iteration) {
       const std::vector<double> step = step_sizes(experiments, layout);
@@ -901,6 +944,17 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
         for (std::size_t b = a + 1; b < n; ++b)
           normal[a * n + b] = normal[b * n + a];
       }
+      // The tie: W / s^2 on each control point element's diagonal, and its
+      // pull back towards the static A, -W (A - A_static) / s^2.
+      for (const Anchor &a : anchors)
+        for (std::size_t c = 0; c < a.points; ++c)
+          for (std::size_t k = 0; k < 9; ++k) {
+            const std::size_t p = a.at + c * 9 + k;
+            const double w = options.crystal_restraint / (a.scale * a.scale);
+            normal[p * n + p] += w;
+            rhs[p] -= w * (experiments[a.experiment].crystal->A_points[c].m[k] -
+                           a.A.m[k]);
+          }
 
       g_normal_seconds += now_seconds() - t_normal;
 
@@ -926,7 +980,9 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
         const double t_residual = now_seconds();
         apply(experiments, layout, solution, &trial);
         std::vector<double> trial_residual;
-        const double value = residuals_of(trial, observations, &trial_residual);
+        const double value =
+            residuals_of(trial, observations, &trial_residual) +
+            restraint_of(trial);
         g_residual_seconds += now_seconds() - t_residual;
         if (value < previous) {
           experiments = trial;
@@ -1403,7 +1459,15 @@ refine_in_two_passes(ExperimentList &experiments, const Table &reflections,
       options.detector = false;
       out.detector_held = true;
     }
+    // The static pass's outliers stay out: the scan-varying pass starts from
+    // the static answer on the static pass's reflections, and only its own
+    // rejection adds to them.
+    options.exclude_rows = out.static_pass.rows_rejected;
+    std::sort(options.exclude_rows.begin(), options.exclude_rows.end());
     out.varying_pass = refine(experiments, reflections, options);
+    for (std::size_t row : options.exclude_rows)
+      out.varying_pass.rows_rejected.push_back(row);
+    out.varying_pass.n_rejected += options.exclude_rows.size();
     out.varied = true;
   }
   return out;

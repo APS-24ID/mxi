@@ -35,6 +35,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -68,6 +69,26 @@ struct IndexTiming {
   std::size_t triples_skipped = 0;
   double total = 0.0;
 };
+
+//: A cell the crystal is known to have, to choose the basis by (mxi_index
+//: --known-cell, as dials.index unit_cell=): only candidate bases whose reduced
+//: cell matches it are eligible, and the usual rule chooses among them. The
+//: cell as given, in the setting of `centring` (P, I, F, C, A, B, or R on
+//: hexagonal axes), taken to its primitive cell and reduced before comparing.
+struct KnownCell {
+  UnitCell cell;
+  char centring = 'P';
+  double length_tolerance = 0.1; //: relative, as dials.index's 0.1
+  double angle_tolerance = 5.0;  //: degrees, as dials.index's 5
+};
+//: The known cell's reduced primitive cell, as the basis search reduces its
+//: candidates.
+UnitCell reduced_primitive(const KnownCell &known);
+//: Whether a reduced cell matches a reduced known cell: the sorted edges each
+//: within the length tolerance, the angles' sorted departures from 90 within
+//: the angle tolerance -- insensitive to the order a reduction leaves them in.
+bool cells_match(const UnitCell &cell, const UnitCell &target,
+                 const KnownCell &known);
 
 struct IndexOptions {
   // Zero means "work it out": d_min from the reflections' own resolution
@@ -103,6 +124,8 @@ struct IndexOptions {
   //: the RMSDs high. False keeps one crystal throughout.
   bool split_sweeps = true;
   bool verbose = false;
+  //: A cell to choose the basis by; none, the basis search's own choice.
+  std::optional<KnownCell> known_cell;
 };
 
 //: One macrocycle of indexing: refine the model on the strong reflections, then
@@ -139,6 +162,10 @@ struct IndexResult {
   std::vector<BasisCandidate> considered;
   std::size_t n_indexed = 0;
   std::size_t n_total = 0;
+  //: With a known cell: the most its matching bases indexed, as a fraction of
+  //: the most any basis did -- well below one, the data's own lattice is not
+  //: the cell given (mxi_index warns under a half). One without a known cell.
+  double known_cell_share = 1.0;
   double fraction_indexed() const {
     return n_total
                ? static_cast<double>(n_indexed) / static_cast<double>(n_total)
@@ -236,7 +263,8 @@ std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
 bool choose_basis(const std::vector<Vec3> &candidates,
                   const std::vector<Vec3> &points, double tolerance,
                   Crystal *crystal, std::size_t *n_indexed,
-                  std::vector<BasisCandidate> *considered = nullptr);
+                  std::vector<BasisCandidate> *considered = nullptr,
+                  const KnownCell *known = nullptr);
 
 // Replace the basis by a reduced one describing the same lattice.
 Mat3 reduce_basis(const Mat3 &real_space_rows);

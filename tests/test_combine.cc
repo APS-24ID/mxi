@@ -9,6 +9,7 @@
 
 #include "../src/combine.hh"
 #include "../src/expt.hh"
+#include "../src/index.hh"
 #include "../src/json.hh"
 #include "../src/postrefine.hh"
 #include "../src/refl.hh"
@@ -175,4 +176,25 @@ TEST(control_points_follow_the_interval) {
                "at least five by default");
   check::equal(static_cast<long long>(scan_varying_points(scan, 30.0, 4)), 4,
                "at least four with an interval");
+}
+
+// A known cell for indexing (mxi_index --known-cell, item 74): insulin's 78 A
+// I-centred cube is, primitive and reduced, a rhombohedron of 67.55 A and
+// 109.47 deg; it matches a refined reduced cell in any order of its edges and
+// angles, and a wrong one does not.
+TEST(a_known_centred_cell_reduces_to_its_primitive_and_matches) {
+  KnownCell known;
+  known.cell = {78.0, 78.0, 78.0, 90.0, 90.0, 90.0};
+  known.centring = 'I';
+  const UnitCell r = reduced_primitive(known);
+  check::close(r.a, 67.55, 0.01, "the edge");
+  check::close(r.alpha, 109.47, 0.01, "the angle");
+  const UnitCell refined = {67.428, 67.383, 67.374, 109.466, 109.533, 109.520};
+  check::is_true(cells_match(refined, r, known), "a refined cell, reordered");
+  const UnitCell wrong = {50.0, 50.0, 50.0, 90.0, 90.0, 90.0};
+  check::is_true(!cells_match(wrong, r, known), "a wrong cell");
+  KnownCell primitive;
+  primitive.cell = {67.4, 67.4, 67.4, 109.47, 109.47, 109.47};
+  check::is_true(cells_match(reduced_primitive(primitive), r, known),
+                 "the same lattice given primitive");
 }

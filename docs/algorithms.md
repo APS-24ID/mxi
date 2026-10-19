@@ -29,7 +29,9 @@ pread, outside HDF5's lock.
 reciprocal-space positions sampled onto a grid a step of 1 / (2.5 max_cell),
 transformed, the largest peaks taken as candidate basis vectors, the largest
 cell estimated as DIALS's find_max_cell does. The basis chosen as dials.index's
-filtering ranker chooses; a **Buerger reduction** of the cell; a macrocycle of
+filtering ranker chooses -- among those matching a known cell, if given
+(`--known-cell`, as `unit_cell=`: reduced primitive cells compared, 10 per
+cent and 5 deg); a **Buerger reduction** of the cell; a macrocycle of
 assignment and refinement. Several lattices (`--max-lattices`) found in turn,
 each spot assigned again to the lattice it lies nearest
 (`docs/multi-lattice.md`).

@@ -33,6 +33,7 @@ DECTRIS's EIGER, write it directly; older formats can be converted, for example
 CBF by [cbf2nxmx](https://github.com/graeme-winter/cbf2nxmx).
 
 * **How it works:** [`docs/algorithms.md`](docs/algorithms.md), each stage's methods and sources.
+* **A tutorial:** [`docs/tutorials/cows-pigs-people.md`](docs/tutorials/cows-pigs-people.md), many crystals, and which belong together.
 * **How it differs from DIALS, and why:** [`docs/review.md`](docs/review.md).
 * **Open issues:** [`docs/outstanding.md`](docs/outstanding.md).
 

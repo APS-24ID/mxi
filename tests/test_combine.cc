@@ -198,3 +198,55 @@ TEST(a_known_centred_cell_reduces_to_its_primitive_and_matches) {
   check::is_true(cells_match(reduced_primitive(primitive), r, known),
                  "the same lattice given primitive");
 }
+
+// The real-space grid search (Gildea et al. 2014; mxi_index --real-space-grid):
+// a planted lattice in an arbitrary orientation, its reciprocal lattice points
+// to 2 A; the search finds each real-space axis, length and direction, among
+// its candidates, and the known cell then chooses that basis.
+TEST(the_real_space_grid_search_finds_a_planted_lattice) {
+  // An orthorhombic cell, turned by an arbitrary rotation.
+  const double t = 0.7, u = 1.1, v = 0.4;
+  const Mat3 Rx{1, 0,           0,          0, std::cos(t), -std::sin(t),
+                0, std::sin(t), std::cos(t)};
+  const Mat3 Ry{std::cos(u),  0, std::sin(u), 0, 1, 0,
+                -std::sin(u), 0, std::cos(u)};
+  const Mat3 Rz{
+      std::cos(v), -std::sin(v), 0, std::sin(v), std::cos(v), 0, 0, 0, 1};
+  const Mat3 R = Rz * Ry * Rx;
+  const Vec3 a = R * Vec3{11.0, 0, 0}, b = R * Vec3{0, 17.0, 0},
+             c = R * Vec3{0, 0, 23.0};
+  const Mat3 real = Mat3::from_rows(a, b, c);
+  const Mat3 recip = real.inverse(); // columns a*, b*, c*
+  std::vector<Vec3> points;
+  for (int h = -6; h <= 6; ++h)
+    for (int k = -9; k <= 9; ++k)
+      for (int l = -12; l <= 12; ++l) {
+        const Vec3 r = recip * Vec3{double(h), double(k), double(l)};
+        if ((h || k || l) && r.norm() < 0.5)
+          points.push_back(r);
+      }
+  KnownCell known;
+  known.cell = {11.0, 17.0, 23.0, 90.0, 90.0, 90.0};
+  const std::vector<Vec3> found =
+      real_space_grid_candidates(points, known, 1.15, 30, 5.0);
+  for (const Vec3 &axis : {a, b, c}) {
+    double best = 180.0;
+    for (const Vec3 &f : found)
+      if (std::fabs(f.norm() - axis.norm()) < 0.01 * axis.norm()) {
+        const double cosine =
+            std::fabs(f.x * axis.x + f.y * axis.y + f.z * axis.z) /
+            (f.norm() * axis.norm());
+        best = std::fmin(best, std::acos(std::fmin(1.0, cosine)) * 180 / M_PI);
+      }
+    check::is_true(best < 1.5,
+                   "an axis found within 1.5 deg: " + std::to_string(best));
+  }
+  Crystal crystal;
+  std::size_t indexed = 0;
+  check::is_true(
+      choose_basis(found, points, 0.3, &crystal, &indexed, nullptr, &known),
+      "a basis chosen");
+  check::is_true(cells_match(crystal.cell(), reduced_primitive(known), known),
+                 "the planted cell");
+  check::is_true(indexed > points.size() * 9 / 10, "most points indexed");
+}

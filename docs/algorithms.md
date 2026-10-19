@@ -31,7 +31,12 @@ transformed, the largest peaks taken as candidate basis vectors, the largest
 cell estimated as DIALS's find_max_cell does. The basis chosen as dials.index's
 filtering ranker chooses -- among those matching a known cell, if given
 (`--known-cell`, as `unit_cell=`: reduced primitive cells compared, 10 per
-cent and 5 deg); a **Buerger reduction** of the cell; a macrocycle of
+cent and 5 deg);
+or, with a known cell, the **real-space grid search** (Gildea et al. 2014;
+`--real-space-grid`, as dials.index method=real_space_grid_search) in place
+of the FFT: the cell's edge lengths fixing the vectors' lengths, only their
+directions are searched, F = sum cos(2 pi r . L u) over directions u 1.15 deg
+apart on a hemisphere, the best 30 non-collinear kept as candidates; a **Buerger reduction** of the cell; a macrocycle of
 assignment and refinement. Several lattices (`--max-lattices`) found in turn,
 each spot assigned again to the lattice it lies nearest
 (`docs/multi-lattice.md`).
@@ -148,6 +153,8 @@ corrections, the columns, a batch an image with its header.
 * Bricogne (1986). The FFT in indexing.
 * Evans (2006). *Acta Cryst.* D62, 72-82. Scaling and outliers.
 * Evans (2011). *Acta Cryst.* D67, 282-292. Symmetry scoring.
+* Gildea et al. (2014). *Acta Cryst.* D70, 2652-2666. Multi-lattice
+  indexing; the real-space grid search.
 * Gildea & Winter (2018). *Acta Cryst.* D74, 405-410. cosym.
 * Kabsch (2010). *Acta Cryst.* D66, 133-144. Profile model and integration.
 * Le Page (1982). *J. Appl. Cryst.* 15, 255-259. Lattice symmetry.

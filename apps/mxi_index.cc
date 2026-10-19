@@ -43,6 +43,12 @@ void usage() {
       "to\n"
       "                   have: the basis chosen from those matching it (10\n"
       "                   per cent, 5 deg), as dials.index unit_cell=\n"
+      "  --real-space-grid  the basis vectors found by the real-space grid\n"
+      "                   search (Gildea et al. 2014) rather than the 3D FFT:\n"
+      "                   the known cell's edge lengths in every direction --\n"
+      "                   needs --known-cell; for sparse or multi-lattice "
+      "data\n"
+      "  --grid-step DEG  its directions' spacing (1.15, dials.index's)\n"
       "  --known-space-group NAME  the known cell's setting, by its lattice\n"
       "                   letter (P by default): I213 for a 78 A body-centred "
       "cube\n"
@@ -356,6 +362,8 @@ int run_program(int argc, char **argv) {
                                        "--grid",
                                        "--known-cell",
                                        "--known-space-group",
+                                       "--real-space-grid",
+                                       "--grid-step",
                                        "--tolerance",
                                        "--candidates",
                                        "-o",
@@ -380,6 +388,7 @@ int run_program(int argc, char **argv) {
                                              "--max-cell",
                                              "--known-cell",
                                              "--known-space-group",
+                                             "--grid-step",
                                              "--grid",
                                              "--tolerance",
                                              "--candidates",
@@ -470,6 +479,21 @@ int run_program(int argc, char **argv) {
                 reduced.gamma, known.length_tolerance * 100.0,
                 known.angle_tolerance);
     options.known_cell = known;
+  }
+  // The real-space grid search (Gildea et al. 2014): the known cell's lengths
+  // leave only directions to search, so it needs the known cell.
+  if (args.has("--real-space-grid")) {
+    if (!options.known_cell) {
+      std::fprintf(stderr, "mxi_index: --real-space-grid searches for the "
+                           "directions of a known cell's edges: it needs "
+                           "--known-cell\n");
+      return 2;
+    }
+    options.real_space_grid = true;
+    options.grid_step = args.number("--grid-step", options.grid_step);
+    std::printf("Real-space grid search for the basis vectors, directions %.2f "
+                "deg apart over a hemisphere, the best %zu kept\n",
+                options.grid_step, options.grid_keep);
   }
   options.grid = static_cast<std::size_t>(args.number("--grid", 0));
   options.tolerance = args.number("--tolerance", 0.3);

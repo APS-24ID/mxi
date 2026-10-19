@@ -189,6 +189,12 @@ predicted the anisotropy. Most of the disagreement had been the comparison.
   Lesson: a tie that only bites at weights nobody would call weak, with a
   response that is not monotonic, is a symptom -- look for what is dragging
   the fit before tuning the tie.
+- 19 October: mxi_index --known-cell (item 74) and --real-space-grid (Gildea
+  et al. 2014): the known cell's lengths leaving only directions, the grid
+  search's candidates through the same known-cell choice; identical to the
+  FFT's basis on insulin and the small molecule (item 75: its advantage still
+  to be measured). The cows-pigs-people tutorial drafted, its output to come
+  from Graeme's run.
 - Lessons: a tie must be to the right thing -- tied to one, the scale pulled a
   weak crystal's level, tied to its own level it does not; test with what
   differs in the user's case (different files, different geometry), not only

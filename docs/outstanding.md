@@ -9,6 +9,10 @@ where something is missing.
 
 ## Integration
 
+* **74.** **capability -- mxi_index cannot be given a known cell.** dials.index
+  takes `unit_cell=` (and `space_group=`) to hold every crystal to an expected
+  cell where one indexes as an outlier; mxi_index has only `--max-cell`. Found
+  writing the cows-pigs-people tutorial, 19 October.
 * **73.** **A small molecule, mxi against DIALS (Graeme, 18 October).** Four
   sweeps, a 5.4 x 8.1 x 12.0 A cell; mxi's merging a little worse (I/sigma 28
   against 44, inner R_merge 0.033 against 0.024, the error model's a 2.0

@@ -30,6 +30,7 @@ ALLOWED = {
 DOCUMENTS = sorted(
     str(p.relative_to(ROOT))
     for p in list(ROOT.glob("docs/*.md"))
+    + list(ROOT.glob("docs/tutorials/*.md"))
     + [ROOT / "README.md", ROOT / "python/README.md"]
     if str(p.relative_to(ROOT)) not in HISTORY
 )

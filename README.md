@@ -114,7 +114,7 @@ The options most often wanted:
 | program | options |
 | --- | --- |
 | `mxi_find` | `-g`/`--gpu`; `--min-spot-size N`; `--no-shoeboxes` |
-| `mxi_index` | `--d-min D`; `--max-cell A`; `--max-lattices N`; `--no-joint` sweeps indexed apart |
+| `mxi_index` | `--d-min D`; `--max-cell A`; `--max-lattices N`; `--no-joint` sweeps indexed apart; `--known-cell a,b,c,α,β,γ` with `--known-space-group NAME` the basis chosen to match a known cell |
 | `mxi_refine` | `--static` one crystal setting for the scan; `--scan-varying N` N control points; `--shared-crystal`; `--joint` several sweeps in one fit, where by default each sweep is refined on its own; `--interval DEG` a control point per DEG degrees (10); `--crystal-restraint W` the scan-varying crystal tied to the static one (1e6) |
 | `mxi_integrate` | `-g`/`--gpu`; `--d-min D`, `--d-max D`; `--postrefine`; `--summation-only` |
 | `mxi_symmetry` | `--max-delta D` the lattice's tolerance; `--no-cosym` |

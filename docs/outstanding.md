@@ -9,10 +9,6 @@ where something is missing.
 
 ## Integration
 
-* **74.** **capability -- mxi_index cannot be given a known cell.** dials.index
-  takes `unit_cell=` (and `space_group=`) to hold every crystal to an expected
-  cell where one indexes as an outlier; mxi_index has only `--max-cell`. Found
-  writing the cows-pigs-people tutorial, 19 October.
 * **73.** **A small molecule, mxi against DIALS (Graeme, 18 October).** Four
   sweeps, a 5.4 x 8.1 x 12.0 A cell; mxi's merging a little worse (I/sigma 28
   against 44, inner R_merge 0.033 against 0.024, the error model's a 2.0
@@ -379,6 +375,13 @@ where something is missing.
 * **32.** **The device port is designed but not written.** `docs/gpu.md`.
 
 ## Closed
+
+* **74.** Closed 19 October. **mxi_index could not be given a known cell.**
+  `--known-cell a,b,c,alpha,beta,gamma` with `--known-space-group NAME`: only
+  candidate bases whose reduced cell matches the known one's reduced primitive
+  cell (10 per cent, 5 deg, as dials.index) are eligible; none, a refusal that
+  says so; a match indexing under half what the best basis does, a WARNING.
+  On insulin, 78 A I-centred or 67.4 A primitive: the same basis as without.
 
 * **72.** Closed 17 October, confirmed by Graeme on his 16 data sets. **Data
   sets processed together scaled much worse than processed apart** -- inner

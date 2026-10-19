@@ -5,6 +5,7 @@
 // Writes indexed.expt and indexed.refl, so the result can be compared against
 // DIALS' own with `mxeq check indexed`.
 
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -38,6 +39,13 @@ void usage() {
       "  --jacobian-threads N  threads for the analytical Jacobian; 0 is one\n"
       "                   per core (0)\n"
       "  --max-cell A     longest cell edge (default: from spot spacing)\n"
+      "  --known-cell a,b,c,alpha,beta,gamma  the cell the crystal is known "
+      "to\n"
+      "                   have: the basis chosen from those matching it (10\n"
+      "                   per cent, 5 deg), as dials.index unit_cell=\n"
+      "  --known-space-group NAME  the known cell's setting, by its lattice\n"
+      "                   letter (P by default): I213 for a 78 A body-centred "
+      "cube\n"
       "  --grid N         FFT grid size, power of two (default: from d_min)\n"
       "  --timing         where the time went, by phase\n"
       "  --tolerance T    how far an index may fall from an integer (0.3)\n"
@@ -343,17 +351,35 @@ int index_apart(const Arguments &args,
 }
 
 int run_program(int argc, char **argv) {
-  const std::set<std::string> known = {
-      "--d-min",          "--max-cell",         "--grid",
-      "--tolerance",      "--candidates",       "-o",
-      "--output-expt",    "--output-refl",      "--quiet",
-      "--verbose",        "--macrocycles",      "--all-reflections",
-      "--timing",         "--jacobian-threads", "--fft-threads",
-      "--shared-crystal", "--max-lattices",     "--min-lattice-spots",
-      "--ambiguous",      "--ambiguity-sigma",  "--keep-sweeps",
-      "--no-keep-sweeps", "--no-joint"};
+  const std::set<std::string> known = {"--d-min",
+                                       "--max-cell",
+                                       "--grid",
+                                       "--known-cell",
+                                       "--known-space-group",
+                                       "--tolerance",
+                                       "--candidates",
+                                       "-o",
+                                       "--output-expt",
+                                       "--output-refl",
+                                       "--quiet",
+                                       "--verbose",
+                                       "--macrocycles",
+                                       "--all-reflections",
+                                       "--timing",
+                                       "--jacobian-threads",
+                                       "--fft-threads",
+                                       "--shared-crystal",
+                                       "--max-lattices",
+                                       "--min-lattice-spots",
+                                       "--ambiguous",
+                                       "--ambiguity-sigma",
+                                       "--keep-sweeps",
+                                       "--no-keep-sweeps",
+                                       "--no-joint"};
   const std::set<std::string> takes_value = {"--d-min",
                                              "--max-cell",
+                                             "--known-cell",
+                                             "--known-space-group",
                                              "--grid",
                                              "--tolerance",
                                              "--candidates",
@@ -408,6 +434,43 @@ int run_program(int argc, char **argv) {
   set_verbose(options.verbose);
   options.d_min = args.number("--d-min", 0.0);
   options.max_cell = args.number("--max-cell", 0.0);
+  // A known cell to choose the basis by (dials.index unit_cell=): a,b,c,
+  // alpha,beta,gamma, in the setting of --known-space-group's centring.
+  if (args.has("--known-cell")) {
+    KnownCell known;
+    double v[6];
+    if (std::sscanf(args.value("--known-cell", "").c_str(),
+                    "%lf,%lf,%lf,%lf,%lf,%lf", &v[0], &v[1], &v[2], &v[3],
+                    &v[4], &v[5]) != 6) {
+      std::fprintf(stderr,
+                   "mxi_index: --known-cell is a,b,c,alpha,beta,gamma, "
+                   "not '%s'\n",
+                   args.value("--known-cell", "").c_str());
+      return 2;
+    }
+    known.cell = {v[0], v[1], v[2], v[3], v[4], v[5]};
+    const std::string group = args.value("--known-space-group", "P1");
+    known.centring = group.empty() ? 'P'
+                                   : static_cast<char>(std::toupper(
+                                         static_cast<unsigned char>(group[0])));
+    if (std::string("PIFCABR").find(known.centring) == std::string::npos) {
+      std::fprintf(stderr,
+                   "mxi_index: --known-space-group %s: a symbol starting "
+                   "with its lattice, P, I, F, C, A, B or R\n",
+                   group.c_str());
+      return 2;
+    }
+    const UnitCell reduced = reduced_primitive(known);
+    std::printf("Known cell: %.3f %.3f %.3f A, %.3f %.3f %.3f deg (%c); "
+                "reduced primitive %.3f %.3f %.3f A, %.3f %.3f %.3f deg; the "
+                "basis chosen from those matching it within %.0f per cent and "
+                "%.0f deg\n",
+                v[0], v[1], v[2], v[3], v[4], v[5], known.centring, reduced.a,
+                reduced.b, reduced.c, reduced.alpha, reduced.beta,
+                reduced.gamma, known.length_tolerance * 100.0,
+                known.angle_tolerance);
+    options.known_cell = known;
+  }
   options.grid = static_cast<std::size_t>(args.number("--grid", 0));
   options.tolerance = args.number("--tolerance", 0.3);
   options.n_candidates =
@@ -542,9 +605,15 @@ int run_program(int argc, char **argv) {
             b.chosen ? "chosen" : "");
     }
     if (result.n_indexed == 0) {
-      std::fprintf(stderr,
-                   "mxi_index: no lattice found. Try --max-cell, or --d-min to "
-                   "restrict the resolution range used.\n");
+      if (options.known_cell && result.known_cell_share == 0.0)
+        std::fprintf(stderr,
+                     "mxi_index: no candidate basis matches --known-cell "
+                     "(within 10 per cent and 5 deg): check the cell and "
+                     "--known-space-group, or index without it.\n");
+      else
+        std::fprintf(stderr,
+                     "mxi_index: no lattice found. Try --max-cell, or --d-min "
+                     "to restrict the resolution range used.\n");
       return 1;
     }
 
@@ -571,6 +640,15 @@ int run_program(int argc, char **argv) {
     const UnitCell cell = result.crystal.cell();
     std::printf("Indexed %zu of %zu reflections (%.1f%%)\n", result.n_indexed,
                 result.n_total, 100.0 * result.fraction_indexed());
+    // A known cell the data's own lattice is not: its bases indexed under half
+    // what the best basis did. Said, not chosen in silence -- a wrong cell
+    // still finds some spurious triple near it.
+    if (options.known_cell && result.known_cell_share < 0.5)
+      std::printf(
+          "WARNING: the bases matching --known-cell index %.0f per cent "
+          "of what the best basis does: the crystal's lattice is "
+          "probably not that cell\n",
+          100.0 * result.known_cell_share);
     std::printf(
         "Unit cell: %.3f %.3f %.3f A, %.3f %.3f %.3f deg; volume %.0f A^3\n",
         cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma,

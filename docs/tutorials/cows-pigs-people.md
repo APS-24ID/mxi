@@ -97,9 +97,15 @@ mxi_show indexed.rflx | grep experiment
 *to come: each crystal's cell, all close to 67 A and 109.5 deg -- the
 primitive cell of cubic insulin.*
 
-DIALS can hold every crystal to an expected cell (`unit_cell=`) when one is an
-outlier; mxi cannot yet (`docs/outstanding.md`), and it is not needed here.
-Then refinement:
+If one crystal's cell were an outlier, the known cell would choose every
+crystal's basis, as `unit_cell=` does for dials.index -- given conventional,
+with its lattice:
+
+```sh
+mxi_index strong.rflx --no-joint --known-cell 78,78,78,90,90,90 --known-space-group I213
+```
+
+It is not needed here. Then refinement:
 
 ```sh
 mxi_refine indexed.rflx

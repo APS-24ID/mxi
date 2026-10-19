@@ -27,6 +27,7 @@ namespace {
 //: four seconds go.
 std::size_t g_triples_scored = 0;
 std::size_t g_triples_skipped = 0;
+double g_known_share = 1.0;
 double g_last_fft_seconds = 0.0;
 double g_last_peak_seconds = 0.0;
 
@@ -699,10 +700,73 @@ Mat3 reduce_basis(const Mat3 &real_space_rows) {
   return best;
 }
 
+UnitCell reduced_primitive(const KnownCell &known) {
+  const UnitCell &u = known.cell;
+  const double d = M_PI / 180.0;
+  const double ca = std::cos(u.alpha * d), cb = std::cos(u.beta * d),
+               cg = std::cos(u.gamma * d), sg = std::sin(u.gamma * d);
+  const Vec3 a{u.a, 0.0, 0.0};
+  const Vec3 b{u.b * cg, u.b * sg, 0.0};
+  const double cy = (ca - cb * cg) / sg;
+  const Vec3 c{u.c * cb, u.c * cy,
+               u.c * std::sqrt(std::fmax(0.0, 1.0 - cb * cb - cy * cy))};
+  // The centred cell's primitive basis, as mxi_symmetry takes centred input to
+  // its primitive cell.
+  Vec3 p[3] = {a, b, c};
+  switch (known.centring) {
+  case 'I':
+    p[0] = (b + c - a) * 0.5, p[1] = (a + c - b) * 0.5,
+    p[2] = (a + b - c) * 0.5;
+    break;
+  case 'F':
+    p[0] = (b + c) * 0.5, p[1] = (a + c) * 0.5, p[2] = (a + b) * 0.5;
+    break;
+  case 'C':
+    p[0] = (a - b) * 0.5, p[1] = (a + b) * 0.5;
+    break;
+  case 'A':
+    p[1] = (b - c) * 0.5, p[2] = (b + c) * 0.5;
+    break;
+  case 'B':
+    p[0] = (a - c) * 0.5, p[2] = (a + c) * 0.5;
+    break;
+  case 'R':
+    p[0] = (a * 2.0 + b + c) * (1.0 / 3.0), p[1] = (b + c - a) * (1.0 / 3.0),
+    p[2] = (c - a - b * 2.0) * (1.0 / 3.0);
+    break;
+  default:
+    break;
+  }
+  Crystal crystal;
+  crystal.A = reduce_basis(Mat3::from_rows(p[0], p[1], p[2])).inverse();
+  return crystal.cell();
+}
+
+bool cells_match(const UnitCell &cell, const UnitCell &target,
+                 const KnownCell &known) {
+  double x[3] = {cell.a, cell.b, cell.c}, y[3] = {target.a, target.b, target.c};
+  std::sort(x, x + 3);
+  std::sort(y, y + 3);
+  for (int i = 0; i < 3; ++i)
+    if (std::fabs(x[i] - y[i]) > known.length_tolerance * y[i])
+      return false;
+  double p[3] = {std::fabs(cell.alpha - 90.0), std::fabs(cell.beta - 90.0),
+                 std::fabs(cell.gamma - 90.0)};
+  double q[3] = {std::fabs(target.alpha - 90.0), std::fabs(target.beta - 90.0),
+                 std::fabs(target.gamma - 90.0)};
+  std::sort(p, p + 3);
+  std::sort(q, q + 3);
+  for (int i = 0; i < 3; ++i)
+    if (std::fabs(p[i] - q[i]) > known.angle_tolerance)
+      return false;
+  return true;
+}
+
 bool choose_basis(const std::vector<Vec3> &candidates,
                   const std::vector<Vec3> &points, double tolerance,
                   Crystal *crystal, std::size_t *n_indexed,
-                  std::vector<BasisCandidate> *considered) {
+                  std::vector<BasisCandidate> *considered,
+                  const KnownCell *known) {
   const std::size_t n = candidates.size();
   if (n < 3)
     return false;
@@ -749,6 +813,32 @@ bool choose_basis(const std::vector<Vec3> &candidates,
   }
   if (triples.empty())
     return false;
+  // A known cell: only the triples whose reduced cell matches it eligible, the
+  // usual rule choosing among them; none matching, no basis.
+  if (known) {
+    std::size_t all_most = 0;
+    for (const Triple &t : triples)
+      all_most = std::max(all_most, t.count);
+    const UnitCell target = reduced_primitive(*known);
+    std::vector<Triple> matching;
+    for (const Triple &t : triples) {
+      Crystal c;
+      c.A = reduce_basis(t.rows).inverse();
+      if (cells_match(c.cell(), target, *known))
+        matching.push_back(t);
+    }
+    if (matching.empty()) {
+      g_known_share = 0.0;
+      return false;
+    }
+    std::size_t matched_most = 0;
+    for (const Triple &t : matching)
+      matched_most = std::max(matched_most, t.count);
+    g_known_share = all_most > 0 ? static_cast<double>(matched_most) /
+                                       static_cast<double>(all_most)
+                                 : 1.0;
+    triples.swap(matching);
+  }
   std::size_t most = 0;
   for (const Triple &t : triples)
     most = std::max(most, t.count);
@@ -952,11 +1042,15 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
   const double t_choose = now_seconds();
   g_triples_scored = 0;
   g_triples_skipped = 0;
+  g_known_share = 1.0;
   std::size_t n_indexed = 0;
   if (!choose_basis(result.candidates, points, options.tolerance,
-                    &result.crystal, &n_indexed, &result.considered)) {
+                    &result.crystal, &n_indexed, &result.considered,
+                    options.known_cell ? &*options.known_cell : nullptr)) {
+    result.known_cell_share = g_known_share;
     return result;
   }
+  result.known_cell_share = g_known_share;
   result.timing.choose_basis = now_seconds() - t_choose;
   result.timing.triples_scored = g_triples_scored;
   result.timing.triples_skipped = g_triples_skipped;

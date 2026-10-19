@@ -126,6 +126,16 @@ struct IndexOptions {
   bool verbose = false;
   //: A cell to choose the basis by; none, the basis search's own choice.
   std::optional<KnownCell> known_cell;
+  //: The real-space grid search for the candidate basis vectors, in place of
+  //: the three-dimensional FFT (Gildea et al. 2014; dials.index
+  //: method=real_space_grid_search): needs the known cell, whose edge lengths
+  //: leave only directions to search. The directions spaced `grid_step`
+  //: degrees over a hemisphere; the best `grid_keep` vectors, none within
+  //: `grid_collinear` degrees of a better one.
+  bool real_space_grid = false;
+  double grid_step = 1.15; //: degrees, as dials.index's 0.02 rad
+  std::size_t grid_keep = 30;
+  double grid_collinear = 5.0;
 };
 
 //: One macrocycle of indexing: refine the model on the strong reflections, then
@@ -258,6 +268,16 @@ std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
                                          const IndexOptions &options,
                                          double d_min, double max_cell,
                                          std::size_t grid);
+
+//: Candidate real-space basis vectors by the real-space grid search: for
+//: each edge length L of the known cell's reduced primitive cell, and each
+//: direction u over a hemisphere `step` degrees apart, F = sum_j cos(2 pi
+//: r_j . L u); the vectors sorted by F, those within `collinear` degrees of a
+//: better one dropped, the best `keep` returned (Gildea et al. 2014, eq. 10).
+std::vector<Vec3> real_space_grid_candidates(const std::vector<Vec3> &points,
+                                             const KnownCell &known,
+                                             double step, std::size_t keep,
+                                             double collinear);
 
 // Choose three of the candidates, reduce the resulting cell, and return it.
 bool choose_basis(const std::vector<Vec3> &candidates,

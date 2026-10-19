@@ -9,6 +9,15 @@ where something is missing.
 
 ## Integration
 
+* **75.** **validation -- the real-space grid search is not yet shown better than
+  the FFT on data.** `mxi_index --real-space-grid` (Gildea et al. 2014) finds
+  exactly the FFT's basis on insulin's four sweeps and on a four-sweep small
+  molecule, and a planted lattice in a test; but on both data sets the FFT
+  succeeds anyway, so its advantage -- sparse, stills-like or multi-lattice
+  data, where the FFT's peaks are weak or confused -- is the paper's, not yet
+  measured here. Wanted: such a data set, for the regression set. Its cost:
+  directions x cell lengths x spots, 16 s on one core for 15477 spots and
+  three lengths. 19 October.
 * **73.** **A small molecule, mxi against DIALS (Graeme, 18 October).** Four
   sweeps, a 5.4 x 8.1 x 12.0 A cell; mxi's merging a little worse (I/sigma 28
   against 44, inner R_merge 0.033 against 0.024, the error model's a 2.0

@@ -1,4 +1,5 @@
 #include "index.hh"
+#include "parallel.hh"
 
 #include <gemmi/symmetry.hpp>
 
@@ -700,6 +701,72 @@ Mat3 reduce_basis(const Mat3 &real_space_rows) {
   return best;
 }
 
+std::vector<Vec3> real_space_grid_candidates(const std::vector<Vec3> &points,
+                                             const KnownCell &known,
+                                             double step, std::size_t keep,
+                                             double collinear) {
+  // The known cell's edge lengths, primitive and reduced, each once.
+  const UnitCell cell = reduced_primitive(known);
+  std::vector<double> lengths;
+  for (double l : {cell.a, cell.b, cell.c}) {
+    bool seen = false;
+    for (double m : lengths)
+      seen = seen || std::fabs(l - m) < 0.01 * m;
+    if (!seen)
+      lengths.push_back(l);
+  }
+  // Directions evenly over the hemisphere z > 0, a Fibonacci lattice: about
+  // 2 pi / step^2 of them. cos is even, so the other half adds nothing.
+  const double s = step * M_PI / 180.0;
+  const std::size_t n =
+      std::max<std::size_t>(64, static_cast<std::size_t>(2.0 * M_PI / (s * s)));
+  const double golden = M_PI * (3.0 - std::sqrt(5.0));
+  std::vector<Vec3> directions(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    const double z =
+        1.0 - (static_cast<double>(i) + 0.5) / static_cast<double>(n);
+    const double r = std::sqrt(std::fmax(0.0, 1.0 - z * z));
+    const double phi = golden * static_cast<double>(i);
+    directions[i] = Vec3{r * std::cos(phi), r * std::sin(phi), z};
+  }
+  // F at every direction and length: the dot products r_j . u once a
+  // direction, every length from them.
+  const std::size_t nl = lengths.size();
+  std::vector<double> f(n * nl, 0.0);
+  for_each_index(n, [&](std::size_t i) {
+    const Vec3 &u = directions[i];
+    double *out = &f[i * nl];
+    for (const Vec3 &p : points) {
+      const double d = 2.0 * M_PI * (p.x * u.x + p.y * u.y + p.z * u.z);
+      for (std::size_t k = 0; k < nl; ++k)
+        out[k] += std::cos(d * lengths[k]);
+    }
+  });
+  // Sorted by F; a vector within `collinear` of a better one is the same
+  // direction seen again, its neighbour on the grid or another length.
+  std::vector<std::size_t> order(n * nl);
+  for (std::size_t i = 0; i < order.size(); ++i)
+    order[i] = i;
+  std::sort(order.begin(), order.end(),
+            [&](std::size_t x, std::size_t y) { return f[x] > f[y]; });
+  const double cos_limit = std::cos(collinear * M_PI / 180.0);
+  std::vector<Vec3> kept;
+  std::vector<Vec3> kept_unit;
+  for (std::size_t o : order) {
+    if (kept.size() >= keep)
+      break;
+    const Vec3 &u = directions[o / nl];
+    bool near = false;
+    for (const Vec3 &v : kept_unit)
+      near = near || std::fabs(u.x * v.x + u.y * v.y + u.z * v.z) > cos_limit;
+    if (near)
+      continue;
+    kept_unit.push_back(u);
+    kept.push_back(u * lengths[o % nl]);
+  }
+  return kept;
+}
+
 UnitCell reduced_primitive(const KnownCell &known) {
   const UnitCell &u = known.cell;
   const double d = M_PI / 180.0;
@@ -1028,8 +1095,15 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
   result.grid = grid;
 
   const double t_candidates = now_seconds();
-  result.candidates =
-      find_candidate_vectors(points, options, d_min, max_cell, grid);
+  // The real-space grid search where asked, the known cell's lengths leaving
+  // only directions to search; the three-dimensional FFT otherwise.
+  if (options.real_space_grid && options.known_cell)
+    result.candidates = real_space_grid_candidates(
+        points, *options.known_cell, options.grid_step, options.grid_keep,
+        options.grid_collinear);
+  else
+    result.candidates =
+        find_candidate_vectors(points, options, d_min, max_cell, grid);
   result.timing.candidate_vectors = now_seconds() - t_candidates;
   result.timing.fft = g_last_fft_seconds;
   result.timing.peak_search = g_last_peak_seconds;

@@ -9,13 +9,6 @@ where something is missing.
 
 ## Integration
 
-* **77.** **output -- each sweep's integration says it wrote its internal
-  files.** mxi_integrate on several sweeps runs each in a run of its own,
-  and each run's "Wrote 31295 reflections ... to integrated.rflx.sweep0.expt
-  and integrated.rflx.sweep0.refl" reaches the user -- files made and removed
-  inside the program. The whole's own line follows. The sweeps' runs should
-  say their figures, not their scratch files. Seen in the tutorial's output,
-  20 October.
 * **76.** **question -- mxi_correlation's per-data-set B against DIALS's.**
   mxi_correlation now normalises each data set (docs/correlation.md), which
   brought the cows to DIALS's one cluster; but its B values, the isotropic
@@ -402,6 +395,13 @@ where something is missing.
 * **32.** **The device port is designed but not written.** `docs/gpu.md`.
 
 ## Closed
+
+* **77.** Closed 20 October. **Each sweep's integration said it wrote its
+  internal files** ("... to integrated.rflx.sweep0.expt and
+  integrated.rflx.sweep0.refl", scratch made and removed inside the program).
+  Each run of several -- a sweep's, a lattice's -- is given `--sweep-run`, and
+  says "Integrated 31295 reflections"; only the whole's line names a file.
+  Test: test_integrate_sweeps.
 
 * **74.** Closed 19 October. **mxi_index could not be given a known cell.**
   `--known-cell a,b,c,alpha,beta,gamma` with `--known-space-group NAME`: only

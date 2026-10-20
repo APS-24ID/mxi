@@ -631,7 +631,8 @@ int integrate_sweeps(const Arguments &args, const char *program,
         else if (takes_value.count(flag))
           words.push_back(value);
       }
-      words.insert(words.end(), {"-o", got_refl, "--output-expt", got_expt});
+      words.insert(words.end(),
+                   {"-o", got_refl, "--output-expt", got_expt, "--sweep-run"});
       std::printf("\n=== Sweep %zu of %zu: experiment%s", g + 1, groups.size(),
                   members.size() == 1 ? "" : "s");
       for (std::size_t i : members)
@@ -862,7 +863,8 @@ int integrate_several(const Arguments &args, const char *program,
       }
       const std::string got_refl = stems[i] + ".refl";
       const std::string got_expt = stems[i] + ".expt";
-      words.insert(words.end(), {"-o", got_refl, "--output-expt", got_expt});
+      words.insert(words.end(),
+                   {"-o", got_refl, "--output-expt", got_expt, "--sweep-run"});
       std::printf("\n=== Experiment %zu of %zu ===\n", i + 1, n);
       std::fflush(stdout);
       const int status = run(words);
@@ -933,48 +935,50 @@ int integrate_several(const Arguments &args, const char *program,
 }
 
 int run_program(int argc, char **argv) {
-  const std::set<std::string> known = {"-o",
-                                       "--verbose",
-                                       "--progress-from",
-                                       "--least-variance",
-                                       "--weight-floor",
-                                       "--sigma-b",
-                                       "--sigma-m",
-                                       "--sigma-m-estimator",
-                                       "--n-sigma",
-                                       "--box-scale",
-                                       "--d-min",
-                                       "--d-max",
-                                       "--first-image",
-                                       "--last-image",
-                                       "--gain",
-                                       "--save-shoeboxes",
-                                       "--images",
-                                       "--timing",
-                                       "--threads",
-                                       "--window",
-                                       "--max-boxes",
-                                       "--grid-points",
-                                       "--subdivisions",
-                                       "--regions",
-                                       "--scan-blocks",
-                                       "--reference-signal",
-                                       "--summation-only",
-                                       "--save-background-parameters",
-                                       "--two-pass",
-                                       "--no-mask-neighbours",
-                                       "--profile-only",
-                                       "--each-alone",
-                                       "--mask-also",
-                                       "-g",
-                                       "--gpu",
-                                       "--gpu-emulate",
-                                       "--save-profiles",
-                                       "--min-zeta",
-                                       "--least-measured",
-                                       "--postrefine",
-                                       "--postrefine-points",
-                                       "--output-expt"};
+  const std::set<std::string> known = {
+      "-o",
+      "--verbose",
+      "--progress-from",
+      "--least-variance",
+      "--weight-floor",
+      "--sigma-b",
+      "--sigma-m",
+      "--sigma-m-estimator",
+      "--n-sigma",
+      "--box-scale",
+      "--d-min",
+      "--d-max",
+      "--first-image",
+      "--last-image",
+      "--gain",
+      "--save-shoeboxes",
+      "--images",
+      "--timing",
+      "--threads",
+      "--window",
+      "--max-boxes",
+      "--grid-points",
+      "--subdivisions",
+      "--regions",
+      "--scan-blocks",
+      "--reference-signal",
+      "--summation-only",
+      "--save-background-parameters",
+      "--two-pass",
+      "--no-mask-neighbours",
+      "--profile-only",
+      "--each-alone",
+      "--sweep-run", // internal: one of several
+      "--mask-also",
+      "-g",
+      "--gpu",
+      "--gpu-emulate",
+      "--save-profiles",
+      "--min-zeta",
+      "--least-measured",
+      "--postrefine",
+      "--postrefine-points",
+      "--output-expt"};
   std::set<std::string> takes_value = known;
   takes_value.erase("--save-shoeboxes");
   takes_value.erase("--timing");
@@ -984,6 +988,7 @@ int run_program(int argc, char **argv) {
   takes_value.erase("--no-mask-neighbours");
   takes_value.erase("--profile-only");
   takes_value.erase("--each-alone");
+  takes_value.erase("--sweep-run");
   takes_value.erase("-g");
   takes_value.erase("--gpu");
   takes_value.erase("--gpu-emulate");
@@ -3117,9 +3122,16 @@ int run_program(int argc, char **argv) {
       rflx::write_outputs(outputs, &document, &out, "mxi_integrate",
                           &processing_document);
       t_write = now_wall() - t_write_start;
-      std::printf("Wrote %zu reflections, and the models with the profile "
-                  "model, to %s\n",
-                  planned.size(), rflx::describe(outputs).c_str());
+      // One run of several (--sweep-run: a sweep from integrate_sweeps, a
+      // lattice from integrate_several): its files are scratch, made and
+      // removed inside the program, so its figures are said, not their names;
+      // the whole's own line names what was written.
+      if (args.has("--sweep-run"))
+        std::printf("Integrated %zu reflections\n", planned.size());
+      else
+        std::printf("Wrote %zu reflections, and the models with the profile "
+                    "model, to %s\n",
+                    planned.size(), rflx::describe(outputs).c_str());
     }
 
     if (args.has("--timing")) {

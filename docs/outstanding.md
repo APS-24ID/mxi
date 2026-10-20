@@ -9,6 +9,13 @@ where something is missing.
 
 ## Integration
 
+* **77.** **output -- each sweep's integration says it wrote its internal
+  files.** mxi_integrate on several sweeps runs each in a run of its own,
+  and each run's "Wrote 31295 reflections ... to integrated.rflx.sweep0.expt
+  and integrated.rflx.sweep0.refl" reaches the user -- files made and removed
+  inside the program. The whole's own line follows. The sweeps' runs should
+  say their figures, not their scratch files. Seen in the tutorial's output,
+  20 October.
 * **76.** **question -- mxi_correlation's per-data-set B against DIALS's.**
   mxi_correlation now normalises each data set (docs/correlation.md), which
   brought the cows to DIALS's one cluster; but its B values, the isotropic

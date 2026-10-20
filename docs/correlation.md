@@ -132,6 +132,20 @@ clusters and their choice agree. To settle it, dump DIALS's prepared
 intensities (CosymAnalysis.intensities and dataset_ids, after __init__) and
 compare data set by data set.
 
+**Normalised since 20 October.** Each data set's merged intensities are now
+divided by a Wilson model fitted to it by maximum likelihood before their
+correlations -- the normalisation mxi_symmetry uses (laue.hh: dials.symmetry's
+ml_aniso, a light atom's scattering left in), not mmtbx's isotropic fit above;
+`--no-normalise` for none. Found on the twelve cows from mxi's own pipeline:
+unnormalised, the data set with the most extreme fall-off correlated worst
+(0.863 to 0.940) and fell out as an outlier, at four dimensions, where
+dials.correlation_matrix on the same scaled data found one cluster of twelve.
+Normalised: one cluster of twelve, three dimensions, as DIALS; that data set's
+correlations 0.924 and up. The 36 crystals: three clusters of twelve, as
+before. The B values printed -- the isotropic equivalent, 2 tr(beta G) / 3,
+of the anisotropic fit -- are 16-20 A^2 on the cows where DIALS prints 11-16,
+in its own convention (exp(B d*^2 / 4)), its ranking not the same: item 76.
+
 mxi's own scaling of these crystals gives lower correlations than
 dials.scale's (0.72 against 0.84 at the least): a thing to look at in
 multi-crystal scaling, apart from the clustering.

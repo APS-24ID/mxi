@@ -111,6 +111,10 @@ def test_two_sweeps_integrate_as_the_sweep_whole_does(tmp_path):
     ).stat().st_size > 0
     assert not (tmp_path / "p.txt").exists()
     assert "Integrating 2 experiments" in out
+    # Each sweep's own run says its figures, not the scratch files it writes
+    # inside the program (item 77): only the whole's line names a file.
+    assert ".sweep0." not in out and ".sweep1." not in out, out
+    assert out.count("Integrated ") == 2, out
     assert len(models["experiment"]) == 2 and len(models["crystal"]) == 2
     assert [x["profile"] for x in models["experiment"]] == [0, 1]
     assert [x["scan"] for x in models["experiment"]] == [0, 1]

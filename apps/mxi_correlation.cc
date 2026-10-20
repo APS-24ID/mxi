@@ -20,6 +20,7 @@
 #include "correlation.hh"
 #include "expt.hh"
 #include "json.hh"
+#include "laue.hh"
 #include "log_mirror.hh"
 #include "refl.hh"
 #include "rflx.hh"
@@ -39,6 +40,8 @@ const char *kUsage =
     "  --min-partiality P  reflections at least this partial (0.4)\n"
     "  --min-pairs N       a pair's correlation needs N reflections in common "
     "(3)\n"
+    "  --no-normalise      correlate the data sets as scaled, not each first\n"
+    "                      normalised by its own Wilson fall-off\n"
     "  --dimensions N      the cosym coordinates in N dimensions (by default\n"
     "                      the elbow of the functional over 1 to\n"
     "                      min(n, 50), as dials.correlation_matrix)\n"
@@ -167,9 +170,10 @@ int main(int argc, char **argv) {
       "--html",      "--write-clusters", "--prefix",      "--min-partiality",
       "--min-pairs", "--json",           "--dimensions",  "--by-projection",
       "--xi",        "--max-distance",   "--min-samples", "-h",
-      "--help"};
+      "--help",      "--no-normalise"};
   std::set<std::string> takes_value = known;
   takes_value.erase("--by-projection");
+  takes_value.erase("--no-normalise");
   takes_value.erase("--write-clusters");
   takes_value.erase("-h");
   takes_value.erase("--help");
@@ -201,9 +205,54 @@ int main(int argc, char **argv) {
     const SpaceGroup group =
         SpaceGroup::from_hall(first->crystal->space_group_hall);
     std::vector<std::size_t> which;
-    const std::vector<MergedSet> sets =
+    std::vector<MergedSet> sets =
         merged_by_experiment(experiments, reflections, group,
                              args.number("--min-partiality", 0.4), &which);
+    // Each data set normalised before its correlations, as
+    // dials.correlation_matrix normalises: divided by a Wilson model's scale
+    // and fall-off fitted by maximum likelihood (laue.hh, as mxi_symmetry
+    // uses it). A correlation over all resolutions is blind to scale but not
+    // to fall-off: unnormalised, the cow whose B was lowest (10.8 A^2, the
+    // others 12.8-15.7) correlated worst and fell out as an outlier, where
+    // DIALS on the same scaled data found one cluster (20 October).
+    if (!args.has("--no-normalise")) {
+      std::printf("Normalised by a Wilson model fitted to each data set (the\n"
+                  "isotropic equivalent of its anisotropic B):");
+      for (std::size_t s = 0; s < sets.size(); ++s) {
+        const Mat3 &A = experiments[which[s]].crystal->A;
+        P1Intensities p1;
+        for (std::size_t r = 0; r < sets[s].hkl.size(); ++r) {
+          const Miller &h = sets[s].hkl[r];
+          const Vec3 q = A * Vec3{double(h[0]), double(h[1]), double(h[2])};
+          p1.hkl.push_back(h);
+          p1.i.push_back(sets[s].intensity[r]);
+          p1.sigma.push_back(sets[s].sigma[r]);
+          p1.d.push_back(1.0 / q.norm());
+        }
+        WilsonFit fit;
+        normalise(p1, 200, &fit);
+        sets[s].hkl = p1.hkl;
+        sets[s].intensity = p1.i;
+        sets[s].sigma = p1.sigma;
+        // The fit's b is in Miller-index units, exp(-h^T beta h); the isotropic
+        // B equivalent, as DIALS prints it: exp(-B d*^2 / 2), d*^2 = h^T G* h,
+        // so B = 2 tr(beta G) / 3, G the direct metric (G*^-1, G* = A^T A).
+        const Mat3 Gs = A.transpose() * A;
+        const Mat3 G = Gs.inverse();
+        const double beta[9] = {fit.b[0], fit.b[3], fit.b[4],
+                                fit.b[3], fit.b[1], fit.b[5],
+                                fit.b[4], fit.b[5], fit.b[2]};
+        double trace = 0.0;
+        for (int r = 0; r < 3; ++r)
+          for (int c2 = 0; c2 < 3; ++c2)
+            trace += beta[r * 3 + c2] * G.m[c2 * 3 + r];
+        if (fit.fitted)
+          std::printf(" %.2f", 2.0 * trace / 3.0);
+        else
+          std::printf(" (by shells)");
+      }
+      std::printf(" A^2\n");
+    }
     const auto min_pairs =
         static_cast<std::size_t>(args.number("--min-pairs", 3.0));
     const CorrelationMatrix m = correlation_matrix(sets, min_pairs);

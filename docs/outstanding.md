@@ -9,6 +9,17 @@ where something is missing.
 
 ## Integration
 
+* **76.** **question -- mxi_correlation's per-data-set B against DIALS's.**
+  mxi_correlation now normalises each data set (docs/correlation.md), which
+  brought the cows to DIALS's one cluster; but its B values, the isotropic
+  equivalent of mxi's anisotropic ML fit, are 16-20 A^2 where
+  dials.correlation_matrix prints 11-16, the ranking different (mxi has the
+  most extreme data set highest, DIALS's log lowest -- though DIALS's log
+  repeats its first data set's values for its twelfth, so its numbering may
+  be off). The conventions differ (DIALS's exp(B d*^2 / 4), mxi's B from
+  exp(-B d*^2 / 2)), as do the models (isotropic with mmtbx's protein terms;
+  anisotropic, a light atom). To settle: the same model both ways, data set
+  by data set. 20 October.
 * **75.** **validation -- the real-space grid search is not yet shown better than
   the FFT on data.** `mxi_index --real-space-grid` (Gildea et al. 2014) finds
   exactly the FFT's basis on insulin's four sweeps and on a four-sweep small

@@ -161,7 +161,9 @@ mxi_integrate refined.rflx
 
 ```
 Profile model: sigma_b 0.0467 deg, sigma_m 0.1262 deg (estimated from the indexed spots); foreground to 3.0 sigma
+Integrated 31295 reflections
 Profile model: sigma_b 0.0364 deg, sigma_m 0.0624 deg (estimated from the indexed spots); foreground to 3.0 sigma
+Integrated 31258 reflections
 ...
 Wrote 375723 reflections of 24 experiments, and the models, to integrated.rflx
 ```
@@ -275,7 +277,7 @@ mxi_correlation scaled.rflx --html correlation.html --write-clusters
 
 ```
 correlations: 0.571 to 0.972, median 0.807
-3 dimensions, at the elbow; the functional there 0.052321
+3 dimensions, at the elbow; the functional there 0.0523707
 OPTICS (Ankerst et al. 1999), xi 0.05, max distance 0.5: min_samples 6 (the initial guess 6), silhouette 0.817, score 0.817
   cluster 0, 12 data sets: 1 3 5 7 9 11 13 15 17 19 21 23
   cluster 1, 12 data sets: 25 27 29 31 33 35 37 39 41 43 45 47

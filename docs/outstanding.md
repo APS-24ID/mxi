@@ -5,7 +5,8 @@ evidence is in the document named; when an item is done, it moves to "Closed"
 at the end and the document it concerns says what was found. Numbers do not
 change when items close. Items are grouped by where the work is, and
 marked **correctness** where a number is known to be wrong, or **capability**
-where something is missing.
+where something is missing. Every open item was checked against the code and the
+history on 20 October: four closed, nine rewritten to what is now true.
 
 ## Integration
 
@@ -96,16 +97,6 @@ where something is missing.
     here, 0.33 degrees). basic stays the default until decided. sigma_b is
     not a discrepancy: it is the total angle about s1, so a per-axis width
     times root 2, as DIALS's.
-* **55.** **understood -- Summation 2 to 3 per cent below DIALS's on the two
-    crystals**: the foreground's extent. A 3 sigma ellipsoid holds 97.1 per
-    cent of a three-dimensional Gaussian, and mxi's sigma_b is some 6 per cent
-    below DIALS's -- the same estimator, line for line; the spot finder's
-    pixels the difference -- so its foreground holds a little less of each
-    spot. At 3.5 sigma summation is 1.002 and 0.997 of DIALS's, profile
-    fitting 1.012 and 1.005: both move, so not the background. A constant
-    fraction, which scaling takes up; an error only if it varies with the
-    geometry.
-
 * **1.** **correctness -- Partials come out high.** Judged by symmetry equivalents,
    observations with partiality below 0.9 are 10.5 per cent high, and those in
    the first two and last five images 4 to 5 per cent: partiality looks
@@ -131,6 +122,10 @@ where something is missing.
   Not repeated on ferritin: there partials are a few per cent low, and suggest
   the sigma_m integrated with (item 3). So insulin's, not the integrator's in
   general -- a question for more data sets.
+  Measured before 15 October, when partiality came to divide only the summed
+  intensity and a reflection split by integration's blocks to be combined
+  before scaling (docs/scaling.md): to measure again with `mxeq equivalents`
+  before anything else is done (review, 20 October).
 * **2.** **correctness -- Reflections cut by a gap come out a few per cent high** (by gaps masked on purpose: +2 at a tenth cut, +6 at a third; a third less at --grid-points 6, now the default); with real gaps, mixed. First recorded as gap-crossing reflections about 3 per cent low, 3.4 by
    symmetry equivalents in scaling; the suspect is profile learning from
    reflections that are themselves cut. `docs/integration.md`, open questions.
@@ -202,7 +197,9 @@ where something is missing.
     one public function per task -- is the refactoring that would remove that.
 * **11.** **speed -- Reading frames and profile fitting are a third of the time
     each** on a 16M sweep. `docs/gpu.md`.
-
+    From item 48 (closed): reading on 32 threads is bound by memory traffic,
+    some 130 GB of decompressed pixels and 140 GB of box voxels a run; counts
+    kept as 16 bits, not floats, would halve the latter -- untried.
 * **47.** **paused -- Background and summation on a device.** 3.0 s of the
   M4 Max's 14.6 s integration, the largest CPU phase after reading. On one
   thread here, 40 per cent of it is the GLM's iterations and 60 the passes over
@@ -227,15 +224,21 @@ where something is missing.
 
 ## Refinement
 
-* **12.** **correctness -- Outlier rejection is milder than DIALS'**: 11714
-    reflections kept against 9580 on the same sweep, RMSD 0.30 px against 0.19.
-* **14.** **capability -- The cell is not constrained to the lattice's symmetry**:
-    77.93 77.90 77.89 A after `mxi_symmetry`, where DIALS reports 77.898.
-    `docs/symmetry.md`.
-* **15.** **correctness, untested -- Three conventions with no data to settle them**:
-    the order of goniometer composition, `first_image != 1`, and multi-panel
-    detectors. `docs/conventions.md`, still open.
-
+* **12.** **correctness, to re-measure -- Outlier rejection milder than DIALS'**:
+    11714 reflections kept against 9580 on the same sweep, RMSD 0.30 px against
+    0.19 -- measured before the scan-varying pass came to keep the static
+    pass's outliers out (18 October), which on a small molecule brought RMSDs
+    to DIALS's. To measure again on that sweep (review, 20 October).
+* **14.** **capability -- Refinement does not constrain the cell to the lattice's
+    symmetry**: 77.93 77.90 77.89 A after `mxi_symmetry`, where DIALS reports
+    77.898. `mxi_scale`'s cell from two-theta is constrained (cubic: 77.99264(4)
+    A on 36 crystals), as dials.two_theta_refine's; the crystal models carried
+    through refinement are not. `docs/symmetry.md`.
+* **15.** **correctness, untested -- Two conventions with no data to settle them**:
+    the order of goniometer composition, and multi-panel detectors
+    (`docs/conventions.md`). The third, a scan not beginning at image one, is
+    settled: z anchored to the scan's first image, as dxtbx (`docs/multi-sweep.md`,
+    step 3), and the spot finder reads only the scan's frames (`docs/spots.md`).
 ## Symmetry
 
 * **66.** **capability -- cosym refusing a poor fit.** Crystals indexed
@@ -250,14 +253,14 @@ where something is missing.
     eigenvectors are the fit; many small wedges, as the paper's examples, will
     want the correlations with too few reflections in common left out, and the
     coordinates fitted around them by L-BFGS. `docs/multi-lattice.md`.
-* **17.** **difference -- Normalisation is by resolution shells**, where DIALS fits an
-    anisotropic maximum-likelihood model; the identity CC is 0.858 against
-    0.931 on one sweep. The first thing to revisit if a harder case disagrees.
 * **18.** **difference -- The <I>/<sigma> limit takes the last shell above
   the threshold**, where dials.symmetry fits a curve: 1.85 A against 2.46 on
   one sweep. The CC half limit is now dials.estimate_resolution's tanh fit.
-* **19.** **decision -- Monoclinic candidates are named C 1 2/m 1**, the reference
-    setting, where DIALS chooses the setting with beta nearest 90, I 1 2/m 1.
+* **19.** **untested -- The monoclinic setting's name.** The setting is chosen
+    with beta nearest 90 and then cctbx's order (src/symmetry.cc), which is
+    DIALS's choice -- I 1 2/m 1 where C 1 2/m 1 would have beta far from 90 --
+    but no centred monoclinic case has been run to see the name reported
+    follow it. Wanted: such a data set, against dials.symmetry.
 * **20.** **capability -- No obliquity (delta) column** in the table of subgroups.
 
 ## Scaling
@@ -271,12 +274,16 @@ where something is missing.
     the very weakest of the weakest crystal, 0.79. `docs/integration.md`,
     "The fitted variance". The CUDA and Metal kernels carry the change,
     unbuilt here.
-
+    Evidence since (20 October): on Graeme's twelve cows, mxi's sigmas for the
+    weakest sixth of reflections calibrate at 1.045 before the error model and
+    1.03 after, where DIALS's on the same reflections calibrate at 0.16 -- its
+    sigmas 2.5 times too large. Close once the weakest crystal's 0.79 is
+    checked again.
 * **22.** **capability -- No free-set validation**, the check for overfitting.
 ## New programs
 
-* **28.** **mxi_export**: MTZ and mmCIF.
-
+* **28.** **mxi_export: mmCIF.** The unmerged MTZ is written, as dials.export's
+    (`docs/export.md`); mmCIF is not.
 ## The spot finder
 
 
@@ -319,58 +326,6 @@ where something is missing.
 * **44.** **speed -- Indexing's peak search walks the whole grid**: 1.52 s against
   the transform's 0.94 on one thread.
 
-* **48.** **measure -- Integration's threads idle while reading, on dense
-  data.** Ferritin, 32 threads: reading frames 35.6 s of wall, but its work --
-  fetching 35.7, decompressing 113.6, filling shoeboxes 232.4 thread-seconds --
-  is 382 of the 1139 thread-seconds the wall allowed: a third. (The fetching's
-  1.00 times the wall is a sum over threads, not one thread fetching; HDF5's
-  lock and the page cache were both ruled out -- `mxi_readtest` reads and
-  decompresses the whole sweep in 11 s either way, warm, with 123 GB and 79 of
-  it cache.) Suspected: `--max-boxes`, 20000 a chunk, which ends the chunk where
-  opening stops -- 6.2 million reflections over 3600 frames open some 1725 a
-  frame, so a chunk is some 11 frames, not 64, and 11 of 32 threads have a frame:
-  0.34, against the 0.34 measured. To test: `--max-boxes 200000`. If so, the
-  default cap should follow the threads, or memory. And filling is two thirds of
-  reading: one pixel at a time, a branch and a conversion each, some 6.6 ns a
-  voxel over 35 billion -- a loop that could vectorise.
-  Tested with `--max-boxes 200000`: the threads went from a third busy to 90
-  per cent -- the cap was idling them -- but every piece of work got about twice
-  as slow, fetching 35.7 to 162.5 thread-seconds (32 threads at the lock now),
-  decompressing 113 to 189, filling 230 to 504; reading's wall 35.1 s to 29.6,
-  the integration 112.0 to 102.2. So with all 32 threads at work something they
-  share runs out -- as in `mxi_readtest`, where decompressing went from 153 to
-  321 thread-seconds -- probably 16 cores of two threads each, and memory: filling
-  writes 35 billion scattered voxels. What would make reading faster now is less
-  per voxel: counts filled as 16 bits, not floats, and a fill loop the compiler
-  can vectorise. A larger default cap still pays, 10 s for 2.2 GB more held.
-  Done: the default cap is 6000 a thread (192000 on 32), and the fill converts a
-  row at a time with no branch, 1.41 s to 0.355 on one thread here,
-  byte-identical. Chunking moves the profile fit's last bits (2.5e-13 relative),
-  so on dense data, where the cap binds, the default's profile-fitted intensities
-  change at that level. To measure on the 32 thread machine.
-  Measured with both: the integration 94.7 s with `--gpu` (102.6 before) and
-  103.8 without (112.0), the cap's 8 s. The SIMD fill, four times faster on one
-  thread here, saved 8 per cent of filling's thread-seconds there (504 to 464)
-  and nothing of reading's wall (30.8 s): on 32 threads filling is bound by
-  memory, not instructions. Reading as a whole is bound by memory traffic --
-  some 130 GB of decompressed pixels and 140 GB of scattered box voxels a run.
-  What would lessen it: a box's data not zeroed when it opens -- 140 GB of zeros
-  the fill overwrites, needed only where a frame is missing -- and counts kept
-  as 16 bits, half of the rest.
-  Tried and reverted: boxes not zeroed when they open, each unfilled slice
-  zeroed when its frame came up (32e28e9) -- byte-identical, and checked with
-  every new box poisoned with NaN and with a frame forced missing. On the 32
-  thread machine it changed nothing: opening 15.05 s against 15.09, the
-  integration 94.79 against 94.75; on the MacBook it was slower. So writing the
-  zeros was not what opening costs -- that is building each voxel's mask -- and a
-  second allocator was not worth keeping.
-
-
-
-
-
-
-
 * **49.** **population -- `mxi_import` across data sets.** Right on two masters
   from two writers, and against dials.import on insulin the same in all but the
   file's own size and the exposure time (count_time here, 0 there; to settle on
@@ -380,21 +335,35 @@ where something is missing.
   or polarisation from the file, materials but silicon.
 
 ## Infrastructure
-  Diamond's Eiger masters (5 October): an offset without offset_units, in
-  metres, had been taken as millimetres -- fixed, as nxmx reads it. And their
-  count limit and bit depth are links into the _meta.h5 beside the master; a
-  link that cannot be followed had been taken for absent, and the fallback,
-  65534, was itself a marker and a 16-bit limit on 32-bit data. Now the lower of
-  the detector's limit and 2^bits - 3, a broken link said so, and 2147483647 with
-  neither (Graeme's correction).
-  And a scan not beginning at image one had every angle wrong by its start --
-  z anchored to image one where dxtbx anchors it to the scan's first image --
-  fixed with several sweeps (`docs/multi-sweep.md`, step 3).
-* **31.** **The C++ suite takes about two minutes**, most of it a handful of older
-    refinement and indexing tests at 10 to 13 seconds each.
-* **32.** **The device port is designed but not written.** `docs/gpu.md`.
-
+* **31.** **The C++ suite is slow**: mxi_tests about five minutes on one core
+    here, most of it a handful of older refinement and indexing tests and, since
+    October, the spot finder's tests joined to it. ctest runs it as one test.
 ## Closed
+
+Closed in the review of 20 October, against the code and the history:
+
+* **17.** **Normalisation by resolution shells.** mxi_symmetry has normalised by an
+  anisotropic maximum-likelihood Wilson model, dials.symmetry's ml_aniso, since
+  fffaa80 (src/laue.cc), shells only where the fit fails; mxi_correlation uses
+  the same since 20 October.
+* **55.** **Summation 2 to 3 per cent below DIALS's**, understood: the foreground's
+  extent, a constant fraction which scaling takes up -- an error only if it
+  varies with the geometry, which nothing has shown.
+* **48.** **Integration's threads idle while reading.** The box cap was the cause
+  (now 6000 a thread); the fill converts a row at a time; boxes left unzeroed
+  tried and reverted. What is left, reading bound by memory traffic, is in 11.
+* **32.** **The device port designed but not written**, overtaken: profile fitting
+  runs on a device (`mxi_integrate --gpu`, Metal and CUDA); what remains is in 43
+  and 47.
+* **Diamond's Eiger masters** (5 October): an offset without offset_units, in
+  metres, had been taken as millimetres -- fixed, as nxmx reads it; their count
+  limit and bit depth are links into the _meta.h5 beside the master, a link
+  that cannot be followed had been taken for absent, and the fallback 65534 was
+  itself a marker and a 16-bit limit on 32-bit data -- now the lower of the
+  detector's limit and 2^bits - 3, a broken link said so, and 2147483647 with
+  neither. And a scan not beginning at image one had every angle wrong by its
+  start, fixed with several sweeps. (A note that had been left among the open
+  items.)
 
 * **77.** Closed 20 October. **Each sweep's integration said it wrote its
   internal files** ("... to integrated.rflx.sweep0.expt and

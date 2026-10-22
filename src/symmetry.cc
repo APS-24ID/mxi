@@ -494,9 +494,28 @@ std::optional<Setting> reference_setting(const std::vector<Rotation> &rotations,
         // nearest 90: beta not acute, then a no longer than c -- cctbx's best
         // cell, which DIALS reports. A tie-break on minus signs alone had
         // taken b,c,a over a,-c,b for Graeme's 6S0R, a and c swapped.
+        // Any other lattice: the axes in order of length, a <= b <= c, as
+        // cctbx's best cell and DIALS report -- counted as the pairs out of
+        // order. Without it every permutation of an orthorhombic cell tied, and
+        // the first found won: a small molecule's 5.42 8.13 12.02 A, already
+        // in order, reindexed c,a,b to 12.02 5.42 8.13 (Graeme, 20 October).
+        // A group's own unique axis (tetragonal, hexagonal) has already
+        // decided which permutations are candidates; this decides the rest.
+        // Lengths within half a per cent count as equal: a refined cubic cell's
+        // edges differ in their hundredths, and an exact comparison let that
+        // outrank the fewest minus signs (insulin's b+c,a+c,a+b had become
+        // -b-c,a+b,a+c).
+        const auto inversions = [&] {
+          const double l[3] = {made.a, made.b, made.c};
+          int k = 0;
+          for (int x = 0; x < 3; ++x)
+            for (int y = x + 1; y < 3; ++y)
+              k += l[x] > l[y] * 1.005 ? 1 : 0;
+          return k;
+        };
         const int order = monoclinic ? (made.beta < 90.0 - 1e-6 ? 2 : 0) +
                                            (made.a > made.c + 1e-6 ? 1 : 0)
-                                     : 0;
+                                     : inversions();
         // Fewest coefficients; then, for monoclinic, beta nearest 90 and the
         // order above; then the fewest negative signs, so that the operator
         // reads as DIALS' do.

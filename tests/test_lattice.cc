@@ -112,4 +112,24 @@ TEST(a_primitive_monoclinic_cell_has_beta_obtuse_and_a_shorter_than_c) {
   check::close(c.beta, 94.234, 1e-3, "beta obtuse");
 }
 
+// An orthorhombic cell's reference setting has its axes in order of length,
+// a <= b <= c, as cctbx's best cell and DIALS report: every permutation had
+// tied, and a small molecule's 5.42 8.13 12.02 A, already in order, was
+// reindexed c,a,b (20 October). In order, it is left as it is.
+TEST(an_orthorhombic_setting_has_its_axes_in_order_of_length) {
+  for (const UnitCell &cell : {UnitCell{12.02, 5.42, 8.13, 90.0, 90.0, 90.0},
+                               UnitCell{5.42, 8.13, 12.02, 90.0, 90.0, 90.0},
+                               UnitCell{8.13, 12.02, 5.42, 90.0, 90.0, 90.0}}) {
+    const auto s = named(cell, 4);
+    check::is_true(s && s->group.name() == "P m m m", "P m m m");
+    const UnitCell r = reindexed_cell(cell, s->cb);
+    check::close(r.a, 5.42, 1e-6, "a the shortest, from " + s->cb_text);
+    check::close(r.b, 8.13, 1e-6, "then b");
+    check::close(r.c, 12.02, 1e-6, "c the longest");
+  }
+  const auto same = named(UnitCell{5.42, 8.13, 12.02, 90.0, 90.0, 90.0}, 4);
+  check::is_true(same && same->cb_text == "a,b,c",
+                 "in order already: a,b,c, not " + (same ? same->cb_text : ""));
+}
+
 } // namespace mxi

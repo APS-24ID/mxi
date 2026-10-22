@@ -114,6 +114,18 @@ settings b,c,a and a,-c,b alike in coefficients and beta, and the tie-break on
 minus signs taking the first (tests/test_lattice.cc). Choosing I 1 2/m 1 over C
 1 2/m 1 when its beta is nearer 90 is another question, outstanding item 19.
 
+**Any other lattice's axes in order of length** (20 October). Of the settings
+with the fewest coefficients, those with a <= b <= c -- counted as the pairs of
+axes out of order, lengths within half a per cent equal -- before the fewest
+minus signs. Every permutation of an orthorhombic cell had tied, and the
+first found won: a small molecule's 5.422 8.131 12.023 A, already in order,
+reindexed c,a,b to 12.023 5.422 8.131 (Graeme). Now b,c,a from that file back
+to 5.444 8.108 11.989, and a cell in order left as it is. Half a per cent,
+because a refined cubic cell's edges differ in their hundredths: compared
+exactly they outranked the minus signs, and insulin's b+c,a+c,a+b became
+-b-c,a+b,a+c. A group's unique axis (tetragonal, hexagonal) has already decided
+which permutations are candidates. Test: tests/test_lattice.cc.
+
 ## A dataset measured to the corner: two simplifications undone
 
 On a sweep dials.symmetry called I m -3, mxi_symmetry chose P -1: the true

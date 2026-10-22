@@ -1,6 +1,6 @@
 {
   "name": "mxi-spotfinder",
-  "version-string": "1.0.4",
+  "version-string": "1.0.5",
   "description": "The DIALS extended dispersion spot finder on a GPU, from NXmx to a reflection table",
   "dependencies": [
     "hdf5"

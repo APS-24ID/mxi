@@ -88,6 +88,62 @@ std::string winner(const P1Intensities &data, double *likelihood) {
 
 } // namespace
 
+namespace {
+
+//: A small molecule's P 21 21 21 intensities, 5.42 8.13 12.02 A, as they come
+//: indexed in the order 12.02 5.42 8.13 -- the true axes b,c,a of these.
+P1Intensities planted_out_of_order(const UnitCell &given, unsigned seed) {
+  const SpaceGroup group = SpaceGroup::from_name("P 21 21 21");
+  const ChangeOfBasis to_true = ChangeOfBasis::parse("b,c,a");
+  std::mt19937 rng(seed);
+  std::exponential_distribution<double> wilson(1.0);
+  std::normal_distribution<double> noise(0.0, 1.0);
+  std::map<Miller, double> value;
+  P1Intensities out;
+  for (int h = -15; h <= 15; ++h)
+    for (int k = -7; k <= 7; ++k)
+      for (int l = 0; l <= 10; ++l) {
+        const Miller m{h, k, l};
+        if (m == Miller{0, 0, 0} || (l == 0 && (k < 0 || (k == 0 && h < 0))))
+          continue;
+        const double d = d_spacing(given, m);
+        if (d < 0.8 || d > 20.0)
+          continue;
+        const Miller u = group.unique(to_true.apply(m));
+        if (!value.count(u))
+          value[u] = wilson(rng);
+        out.hkl.push_back(m);
+        out.i.push_back(value[u] * (1.0 + 0.05 * noise(rng)));
+        out.sigma.push_back(0.05 * value[u] + 0.01);
+        out.d.push_back(d);
+      }
+  return out;
+}
+
+} // namespace
+
+// The regression for Graeme's small molecule (20 October): its cell indexed as
+// 12.02 5.42 8.13, the symmetry found from its intensities is P m m m, and its
+// setting puts the axes in order of length -- every permutation had tied in
+// naming, and the first found, c,a,b, had been taken from a cell in order.
+TEST(an_orthorhombic_crystal_comes_out_with_its_axes_in_order) {
+  const UnitCell given{12.02, 5.42, 8.13, 90.0, 90.0, 90.0};
+  const LaueScores s = score_laue_groups(planted_out_of_order(given, 7),
+                                         lattice_symmetry(given));
+  check::is_true(s.groups.front().likelihood > 0.5,
+                 "the winner, likelihood " +
+                     std::to_string(s.groups.front().likelihood));
+  const auto set = reference_setting(s.groups.front().rotations, given);
+  check::is_true(set && set->group.name() == "P m m m",
+                 "P m m m, not " +
+                     (set ? set->group.name() : std::string("?")));
+  const UnitCell r = reindexed_cell(given, set->cb);
+  check::is_true(r.a < r.b && r.b < r.c,
+                 "a <= b <= c by " + set->cb_text + ": " + std::to_string(r.a) +
+                     " " + std::to_string(r.b) + " " + std::to_string(r.c));
+  check::close(r.a, 5.42, 1e-6, "a, 5.42 A");
+}
+
 TEST(the_laue_group_planted_is_the_laue_group_found) {
   double p = 0.0;
   const std::string cubic = winner(planted("I 2 3", 3), &p);

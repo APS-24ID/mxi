@@ -13,4 +13,4 @@ are read directly, so the checks run anywhere.
 from . import expt, match, refl, reindex, report, stats
 
 __all__ = ["expt", "match", "refl", "reindex", "report", "stats"]
-__version__ = "1.0.4"
+__version__ = "1.0.5"

@@ -195,6 +195,12 @@ predicted the anisotropy. Most of the disagreement had been the comparison.
   FFT's basis on insulin and the small molecule (item 75: its advantage still
   to be measured). The cows-pigs-people tutorial drafted, its output to come
   from Graeme's run.
+- **A release**, each point release the same: the version in five places
+  (CMakeLists.txt's project(), vcpkg.json, python/pyproject.toml,
+  python/src/mxeq/__init__.py, docs/spots.md's example output -- the configure
+  checks the first two agree); an entry at the top of RELEASE_NOTES.md, what
+  changes results or commands first; an annotated tag, `git tag -a vX.Y.Z`,
+  with the same summary.
 - Lessons: a tie must be to the right thing -- tied to one, the scale pulled a
   weak crystal's level, tied to its own level it does not; test with what
   differs in the user's case (different files, different geometry), not only

@@ -2,18 +2,20 @@
 
 ## What this is
 
-An MX data-reduction chain for one rotation sweep, from the images to scaled
-intensities: spot finding, indexing, refinement, prediction, integration,
-symmetry determination and scaling, reading and writing DIALS' formats so that
-any stage can be swapped for DIALS' own. `docs/review.md` is the guide for
-someone meeting the code for the first time.
+MX data reduction for NXmx rotation data, from the images to scaled, unmerged
+intensities: spot finding, indexing, refinement, integration, symmetry and
+scaling, for one sweep or many, one crystal or many -- with `mxi_correlation`
+to find which crystals belong together, and `mxi_combine` and `mxi_split` to
+join and part runs. It reads and writes DIALS' formats, so any stage can be
+swapped for DIALS' own. Version 1.0.5; `RELEASE_NOTES.md` says what each
+release changed. `docs/review.md` is the guide for someone meeting the code
+for the first time; `docs/algorithms.md` lists the methods.
 
-Three pieces share this repository and are not one program:
+Two pieces share this repository and are not one program:
 
 | | where | its notes |
 | --- | --- | --- |
-| the spot finder and image reader | `src/` | `docs/spots.md`, `docs/spots_notes.md` |
-| the pipeline | `src/`, `apps/` | this file; `docs/integration.md`, `docs/symmetry.md`, `docs/scaling.md` |
+| the pipeline, spot finding among its stages | `src/`, `apps/` | this file; `docs/spots.md`, `docs/integration.md`, `docs/symmetry.md`, `docs/scaling.md`, `docs/correlation.md` |
 | `mxeq`, the referee | `python/` | `python/CLAUDE.md` |
 
 `mxeq` must stay independent of everything else here. It is the referee, and a
@@ -21,23 +23,12 @@ referee that depends on the thing it judges is not one. Nothing in `src/` or
 `apps/` may import it, and it must never import them; it reads files, which is
 the whole point.
 
-Anything that reads images needs HDF5: `mxi_find` and `mxi_integrate`. Both are
-built and tested here. Without HDF5 both are left out of the build silently.
-
-Two overlaps, neither resolved:
-
-* `src/spot_table.cc` writes reflection tables and so does `src/refl.cc`. The
-  spot finder's is specialised to its Spot type; the other is a general reader
-  and writer validated against real DIALS files. The cost of two is real: the
-  4 GB msgpack limit was guarded in one and not the other, and a shoebox table
-  was written corrupt through the unguarded one. Consolidating them is worth
-  doing and is exactly the kind of change that quietly breaks a format that
-  works, so: not in the same commit as anything else, and with both writers'
-  output compared byte for byte before and after.
-* `src/experiment_images.cc` reads experiment lists too, but only for the scan range,
-  the panel size, the identifier and the image mapping, and its header says it
-  is not trying to be dxtbx. The geometry conventions still live in one place,
-  `src/geometry.hh`.
+The build requires HDF5 and the gemmi and bitshuffle submodules, and stops at
+configure without them (`git submodule update --init --recursive`): nothing is
+left out silently. The spot finder was a project of its own until October; it
+now uses the library's table writer (`src/spot_table.cc` builds a library
+table) and the library's experiment lists (`src/experiment_images.cc`, the one
+reader tolerant of stills, kept deliberately).
 
 ## The documents, and what is open
 
@@ -56,6 +47,12 @@ programs' output, mxi_show and mxi_report, compression and the fit's weights
 from two-theta and memory and time on long scans 14 October, 473 commits;
 mxi_correlation, partials, the error model's fits, centred input and
 integration's speed 15 October, 494 commits.
+1.0.0 to 1.0.5, 16 to 22 October, 530 commits: the spot finder made one
+stage of mxi; joint and isolated processing made to agree (--no-joint's
+beams, refinement sweep by sweep); refinement's scan-varying pass and its
+restraints, from a small molecule; mxi_combine and mxi_split; --known-cell and
+the real-space grid search; mxi_correlation's normalisation; the
+cows-pigs-people tutorial; the orthorhombic setting; release notes.
 For a new session to
 pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in
@@ -163,7 +160,7 @@ integrating the same model over the same pixels inside the same mask put the
 positions within a hundredth of a pixel, the widths within four per cent, and
 predicted the anisotropy. Most of the disagreement had been the comparison.
 
-**Done 16 and 17 October, to 1.0.2:**
+**Done 16 to 22 October, 1.0.0 to 1.0.5:**
 - The spot finder made one stage of mxi, in three commits (1.0.1): the flat
   tree and one build, MXI_* options; the library's table writers, experiment
   lists, arguments, HDF5 handles and namespaces; one Metal and one CUDA layer
@@ -195,12 +192,29 @@ predicted the anisotropy. Most of the disagreement had been the comparison.
   FFT's basis on insulin and the small molecule (item 75: its advantage still
   to be measured). The cows-pigs-people tutorial drafted, its output to come
   from Graeme's run.
+- 20 October: mxi_correlation normalises each data set by its Wilson
+  fall-off before correlating (as DIALS): a weak cow, CIX10, had fallen out as
+  an outlier. On the way, found: mxi's sigmas for weak reflections calibrate
+  at about 1, DIALS's at 0.16 (2.5 times too large). The tutorial's output
+  from Graeme's run; each sweep's integration no longer names its scratch
+  files; docs/outstanding.md reviewed against the code (four closed, nine
+  rewritten).
+- 22 October: mxi_symmetry's settings in order of length, a <= b <= c, for
+  any lattice but monoclinic -- an orthorhombic cell in order had been
+  reindexed c,a,b -- with a regression test through the whole analysis;
+  RELEASE_NOTES.md.
 - **A release**, each point release the same: the version in five places
   (CMakeLists.txt's project(), vcpkg.json, python/pyproject.toml,
   python/src/mxeq/__init__.py, docs/spots.md's example output -- the configure
   checks the first two agree); an entry at the top of RELEASE_NOTES.md, what
   changes results or commands first; an annotated tag, `git tag -a vX.Y.Z`,
   with the same summary.
+- Lessons of 20 to 22 October: run the reference program on mxi's own output
+  before theorising -- dials.correlation_matrix on mxi's scaled cows settled
+  in one run what weighting and attenuation theories had not; and the
+  bundle is the repository: the working copy, the build and everything in
+  /tmp can be gone at the start of a session (restore with `git clone
+  /mnt/user-data/outputs/mxi.bundle mxi`, then the submodules, then build).
 - Lessons: a tie must be to the right thing -- tied to one, the scale pulled a
   weak crystal's level, tied to its own level it does not; test with what
   differs in the user's case (different files, different geometry), not only

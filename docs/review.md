@@ -39,11 +39,12 @@ package is BSD 3-clause.
 that caused bugs, and what not to do again. It is worth reading for the same
 reason a DIALS developer's notes would be.
 
-Its size, excluding third-party code: the library 26167 lines in `src/` and the
-spot finder 7435 in `src/`; nineteen programs in 10873 lines in `apps/`,
-and `mxi_find` in `apps/mxi_find.cc`; C++ tests 14963 lines; a Python
-package of comparison and regression tools, `mxeq`, 10258 lines, with 7687 of
-tests; 9842 lines of documents. Some 494 commits over five weeks.
+Its size, excluding third-party code: the library 32629 lines in `src/`, spot
+finding among it; twenty-two programs in 12988 lines in `apps/`; C++ tests
+17583 lines; a Python package of comparison and regression tools, `mxeq`,
+10258 lines, with 7843 of tests; 10205 lines of documents. Some 530 commits
+over six weeks, released as 1.0.5; `RELEASE_NOTES.md` says what each release
+changed.
 `docs/algorithms.md` lists each stage's methods and their sources.
 
 `mxeq regress` runs the chain over real data sets on each machine and keeps
@@ -179,7 +180,12 @@ once there are lattices (`--keep-sweeps` keeps it).
 **Refinement** has analytical derivatives for crystal, detector and beam,
 checked against finite differences. The scan-varying crystal is a **cubic
 B-spline** of control points, not DIALS' Gaussian smoother: both are smooth and
-local, and they are not the same model. A file carries samples at image
+local, and they are not the same model. Each control point is tied weakly to
+the static crystal (`--crystal-restraint`), `--interval` spaces them, and the
+scan-varying pass starts from the static pass's reflections, its outliers
+kept out -- re-admitted, they had let a small molecule's cell wander within a
+sweep (`docs/algorithms.md`). Every sweep is refined on its own by default,
+even several of one crystal; `--joint` for one fit. A file carries samples at image
 boundaries, N + 1 of them, and those are interpolated linearly as DIALS does;
 three bugs came from mixing the two up (`CLAUDE.md`, "Scan points are
 boundaries"). Outlier rejection is milder than DIALS' -- 11714 reflections kept
@@ -291,12 +297,15 @@ phase of every program is reported by `--timing`.
 
 ## What is not here yet
 
-The chain is complete for one sweep and for several of one crystal indexed
-together; beyond it (`docs/outstanding.md` has the numbered list):
+The chain is complete for one sweep, for several of one crystal, and for many
+crystals -- indexed apart, brought to one setting by cosym, sorted by
+`mxi_correlation`, joined and parted by `mxi_combine` and `mxi_split`; beyond
+it (`docs/outstanding.md` has the numbered list):
 
-* Free-set validation of scaling; overloads flagged in integration; e.s.d.s
-  for the cell, and the cell constrained to the lattice's symmetry, in
-  refinement; cosym for many small partial data sets.
+* Free-set validation of scaling; overloads flagged in integration; the cell
+  constrained to the lattice's symmetry in refinement (`mxi_scale`'s cell from
+  two-theta is constrained, with e.s.d.s); cosym for many small partial data
+  sets.
 * Reports and merged output: an HTML report, merged MTZ and mmCIF are not
   written; `mxi_export` writes the unmerged MTZ, which AIMLESS reads
   (`docs/export.md`), and `dials.merge` takes the scaled table.
@@ -323,6 +332,13 @@ the stronger two-thirds (`docs/scaling.md`). DIALS's summed variance is |I| + I_
 side of zero, so it does not lean a weighted mean as mxi's did -- the counted
 foreground, I + I_bg, until October; now max(I, 0) + I_bg, and in scaling the
 model's intensity.
+
+And dials.integrate's profile-fitted sigmas for weak reflections are some 2.5
+times too large: on twelve crystals of bovine insulin, the weakest sixth's
+deviations from their equivalents have variance 0.16 of what DIALS's sigmas
+say, where mxi's, on the same reflections, have 1.03-1.05 (20 October; the
+intensities themselves agree within 0.13 sigma). Weighted by them, correlations
+between data sets effectively count only the strong reflections.
 
 Measured, and listed with their evidence at the end of `docs/outstanding.md`:
 dials.scale's error model biased low by (n-1)/n; the anomalous slope and dI/s(dI)

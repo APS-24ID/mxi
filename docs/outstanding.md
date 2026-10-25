@@ -10,6 +10,18 @@ history on 20 October: four closed, nine rewritten to what is now true.
 
 ## Integration
 
+* **78.** **Against a refined structure (`mxeq truth`, 21 October).** Graeme's
+  small molecule, four sweeps, refined to R1 0.026: over its 12259 scaled
+  observations R(F^2) 0.066, z's robust variance 0.81 but 1.9 per cent beyond
+  5 sigma. Scaling rejected 77, 74 of them beyond 5 sigma, and kept 154 more.
+  What to look at: (a) images 500-900 of sweeps 4 and 6, 4.5 per cent beyond
+  5 sigma against 1 elsewhere -- the same range in two sweeps, a shadow?;
+  (b) sweep 7 uniformly noisier, 3 per cent; (c) the lowest resolution,
+  1.6-6.7 A, 10 per cent beyond 5 sigma, 61 per cent of it shared within
+  reflections (the model's: Fc^2 a little low at low angle, no bonding
+  density) and 39 the processing's; (d) a partial on a sweep's first image,
+  partiality 0.50, measuring 0.36 of its full intensity (item 1); and the
+  error model's shape, item 69.
 * **76.** **question -- mxi_correlation's per-data-set B against DIALS's.**
   mxi_correlation now normalises each data set (docs/correlation.md), which
   brought the cows to DIALS's one cluster; but its B values, the isotropic
@@ -77,6 +89,12 @@ history on 20 October: four closed, nine rewritten to what is now true.
     and every sigma-weighted statistic follows. Next: the two fits on the same
     scaled intensities -- which observations each uses, its bins, whether
     the species' real differences enter mxi's as error.
+    Absolute evidence, 21 October (`mxeq truth`, a small molecule refined
+    to R1 0.026 with SHELXL): against Fc^2, mxi's scaled sigmas are about 1.4
+    times too large for the weakest observations (robust variance of z 0.5)
+    and 1.6 times too small for the strongest (2.45), the model fitted a 1.94,
+    b 0.016 -- too much of a, too little of b. The truth-based calibration by
+    intensity is the measure to choose the fit by.
 * **63.** **decision -- sigma_m: the rocking curve's width, and how far the
     box must reach, are two numbers.** mxsim's note (15 October): the basic
     estimator, one sample an image holding foreground counted once, as

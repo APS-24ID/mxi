@@ -10,16 +10,6 @@ history on 20 October: four closed, nine rewritten to what is now true.
 
 ## Integration
 
-* **79.** **decision -- the order of experiments differs between joint and
-  separate indexing.** `mxi_index --no-joint` writes each sweep followed by its
-  lattice: sweeps even, lattices odd (the cows: 1 3 5 ...). Joint indexing
-  writes the sweeps, then the lattices after them all: four sweeps of one
-  crystal are 0-3, their lattices 4-7. Both are correct, and every program
-  follows each experiment's own image set; but an experiment's number then
-  means different things in the two, which misled a reading of the small
-  molecule's results (Graeme, 21 October). To decide: one order for both --
-  interleaved, as --no-joint, Graeme's expectation -- or keep both and always
-  name data sets by their images. `mxeq truth` now names them so.
 * **78.** **Against a refined structure (`mxeq truth`, 21 October).** Graeme's
   small molecule, four sweeps, refined to R1 0.026: over its 12259 scaled
   observations R(F^2) 0.066, z's robust variance 0.81 but 1.9 per cent beyond
@@ -368,6 +358,13 @@ history on 20 October: four closed, nine rewritten to what is now true.
     here, most of it a handful of older refinement and indexing tests and, since
     October, the spot finder's tests joined to it. ctest runs it as one test.
 ## Closed
+
+* **79.** Decided 21 October, Graeme: **keep both orders of experiments.**
+  Joint indexing writes the sweeps, then their lattices after them all (four
+  sweeps of one crystal: 0-3, then 4-7); `--no-joint` writes each sweep
+  followed by its lattice (sweeps even, lattices odd). Both make sense for
+  what each is; every program follows an experiment's own image set, and
+  mxeq truth names data sets by their images (`docs/multi-sweep.md`).
 
 Closed in the review of 20 October, against the code and the history:
 

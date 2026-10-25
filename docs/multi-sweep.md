@@ -172,6 +172,17 @@ data sets shared one beam, each pulled from where it lies alone (17 October).
 mxi_refine then refines each sweep on its own, in a run of its own, the results
 joined in order (`--joint` for one fit of them all).
 
+## The order of the experiments
+
+The two ways of indexing number their experiments differently, deliberately.
+Joint indexing writes the sweeps first and their lattices after them all: four
+sweeps of one crystal are experiments 0 to 3, with no crystal, and their
+lattices 4 to 7, in the same order. `--no-joint` writes each sweep followed by
+its own lattice, so the sweeps are even and the lattices odd. Every program
+follows an experiment's own image set, not its position; to say which data set
+an experiment is, name its images, as `mxi_show` lists them and `mxeq truth`
+labels them.
+
 ## Each sweep refined on its own (18 October)
 
 Every sweep is refined alone by default -- even several sweeps of one crystal

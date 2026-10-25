@@ -10,13 +10,24 @@ history on 20 October: four closed, nine rewritten to what is now true.
 
 ## Integration
 
+* **79.** **decision -- the order of experiments differs between joint and
+  separate indexing.** `mxi_index --no-joint` writes each sweep followed by its
+  lattice: sweeps even, lattices odd (the cows: 1 3 5 ...). Joint indexing
+  writes the sweeps, then the lattices after them all: four sweeps of one
+  crystal are 0-3, their lattices 4-7. Both are correct, and every program
+  follows each experiment's own image set; but an experiment's number then
+  means different things in the two, which misled a reading of the small
+  molecule's results (Graeme, 21 October). To decide: one order for both --
+  interleaved, as --no-joint, Graeme's expectation -- or keep both and always
+  name data sets by their images. `mxeq truth` now names them so.
 * **78.** **Against a refined structure (`mxeq truth`, 21 October).** Graeme's
   small molecule, four sweeps, refined to R1 0.026: over its 12259 scaled
   observations R(F^2) 0.066, z's robust variance 0.81 but 1.9 per cent beyond
   5 sigma. Scaling rejected 77, 74 of them beyond 5 sigma, and kept 154 more.
-  What to look at: (a) images 500-900 of sweeps 4 and 6, 4.5 per cent beyond
-  5 sigma against 1 elsewhere -- the same range in two sweeps, a shadow?;
-  (b) sweep 7 uniformly noisier, 3 per cent; (c) the lowest resolution,
+  What to look at: (a) images 500-900 of l-cyst_01 and l-cyst_03 (experiments
+  4 and 6, the lattices), 4.5 per cent beyond 5 sigma against 1 elsewhere --
+  the same range in two sweeps, a shadow?; (b) l-cyst_04 (experiment 7)
+  uniformly noisier, 3 per cent; (c) the lowest resolution,
   1.6-6.7 A, 10 per cent beyond 5 sigma, 61 per cent of it shared within
   reflections (the model's: Fc^2 a little low at low angle, no bonding
   density) and 39 the processing's; (d) a partial on a sweep's first image,

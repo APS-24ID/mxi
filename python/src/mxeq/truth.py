@@ -152,6 +152,7 @@ class Observations:
     sum: np.ndarray | None = None
     scale: np.ndarray | None = None
     rejected: np.ndarray | None = None  # rejected as an outlier by scaling
+    names: dict = field(default_factory=dict)  # experiment -> its images' file
 
 
 # DIALS's scaling flags, as mxi writes them (src/scale.hh: kOutlierInScaling,
@@ -194,6 +195,16 @@ def read_scaled(path: str) -> Observations:
     if not crystals:
         raise ValueError(f"{path}: no crystal in its experiment list")
     first = crystals[0]
+    # Each experiment named by its images' file: an experiment's number is not
+    # its sweep's -- joint indexing puts the lattices after all the sweeps, so
+    # l-cyst_01's lattice is experiment 4 (Graeme, 21 October).
+    imagesets = experiments.get("imageset", [])
+    names = {}
+    for i, e in enumerate(experiments.get("experiment", [])):
+        k = e.get("imageset")
+        if k is not None and k < len(imagesets):
+            path = imagesets[k].get("template") or imagesets[k].get("master") or ""
+            names[i] = str(path).split("/")[-1]
     hall = first.get("space_group_hall_symbol", " P 1")
     for name in ("intensity.scale.value", "intensity.scale.variance", "miller_index"):
         if name not in table.columns:
@@ -258,6 +269,7 @@ def read_scaled(path: str) -> Observations:
         rejected=(
             ((flags[keep] & _OUTLIER_IN_SCALING) != 0) if flags is not None else None
         ),
+        names=names,
     )
 
 
@@ -471,7 +483,12 @@ def analyse(
     if obs.experiment is not None:
         e = sub(obs.experiment)
         res.bins["experiment"] = [
-            _bin(str(int(x)), z[e == x], rel[e == x]) for x in np.unique(e)
+            _bin(
+                f"{int(x)} {obs.names.get(int(x), '')}".strip()[:24],
+                z[e == x],
+                rel[e == x],
+            )
+            for x in np.unique(e)
         ]
     if obs.partiality is not None:
         res.bins["partiality"] = binned(sub(obs.partiality), z, rel, min(bins, 5))
@@ -519,6 +536,8 @@ def analyse(
         ):
             if v is not None:
                 entry[name] = float(v[r])
+        if obs.experiment is not None and obs.names:
+            entry["images"] = obs.names.get(int(obs.experiment[r]), "")
         if obs.rejected is not None:
             entry["rejected by scaling"] = bool(obs.rejected[r])
         res.worst.append(entry)

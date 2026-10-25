@@ -446,6 +446,33 @@ def build_parser() -> argparse.ArgumentParser:
         "--labels", nargs=2, default=None, metavar=("A", "B"), help="names for the two"
     )
 
+    tr = sub.add_parser(
+        "truth",
+        help="each scaled observation against a refined structure's Fc^2 (a "
+        "SHELXL .fcf, LIST 4): calibration, bins by what processing could get "
+        "wrong, the model's part against the processing's, the worst",
+    )
+    tr.add_argument("scaled", help="the scaled .rflx")
+    tr.add_argument("fcf", help="SHELXL's .fcf, written with LIST 4")
+    tr.add_argument("--res", default=None, help="SHELXL's .res, for EXTI")
+    tr.add_argument(
+        "--reindex",
+        default=None,
+        help="the change of basis from the .rflx's setting to the .fcf's, as "
+        "b,c,a (by default found from the cells)",
+    )
+    tr.add_argument(
+        "--friedel-merged",
+        action="store_true",
+        help="match Friedel mates as one reflection (by default apart)",
+    )
+    tr.add_argument("--fit-b", action="store_true", help="fit a B with the scale")
+    tr.add_argument("--bins", type=int, default=10, help="bins of equal counts (10)")
+    tr.add_argument("--worst", type=int, default=30, help="the worst listed (30)")
+    tr.add_argument(
+        "--csv", default=None, help="every matched observation to this file"
+    )
+
     fl = sub.add_parser(
         "failures",
         help="where profile fitting fails: an integrated table's profile.failure, "
@@ -646,6 +673,40 @@ def main(argv: list[str] | None = None) -> int:
         a = unique.load(args.expt_a, args.refl_a, names[0])
         b = unique.load(args.expt_b, args.refl_b, names[1])
         print(unique.compare(a, b, args.shells, args.csv))
+        return 0
+
+    if args.command == "truth":
+        from mxeq import truth
+
+        obs = truth.read_scaled(args.scaled)
+        fcf = truth.read_fcf(args.fcf)
+        if args.reindex:
+            op = truth.parse_operator(args.reindex)
+        else:
+            op = truth.setting_from_cells(obs.cell, fcf.cell)
+            if op is None:
+                print(
+                    f"The cells do not match by a permutation of axes -- "
+                    f"{obs.cell} and {fcf.cell}: give --reindex",
+                    file=sys.stderr,
+                )
+                return 2
+            if not np.array_equal(op, np.eye(3, dtype=op.dtype)):
+                print(f"Reindexed to the .fcf's setting: {op.tolist()}")
+        res = truth.analyse(
+            obs,
+            fcf,
+            reindex=op,
+            anomalous=not args.friedel_merged,
+            fit_b=args.fit_b,
+            bins=args.bins,
+            worst=args.worst,
+        )
+        ext = truth.read_res_extinction(args.res) if args.res else None
+        print(truth.report(res, fcf, ext))
+        if args.csv:
+            truth.write_csv(args.csv, obs, res, op)
+            print(f"\nEvery matched observation: {args.csv}")
         return 0
 
     if args.command == "failures":

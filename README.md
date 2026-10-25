@@ -186,7 +186,8 @@ pip install -e "python[plots,fixtures]"  # with its plots and test-data makers
 pipelines at a boundary; `compare-expt` two experiment lists; `trend`,
 `explain` and `disagree` where two integrations differ, and why; `unique` two
 scaled data sets a reflection at a time; `equivalents` integration's bias
-against the data's own symmetry equivalents, with no second program.
+against the data's own symmetry equivalents, with no second program. `truth` judges a scaled data set against a refined
+structure's Fc^2, a SHELXL `.fcf`: absolutely, where the others are relative.
 
 **Regression runs** ([`docs/regression.md`](docs/regression.md)): `mxeq regress` builds a commit,
 runs the chain over a set of real data sets, and keeps every figure in a

@@ -225,6 +225,33 @@ recover the 0.1286 degrees integrated with, and suggest 0.086 (profile fitted)
 and 0.082 (summed) -- where DIALS's profile model has 0.089. `mxeq trend`,
 comparing two integrations, bins by `profile.measured` too.
 
+## Against a refined structure
+
+```sh
+mxeq truth scaled.rflx structure.fcf --res structure.res --csv observations.csv
+```
+
+Each scaled, unmerged observation against a refined structure's Fc^2 -- a
+small molecule refined to an R1 of a few per cent is close to the truth, and
+judges the processing absolutely, where equivalents and another program judge
+it only relatively. The .fcf is SHELXL's, written with `LIST 4`; the .res is
+read for `EXTI` only. Observations are matched to the .fcf's reflections by
+their symmetry-unique index, Friedel mates apart (`--friedel-merged` to join
+them), the setting found from the two cells (`--reindex b,c,a` to give it),
+and one scale k fitted, robustly (`--fit-b` for a B with it). Then, for
+z = (I - k Fc^2) / sigma:
+
+* its calibration, and its tails against a Gaussian's;
+* what a reflection's observations share (the model's part: extinction,
+  anomalous scattering, hydrogens -- or a bias common to them) against what
+  each does about its own reflection's mean (the processing's part);
+* binned by intensity, resolution, image, experiment, partiality, distance from
+  the spots' centre, background, profile against summed intensity, and scale;
+* whether scaling's outlier rejection caught the worst;
+* the worst observations, each with what is known of it.
+
+`--csv` writes every matched observation with all of that, for plotting.
+
 ## No thresholds
 
 Version one applies no pass/fail criteria at all. Every check prints

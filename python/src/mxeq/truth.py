@@ -154,11 +154,13 @@ class Observations:
     rejected: np.ndarray | None = None  # rejected as an outlier by scaling
 
 
-# DIALS's flags, as mxi writes them.
-_OUTLIER_IN_SCALING = 1 << 37
-_EXCLUDED_FOR_SCALING = 1 << 36
-_USER_EXCLUDED_IN_SCALING = 1 << 38
-_SCALED = 1 << 40
+# DIALS's scaling flags, as mxi writes them (src/scale.hh: kOutlierInScaling,
+# kExcludedForScaling, kScaled) and dials.correlation_matrix reads them back.
+# Positions 36 to 40 had been guessed here at first, so that neither the
+# outliers were marked nor the excluded rows left out (21 October).
+_OUTLIER_IN_SCALING = 1 << 23
+_EXCLUDED_FOR_SCALING = 1 << 24
+_SCALED = 1 << 26
 
 
 def _cell_of(crystal: dict) -> tuple:
@@ -201,7 +203,7 @@ def read_scaled(path: str) -> Observations:
     )
     keep = np.ones(table.nrows, bool)
     if flags is not None:
-        keep &= (flags & (_EXCLUDED_FOR_SCALING | _USER_EXCLUDED_IN_SCALING)) == 0
+        keep &= (flags & _EXCLUDED_FOR_SCALING) == 0
     hkl = np.asarray(table["miller_index"], dtype=np.int64)
     keep &= np.any(hkl != 0, axis=1)
     var = np.asarray(table["intensity.scale.variance"], float)
@@ -214,10 +216,21 @@ def read_scaled(path: str) -> Observations:
         v = v[:, k] if k is not None else v
         return v[keep]
 
+    # DIALS's convention, which mxi keeps: intensity.scale.value is the
+    # corrected intensity before scaling, and the scaled one is it divided by
+    # inverse_scale_factor (as dials.export writes it). Read without the
+    # division at first, the scales' own variation -- +/-20 per cent -- had
+    # looked like the data's disagreement with Fc^2 (21 October).
+    g = (
+        np.asarray(table["inverse_scale_factor"], float)
+        if "inverse_scale_factor" in table.columns
+        else np.ones(table.nrows)
+    )
+    keep &= np.isfinite(g) & (g > 0)
     return Observations(
         hkl=hkl[keep],
-        intensity=np.asarray(table["intensity.scale.value"], float)[keep],
-        variance=var[keep],
+        intensity=(np.asarray(table["intensity.scale.value"], float) / g)[keep],
+        variance=(var / g**2)[keep],
         cell=_cell_of(first),
         hall=hall,
         d=col("d"),

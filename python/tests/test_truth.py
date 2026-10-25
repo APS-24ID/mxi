@@ -135,3 +135,40 @@ def test_a_permuted_setting_matches_every_observation():
     res = truth.analyse(obs, fcf, reindex=op, anomalous=False, bins=4)
     assert res.unmatched == 0
     assert res.k == pytest.approx(2.5, rel=0.01)
+
+
+def test_the_scaling_flags_are_mxis():
+    # As src/scale.hh defines them, and DIALS reads them: an outlier, an
+    # exclusion, a scaled row.
+    assert truth._OUTLIER_IN_SCALING == 1 << 23
+    assert truth._EXCLUDED_FOR_SCALING == 1 << 24
+    assert truth._SCALED == 1 << 26
+
+
+def test_the_scaled_intensity_is_divided_by_the_inverse_scale(monkeypatch):
+    # DIALS's convention, which mxi keeps: intensity.scale.value is before
+    # scaling; the scaled intensity is it over inverse_scale_factor, the
+    # variance over its square. Read without, the scales' own +/-20 per cent
+    # had looked like disagreement with Fc^2 (21 October).
+    from mxeq import rflx
+    from mxeq.refl import ReflectionTable
+
+    cols = {
+        "miller_index": np.array([[1, 1, 1], [2, 0, 1]]),
+        "intensity.scale.value": np.array([100.0, 50.0]),
+        "intensity.scale.variance": np.array([4.0, 1.0]),
+        "inverse_scale_factor": np.array([2.0, 0.5]),
+        "flags": np.array([1 << 26, 1 << 26]),
+    }
+    table = ReflectionTable(nrows=2, columns=cols, identifiers={}, types={})
+    crystal = {
+        "real_space_a": [5.0, 0, 0],
+        "real_space_b": [0, 8.0, 0],
+        "real_space_c": [0, 0, 12.0],
+        "space_group_hall_symbol": " P 2ac 2ab",
+    }
+    monkeypatch.setattr(rflx, "load_table", lambda path: table)
+    monkeypatch.setattr(rflx, "experiments_dict", lambda path: {"crystal": [crystal]})
+    obs = truth.read_scaled("x.rflx")
+    assert obs.intensity.tolist() == [50.0, 100.0]
+    assert obs.variance.tolist() == [1.0, 4.0]

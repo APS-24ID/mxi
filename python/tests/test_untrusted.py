@@ -126,3 +126,77 @@ def test_mxi_untrusted_sets_lists_and_clears(tmp_path):
     assert run.returncode == 0 and "none" in run.stdout
     assert "untrusted" not in rflx.experiments_dict(str(cleared))["imageset"][0]
     assert "untrusted" in rflx.experiments_dict(str(masked))["imageset"][0]
+
+
+def test_shoeboxes_are_read_and_the_outliers_exported(tmp_path):
+    # The planted series' strong spots stand in for an integrated file: each
+    # box's shape its bbox's, its brightest pixel at the spot's centroid; and
+    # mxeq truth's export writes the boxes of the observations asked for.
+    from mxeq import truth
+
+    doc = planted(tmp_path)
+    expt = tmp_path / "s.expt"
+    with open(expt, "w") as f:
+        json.dump(doc, f)
+    strong = tmp_path / "strong.rflx"
+    run = subprocess.run(
+        [FIND, str(expt), "-o", str(strong)],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert run.returncode == 0, run.stderr
+    table = rflx.load_table(str(strong))
+    xyz = np.asarray(table["xyzobs.px.value"], float)
+    rows = list(range(0, table.nrows, 5))
+    boxes = rflx.load_shoeboxes(str(strong), rows)
+    for r, b, data in zip(rows, boxes["bbox"], boxes["data"]):
+        x0, x1, y0, y1, z0, z1 = b
+        assert data.shape == (z1 - z0, y1 - y0, x1 - x0)
+        k, j, i = np.unravel_index(np.argmax(data), data.shape)
+        assert (
+            abs(x0 + i + 0.5 - xyz[r, 0]) <= 2.5
+            and abs(y0 + j + 0.5 - xyz[r, 1]) <= 2.5
+        )
+
+    # Observations at those spots, the first three made the worst.
+    n = table.nrows
+    obs = truth.Observations(
+        hkl=np.zeros((n, 3), int),
+        intensity=np.ones(n),
+        variance=np.ones(n),
+        cell=(10, 10, 10, 90, 90, 90),
+        hall=" P 1",
+        x=xyz[:, 0],
+        y=xyz[:, 1],
+        image=xyz[:, 2],
+        experiment=np.asarray(table["id"], float),
+    )
+    z = np.zeros(n)
+    z[[0, 1, 2]] = [30.0, -20.0, 10.0]
+    res = truth.Result(
+        matched=n,
+        unmatched=0,
+        k=1.0,
+        b=0.0,
+        r_unmerged=0.0,
+        var_z=1.0,
+        robust_var_z=1.0,
+        tails={},
+        between=0.0,
+        within=0.0,
+        z=z,
+        zbar=z,
+        model=np.full(n, 100.0),
+        rows=np.arange(n),
+    )
+    out = tmp_path / "outliers.npz"
+    got = truth.export_shoeboxes(obs, res, str(strong), str(out), worst=3, normal=5)
+    assert got["worst"] == 3 and got["normal"] == 5 and got["unmatched"] == 0
+    saved = np.load(out)
+    assert list(saved["integrated_row"][:3]) == [0, 1, 2]
+    assert list(saved["z"][:3]) == [30.0, -20.0, 10.0]
+    first = rflx.load_shoeboxes(str(strong), [0])["data"][0]
+    assert np.array_equal(
+        saved["data"][saved["offsets"][0] : saved["offsets"][1]], first.ravel()
+    )

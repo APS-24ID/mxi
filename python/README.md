@@ -257,7 +257,16 @@ calculated; z against resolution and intensity with running medians; a normal
 probability plot; each reflection's mean z, the model's part; (Fo - Fc) / Fc on
 the detector, for reflections whose k Fc^2 is above 10 sigma -- where z can
 mislead, a small difference many sigma; and both against |zeta|, nearness to
-the rotation axis, which also gets a table of its own. On Graeme's
+the rotation axis, which also gets a table of its own.
+
+`--shoeboxes-from integrated.rflx` -- an integrated file written with
+`mxi_integrate --save-shoeboxes` -- writes the pixels of the worst 300
+observations, and of 100 strong ones agreeing with Fc^2 within 1 sigma for
+comparison, to one compressed file (`--shoeboxes`, outliers.npz): each box's
+data, background and mask, concatenated with their offsets, and its figures.
+Each scaled observation is found in the integrated file by its data set and
+position, the symmetry step having reindexed since. A few megabytes, where the
+images are gigabytes: enough to see why an observation is many sigma off. On Graeme's
 small molecule the detector's panels showed the backstop's arm across one data
 set and its edge beside the beam in two others (`docs/backstop.md`).
 

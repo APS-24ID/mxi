@@ -219,3 +219,67 @@ def load_table(path: str):
         out.types[key] = types[key]
     out.validate()
     return out
+
+
+def load_shoeboxes(path: str, rows) -> dict:
+    """The shoeboxes of the rows asked for, numbered as load_table numbers
+    them (its tables joined in the same order): each box's bbox (x0, x1, y0,
+    y1, z0, z1) and its data, background and mask, z then y then x, as mxi
+    writes them (docs/rflx.md). Returns {"bbox": (n, 6), "data": [...],
+    "background": [...], "mask": [...]} in the order of `rows`; a row with no
+    box gets None."""
+    import numpy as np
+
+    h5py = _h5py()
+    rows = [int(r) for r in rows]
+    out = {"bbox": [], "data": [], "background": [], "mask": []}
+    wanted: dict[int, list[int]] = {}
+    for at, r in enumerate(rows):
+        wanted.setdefault(r, []).append(at)
+    found = [None] * len(rows)
+    with h5py.File(path, "r") as f:
+        group = f["reflections"]
+        names = sorted(
+            (n for n in group if isinstance(group[n], h5py.Group)),
+            key=lambda n: (len(n), n),
+        )
+        first = 0
+        for name in names:
+            table = group[name]
+            count = None
+            for k in table:
+                if isinstance(table[k], h5py.Dataset):
+                    count = table[k].shape[0]
+                    break
+            if "shoebox" in table:
+                g = table["shoebox"]
+                bbox = g["bbox"][()]
+                count = len(bbox) if count is None else count
+                sizes = (
+                    (bbox[:, 1] - bbox[:, 0])
+                    * (bbox[:, 3] - bbox[:, 2])
+                    * (bbox[:, 5] - bbox[:, 4])
+                ).astype(np.int64)
+                start = np.concatenate([[0], np.cumsum(sizes)])
+                for r in [r for r in wanted if first <= r < first + len(bbox)]:
+                    i = r - first
+                    a, b = int(start[i]), int(start[i + 1])
+                    x0, x1, y0, y1, z0, z1 = (int(v) for v in bbox[i])
+                    shape = (z1 - z0, y1 - y0, x1 - x0)
+                    box = (
+                        bbox[i].copy(),
+                        g["shoebox_data"][a:b].reshape(shape),
+                        g["shoebox_background"][a:b].reshape(shape),
+                        g["shoebox_mask"][a:b].reshape(shape),
+                    )
+                    for at in wanted[r]:
+                        found[at] = box
+            first += count or 0
+    for box in found:
+        if box is None:
+            for k in out:
+                out[k].append(None)
+        else:
+            for k, v in zip(("bbox", "data", "background", "mask"), box):
+                out[k].append(v)
+    return out

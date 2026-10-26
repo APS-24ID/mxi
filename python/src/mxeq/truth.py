@@ -970,3 +970,114 @@ def plot(obs: Observations, res: Result, outdir: str, reindex=None) -> list:
         fig.suptitle("Near the rotation axis", fontsize=11)
         save(fig, "by_zeta")
     return paths
+
+
+# --- the outliers' pixels -----------------------------------------------------
+
+
+def export_shoeboxes(
+    obs: Observations,
+    res: Result,
+    integrated: str,
+    out: str,
+    worst: int = 300,
+    normal: int = 100,
+    seed: int = 0,
+) -> dict:
+    """The shoeboxes of the `worst` observations and of `normal` strong ones
+    agreeing with Fc^2 within 1 sigma, for comparison: each scaled observation
+    matched to its row of an integrated .rflx written with --save-shoeboxes --
+    by experiment and position (within 1.5 px and half an image), the symmetry
+    step having reindexed since -- and written to one compressed .npz: the
+    boxes' pixels, background and mask concatenated with their offsets, and
+    each one's figures. Small enough to send where the images are not."""
+    from scipy.spatial import cKDTree
+
+    from mxeq import rflx
+
+    table = rflx.load_table(integrated)
+    pos_name = "xyzobs.px.value" if "xyzobs.px.value" in table.columns else "xyzcal.px"
+    pos = np.asarray(table[pos_name], float)
+    ids = np.asarray(table["id"]) if "id" in table.columns else np.zeros(table.nrows)
+
+    rows = res.rows
+    z = res.z
+    order = np.argsort(-np.abs(z))[:worst]
+    sig = np.sqrt(obs.variance[rows])
+    rng = np.random.default_rng(seed)
+    calm = np.where((np.abs(z) < 1) & (res.model > 10 * sig))[0]
+    picked_normal = (
+        rng.choice(calm, size=min(normal, len(calm)), replace=False)
+        if len(calm)
+        else []
+    )
+    chosen = [(j, "worst") for j in order] + [(int(j), "normal") for j in picked_normal]
+
+    trees = {}
+    for e in np.unique(ids):
+        sel = np.where(ids == e)[0]
+        trees[e] = (
+            cKDTree(pos[sel] * [1, 1, 3]),
+            sel,
+        )  # half an image weighs as 1.5 px
+    want, kept = [], []
+    for j, group in chosen:
+        r = rows[j]
+        e = obs.experiment[r] if obs.experiment is not None else 0
+        if e not in trees:
+            continue
+        tree, sel = trees[e]
+        d, k = tree.query([obs.x[r], obs.y[r], obs.image[r] * 3])
+        if d <= 1.5 * math.sqrt(2) + 1.5:
+            want.append(int(sel[k]))
+            kept.append((j, group))
+    boxes = rflx.load_shoeboxes(integrated, want)
+    have = [i for i, b in enumerate(boxes["bbox"]) if b is not None]
+    if not have:
+        raise ValueError(
+            f"{integrated}: no shoeboxes for the observations -- integrated with "
+            "--save-shoeboxes?"
+        )
+    sizes = np.array([boxes["data"][i].size for i in have])
+    offsets = np.concatenate([[0], np.cumsum(sizes)])
+
+    def meta(v, dtype=float):
+        return np.array([v[rows[kept[i][0]]] for i in have], dtype=dtype)
+
+    payload = dict(
+        group=np.array([kept[i][1] for i in have]),
+        integrated_row=np.array([want[i] for i in have]),
+        bbox=np.array([boxes["bbox"][i] for i in have]),
+        offsets=offsets,
+        data=np.concatenate([boxes["data"][i].ravel() for i in have]).astype(
+            np.float32
+        ),
+        background=np.concatenate(
+            [boxes["background"][i].ravel() for i in have]
+        ).astype(np.float32),
+        mask=np.concatenate([boxes["mask"][i].ravel() for i in have]).astype(np.uint8),
+        hkl=np.array([obs.hkl[rows[kept[i][0]]] for i in have]),
+        z=np.array([z[kept[i][0]] for i in have]),
+        I=meta(obs.intensity),
+        sigma=np.sqrt(meta(obs.variance)),
+        kFc2=np.array([res.model[kept[i][0]] for i in have]),
+    )
+    for name in (
+        "x",
+        "y",
+        "image",
+        "experiment",
+        "partiality",
+        "d",
+        "zeta",
+        "background",
+    ):
+        v = getattr(obs, name)
+        if v is not None:
+            payload[name if name != "background" else "background_mean"] = meta(v)
+    np.savez_compressed(out, **payload)
+    return {
+        "worst": sum(1 for i in have if kept[i][1] == "worst"),
+        "normal": sum(1 for i in have if kept[i][1] == "normal"),
+        "unmatched": len(chosen) - len(have),
+    }

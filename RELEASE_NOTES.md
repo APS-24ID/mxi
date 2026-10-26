@@ -23,6 +23,11 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   scaling, as `dials.scale exclude_images=`; as many ranges as wanted,
   numbered as the file's experiments and images.
 
+**Changed**
+- `mxi_integrate`'s progress is a bar, as tqdm draws one, on a terminal --
+  written to the terminal alone, so the log does not keep it -- and the plain
+  line each tenth of the way, as before, where the output is not a terminal.
+
 **Changes results**
 - `mxi_integrate --min-zeta` now also keeps reflections below the cut out of
   the profile model's estimate, which had used a fixed 0.05.

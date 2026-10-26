@@ -27,7 +27,10 @@ history on 20 October: four closed, nine rewritten to what is now true.
   same inverse scale, 0.98-1.00, in every group) but shadowed backgrounds --
   34 per cent of them below 0.8 of the background usual at their resolution,
   against 15 per cent of the rest, 30 per cent within 300 px of the beam
-  against 5.5. Shadow on the background reads high, on the spot low; (c) the lowest resolution,
+  against 5.5. Shadow on the background reads high, on the spot low;
+  near the axis, `mxi_integrate --min-zeta` (0.05 by default, as DIALS): 0.2
+  would take a fifth of the outliers beyond 5 sigma, 0.3 a quarter, no unique
+  reflection lost (docs/integration.md) -- to confirm by integrating with it; (c) the lowest resolution,
   1.6-6.7 A, 10 per cent beyond 5 sigma, 61 per cent of it shared within
   reflections (the model's: Fc^2 a little low at low angle, no bonding
   density) and 39 the processing's; (d) a partial on a sweep's first image,

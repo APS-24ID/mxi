@@ -121,7 +121,9 @@ def test_drawing_undo_same_as_last_and_save(tmp_path, monkeypatch):
     editor.on_press(event(editor, 330, 200))
     editor.on_release(event(editor, 355, 200))
     editor.save()
-    written = rflx.experiments_dict(path)["imageset"]
+    # Into masked.rflx, the input as it was (Graeme, 22 October).
+    assert "untrusted" not in rflx.experiments_dict(path)["imageset"][0]
+    written = rflx.experiments_dict(str(tmp_path / "masked.rflx"))["imageset"]
     assert written[0]["untrusted"] == [
         {"panel": 0, "rectangle": [100.0, 50.0, 260.0, 170.0]}
     ]
@@ -148,5 +150,6 @@ def test_a_saved_mask_applies_to_another_file_with_no_window(tmp_path, monkeypat
         text=True,
     )
     assert run.returncode == 0, run.stderr
-    sets = rflx.experiments_dict(path)["imageset"]
+    sets = rflx.experiments_dict(str(tmp_path / "masked.rflx"))["imageset"]
+    assert all("untrusted" not in s for s in rflx.experiments_dict(path)["imageset"])
     assert all(s["untrusted"] == [{"circle": [10, 10, 5]}] for s in sets)

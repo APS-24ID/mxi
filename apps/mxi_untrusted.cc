@@ -37,7 +37,8 @@ const char *const kUsage =
     "                   y1]} or {\"polygon\": [[x, y], ...]}, in pixels, panel "
     "0\n"
     "  --clear          every image set's regions removed\n"
-    "  -o PATH          where to write (by default the file itself)\n"
+    "  -o PATH          where to write (masked.rflx): the input is left as it\n"
+    "                   is, to compare with; name it here to write over it\n"
     "  --help, --version\n";
 
 std::string base_name(const std::string &path) {
@@ -113,7 +114,9 @@ int main(int argc, char **argv) {
     if (!changing)
       return 0;
 
-    const std::string out = args.value("-o", in);
+    // A new file, the input left as it was, for comparison (Graeme, 22
+    // October); the input itself only when named.
+    const std::string out = args.value("-o", "masked.rflx");
     std::vector<std::string> skipped;
     const std::optional<Table> table = rflx::read_reflections(in, &skipped);
     Summary step("mxi_untrusted", in);

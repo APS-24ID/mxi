@@ -102,6 +102,7 @@ def test_mxi_untrusted_sets_lists_and_clears(tmp_path):
     mask.write_text(
         json.dumps([{"circle": [50, 60, 10]}, {"polygon": [[0, 0], [9, 0], [0, 9]]}])
     )
+    # Set: a new file, masked.rflx, the input as it was (Graeme, 22 October).
     run = subprocess.run(
         [UNTRUSTED, str(first), "--set", str(mask)],
         capture_output=True,
@@ -110,10 +111,18 @@ def test_mxi_untrusted_sets_lists_and_clears(tmp_path):
     )
     assert run.returncode == 0, run.stderr
     assert "1 circle, 1 polygon" in run.stdout
-    shapes = rflx.experiments_dict(str(first))["imageset"][0]["untrusted"]
+    masked = tmp_path / "masked.rflx"
+    shapes = rflx.experiments_dict(str(masked))["imageset"][0]["untrusted"]
     assert shapes[0]["circle"] == [50, 60, 10]
+    assert "untrusted" not in rflx.experiments_dict(str(first))["imageset"][0]
+    # Clear, into a file named: the masked one left as it was too.
+    cleared = tmp_path / "cleared.rflx"
     run = subprocess.run(
-        [UNTRUSTED, str(first), "--clear"], capture_output=True, text=True, cwd=tmp_path
+        [UNTRUSTED, str(masked), "--clear", "-o", str(cleared)],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
     )
     assert run.returncode == 0 and "none" in run.stdout
-    assert "untrusted" not in rflx.experiments_dict(str(first))["imageset"][0]
+    assert "untrusted" not in rflx.experiments_dict(str(cleared))["imageset"][0]
+    assert "untrusted" in rflx.experiments_dict(str(masked))["imageset"][0]

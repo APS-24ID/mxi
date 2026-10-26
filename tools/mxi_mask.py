@@ -4,12 +4,14 @@ shadow -- over a sum of each sweep's images, and write them into the experiment
 list, where spot finding and integration leave them out as they leave out the
 detector's own bad pixels.
 
-    mxi_mask imported.rflx
+    mxi_mask imported.rflx            # writes masked.rflx
 
 One sweep at a time: circles, rectangles and polygons; Undo, Clear, Same as
 last (the previous sweep's shapes, or the last saved mask's); Previous and
-Next; Save, which writes every sweep's regions into the file (through
-mxi_untrusted) and the last mask beside it, mxi_mask.json, to apply again --
+Next; Save, which writes the experiment list with every sweep's regions to a
+new file, masked.rflx (-o to choose; the input is left as it was, to compare
+with), through mxi_untrusted, and the last mask to mxi_mask.json, to apply
+again --
 `mxi_untrusted other.rflx --set mxi_mask.json` -- with no window.
 
 The image is a sum of images, so that a shadow shows against the background:
@@ -156,12 +158,13 @@ class Images:
 
 
 class Editor:
-    def __init__(self, path: str, document: dict, start_sum: int):
+    def __init__(self, path: str, document: dict, start_sum: int, output="masked.rflx"):
         import matplotlib.pyplot as plt
         from matplotlib.widgets import Button, RadioButtons, Slider, TextBox
 
         self.plt = plt
         self.path = path
+        self.output = output
         self.document = document
         self.sweeps = sweeps(document)
         if not self.sweeps:
@@ -399,7 +402,7 @@ class Editor:
             name = f.name
         try:
             run = subprocess.run(
-                [program("mxi_untrusted"), self.path, "--set", name],
+                [program("mxi_untrusted"), self.path, "--set", name, "-o", self.output],
                 capture_output=True,
                 text=True,
             )
@@ -515,6 +518,12 @@ def main(argv=None) -> int:
         "experiments", help="the experiment list, as mxi_import writes it"
     )
     parser.add_argument(
+        "-o",
+        default="masked.rflx",
+        help="where Save writes the experiment list with its regions (masked.rflx); "
+        "the input is left as it was",
+    )
+    parser.add_argument(
         "--sum", type=int, default=10, help="images summed at first (10)"
     )
     parser.add_argument(
@@ -530,7 +539,7 @@ def main(argv=None) -> int:
         import matplotlib
 
         matplotlib.use("Agg")
-    editor = Editor(args.experiments, document, args.sum)
+    editor = Editor(args.experiments, document, args.sum, args.o)
     if args.snapshot:
         editor.fig.savefig(args.snapshot, dpi=90)
         print(f"Wrote {args.snapshot}")

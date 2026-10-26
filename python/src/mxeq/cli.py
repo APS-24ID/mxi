@@ -473,6 +473,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--csv", default=None, help="every matched observation to this file"
     )
     tr.add_argument(
+        "--shoeboxes-from",
+        default=None,
+        help="an integrated .rflx written with --save-shoeboxes: the worst "
+        "observations' shoeboxes, and some agreeing ones', to --shoeboxes",
+    )
+    tr.add_argument(
+        "--shoeboxes",
+        default="outliers.npz",
+        help="where those shoeboxes go, a compressed .npz (outliers.npz)",
+    )
+    tr.add_argument(
         "--plots",
         default=None,
         help="figures to this directory: z by image and on the detector, a data "
@@ -717,6 +728,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.plots:
             for p in truth.plot(obs, res, args.plots, op):
                 print(f"Figure: {p}")
+        if args.shoeboxes_from:
+            got = truth.export_shoeboxes(obs, res, args.shoeboxes_from, args.shoeboxes)
+            print(
+                f"Shoeboxes: {got['worst']} of the worst and {got['normal']} agreeing, "
+                f"to {args.shoeboxes}"
+                + (f"; {got['unmatched']} not found" if got["unmatched"] else "")
+            )
         return 0
 
     if args.command == "failures":

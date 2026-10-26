@@ -161,6 +161,9 @@ def test_the_window_shows_the_spots_and_saves_the_regions(tmp_path, monkeypatch)
             np.asarray(layer.border_color)[:, 1] < 0.1
         ]  # its own image: red
         assert len(layer.data) > len(centres)  # and the others it is on
+        # Visible however far out: at least ten screen pixels (a 16M detector
+        # seen whole had made them specks).
+        assert tuple(layer.canvas_size_limits)[0] >= 10
         images = view.viewer.layers["images"].data
         for z, y, x in centres[:20]:
             frame = images[int(round(z))]

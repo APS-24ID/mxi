@@ -177,8 +177,12 @@ class View:
                 size=12,
                 face_color="transparent",
                 border_color=colours,
-                border_width=0.1,
+                border_width=0.15,
                 ndim=3,
+                # At least ten screen pixels, however far out: a marker 12
+                # detector pixels across is a speck on a 16M detector seen
+                # whole (Graeme, 23 October); it grows as one zooms in.
+                canvas_size_limits=(10, 10000),
             )
         predicted, sizes = mxi_tools.spot_markers(
             self.table, "xyzcal.px", members, self.window
@@ -193,6 +197,7 @@ class View:
                 face_color="cyan",
                 ndim=3,
                 visible=visible,
+                canvas_size_limits=(10, 10000),
             )
         if "untrusted" in self.viewer.layers:  # kept on top, to draw on
             layers = self.viewer.layers

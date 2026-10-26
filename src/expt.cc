@@ -194,6 +194,10 @@ ExperimentList experiments_from_json(const json::Value &document) {
   std::vector<Goniometer> goniometers;
   for (const json::Value &v : document["goniometer"].as_array()) {
     goniometers.push_back(read_goniometer(v));
+    // mxi's sample offset (geometry.hh), written only where refined.
+    if (v["mxi_sample_offset"].is_array())
+      goniometers.back().sample_offset =
+          vec3(v["mxi_sample_offset"], "mxi_sample_offset");
   }
   std::vector<Scan> scans;
   for (const json::Value &v : document["scan"].as_array())
@@ -438,6 +442,8 @@ json::Value experiments_to_json(const ExperimentList &list) {
     }
     gonio["fixed_rotation"] = json::Value(std::move(fixed));
     gonio["setting_rotation"] = json::Value(std::move(setting));
+    if (e.goniometer.has_offset())
+      gonio["mxi_sample_offset"] = to_json(e.goniometer.sample_offset);
     x["goniometer"] = json::Value(
         static_cast<long>(intern(goniometers, json::Value(std::move(gonio)))));
 

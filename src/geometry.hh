@@ -159,7 +159,10 @@ struct Panel {
   // Rays travelling away from the detector are rejected by the sign of the
   // path length, not by checking the panel bounds -- a ray going backwards can
   // still intersect the infinite plane inside the bounds.
-  std::optional<std::pair<double, double>> intersect(const Vec3 &s1) const;
+  // `from`, where the ray leaves: the origin, or the centre of diffraction
+  // where the sample is off the rotation axis (Goniometer::offset_at).
+  std::optional<std::pair<double, double>>
+  intersect(const Vec3 &s1, const Vec3 &from = Vec3{0.0, 0.0, 0.0}) const;
 };
 
 struct Detector {
@@ -172,7 +175,7 @@ struct Detector {
   // can overlap in projection, so the first hit wins and that is deliberate:
   // it matches the order panels are serialised in.
   std::optional<std::tuple<std::size_t, double, double>>
-  intersect(const Vec3 &s1) const;
+  intersect(const Vec3 &s1, const Vec3 &from = Vec3{0.0, 0.0, 0.0}) const;
 };
 
 struct Goniometer {
@@ -208,6 +211,23 @@ struct Goniometer {
   // The rotation axis as it appears in the laboratory, which is what
   // prediction needs -- the sample turns about the setting-rotated axis.
   Vec3 lab_axis() const { return (setting * axis).normalized(); }
+
+  // Where the centre of diffraction is, off the rotation axis: the sample's
+  // illuminated volume -- the crystal convolved with the beam -- has its centre
+  // of mass at `sample_offset` from the axis (mm, perpendicular to it, in the
+  // frame the scan turns), so that at angle phi it is at offset_at(phi), on a
+  // circle about the axis: two parameters, amplitude and phase. Zero, the
+  // origin of the experiment, by default, as every other program assumes; the
+  // diffracted rays leave from here, not the origin (Graeme, 22 October). A
+  // component along the axis could not be told from a detector's move.
+  Vec3 sample_offset{0.0, 0.0, 0.0};
+  Vec3 offset_at(double phi) const {
+    return setting * (rotation(axis, phi) * sample_offset);
+  }
+  bool has_offset() const {
+    return sample_offset.x != 0.0 || sample_offset.y != 0.0 ||
+           sample_offset.z != 0.0;
+  }
 };
 
 struct Scan {

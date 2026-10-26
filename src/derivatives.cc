@@ -54,8 +54,35 @@ PredictionState prediction_state(const Experiment &e, std::size_t panel, int h,
 
   s.volume = s.axis.cross(s.r_phi).dot(e.beam.s0());
   s.valid = std::abs(s.v.z) > 0.0;
+  if (e.goniometer.has_offset()) {
+    const Goniometer &g = e.goniometer;
+    const Vec3 c = rotation(g.axis, s.phi) * g.sample_offset;
+    s.w = s.D * (g.setting * c);
+    s.dw_dphi = s.D * (g.setting * g.axis.normalized().cross(c));
+  }
   return s;
 }
+
+namespace {
+
+// A derivative of the position with the ray leaving from the centre of
+// diffraction, not the origin: X = Xb (1 - w.z) + w.x, so dX = dXb (1 - w.z)
+// + dw.x - dw.z Xb, Xb the position from the origin. dw is how w moves with
+// the parameter: through phi for the crystal and the beam, through D for the
+// detector. Unchanged where there is no offset.
+CentroidDerivative with_offset(const PredictionState &s, CentroidDerivative d,
+                               const Vec3 &dw) {
+  const double xb = s.v.x / s.v.z, yb = s.v.y / s.v.z;
+  d.dX = d.dX * (1.0 - s.w.z) + dw.x - dw.z * xb;
+  d.dY = d.dY * (1.0 - s.w.z) + dw.y - dw.z * yb;
+  return d;
+}
+
+bool offset_in(const PredictionState &s) {
+  return s.w.x != 0.0 || s.w.y != 0.0 || s.w.z != 0.0;
+}
+
+} // namespace
 
 std::array<CentroidDerivative, 9> crystal_derivatives(const PredictionState &s,
                                                       int h, int k, int l) {
@@ -95,6 +122,9 @@ std::array<CentroidDerivative, 9> crystal_derivatives(const PredictionState &s,
       d.dY = (w * dv.y - s.v.y * dv.z) / w2;
     }
   }
+  if (offset_in(s)) // w moves only as phi does
+    for (CentroidDerivative &d : out)
+      d = with_offset(s, d, s.dw_dphi * d.dphi);
   return out;
 }
 
@@ -169,6 +199,8 @@ std::array<CentroidDerivative, 6> detector_derivatives(const PredictionState &s,
     out[k].dphi = 0.0;
     out[k].dX = (w * dv.x - s.v.x * dv.z) / w2;
     out[k].dY = (w * dv.y - s.v.y * dv.z) / w2;
+    if (offset_in(s)) // w = D d moves with D: dw = dD d = -D dd w
+      out[k] = with_offset(s, out[k], -(s.D * (dd * s.w)));
   }
   return out;
 }
@@ -204,6 +236,9 @@ std::array<CentroidDerivative, 2> beam_derivatives(const PredictionState &s,
     out[k].dX = (w * dv.x - s.v.x * dv.z) / w2;
     out[k].dY = (w * dv.y - s.v.y * dv.z) / w2;
   }
+  if (offset_in(s)) // w moves only as phi does
+    for (CentroidDerivative &d : out)
+      d = with_offset(s, d, s.dw_dphi * d.dphi);
   return out;
 }
 

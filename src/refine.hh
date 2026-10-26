@@ -60,6 +60,10 @@ struct RefineOptions {
   bool crystal = true;
   bool detector = true;
   bool beam = false;
+  //: The centre of diffraction off the rotation axis, two parameters a sweep
+  //: (Goniometer::sample_offset): the illuminated volume's centre of mass,
+  //: turning on a circle with the crystal (Graeme, 22 October).
+  bool sample_offset = false;
   //: One crystal for every experiment, or one each.
   bool shared_crystal = true;
   //: Control points in A across each scan. One or zero means a static

@@ -46,8 +46,12 @@ history on 20 October: four closed, nine rewritten to what is now true.
   as a crystal partly leaving the beam -- or the beam moving -- would make
   them; refinement's beam and detector are static over a sweep. Leaving those
   images out, with |zeta| below 0.2: R(F^2) 0.0627 to 0.0566, 219 beyond 5
-  sigma to 122, 10 unique reflections of 2606 lost. To decide: a way to leave
-  image ranges out (dials.scale's exclude_images), or a scan-varying beam; (c) the lowest resolution,
+  sigma to 122, 10 unique reflections of 2606 lost. Graeme's model of the centre
+  of diffraction turning off the axis, two parameters a sweep, is now
+  `mxi_refine --sample-offset` (stage 1): on this data 5 to 20 um, l-cyst_03
+  the most, the RMSDs as before and the shift in images 650-800 untouched -- a
+  disturbance over 20 deg of a 170 deg sweep is not a circle. Next, if wanted:
+  the offset varying along the scan (stage 2), or image ranges left out; (c) the lowest resolution,
   1.6-6.7 A, 10 per cent beyond 5 sigma, 61 per cent of it shared within
   reflections (the model's: Fc^2 a little low at low angle, no bonding
   density) and 39 the processing's; (d) a partial on a sweep's first image,

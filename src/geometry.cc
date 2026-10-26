@@ -150,8 +150,8 @@ Goniometer Goniometer::from_axes(const std::vector<Vec3> &axes,
 }
 
 std::optional<std::pair<double, double>>
-Panel::intersect(const Vec3 &s1) const {
-  // Solve origin + u*fast_mm + v*slow_mm = t*s1_hat for (u, v, t).
+Panel::intersect(const Vec3 &s1, const Vec3 &from) const {
+  // Solve origin + u*fast_mm + v*slow_mm = from + t*s1_hat for (u, v, t).
   const Vec3 d = s1.normalized();
   const Mat3 basis = Mat3::from_columns(fast, slow, -d);
   bool ok = false;
@@ -159,7 +159,7 @@ Panel::intersect(const Vec3 &s1) const {
   if (!ok)
     return std::nullopt; // ray parallel to the panel
 
-  const Vec3 uvt = inv * (-origin);
+  const Vec3 uvt = inv * (from - origin);
   const double t = uvt.z;
   if (!(t > 0.0))
     return std::nullopt; // behind the sample
@@ -193,9 +193,9 @@ Panel::intersect(const Vec3 &s1) const {
 }
 
 std::optional<std::tuple<std::size_t, double, double>>
-Detector::intersect(const Vec3 &s1) const {
+Detector::intersect(const Vec3 &s1, const Vec3 &from) const {
   for (std::size_t i = 0; i < panels.size(); ++i) {
-    if (auto hit = panels[i].intersect(s1)) {
+    if (auto hit = panels[i].intersect(s1, from)) {
       return std::make_tuple(i, hit->first, hit->second);
     }
   }

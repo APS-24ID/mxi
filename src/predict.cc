@@ -247,7 +247,9 @@ bool build(const Experiment &e, const PredictOptions &options, int h, int k,
   const Mat3 r = e.goniometer.rotation_at(phi);
   const Vec3 s1 = e.beam.s0() + r * r0;
 
-  auto hit = e.detector.intersect(s1);
+  // The ray leaves from the centre of diffraction: off the axis where the
+  // sample is (Goniometer::sample_offset), the origin otherwise.
+  auto hit = e.detector.intersect(s1, e.goniometer.offset_at(phi));
   if (!hit)
     return false;
 

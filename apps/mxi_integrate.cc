@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "../src/expt.hh"
+#include "../src/progress.hh"
 #include "../src/refl.hh"
 #include "../src/untrusted.hh"
 #include "args.hh"
@@ -2477,11 +2478,21 @@ int run_program(int argc, char **argv) {
     std::vector<Shoebox> active;
     std::vector<std::size_t> active_rows;
     std::int32_t chunk_start = planned.empty() ? 0 : planned[0].bbox[4];
-    // Progress, on a run long enough to want it: a line each tenth of the way.
-    std::size_t progress_tenth = 0;
-    const double t_progress_start = now_wall();
+    // Progress, on a run long enough to want it, in images read from the first
+    // box's to the last's: a bar on a terminal, a line each tenth of the way
+    // otherwise (progress.hh); a bar each pass where there are two.
     const std::size_t progress_from =
         static_cast<std::size_t>(args.number("--progress-from", 100000));
+    std::int32_t z_first = 0, z_last = 0;
+    if (!planned.empty()) {
+      z_first = planned.front().bbox[4];
+      for (const auto &item : planned)
+        z_last = std::max(z_last, item.bbox[5]);
+    }
+    std::optional<Progress> progress;
+    if (planned.size() >= progress_from)
+      progress.emplace("integrating", static_cast<double>(z_last - z_first),
+                       "images");
     while (at < planned.size() || !active.empty()) {
       if (active.empty() && at < planned.size()) {
         chunk_start = std::max(chunk_start, planned[at].bbox[4]);
@@ -2704,20 +2715,8 @@ int run_program(int argc, char **argv) {
         active_rows.swap(staying_rows);
       }
       const std::size_t count = boxes.size();
-      if (planned.size() >= progress_from && at > 0) {
-        const std::size_t tenth = at * 10 / planned.size();
-        if (tenth > progress_tenth && tenth < 10) {
-          progress_tenth = tenth;
-          const double elapsed = now_wall() - t_progress_start;
-          const double left = elapsed *
-                              static_cast<double>(planned.size() - at) /
-                              static_cast<double>(at);
-          std::printf(
-              "  %3zu%%: images to %d read, %.0f s; about %.0f s left\n",
-              tenth * 10, chunk_end, elapsed, left);
-          std::fflush(stdout);
-        }
-      }
+      if (progress)
+        progress->update(static_cast<double>(chunk_end - z_first));
       chunk_start = chunk_end;
       // Which of this chunk's boxes one pass holds for fitting: their release
       // saves them, not the save below.
@@ -2995,10 +2994,17 @@ int run_program(int argc, char **argv) {
           pass = 1;
           at = 0;
           chunk_start = planned.empty() ? 0 : planned[0].bbox[4];
+          if (progress) {
+            progress->finish();
+            progress.emplace("fitting", static_cast<double>(z_last - z_first),
+                             "images");
+          }
           continue;
         }
       }
     }
+    if (progress)
+      progress->finish();
     if (save)
       shoebox_bytes = encode_shoeboxes(saved);
     if (frames_missing > 0) {

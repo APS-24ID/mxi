@@ -153,3 +153,20 @@ def test_a_saved_mask_applies_to_another_file_with_no_window(tmp_path, monkeypat
     sets = rflx.experiments_dict(str(tmp_path / "masked.rflx"))["imageset"]
     assert all("untrusted" not in s for s in rflx.experiments_dict(path)["imageset"])
     assert all(s["untrusted"] == [{"circle": [10, 10, 5]}] for s in sets)
+
+
+def test_a_path_relative_to_the_working_directory_is_read(tmp_path, monkeypatch):
+    # As it is typed: "mxi_mask imported.rflx" in the directory holding it.
+    # Read through mxi_convert in a scratch directory, it had not been found
+    # there (Graeme, 22 October).
+    two_sweeps(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    module = load_editor()
+    document = module.read_experiments("two.rflx")
+    assert len(document["imageset"]) == 2
+    editor = module.Editor("two.rflx", document, 2)
+    editor.on_press(event(editor, 10, 10))
+    editor.on_release(event(editor, 30, 30))
+    editor.save()
+    assert (tmp_path / "masked.rflx").exists()
+    editor.plt.close(editor.fig)

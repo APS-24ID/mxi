@@ -5,6 +5,11 @@ cmake_minimum_required(VERSION 3.20)
 # asked in an incident and a quietly wrong answer is worse than none.
 project(mxi VERSION 1.0.5 LANGUAGES CXX)
 
+# Installed programs keep the paths to the libraries they were linked against
+# outside the system's own -- HDF5 from conda or Homebrew -- or they would not
+# find them; and the install has nothing to rewrite.
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -404,3 +409,17 @@ add_executable(mxi_tests
 target_link_libraries(mxi_tests PRIVATE mxi mxi_dext mxi_signal_order mxi_spots)
 target_compile_options(mxi_tests PRIVATE -Wall -Wextra)
 add_test(NAME mxi_tests COMMAND mxi_tests)
+
+# Installing: every program, mxi_mask with them, in one bin directory --
+#   cmake --install build --prefix ~/.local
+# -- which then wants to be on the PATH. mxi_mask finds mxi_convert and
+# mxi_untrusted beside itself, here as in the build directory. The library is
+# linked into each program; nothing else is needed beside them (the Metal
+# libraries are compiled in). Tests and benchmarks are not installed.
+set(MXI_PROGRAMS
+  mxi_background mxi_combine mxi_convert mxi_correlation mxi_export mxi_find
+  mxi_foreground mxi_forward mxi_grid mxi_import mxi_index mxi_integrate
+  mxi_max mxi_profile mxi_readtest mxi_refine mxi_report mxi_residuals
+  mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted)
+install(TARGETS ${MXI_PROGRAMS} RUNTIME DESTINATION bin)
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/mxi_mask DESTINATION bin)

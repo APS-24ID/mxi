@@ -82,6 +82,9 @@ struct ExperimentList {
   //: image file as well -- the .expt already says, and being given both is how
   //: they come to disagree.
   std::string image_template;
+  //: The same image set's untrusted regions, as mxi_mask draws them
+  //: (untrusted.hh); null where it has none.
+  json::Value untrusted;
 
   //: Which beam and which detector each experiment refers to, as the file
   //: numbered them: experiments with the same number share the model, and

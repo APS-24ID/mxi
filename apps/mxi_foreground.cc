@@ -1,7 +1,7 @@
-// mxi_mask: predict reflections and mark their integration regions, so the
-// profile model can be looked at against the images.
+// mxi_foreground: predict reflections and mark their integration regions, so
+// the profile model can be looked at against the images.
 //
-//   mxi_mask refined.expt refined.refl -o masked.refl
+//   mxi_foreground refined.expt refined.refl -o masked.refl
 //   dials.image_viewer refined.expt masked.refl
 //
 // The shoeboxes carry no counts. Nothing here has read an image, and invented
@@ -77,12 +77,12 @@ int run_program(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi_mask: %s\n", args.error.c_str());
+    std::fprintf(stderr, "mxi_foreground: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.empty() || args.positional.size() > 2) {
     std::fprintf(stderr,
-                 "mxi_mask: expected an .expt and optionally a .refl\n");
+                 "mxi_foreground: expected an .expt and optionally a .refl\n");
     usage(argv[0]);
     return 2;
   }
@@ -92,7 +92,7 @@ int run_program(int argc, char **argv) {
     timing.add("reading", Timing::now() - mark);
     mark = Timing::now();
     if (experiments.size() == 0) {
-      std::fprintf(stderr, "mxi_mask: no experiments\n");
+      std::fprintf(stderr, "mxi_foreground: no experiments\n");
       return 1;
     }
     const Experiment &e = experiments[0];
@@ -104,7 +104,7 @@ int run_program(int argc, char **argv) {
     if (args.value("--shape", "box") == "ellipsoid") {
       options.shape = RegionShape::kEllipsoid;
     } else if (args.value("--shape", "box") != "box") {
-      std::fprintf(stderr, "mxi_mask: --shape is box or ellipsoid\n");
+      std::fprintf(stderr, "mxi_foreground: --shape is box or ellipsoid\n");
       return 2;
     }
     options.sigma_d = args.number("--sigma-b", 0.0);
@@ -114,18 +114,20 @@ int run_program(int argc, char **argv) {
     // calculation mxi_profile does and reports.
     if (!(options.sigma_d > 0.0) || !(options.sigma_m > 0.0)) {
       if (args.positional.size() < 2) {
-        std::fprintf(stderr,
-                     "mxi_mask: give a .refl to estimate the profile model "
-                     "from, or --sigma-b and --sigma-m\n");
+        std::fprintf(
+            stderr,
+            "mxi_foreground: give a .refl to estimate the profile model "
+            "from, or --sigma-b and --sigma-m\n");
         return 2;
       }
       const Table strong = read_reflections(args.positional[1]);
       const std::vector<Shoebox> boxes = decode_shoeboxes(strong);
       if (boxes.empty()) {
-        std::fprintf(stderr,
-                     "mxi_mask: %s has no shoeboxes, so the profile model "
-                     "cannot be estimated from it\n",
-                     args.positional[1].c_str());
+        std::fprintf(
+            stderr,
+            "mxi_foreground: %s has no shoeboxes, so the profile model "
+            "cannot be estimated from it\n",
+            args.positional[1].c_str());
         return 1;
       }
       const Column &s = strong.at("s1");
@@ -165,7 +167,8 @@ int run_program(int argc, char **argv) {
                 options.sigma_d, options.sigma_m, options.n_sigma,
                 options.shape == RegionShape::kEllipsoid ? "ellipsoid" : "box");
     if (!(options.sigma_d > 0.0) || !(options.sigma_m > 0.0)) {
-      std::fprintf(stderr, "mxi_mask: the profile model came out empty\n");
+      std::fprintf(stderr,
+                   "mxi_foreground: the profile model came out empty\n");
       return 1;
     }
 
@@ -216,7 +219,7 @@ int run_program(int argc, char **argv) {
         "%zu for leaving the scan\n",
         kept.size(), skipped_range, skipped_zeta, skipped_box);
     if (kept.empty()) {
-      std::fprintf(stderr, "mxi_mask: nothing to write\n");
+      std::fprintf(stderr, "mxi_foreground: nothing to write\n");
       return 1;
     }
 
@@ -300,7 +303,7 @@ int run_program(int argc, char **argv) {
     timing.report(stdout);
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_mask: %s\n", e.what());
+    std::fprintf(stderr, "mxi_foreground: %s\n", e.what());
     return 1;
   }
 }
@@ -308,9 +311,9 @@ int run_program(int argc, char **argv) {
 } // namespace mxi
 
 int main(int argc, char **argv) {
-  // Mirrored to mxi_mask.log in the working directory, as DIALS writes
+  // Mirrored to mxi_foreground.log in the working directory, as DIALS writes
   // dials.<program>.log; not for a run that only asks for help.
   if (!mxi::only_asks_for_help(argc, argv))
-    mxi::mirror_to_log("mxi_mask.log");
+    mxi::mirror_to_log("mxi_foreground.log");
   return mxi::run_program(argc, argv);
 }

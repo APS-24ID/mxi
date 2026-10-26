@@ -101,6 +101,12 @@ class Series {
 public:
   virtual ~Series() = default;
 
+  // More pixels to leave out of every frame, beside the detector's own
+  // pixel_mask: the regions a user marked untrusted (untrusted.hh), merged into
+  // the list each reader made afterwards carries. After try_open, before the
+  // first reader. A series with no such list ignores it.
+  virtual void add_masked(const std::vector<std::uint64_t> & /*pixels*/) {}
+
   // False if the file is not readable yet, so that the caller can poll: a
   // master file that is still being written is a legitimate thing to be handed.
   virtual bool try_open(Info *info) = 0;

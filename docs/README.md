@@ -10,6 +10,7 @@ its conclusions sometimes overturned later, with an index of those.
 | [`README.md`](../README.md) | reference | building, the chain, the programs, where it stands |
 | [`docs/review.md`](review.md) | guide | for reviewers: what this is, how it differs from DIALS, where things are |
 | [`docs/algorithms.md`](algorithms.md) | reference | each stage's methods, their sources, where they live and how they differ from DIALS |
+| [`docs/mask.md`](mask.md) | guide | the detector's untrusted regions: drawing them with mxi_mask, keeping and applying them with mxi_untrusted |
 | [`RELEASE_NOTES.md`](../RELEASE_NOTES.md) | reference | what each release changed, newest first |
 | [`docs/tutorials/cows-pigs-people.md`](tutorials/cows-pigs-people.md) | tutorial | 36 insulin crystals from three species: processing many crystals, and finding which belong together |
 | [`docs/outstanding.md`](outstanding.md) | list | every open task, with its evidence |

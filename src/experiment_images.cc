@@ -53,6 +53,8 @@ void read_imageset(const json::Value &document, const json::Value &experiment,
     info->image_file = tmpl.as_string();
     info->templated = info->image_file.find('#') != std::string::npos;
   }
+  if (first["untrusted"].is_array())
+    info->untrusted = first["untrusted"];
 
   const json::Value &indices = first["single_file_indices"];
   if (!indices.is_array() || indices.as_array().empty())

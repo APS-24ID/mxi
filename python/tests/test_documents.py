@@ -38,6 +38,7 @@ DOCUMENTS = [
     "docs/spots_notes.md",
     "docs/tutorials/cows-pigs-people.md",
     "RELEASE_NOTES.md",
+    "docs/mask.md",
 ]
 PATH = re.compile(
     r"`([A-Za-z0-9_./-]+/[A-Za-z0-9_.-]+\.(?:md|cc|h|hh|py|cmake|txt|json))`"
@@ -49,7 +50,10 @@ def _programs():
     """Every mxi_ program the build defines, read from the build files."""
     names = set()
     for f in [ROOT / "CMakeLists.txt", *(ROOT / "cmake").glob("*.cmake")]:
-        names |= set(re.findall(r"add_executable\(\s*(mxi_[a-z]+)", f.read_text()))
+        text = f.read_text()
+        names |= set(re.findall(r"add_executable\(\s*(mxi_[a-z]+)", text))
+        # And a script copied beside the programs as one: mxi_mask, in Python.
+        names |= set(re.findall(r"configure_file\([^)]*?/(mxi_[a-z]+)[\s)]", text))
     return names
 
 

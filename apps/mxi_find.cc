@@ -55,6 +55,7 @@
 #include "rflx.hh"
 #include "spots.hh"
 #include "timing.hh"
+#include "untrusted.hh"
 
 namespace {
 // This run's step of the processing's summary (docs/output.md): begun once,
@@ -507,10 +508,10 @@ private:
   void release() {
     if (data_ == nullptr)
       return;
-      // Spelled out for both builds. With the GPU compiled out, the dangling
-      // 'else' used here left a bare delete indented as though it belonged to
-      // the early return above it -- correct, and exactly the shape that gets
-      // edited wrongly by the next person to read it.
+    // Spelled out for both builds. With the GPU compiled out, the dangling
+    // 'else' used here left a bare delete indented as though it belonged to
+    // the early return above it -- correct, and exactly the shape that gets
+    // edited wrongly by the next person to read it.
 #ifdef MXI_GPU
     if (pinned_) {
       mxi::gpu::host_free(data_);
@@ -813,6 +814,17 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
     info = open_series(source.get(), options);
     if (!options.experiments.empty())
       reconcile(experiments, info, &options);
+    // The image set's untrusted regions (mxi_mask), joined to the detector's
+    // own mask before any frame is read.
+    if (experiments.untrusted.is_array() &&
+        !experiments.untrusted.as_array().empty()) {
+      const std::vector<std::uint64_t> pixels =
+          mxi::untrusted_pixels(experiments.untrusted, info.width, info.height);
+      source->add_masked(pixels);
+      std::printf("Untrusted regions: %s, %zu pixels\n",
+                  mxi::describe_untrusted(experiments.untrusted).c_str(),
+                  pixels.size());
+    }
 
     // Only the frames the scan covers. The array indices come from the
     // imageset's single_file_indices when it has them, which is what they are;

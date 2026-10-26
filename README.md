@@ -132,6 +132,8 @@ The options most often wanted:
 | `mxi_convert` | between `.rflx` and DIALS' `.expt` and `.refl` (below) |
 | `mxi_combine` | several runs' files joined into one: data sets processed separately, to go through symmetry and scaling together |
 | `mxi_split` | a file's data sets apart, each into its own file, or the ones named into one |
+| `mxi_mask` | draw a sweep's untrusted regions -- a backstop, its arm, a shadow -- over a sum of its images, in a window ([`docs/mask.md`](docs/mask.md)) |
+| `mxi_untrusted` | list, set from a mask file, or clear the untrusted regions, with no window |
 | `mxi_max` | the largest count on a valid pixel, and whether the images fit in 16 bits (for `mxi_find --gpu-force`) |
 | `mxi_profile` | the profile model estimated from strong spots, and how much of each spot it holds |
 | `mxi_residuals` | refinement's residuals by resolution, detector module, or anything else |

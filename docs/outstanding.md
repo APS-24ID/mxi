@@ -14,10 +14,13 @@ history on 20 October: four closed, nine rewritten to what is now true.
   small molecule, four sweeps, refined to R1 0.026: over its 12259 scaled
   observations R(F^2) 0.066, z's robust variance 0.81 but 1.9 per cent beyond
   5 sigma. Scaling rejected 77, 74 of them beyond 5 sigma, and kept 154 more.
-  What to look at: (a) images 500-900 of l-cyst_01 and l-cyst_03 (experiments
-  4 and 6, the lattices), 4.5 per cent beyond 5 sigma against 1 elsewhere --
-  the same range in two sweeps, a shadow?; (b) l-cyst_04 (experiment 7)
-  uniformly noisier, 3 per cent; (c) the lowest resolution,
+  Drawn (`--plots`), most of the outliers are shadows: (a) in l-cyst_01 and
+  l-cyst_03 (the beam at pixel 190, 866, near the detector's edge) a cluster
+  beside the beam, both signs, images 550-780 -- the backstop's edge, as on
+  ferritin (docs/backstop.md); (b) in l-cyst_04 (the beam at 729, 866, the
+  detector centred) low outliers along a vertical line from the top to the beam
+  -- the backstop's arm -- and a diagonal, another shadow, along its whole
+  rotation; (c) the lowest resolution,
   1.6-6.7 A, 10 per cent beyond 5 sigma, 61 per cent of it shared within
   reflections (the model's: Fc^2 a little low at low angle, no bonding
   density) and 39 the processing's; (d) a partial on a sweep's first image,

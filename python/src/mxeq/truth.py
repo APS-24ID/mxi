@@ -647,3 +647,241 @@ def write_csv(path: str, obs: Observations, res: Result, reindex=None) -> None:
                 ]
                 + [v[r] for _, v in extra]
             )
+
+
+# --- figures -----------------------------------------------------------------
+
+
+def _running(x, y, bins=50):
+    """Equal-count bins of x: each bin's centre, median y, and 16th and 84th
+    percentiles of y."""
+    ok = np.isfinite(x) & np.isfinite(y)
+    x, y = x[ok], y[ok]
+    if len(x) < bins * 5:
+        bins = max(5, len(x) // 5)
+    order = np.argsort(x)
+    out = []
+    for part in np.array_split(order, bins):
+        if len(part):
+            out.append(
+                (
+                    np.median(x[part]),
+                    np.median(y[part]),
+                    *np.percentile(y[part], [16, 84]),
+                )
+            )
+    return np.array(out)
+
+
+def plot(obs: Observations, res: Result, outdir: str, reindex=None) -> list:
+    """Figures of the observations against Fc^2, as PNG files in `outdir`;
+    their paths returned. z is drawn clipped to +/-15; points beyond 5 sigma
+    are drawn larger, and those scaling rejected as crosses."""
+    import os
+
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    os.makedirs(outdir, exist_ok=True)
+    rows = res.rows
+    z = res.z
+    zc = np.clip(z, -15, 15)
+    bad = np.abs(z) > 5
+    rej = obs.rejected[rows] if obs.rejected is not None else np.zeros(len(rows), bool)
+    exp = obs.experiment[rows] if obs.experiment is not None else np.zeros(len(rows))
+    sets = [int(x) for x in np.unique(exp)]
+
+    def name(x):
+        return obs.names.get(x, f"experiment {x}") if obs.names else f"experiment {x}"
+
+    paths = []
+
+    def save(fig, stem):
+        path = os.path.join(outdir, stem + ".png")
+        fig.savefig(path, dpi=130, bbox_inches="tight")
+        plt.close(fig)
+        paths.append(path)
+
+    def panels(n):
+        cols = 2 if n > 1 else 1
+        r = (n + cols - 1) // cols
+        fig, axes = plt.subplots(r, cols, figsize=(6.5 * cols, 3.6 * r), squeeze=False)
+        return fig, axes.ravel()
+
+    def scatter(ax, x, y, sel):
+        good = sel & ~bad
+        ax.scatter(x[good], y[good], s=2, c="0.6", lw=0, rasterized=True)
+        hi = sel & bad & ~rej
+        ax.scatter(x[hi], y[hi], s=9, c="tab:red", lw=0, label="|z| > 5, kept")
+        rr = sel & rej
+        ax.scatter(
+            x[rr],
+            y[rr],
+            s=14,
+            c="tab:blue",
+            marker="x",
+            lw=0.8,
+            label="rejected by scaling",
+        )
+
+    # 1. z against image, each data set.
+    if obs.image is not None:
+        img = obs.image[rows]
+        fig, axes = panels(len(sets))
+        for ax, x in zip(axes, sets):
+            sel = exp == x
+            scatter(ax, img, zc, sel)
+            run = _running(img[sel], z[sel], 40)
+            if len(run):
+                ax.plot(run[:, 0], run[:, 1], c="k", lw=1.2, label="running median")
+                ax.fill_between(
+                    run[:, 0], run[:, 2], run[:, 3], color="k", alpha=0.12, lw=0
+                )
+            ax.axhline(0, c="k", lw=0.5)
+            ax.set_title(
+                f"{name(x)}: {np.mean(bad[sel]):.1%} beyond 5 sigma", fontsize=10
+            )
+            ax.set_xlabel("image")
+            ax.set_ylabel("z = (I - k Fc^2) / sigma")
+            ax.set_ylim(-15.5, 15.5)
+        axes[0].legend(fontsize=7, loc="lower left", markerscale=2)
+        for ax in axes[len(sets) :]:
+            ax.axis("off")
+        fig.suptitle("Each observation against Fc^2, along the rotation", fontsize=11)
+        save(fig, "z_by_image")
+
+    # 2. z on the detector, each data set.
+    if obs.x is not None and obs.y is not None:
+        x_, y_ = obs.x[rows], obs.y[rows]
+        fig, axes = panels(len(sets))
+        for ax, x in zip(axes, sets):
+            sel = exp == x
+            order = np.argsort(np.abs(zc[sel]))  # the worst drawn last, on top
+            sc = ax.scatter(
+                x_[sel][order],
+                y_[sel][order],
+                c=zc[sel][order],
+                s=np.where(bad[sel][order], 14, 3),
+                cmap="RdBu_r",
+                vmin=-10,
+                vmax=10,
+                lw=0,
+                rasterized=True,
+            )
+            ax.set_title(name(x), fontsize=10)
+            ax.set_aspect("equal")
+            ax.invert_yaxis()
+            ax.set_xlabel("x (px)")
+            ax.set_ylabel("y (px)")
+        for ax in axes[len(sets) :]:
+            ax.axis("off")
+        fig.colorbar(sc, ax=axes.tolist(), shrink=0.7, label="z, clipped to +/-10")
+        fig.suptitle("Where on the detector: z, the worst drawn larger", fontsize=11)
+        save(fig, "z_on_the_detector")
+
+    # 3. Observed against calculated.
+    i_obs = obs.intensity[rows]
+    fig, ax = plt.subplots(figsize=(6.5, 6))
+    pos = (res.model > 0) & (i_obs > 0)
+    for x in sets:
+        sel = pos & (exp == x) & ~bad
+        ax.scatter(
+            res.model[sel],
+            i_obs[sel],
+            s=2,
+            lw=0,
+            alpha=0.5,
+            label=name(x),
+            rasterized=True,
+        )
+    sel = pos & bad
+    ax.scatter(res.model[sel], i_obs[sel], s=10, c="tab:red", lw=0, label="|z| > 5")
+    lo, hi = np.percentile(res.model[pos], [0.1, 100])
+    ax.plot([lo, hi], [lo, hi], c="k", lw=0.8)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("k Fc^2")
+    ax.set_ylabel("I, scaled")
+    ax.legend(fontsize=7, markerscale=4)
+    ax.set_title("Observed against calculated (the line: equal)", fontsize=10)
+    save(fig, "observed_against_calculated")
+
+    # 4. z against resolution and against intensity.
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4))
+    if obs.d is not None:
+        d = obs.d[rows]
+        scatter(axes[0], d, zc, np.ones(len(rows), bool))
+        run = _running(d, z)
+        axes[0].plot(run[:, 0], run[:, 1], c="k", lw=1.2)
+        axes[0].fill_between(
+            run[:, 0], run[:, 2], run[:, 3], color="k", alpha=0.12, lw=0
+        )
+        axes[0].set_xscale("log")
+        axes[0].invert_xaxis()
+        axes[0].set_xlabel("d (A)")
+    scatter(axes[1], np.where(res.model > 0, res.model, np.nan), zc, res.model > 0)
+    run = _running(np.where(res.model > 0, res.model, np.nan), z)
+    axes[1].plot(run[:, 0], run[:, 1], c="k", lw=1.2)
+    axes[1].fill_between(run[:, 0], run[:, 2], run[:, 3], color="k", alpha=0.12, lw=0)
+    axes[1].set_xscale("log")
+    axes[1].set_xlabel("k Fc^2")
+    for ax in axes:
+        ax.axhline(0, c="k", lw=0.5)
+        ax.set_ylabel("z")
+        ax.set_ylim(-15.5, 15.5)
+    axes[1].legend(fontsize=7, loc="lower left", markerscale=2)
+    fig.suptitle(
+        "z against resolution and intensity: the running median, and 16-84 per cent",
+        fontsize=11,
+    )
+    save(fig, "z_by_resolution_and_intensity")
+
+    # 5. Normal probability plot.
+    from scipy.stats import norm
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    zs = np.sort(z)
+    expected = norm.ppf((np.arange(len(zs)) + 0.5) / len(zs))
+    ax.scatter(expected, zs, s=3, lw=0, c="k", rasterized=True)
+    ax.plot([-4.5, 4.5], [-4.5, 4.5], c="tab:red", lw=0.8, label="sigmas right")
+    sr = math.sqrt(res.robust_var_z)
+    ax.plot(
+        [-4.5, 4.5],
+        [-4.5 * sr, 4.5 * sr],
+        c="tab:blue",
+        lw=0.8,
+        ls="--",
+        label=f"slope {sr:.2f}, the robust spread",
+    )
+    ax.set_xlabel("expected, Gaussian")
+    ax.set_ylabel("z, observed")
+    ax.set_ylim(-25, 25)
+    ax.legend(fontsize=8)
+    ax.set_title("Normal probability plot of z", fontsize=10)
+    save(fig, "normal_probability")
+
+    # 6. The model's part: each reflection's mean z against resolution.
+    if obs.d is not None:
+        fig, ax = plt.subplots(figsize=(7, 4))
+        d = obs.d[rows]
+        _, first = np.unique(res.zbar + 1e-9 * res.model, return_index=True)
+        ax.scatter(
+            d[first],
+            np.clip(res.zbar[first], -15, 15),
+            s=6,
+            c=np.log10(np.clip(res.model[first], 1, None)),
+            cmap="viridis",
+            lw=0,
+        )
+        ax.axhline(0, c="k", lw=0.5)
+        ax.set_xscale("log")
+        ax.invert_xaxis()
+        ax.set_xlabel("d (A)")
+        ax.set_ylabel("the reflection's mean z")
+        ax.set_title(
+            "What a reflection's observations share (colour: log10 k Fc^2)", fontsize=10
+        )
+        save(fig, "reflection_mean_z")
+    return paths

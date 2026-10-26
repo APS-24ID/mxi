@@ -1,19 +1,22 @@
 // A progress bar, as tqdm draws one, on a terminal:
 //
-//   integrating  52%|█████████████▌            | 960/1700 images
-//   [00:14<00:13, 68.6 images/s]
+//   integrating  52%|█████▋     | 960/1700 images [00:14<00:13, 68.6 images/s]
 //
-// redrawn in place at most ten times a second, written straight to the
-// terminal's file descriptor -- not through stdout or stderr, which the log
-// mirror (log_mirror.hh) copies to the program's log, where a line redrawn
-// with carriage returns would be noise. Where standard error is not a
-// terminal -- a log being read later, a batch job -- a plain line each tenth of
-// the way instead, through stdout, which the log keeps (Graeme, 23 October).
+// the bar as wide as the terminal leaves room for, one column spare -- the
+// rate and then the times given up on a narrow one -- redrawn in place at most
+// ten times a second, written straight to the terminal's file descriptor -- not
+// through stdout or stderr, which the log mirror (log_mirror.hh) copies to the
+// program's log, where a line redrawn with carriage returns would be noise.
+// Where standard error is not a terminal -- a log being read later, a batch job
+// -- a plain line each tenth of the way instead, through stdout, which the log
+// keeps (Graeme, 23 October).
 
 #pragma once
 
+#include <sys/ioctl.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -93,30 +96,78 @@ private:
     return buffer;
   }
 
+  // The terminal's width, asked each time it is drawn so that a window
+  // resized while it runs is followed; COLUMNS, then 80, where it cannot say.
+  static int columns() {
+    struct winsize w{};
+    if (::ioctl(STDERR_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0)
+      return w.ws_col;
+    if (const char *c = std::getenv("COLUMNS"))
+      if (const int n = std::atoi(c); n > 0)
+        return n;
+    return 80;
+  }
+
   void draw(double elapsed, bool last) const {
     static const char *const kEighths[] = {"",  "▏", "▎", "▍",
                                            "▌", "▋", "▊", "▉"};
-    constexpr int kWidth = 30;
     const double fraction = done_ / total_;
-    const int eighths = static_cast<int>(fraction * kWidth * 8.0);
+    const double rate = elapsed > 0.0 ? done_ / elapsed : 0.0;
+    const double left = rate > 0.0 ? (total_ - done_) / rate : 0.0;
+    char head[128];
+    std::snprintf(head, sizeof head, "  %s %3.0f%%", label_.c_str(),
+                  100.0 * fraction);
+    // What follows the bar, shortened until a bar of ten fits: the rate
+    // first, then the times; on a terminal narrower still, no bar at all.
+    char tails[3][256];
+    std::snprintf(tails[0], sizeof tails[0],
+                  "| %.0f/%.0f %s [%s<%s, %.1f %s/s]", done_, total_,
+                  unit_.c_str(), clock_text(elapsed).c_str(),
+                  clock_text(left).c_str(), rate, unit_.c_str());
+    std::snprintf(tails[1], sizeof tails[1], "| %.0f/%.0f [%s<%s]", done_,
+                  total_, clock_text(elapsed).c_str(),
+                  clock_text(left).c_str());
+    std::snprintf(tails[2], sizeof tails[2], "| %.0f/%.0f", done_, total_);
+    // The bar takes what the terminal leaves, one column spare so the cursor
+    // never wraps: a line wider than the terminal had wrapped on 80 columns
+    // (Graeme, 23 October). Every character here is one column wide.
+    const int cols = columns();
+    const char *tail = nullptr;
+    int width = 0;
+    for (const char *t : tails) {
+      const int room = cols - 1 - static_cast<int>(std::strlen(head)) - 1 -
+                       static_cast<int>(std::strlen(t));
+      if (room >= 10) {
+        tail = t;
+        width = std::min(60, room);
+        break;
+      }
+    }
+    if (tail == nullptr) {
+      char line[160];
+      std::snprintf(line, sizeof line, "\r%s\033[K%s", head, last ? "\n" : "");
+      put(line);
+      return;
+    }
+    const int eighths = static_cast<int>(fraction * width * 8.0);
     std::string bar;
     for (int i = 0; i < eighths / 8; ++i)
       bar += "█";
     int drawn = eighths / 8;
-    if (drawn < kWidth && eighths % 8 != 0) {
+    if (drawn < width && eighths % 8 != 0) {
       bar += kEighths[eighths % 8];
       ++drawn;
     }
-    bar.append(static_cast<std::size_t>(kWidth - drawn), ' ');
-    const double rate = elapsed > 0.0 ? done_ / elapsed : 0.0;
-    const double left = rate > 0.0 ? (total_ - done_) / rate : 0.0;
-    char line[512];
-    std::snprintf(line, sizeof line,
-                  "\r  %s %3.0f%%|%s| %.0f/%.0f %s [%s<%s, %.1f %s/s]\033[K%s",
-                  label_.c_str(), 100.0 * fraction, bar.c_str(), done_, total_,
-                  unit_.c_str(), clock_text(elapsed).c_str(),
-                  clock_text(left).c_str(), rate, unit_.c_str(),
-                  last ? "\n" : "");
+    bar.append(static_cast<std::size_t>(width - drawn), ' ');
+    char line[1024];
+    std::snprintf(line, sizeof line, "\r%s|%s%s\033[K%s", head, bar.c_str(),
+                  tail, last ? "\n" : "");
+    put(line);
+  }
+
+  // To the terminal itself, past the log mirror's copies of stdout and
+  // stderr.
+  static void put(const char *line) {
     const std::size_t n = std::strlen(line);
     std::size_t written = 0;
     while (written < n) {

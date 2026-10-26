@@ -270,57 +270,6 @@ def spot_markers(table: dict, column: str, experiments, window: int = 1):
     return np.column_stack([frames, y, x]), sizes
 
 
-class Boxes:
-    """A sweep's reflection boxes -- the spot finder's, or integration's,
-    whichever the file holds -- drawn as outlines for the images shown: those
-    whose bbox spans any of images `frame` to `frame + window - 1` (napari's
-    slice numbers: frame n - 1 is image n), each an outline one pixel wide on
-    the pixels just outside the box's -- x0 - 1 and x1, y0 - 1 and y1 -- so
-    that every pixel in it shows (on its own edge, a tight box's outline had
-    covered the spot's outer pixels). Drawn into one
-    frame-sized mask, the cost the boxes' perimeters and the frame -- tens of
-    milliseconds on a 16M detector, whatever the count, where napari's shapes
-    layer takes 0.2 ms a box (26 October)."""
-
-    def __init__(self, table: dict, experiments, shape):
-        self.shape = tuple(shape)
-        if "bbox" not in table or "id" not in table:
-            self.bbox = np.zeros((0, 6), np.int64)
-        else:
-            rows = np.isin(np.asarray(table["id"]), list(experiments))
-            self.bbox = np.asarray(table["bbox"], np.int64)[rows]
-        self.mask = np.zeros(self.shape, np.uint8)
-
-    def __len__(self):
-        return len(self.bbox)
-
-    def draw(self, frame: int, window: int = 1) -> np.ndarray:
-        """The outlines of the boxes on images frame .. frame + window - 1."""
-        self.mask[:] = 0
-        if not len(self.bbox):
-            return self.mask
-        b = self.bbox
-        shown = (b[:, 4] < frame + max(1, window)) & (b[:, 5] > frame)
-        h, w = self.shape
-        for x0, x1, y0, y1 in b[shown][:, :4]:
-            # The ring around the box: columns x0 - 1 and x1, rows y0 - 1 and
-            # y1, each drawn only where it falls on the frame.
-            left, right, top, bottom = int(x0) - 1, int(x1), int(y0) - 1, int(y1)
-            xa, xb = max(left, 0), min(right + 1, w)
-            ya, yb = max(top, 0), min(bottom + 1, h)
-            if xb <= xa or yb <= ya:
-                continue
-            if 0 <= top < h:
-                self.mask[top, xa:xb] = 1
-            if 0 <= bottom < h:
-                self.mask[bottom, xa:xb] = 1
-            if 0 <= left < w:
-                self.mask[ya:yb, left] = 1
-            if 0 <= right < w:
-                self.mask[ya:yb, right] = 1
-        return self.mask
-
-
 # --- images ------------------------------------------------------------------
 
 

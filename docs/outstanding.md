@@ -19,8 +19,15 @@ history on 20 October: four closed, nine rewritten to what is now true.
   beside the beam, both signs, images 550-780 -- the backstop's edge, as on
   ferritin (docs/backstop.md); (b) in l-cyst_04 (the beam at 729, 866, the
   detector centred) low outliers along a vertical line from the top to the beam
-  -- the backstop's arm -- and a diagonal, another shadow, along its whole
-  rotation; (c) the lowest resolution,
+  -- the backstop's arm -- and a diagonal, the rotation axis (Graeme), along
+  its whole rotation. Near the axis: the decile of smallest |zeta| has 6.7 per
+  cent beyond 5 sigma, against about 1 elsewhere. Measured as (Fo - Fc) / Fc,
+  strong reflections read low more often than high (2.9-4.2 per cent more
+  than 10 per cent low, 1.1-2.4 high); the high ones are not scaling's (the
+  same inverse scale, 0.98-1.00, in every group) but shadowed backgrounds --
+  34 per cent of them below 0.8 of the background usual at their resolution,
+  against 15 per cent of the rest, 30 per cent within 300 px of the beam
+  against 5.5. Shadow on the background reads high, on the spot low; (c) the lowest resolution,
   1.6-6.7 A, 10 per cent beyond 5 sigma, 61 per cent of it shared within
   reflections (the model's: Fc^2 a little low at low angle, no bonding
   density) and 39 the processing's; (d) a partial on a sweep's first image,

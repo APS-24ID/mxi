@@ -56,7 +56,7 @@ cows-pigs-people tutorial; the orthorhombic setting; release notes.
 22 and 23 October, to 547 commits, unreleased: `mxeq truth`, a scaled data set
 judged against a refined structure's Fc^2 (figures, zeta, the outliers'
 shoeboxes); `mxi_integrate --min-zeta` reaching the profile model; untrusted
-regions -- `mxi_mask` to draw them, `mxi_untrusted`, applied in spot finding and
+regions -- `mxi_view` to draw them, `mxi_untrusted`, applied in spot finding and
 integration; `cmake --install`; `mxi_refine --sample-offset`, each lattice's
 centre of diffraction off the axis.
 For a new session to
@@ -222,8 +222,10 @@ predicted the anisotropy. Most of the disagreement had been the comparison.
   and in l-cyst_03 images 600-800 every spot displaced together (item 78).
   Answers: `--min-zeta` (0.2 for several sweeps; the profile model now follows
   it); untrusted regions (src/untrusted.cc, the image set's "untrusted" list,
-  merged into the pixel mask by Series::add_masked; `mxi_mask`, Python,
-  tools/mxi_mask.py, writing masked.rflx through `mxi_untrusted`); the sample
+  merged into the pixel mask by Series::add_masked; drawn at first in a
+  matplotlib `mxi_mask`, since replaced by `mxi_view` -- napari, optional,
+  tools/mxi_view.py and the shared tools/mxi_tools.py -- writing masked.rflx
+  through `mxi_untrusted`); the sample
   offset (Goniometer::sample_offset, d(phi) = S R(phi) c, two parameters a
   lattice, exact derivatives -- every other derivative carries it). The old
   diagnostic `mxi_mask` is now `mxi_foreground`.

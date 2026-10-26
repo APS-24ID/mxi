@@ -814,7 +814,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
     info = open_series(source.get(), options);
     if (!options.experiments.empty())
       reconcile(experiments, info, &options);
-    // The image set's untrusted regions (mxi_mask), joined to the detector's
+    // The image set's untrusted regions (mxi_view), joined to the detector's
     // own mask before any frame is read.
     if (experiments.untrusted.is_array() &&
         !experiments.untrusted.as_array().empty()) {

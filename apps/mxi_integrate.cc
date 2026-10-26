@@ -9,10 +9,10 @@
 // reflection table, so `dials.show`, `dials.image_viewer` and the scaler all
 // read it, and `intensity.sum.value` can be compared with DIALS' own directly.
 //
-// --save-shoeboxes keeps the pixels and the mask in the table, as mxi_mask
-// does. They are large -- a megabyte per hundred reflections -- and they are
-// the difference between "the intensity is wrong" and "the intensity is wrong
-// because the mask is here and the spot is there".
+// --save-shoeboxes keeps the pixels and the mask in the table, as
+// mxi_foreground does. They are large -- a megabyte per hundred reflections --
+// and they are the difference between "the intensity is wrong" and "the
+// intensity is wrong because the mask is here and the spot is there".
 
 #include <algorithm>
 #include <array>
@@ -1331,7 +1331,7 @@ int run_program(int argc, char **argv) {
                    image_path.c_str());
       return 1;
     }
-    // The image set's untrusted regions (mxi_mask), joined to the detector's
+    // The image set's untrusted regions (mxi_view), joined to the detector's
     // own mask before any reader is made: a voxel there is no measurement,
     // as a bad pixel's is.
     if (experiments.untrusted.is_array() &&

@@ -56,7 +56,7 @@ struct ExperimentImages {
   // than resolved, because guessing which file the placeholders stand for is
   // dials.import's job and it has already done it.
   bool templated = false;
-  // The image set's untrusted regions, as mxi_mask draws them (untrusted.hh);
+  // The image set's untrusted regions, as mxi_view draws them (untrusted.hh);
   // null where it has none.
   json::Value untrusted;
 

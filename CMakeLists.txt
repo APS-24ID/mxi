@@ -243,10 +243,13 @@ target_compile_options(mxi_combine PRIVATE -Wall -Wextra)
 add_executable(mxi_split apps/mxi_split.cc)
 target_link_libraries(mxi_split PRIVATE mxi)
 target_compile_options(mxi_split PRIVATE -Wall -Wextra)
-# mxi_mask, in Python: copied beside the programs, its version filled in.
-configure_file(tools/mxi_mask.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_mask @ONLY
+# mxi_view, in Python (napari, optional): copied beside the programs, its
+# version filled in, with the module mxi's Python tools share.
+configure_file(tools/mxi_view.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_view @ONLY
   FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
   GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+configure_file(tools/mxi_tools.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_tools.py
+  COPYONLY)
 add_executable(mxi_untrusted apps/mxi_untrusted.cc)
 target_link_libraries(mxi_untrusted PRIVATE mxi)
 target_compile_options(mxi_untrusted PRIVATE -Wall -Wextra)
@@ -410,10 +413,10 @@ target_link_libraries(mxi_tests PRIVATE mxi mxi_dext mxi_signal_order mxi_spots)
 target_compile_options(mxi_tests PRIVATE -Wall -Wextra)
 add_test(NAME mxi_tests COMMAND mxi_tests)
 
-# Installing: every program, mxi_mask with them, in one bin directory --
+# Installing: every program, mxi_view with them, in one bin directory --
 #   cmake --install build --prefix ~/.local
-# -- which then wants to be on the PATH. mxi_mask finds mxi_convert and
-# mxi_untrusted beside itself, here as in the build directory. The library is
+# -- which then wants to be on the PATH. mxi_view finds mxi_convert,
+# mxi_untrusted and mxi_tools.py beside itself, here as in the build directory. The library is
 # linked into each program; nothing else is needed beside them (the Metal
 # libraries are compiled in). Tests and benchmarks are not installed.
 set(MXI_PROGRAMS
@@ -422,4 +425,5 @@ set(MXI_PROGRAMS
   mxi_max mxi_profile mxi_readtest mxi_refine mxi_report mxi_residuals
   mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted)
 install(TARGETS ${MXI_PROGRAMS} RUNTIME DESTINATION bin)
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/mxi_mask DESTINATION bin)
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/mxi_view DESTINATION bin)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mxi_tools.py DESTINATION bin)

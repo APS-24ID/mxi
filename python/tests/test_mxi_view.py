@@ -264,3 +264,73 @@ def test_a_spot_is_marked_on_every_image_it_is_recorded_on():
     }
     points, _ = t.spot_markers(box, "xyzcal.px", [0])
     assert points[:, 0].tolist() == [2.0, 3.0, 4.0, 5.0, 6.0]
+
+
+def test_a_master_with_data_and_its_blocks_counts_each_frame_once(tmp_path):
+    # Graeme's: a virtual "data" over the blocks data_000001 ... -- both counted
+    # had shown every image twice, a slider to 7199 for 3600.
+    import h5py
+
+    t = tools()
+    frames = np.arange(3 * 4 * 5, dtype=np.uint16).reshape(3, 4, 5)
+    with h5py.File(tmp_path / "m.nxs", "w") as f:
+        f.create_dataset("entry/data/data_000001", data=frames)
+        f.create_dataset("entry/data/data", data=frames)
+    images = t.Images(str(tmp_path / "m.nxs"))
+    assert images.frames == 3 and images.shape == (3, 4, 5)
+
+
+@needs_display
+def test_an_indexed_files_spots_are_shown_by_their_own_experiment(
+    tmp_path, monkeypatch
+):
+    # An indexed list: the sweep's crystal-less experiment 0, its lattice 1,
+    # every spot the lattice's. Read through mxi_convert the list had been
+    # DIALS's -- lattices only, renumbered from 0 -- and the spots shown were
+    # experiment 0's of the file: none here, the unindexed in Graeme's.
+    from mxeq import refl
+
+    strong, master = planted(tmp_path)
+    table = refl.load(str(strong)) if str(strong).endswith(".refl") else None
+    t = tools()
+    doc = t.read_experiments(str(strong))
+    lattice = dict(
+        doc["experiment"][0],
+        crystal=0,
+        identifier="1c0ffee0-0000-4000-8000-0000000000a1",
+    )
+    doc["experiment"].append(lattice)
+    doc["crystal"] = [
+        {
+            "__id__": "crystal",
+            "real_space_a": [40.0, 0.0, 0.0],
+            "real_space_b": [0.0, 40.0, 0.0],
+            "real_space_c": [0.0, 0.0, 40.0],
+            "space_group_hall_symbol": " P 1",
+        }
+    ]
+    json.dump(doc, open(tmp_path / "indexed.expt", "w"))
+    spots = rflx.load_table(str(strong))
+    spots.columns["id"] = np.ones(spots.nrows, dtype=spots.columns["id"].dtype)
+    spots.identifiers = {1: lattice["identifier"]}
+    refl.write(str(tmp_path / "indexed.refl"), spots)
+    run = subprocess.run(
+        [
+            os.path.join(BUILD, "mxi_convert"),
+            str(tmp_path / "indexed.expt"),
+            str(tmp_path / "indexed.refl"),
+            "-o",
+            str(tmp_path / "indexed.rflx"),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert run.returncode == 0, run.stderr + run.stdout
+    monkeypatch.chdir(tmp_path)
+    view_module = load("mxi_view_module", VIEW)
+    view = view_module.View(str(tmp_path / "indexed.rflx"), "masked.rflx", 1)
+    try:
+        assert view.counts[0] == spots.nrows, view.counts
+    finally:
+        view.viewer.close()

@@ -39,26 +39,95 @@ def program(name: str) -> str:
 # --- the experiment list -----------------------------------------------------
 
 
+# The .rflx's encoding of JSON in HDF5 (docs/rflx.md): an object a group, its
+# members attributes or members of it, names escaped; a list a group with
+# __type__ "list" and __len__; a null an empty dataspace.
+_HDF5_SIGNATURE = b"\x89HDF\r\n\x1a\n"
+_RESERVED = {"__type__", "__keys__", "__len__"}
+
+
+def _text(value) -> str:
+    return value.decode("utf-8") if isinstance(value, bytes) else str(value)
+
+
+def _escape(key: str) -> str:
+    if key == "":
+        return "%00"
+    out = key.replace("%", "%25").replace("/", "%2F")
+    return "%5F" + out[1:] if out.startswith("_") else out
+
+
+def _unescape(name: str) -> str:
+    if name == "%00":
+        return ""
+    if name.startswith("%5F"):
+        name = "_" + name[3:]
+    return name.replace("%2F", "/").replace("%25", "%")
+
+
+def _leaf(h5py, value, null: bool):
+    if null or isinstance(value, h5py.Empty):
+        return None
+    if isinstance(value, np.ndarray):
+        if value.dtype.kind in "OSU":
+            return [_text(v) for v in value.ravel()] if value.size else []
+        return value.tolist()
+    if isinstance(value, (bytes, str)):
+        return _text(value)
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
+
+
+def _member(h5py, group, name: str):
+    if name in group.attrs:
+        a = group.attrs.get_id(name)
+        return _leaf(
+            h5py,
+            group.attrs[name],
+            a.get_space().get_simple_extent_type() == h5py.h5s.NULL,
+        )
+    obj = group[name]
+    if isinstance(obj, h5py.Group):
+        return _decode(h5py, obj)
+    null = obj.id.get_space().get_simple_extent_type() == h5py.h5s.NULL
+    return _leaf(h5py, None if null else obj[()], null)
+
+
+def _decode(h5py, group):
+    kind = _text(group.attrs.get("__type__", "dict"))
+    if kind == "list":
+        return [
+            _member(h5py, group, str(i)) for i in range(int(group.attrs["__len__"]))
+        ]
+    if "__keys__" in group.attrs:
+        return {
+            _text(k): _member(h5py, group, _escape(_text(k)))
+            for k in group.attrs["__keys__"]
+        }
+    names = sorted(set(group.keys()) | {n for n in group.attrs if n not in _RESERVED})
+    return {_unescape(n): _member(h5py, group, n) for n in names}
+
+
 def read_experiments(path: str) -> dict:
-    """The experiment list as JSON: an .expt as it is, a .rflx through
-    mxi_convert, which knows its encoding -- run in a scratch directory, the
-    path made absolute first."""
+    """The experiment list as JSON, numbered as the file numbers it -- each
+    sweep's crystal-less experiment kept -- so that a reflection's id names its
+    own experiment: an .expt as it is; a .rflx decoded from its own encoding,
+    read directly. (Read through mxi_convert, the list had been DIALS's,
+    lattices only and renumbered from 0, so that an indexed file's unindexed
+    spots were the only ones shown -- Graeme's 3798 of 164173, 23 October --
+    and with --keep-sweeps mxi_convert writes the whole table besides.)"""
     path = os.path.abspath(path)
-    if path.endswith(".expt"):
+    with open(path, "rb") as f:
+        hdf5 = f.read(8) == _HDF5_SIGNATURE
+    if not hdf5:
         with open(path) as f:
             return json.load(f)
-    with tempfile.TemporaryDirectory() as tmp:
-        expt = os.path.join(tmp, "list.expt")
-        run = subprocess.run(
-            [program("mxi_convert"), path, "--output-expt", expt],
-            capture_output=True,
-            text=True,
-            cwd=tmp,
-        )
-        if run.returncode != 0 or not os.path.exists(expt):
-            raise SystemExit(f"cannot read {path}:\n{run.stderr}{run.stdout}")
-        with open(expt) as f:
-            return json.load(f)
+    h5py = h5py_with_filters()
+    with h5py.File(path, "r") as f:
+        if "experiments" not in f:
+            raise SystemExit(f"{path} holds no experiment list")
+        return _decode(h5py, f["experiments"])
 
 
 def sweeps(document: dict) -> list[dict]:
@@ -215,7 +284,14 @@ class Images:
         h5py = h5py_with_filters()
         self.file = h5py.File(master, "r")
         data = self.file["/entry/data"]
-        names = sorted(n for n in data if n == "data" or n.startswith("data_"))
+        # Every frame in "data" where there is one (a virtual dataset over the
+        # blocks, or the frames themselves); the blocks data_000001 ... only
+        # where there is not -- both counted had shown every image twice, a
+        # slider to 7199 for 3600 (23 October).
+        if "data" in data:
+            names = ["data"]
+        else:
+            names = sorted(n for n in data if n.startswith("data_"))
         self.blocks = []
         start = 0
         for n in names:

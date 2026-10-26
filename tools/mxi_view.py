@@ -67,6 +67,8 @@ class View:
         self.state = []
         self.restoring = False
         self.viewer = napari.Viewer(title=f"mxi_view {os.path.basename(path)}")
+        self.boxes = None
+        self.viewer.dims.events.current_step.connect(lambda _e: self.update_boxes())
         self.panel()
         self.show(min(max(sweep, 0), len(self.sweeps) - 1))
 
@@ -121,7 +123,7 @@ class View:
             self.previous = self.current
         self.current = k
         s = self.sweeps[k]
-        for name in ("untrusted", "predictions", "spots", "images"):
+        for name in ("untrusted", "predictions", "spots", "boxes", "images"):
             if name in self.viewer.layers:
                 self.viewer.layers.remove(name)
         if s["master"] not in self.images:
@@ -137,6 +139,7 @@ class View:
                 mxi_tools.display_top(images.summed(max(0, s["first"] - 1))),
             ),
         )
+        self.add_boxes(images)
         self.add_markers()
         kinds, data = [], []
         for region in self.regions[s["index"]]:
@@ -161,6 +164,39 @@ class View:
             f"images {s['first']}-{s['last']}; {self.counts[0]} spots, "
             f"{self.counts[1]} predicted; {len(self.regions[s['index']])} regions"
         )
+
+    def add_boxes(self, images):
+        """The reflections' boxes, outlined in yellow on the images shown --
+        the spot finder's tight ones, or integration's with their background
+        -- as an image layer redrawn as the slider, the window or the sweep
+        changes (mxi_tools.Boxes): tens of milliseconds whatever the count."""
+        from napari.utils.colormaps import Colormap
+
+        s = self.sweeps[self.current]
+        self.boxes = mxi_tools.Boxes(self.table, s["experiments"], images.frame_shape)
+        if not len(self.boxes):
+            self.boxes = None
+            return
+        frame = max(0, s["first"] - 1)
+        layer = self.viewer.add_image(
+            self.boxes.draw(frame, self.window).copy(),
+            name="boxes",
+            colormap=Colormap([[0, 0, 0, 0], [1.0, 0.85, 0.0, 1.0]], name="boxes"),
+            contrast_limits=(0, 1),
+            blending="translucent",
+        )
+        layer.events.visible.connect(lambda _e: self.update_boxes())
+
+    def update_boxes(self):
+        """The boxes on the image now shown -- and the window's -- drawn
+        afresh; nothing while the layer is hidden."""
+        if self.boxes is None or "boxes" not in self.viewer.layers:
+            return
+        layer = self.viewer.layers["boxes"]
+        if not layer.visible:
+            return
+        frame = int(self.viewer.dims.current_step[0])
+        layer.data = self.boxes.draw(frame, self.window).copy()
 
     def add_markers(self):
         """The spots and predictions of the sweep on show, a marker on each
@@ -216,9 +252,14 @@ class View:
                 visible=visible,
                 canvas_size_limits=(10, 10000),
             )
-        if "untrusted" in self.viewer.layers:  # kept on top, to draw on
-            layers = self.viewer.layers
-            layers.move(layers.index("untrusted"), len(layers))
+        # The boxes over the markers -- seen when zoomed in, where a marker's
+        # ring would hide a small box's outline; the markers mark the spots
+        # when zoomed out, where a one-pixel outline cannot show -- and the
+        # regions on top of all, to draw on.
+        layers = self.viewer.layers
+        for name in ("boxes", "untrusted"):
+            if name in layers:
+                layers.move(layers.index(name), len(layers))
 
     def set_window(self, n: int):
         self.window = max(1, int(n))
@@ -228,6 +269,7 @@ class View:
         if "images" in self.viewer.layers:
             self.viewer.layers["images"].refresh()
             self.add_markers()
+            self.update_boxes()
 
     # --- undo
     def on_change(self, event):

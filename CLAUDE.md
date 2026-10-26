@@ -53,6 +53,12 @@ beams, refinement sweep by sweep); refinement's scan-varying pass and its
 restraints, from a small molecule; mxi_combine and mxi_split; --known-cell and
 the real-space grid search; mxi_correlation's normalisation; the
 cows-pigs-people tutorial; the orthorhombic setting; release notes.
+22 and 23 October, to 547 commits, unreleased: `mxeq truth`, a scaled data set
+judged against a refined structure's Fc^2 (figures, zeta, the outliers'
+shoeboxes); `mxi_integrate --min-zeta` reaching the profile model; untrusted
+regions -- `mxi_mask` to draw them, `mxi_untrusted`, applied in spot finding and
+integration; `cmake --install`; `mxi_refine --sample-offset`, each lattice's
+centre of diffraction off the axis.
 For a new session to
 pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in
@@ -209,6 +215,26 @@ predicted the anisotropy. Most of the disagreement had been the comparison.
   checks the first two agree); an entry at the top of RELEASE_NOTES.md, what
   changes results or commands first; an annotated tag, `git tag -a vX.Y.Z`,
   with the same summary.
+- 22 and 23 October, from Graeme's small molecule refined to R1 0.026: `mxeq
+  truth` (python/src/mxeq/truth.py) matches each scaled observation to Fc^2 by
+  its unique index and position, and found the outliers to be shadows (the
+  backstop's arm on l-cyst_04, its edge elsewhere), reflections near the axis,
+  and in l-cyst_03 images 600-800 every spot displaced together (item 78).
+  Answers: `--min-zeta` (0.2 for several sweeps; the profile model now follows
+  it); untrusted regions (src/untrusted.cc, the image set's "untrusted" list,
+  merged into the pixel mask by Series::add_masked; `mxi_mask`, Python,
+  tools/mxi_mask.py, writing masked.rflx through `mxi_untrusted`); the sample
+  offset (Goniometer::sample_offset, d(phi) = S R(phi) c, two parameters a
+  lattice, exact derivatives -- every other derivative carries it). The old
+  diagnostic `mxi_mask` is now `mxi_foreground`.
+- Lessons of 22 and 23 October: check a file's conventions before reading its
+  numbers -- intensity.scale.value is before the inverse scale, and the flags'
+  bits are mxi's, both guessed wrong at first and both made artefacts look like
+  findings; a tool run from a scratch directory must make its paths absolute;
+  a name already taken in the build is overwritten silently -- check the
+  build's targets before naming a program; a new block of parameters must
+  reach every place the old ones are gathered (the normal equations' spans),
+  and a recovery test is what shows it does.
 - Lessons of 20 to 22 October: run the reference program on mxi's own output
   before theorising -- dials.correlation_matrix on mxi's scaled cows settled
   in one run what weighting and attenuation theories had not; and the

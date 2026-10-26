@@ -4,6 +4,31 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
+## Unreleased -- since 1.0.5
+
+**New**
+- `mxi_mask`: draw the detector's untrusted regions -- a backstop, its arm, a
+  shadow -- over a sum of each sweep's images, as circles, rectangles and
+  polygons; writes `masked.rflx`, the input left as it was. `mxi_untrusted`
+  lists, sets and clears them with no window. Spot finding and integration
+  leave them out as they do the detector's bad pixels (`docs/mask.md`).
+- `mxi_refine --sample-offset`: each lattice's centre of diffraction off the
+  rotation axis, turning with the crystal -- two parameters, amplitude and
+  phase -- used by prediction and so by integration.
+- `mxeq truth`: a scaled data set against a refined structure's Fc^2 (a SHELXL
+  `.fcf`): calibration, bins by what processing could get wrong, the model's
+  part against the processing's, figures, the worst observations' shoeboxes.
+- `cmake --install` puts every program, `mxi_mask` with them, in one `bin`.
+
+**Changes results**
+- `mxi_integrate --min-zeta` now also keeps reflections below the cut out of
+  the profile model's estimate, which had used a fixed 0.05.
+
+**Changes commands**
+- The diagnostic that marked each reflection's foreground for
+  dials.image_viewer, `mxi_mask`, is now `mxi_foreground`: the name went to the
+  mask editor.
+
 ## 1.0.5 -- 22 October 2026
 
 **Changes results**

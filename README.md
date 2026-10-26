@@ -132,7 +132,7 @@ The options most often wanted:
 | `mxi_refine` | `--static` one crystal setting for the scan; `--scan-varying N` N control points; `--shared-crystal`; `--joint` several sweeps in one fit, where by default each sweep is refined on its own; `--interval DEG` a control point per DEG degrees (10); `--crystal-restraint W` the scan-varying crystal tied to the static one (1e6); `--sample-offset` each crystal's centre of diffraction off the rotation axis, two parameters a lattice |
 | `mxi_integrate` | `-g`/`--gpu`; `--d-min D`, `--d-max D`; `--postrefine`; `--summation-only` |
 | `mxi_symmetry` | `--max-delta D` the lattice's tolerance; `--no-cosym` |
-| `mxi_scale` | `--d-min-auto`, `--d-min D`, `--d-max D`; `--space-group NAME`; `--anomalous`; `--absorption-level low|medium|high`; `--error-model-fit regression|individual`; `--scale-restraint W` each sweep's scale tied to its level (1) |
+| `mxi_scale` | `--d-min-auto`, `--d-min D`, `--d-max D`; `--space-group NAME`; `--anomalous`; `--absorption-level low|medium|high`; `--error-model-fit regression|individual`; `--scale-restraint W` each sweep's scale tied to its level (1); `--exclude E:FIRST:LAST` an experiment's images left out, as many as wanted |
 | `mxi_correlation` | `--write-clusters`, `--prefix P`; `--html FILE`; `--min-samples N`; `--dimensions N` |
 | `mxi_export` | `--partiality-threshold P`; `--min-isigi S`; `--d-min D` |
 

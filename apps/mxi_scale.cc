@@ -39,6 +39,12 @@ void usage() {
       "  --d-min D         leave out reflections beyond D A; the summary then "
       "has\n"
       "                    no Suggested column\n"
+      "  --exclude E:FIRST:LAST  experiment E's images FIRST to LAST left out\n"
+      "                    (or E:FIRST-LAST), as dials.scale's "
+      "exclude_images;\n"
+      "                    as many as wanted. A sweep's crystal-less "
+      "experiment\n"
+      "                    stands for its lattices\n"
       "  --d-max D         leave out reflections with d above D A: a low\n"
       "                    resolution limit\n"
       "  --d-min-auto      scale everything, estimate the limit from CC half, "
@@ -91,27 +97,18 @@ void usage() {
 } // namespace
 
 int run_program(int argc, char **argv) {
-  const std::set<std::string> known = {"--anomalous",
-                                       "--absorption-level",
-                                       "--l-max",
-                                       "--d-min-auto",
-                                       "--cc-half-limit",
-                                       "--threads",
-                                       "--timing",
-                                       "--space-group",
-                                       "--change-of-basis",
-                                       "--d-min",
-                                       "--no-absorption",
-                                       "--profile-only",
-                                       "--shells",
-                                       "-o",
-                                       "--output-expt",
-                                       "--d-max",
-                                       "--no-model-variances",
-                                       "--error-model-fit",
-                                       "--scale-restraint",
-                                       "--decay-restraint",
-                                       "--verbose"};
+  const std::set<std::string> known = {
+      "--anomalous",       "--absorption-level",
+      "--l-max",           "--d-min-auto",
+      "--cc-half-limit",   "--threads",
+      "--timing",          "--space-group",
+      "--change-of-basis", "--d-min",
+      "--no-absorption",   "--profile-only",
+      "--shells",          "-o",
+      "--output-expt",     "--d-max",
+      "--exclude",         "--no-model-variances",
+      "--error-model-fit", "--scale-restraint",
+      "--decay-restraint", "--verbose"};
   const std::set<std::string> takes_value = {
       "--error-model-fit",  "--l-max",
       "--absorption-level", "--cc-half-limit",
@@ -119,7 +116,8 @@ int run_program(int argc, char **argv) {
       "--change-of-basis",  "--d-min",
       "--shells",           "-o",
       "--output-expt",      "--d-max",
-      "--scale-restraint",  "--decay-restraint"};
+      "--exclude",          "--scale-restraint",
+      "--decay-restraint"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   set_verbose(args.has("--verbose"));
   // One .rflx stands for the experiment list and the reflections
@@ -253,6 +251,54 @@ int run_program(int argc, char **argv) {
     }
     options.d_min = args.number("--d-min", 0.0);
     options.d_max = args.number("--d-max", 0.0);
+    // --exclude EXP:FIRST:LAST (or EXP:FIRST-LAST), as many as wanted: an
+    // experiment's images left out of scaling, as dials.scale's
+    // exclude_images (Graeme, 23 October). Numbered as the file -- as mxi_show
+    // lists them -- and translated to the lattices' own numbering, which
+    // scaling works in; a sweep's crystal-less experiment stands for its
+    // lattices, so either number may be given.
+    for (const std::string &text : args.values("--exclude")) {
+      std::string t = text;
+      for (std::size_t c = 1; c < t.size(); ++c)
+        if (t[c] == '-')
+          t[c] = ':';
+      long e = -1, first = 0, last = 0;
+      char extra = 0;
+      if (std::sscanf(t.c_str(), "%ld:%ld:%ld%c", &e, &first, &last, &extra) !=
+              3 ||
+          e < 0 || first > last)
+        throw std::runtime_error("--exclude is EXPERIMENT:FIRST:LAST, as "
+                                 "6:600:800 or 6:600-800, not '" +
+                                 text + "'");
+      if (static_cast<std::size_t>(e) >= whole.size())
+        throw std::runtime_error("--exclude names experiment " +
+                                 std::to_string(e) + "; the file has " +
+                                 std::to_string(whole.size()));
+      std::vector<std::size_t> named;
+      for (std::size_t k = 0; k < views.position.size(); ++k) {
+        const std::size_t w = views.position[k];
+        if (w == static_cast<std::size_t>(e) ||
+            (!whole[e].crystal && whole.sweep(w) == whole.sweep(e))) {
+          options.exclude.push_back({k, first, last});
+          named.push_back(w);
+        }
+      }
+      if (named.empty())
+        throw std::runtime_error("--exclude names experiment " +
+                                 std::to_string(e) +
+                                 ", which has no lattice to leave images of");
+      std::string which;
+      for (std::size_t w : named)
+        which += (which.empty() ? "" : ", ") + std::to_string(w);
+      const bool itself =
+          named.size() == 1 && named[0] == static_cast<std::size_t>(e);
+      std::printf("Excluding images %ld to %ld of experiment %ld%s%s\n", first,
+                  last, e,
+                  itself ? ""
+                         : (named.size() == 1 ? ", its sweep's lattice "
+                                              : ", its sweep's lattices "),
+                  itself ? "" : which.c_str());
+    }
     const double cc_half_limit = args.number("--cc-half-limit", 0.3);
     phase("reindexing");
     // --d-min-auto: everything scaled once, for the estimate alone, and then

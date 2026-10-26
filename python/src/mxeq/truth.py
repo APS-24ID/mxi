@@ -342,6 +342,13 @@ class Result:
     tails: dict  # threshold -> (observed fraction, Gaussian fraction)
     between: float  # share of sum z^2 from reflections' mean offsets
     within: float  # share from observations about their own reflection's mean
+    # z about its own reflection's mean, scaled by n / (n - 1), reflections
+    # seen three times or more: the sigmas against the processing alone, the
+    # model's share cancelled. Against Fc^2 the variance also holds the
+    # model's errors -- 55 to 65 per cent of the disagreement on a small
+    # molecule -- so that sigmas right for the data read as too small there
+    # (23 October). This is the calibration to judge an error model by.
+    robust_var_within: float = float("nan")
     bins: dict = field(default_factory=dict)  # name -> list[Bin]
     worst: list = field(default_factory=list)
     rejected: dict = field(default_factory=dict)
@@ -452,6 +459,11 @@ def analyse(
         else float("nan")
     )
 
+    nk = count[inverse]
+    many = nk >= 3
+    within_z = (z - zbar) * np.sqrt(nk / np.maximum(nk - 1, 1))
+    robust_within = _robust_var(within_z[many]) if many.any() else float("nan")
+
     tails = {}
     for t in (3, 5, 10):
         gauss = math.erfc(t / math.sqrt(2.0))
@@ -468,6 +480,7 @@ def analyse(
         tails=tails,
         between=between,
         within=within,
+        robust_var_within=robust_within,
         z=z,
         zbar=zbar,
         model=model,
@@ -571,7 +584,9 @@ def report(res: Result, fcf: Fcf, extinction: float | None = None) -> str:
         )
     out.append(
         f"z = (I - k Fc^2) / sigma: variance {res.var_z:.3f}, robust "
-        f"{res.robust_var_z:.3f} (1 where the sigmas are right)"
+        f"{res.robust_var_z:.3f}; about each reflection's own mean (the model's "
+        f"share cancelled, the processing's sigmas alone) {res.robust_var_within:.3f} "
+        "-- 1 where the sigmas are right"
     )
     for t, (obs, gauss) in res.tails.items():
         out.append(

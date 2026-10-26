@@ -57,7 +57,13 @@ history on 20 October: four closed, nine rewritten to what is now true.
   against 0.0657 and 228 at first; the sigmas calibrated (robust variance of z
   1.02); l-cyst_04 2.9 to 1.6 per cent. The offset neutral here (the mask and
   the cut alone predict the same R), the crystal well centred; l-cyst_03's
-  images 650-800 unchanged, the largest left (leaving them out: R 0.0566); (c) the lowest resolution,
+  images 650-800 unchanged, the largest left (leaving them out: R 0.0566).
+  Left out with `mxi_scale --exclude 6:600:800 --exclude 0:550-700`: R(F^2)
+  0.0618 to 0.0567, as predicted, 10 unique reflections of 2606 lost; the
+  sigmas against each reflection's own equivalents 0.65 to 0.90 (robust
+  variance) -- against Fc^2 1.02 to 1.63 only as the model's share of the
+  disagreement grew, 55 to 65 per cent. The error model then took its split
+  form; regression and individual fits within 0.03 of each other (item 69); (c) the lowest resolution,
   1.6-6.7 A, 10 per cent beyond 5 sigma, 61 per cent of it shared within
   reflections (the model's: Fc^2 a little low at low angle, no bonding
   density) and 39 the processing's; (d) a partial on a sweep's first image,

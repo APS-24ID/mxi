@@ -6,6 +6,11 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 ## Unreleased -- since 1.0.6
 
+**New**
+- `mxi_view` outlines each reflection's box on the images it spans -- the spot
+  finder's after spot finding and indexing, integration's after integrating --
+  drawn for the image shown as the slider moves, quickly whatever the count.
+
 **Fixed**
 - `mxi_report`'s cell over the scan is drawn against the rotation angle, a
   point a degree over the whole scan. It had read the scan-varying model's

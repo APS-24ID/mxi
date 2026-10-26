@@ -28,6 +28,14 @@ sigmas of its centroid's z either side (its box, for predictions): red on its
 centroid's image, a paler red on the others. With images summed, a spot is
 marked on any image whose sum includes it. Markers are at least ten screen pixels across
 however far out the view is, so that they show on a large detector seen whole.
+Each reflection's **box** is outlined in yellow, just outside its pixels, on
+the images it spans: the spot finder's tight boxes in a strong or indexed file,
+integration's -- background and all -- in an integrated one. The boxes are
+drawn above the markers, so that zoomed in they show around the spots; zoomed
+out, where a one-pixel outline cannot show, the markers still mark the spots.
+They are drawn afresh for each image as the slider moves -- tens of
+milliseconds on a 16M detector, however many there are -- and not while their
+layer is hidden.
 
 The untrusted regions are a shapes layer, `untrusted`, over every image of the
 sweep -- selected when a sweep opens, its tools in the layer controls. To find a

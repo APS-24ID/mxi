@@ -348,6 +348,21 @@ struct Crystal {
   double d_spacing(int h, int k, int l) const;
 };
 
+//: The crystal over its scan, at regular rotation angles: its setting matrix
+//: at each, by A_at, from the scan's start to its end, about one every
+//: `step` degrees and the end always. Not A_points read as if each were a
+//: scan position: after refinement they are the spline's control points, a
+//: handful whose interior ones are not the model's value anywhere -- read so,
+//: a 3600-image sweep's cell had been drawn over its first 37 images
+//: (Graeme, 26 October).
+struct ScanSample {
+  double angle = 0.0; //: degrees, as the scan counts them
+  double image = 0.0; //: the image's number, a boundary between two images
+  Mat3 A;
+};
+std::vector<ScanSample> crystal_over_scan(const Crystal &crystal,
+                                          const Scan &scan, double step = 1.0);
+
 struct Experiment {
   // The setting matrix in force at scan position `z`, in images.
   Mat3 setting_at(double z) const;

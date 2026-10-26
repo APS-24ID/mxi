@@ -494,26 +494,35 @@ std::string section_refine(const json::Value &s, Figures &f,
     json::Array x, a, b, c, alpha, beta, gamma;
   };
   std::vector<Series> series;
+  // Against the rotation angle, a point a degree: refinement's record where it
+  // has the angle (since 26 October); else the file's crystals, evaluated the
+  // same way (crystal_over_scan). An older record's positions were its
+  // control points' indices read as images -- a 3600-image sweep drawn over
+  // its first 37 -- and are not used.
   const json::Value &over = s["cell_over_scan"];
+  bool from_record = false;
   if (over.is_array()) {
     for (const json::Value &one : over.as_array())
-      series.push_back(
-          {"experiment " + text_of(one["experiment"]), column(one, "image"),
-           column(one, "a"), column(one, "b"), column(one, "c"),
-           column(one, "alpha"), column(one, "beta"), column(one, "gamma")});
-  } else if (list) {
+      if (one["angle"].is_array()) {
+        series.push_back(
+            {"experiment " + text_of(one["experiment"]), column(one, "angle"),
+             column(one, "a"), column(one, "b"), column(one, "c"),
+             column(one, "alpha"), column(one, "beta"), column(one, "gamma")});
+        from_record = true;
+      }
+  }
+  if (!from_record && list) {
     for (std::size_t i = 0; i < list->size(); ++i) {
       const Experiment &e = (*list)[i];
       if (!e.crystal || e.crystal->A_points.size() < 2)
         continue;
       Series one;
       one.tag = "experiment " + std::to_string(i) + ", as the file has it";
-      for (std::size_t p = 0; p < e.crystal->A_points.size(); ++p) {
+      for (const ScanSample &sample : crystal_over_scan(*e.crystal, e.scan)) {
         Crystal at = *e.crystal;
-        at.A = e.crystal->A_points[p];
+        at.A = sample.A;
         const UnitCell u = at.cell();
-        one.x.push_back(json::Value(static_cast<double>(e.scan.first_image) +
-                                    static_cast<double>(p) - 0.5));
+        one.x.push_back(json::Value(sample.angle));
         one.a.push_back(json::Value(u.a));
         one.b.push_back(json::Value(u.b));
         one.c.push_back(json::Value(u.c));
@@ -524,33 +533,15 @@ std::string section_refine(const json::Value &s, Figures &f,
       series.push_back(std::move(one));
     }
   }
-  // A point a degree: every k-th scan point, and the last.
-  {
-    const std::size_t k = images_per_degree(
-        list && !list->empty() ? (*list)[0].scan.osc_width : 0.0);
-    if (k > 1)
-      for (Series &one : series) {
-        json::Array *columns[] = {&one.x,     &one.a,    &one.b,    &one.c,
-                                  &one.alpha, &one.beta, &one.gamma};
-        for (json::Array *c : columns) {
-          json::Array kept;
-          for (std::size_t m = 0; m < c->size(); m += k)
-            kept.push_back((*c)[m]);
-          if (!c->empty() && (c->size() - 1) % k != 0)
-            kept.push_back(c->back());
-          *c = std::move(kept);
-        }
-      }
-  }
   if (!series.empty()) {
     o << "<h4>The cell over the scan</h4><div class=\"pair\">";
     for (const Series &one : series) {
-      o << f.plot("Cell lengths, " + one.tag, "image", "&Aring;",
+      o << f.plot("Cell lengths, " + one.tag, "rotation (&deg;)", "&Aring;",
                   {trace(one.x, one.a, "a", "lines"),
                    trace(one.x, one.b, "b", "lines"),
                    trace(one.x, one.c, "c", "lines")},
                   false, 0.01);
-      o << f.plot("Cell angles, " + one.tag, "image", "degrees",
+      o << f.plot("Cell angles, " + one.tag, "rotation (&deg;)", "degrees",
                   {trace(one.x, one.alpha, "&alpha;", "lines"),
                    trace(one.x, one.beta, "&beta;", "lines"),
                    trace(one.x, one.gamma, "&gamma;", "lines")},

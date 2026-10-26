@@ -4,6 +4,17 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
+## Unreleased -- since 1.0.6
+
+**Fixed**
+- `mxi_report`'s cell over the scan is drawn against the rotation angle, a
+  point a degree over the whole scan. It had read the scan-varying model's
+  control points -- a few dozen -- as image numbers, so that a 3600-image
+  sweep's cell was drawn over its first 37 images; `mxi_refine`'s printed
+  ranges came from the same control points and are now the model's values.
+  Reports of files refined before still draw correctly, from the file's
+  crystals.
+
 ## 1.0.6 -- 26 October 2026
 
 **Changes results**

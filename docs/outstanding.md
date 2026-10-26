@@ -10,6 +10,14 @@ history on 20 October: four closed, nine rewritten to what is now true.
 
 ## Integration
 
+* **80.** **output -- refinement's summary when sweeps are refined apart.** Each
+  sweep's run (refine_apart) writes its own summary, but the joined file's
+  mxi_refine step keeps only "apart" and "groups": none of the per-sweep cells,
+  RMSDs, cycles or cell over the scan. mxi_report then draws the cell over the
+  scan from the file's crystals (correct, since 26 October), but the rest of
+  refinement's section is empty for any multi-sweep run. The sweeps' records
+  should be joined into the summary, their experiments renumbered as the
+  joined list's. Seen 26 October.
 * **78.** **Against a refined structure (`mxeq truth`, 21 October).** Graeme's
   small molecule, four sweeps, refined to R1 0.026: over its 12259 scaled
   observations R(F^2) 0.066, z's robust variance 0.81 but 1.9 per cent beyond

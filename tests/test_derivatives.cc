@@ -566,4 +566,55 @@ TEST(analytic_and_numerical_refinement_reach_the_same_model) {
                0.0, 1e-3, "same detector origin");
 }
 
+TEST(the_sample_offsets_derivatives_agree_with_finite_differences) {
+  // The centre of diffraction off the axis (Goniometer::sample_offset), its
+  // two parameters refined beside crystal, detector and beam, the offset not
+  // zero: the analytical Jacobian against the numerical, as above.
+  Experiment e = real_experiment();
+  const Vec3 axis = e.goniometer.axis.normalized();
+  const Vec3 across = axis.cross(Vec3{0.0, 0.0, 1.0}).normalized();
+  e.goniometer.sample_offset = across * 0.02 + axis.cross(across) * -0.015;
+  ExperimentList list;
+  list.experiments.push_back(e);
+  const Table t = table_from(e, 3.5);
+  RefineOptions options;
+  options.beam = true;
+  options.sample_offset = true;
+  const JacobianComparison c = compare_jacobians(list, t, options);
+  check::is_true(c.compared > 100000, "enough entries compared");
+  check::is_true(c.median_relative < 1e-6,
+                 "median agreement: " + std::to_string(c.median_relative) +
+                     ", 99th " + std::to_string(c.percentile_99));
+  const double gross = static_cast<double>(c.grossly_different) /
+                       static_cast<double>(c.compared);
+  check::is_true(gross < 0.01, "grossly disagreeing entries stay rare");
+}
+
+TEST(a_planted_sample_offset_is_recovered) {
+  // Observations predicted with the centre of diffraction 20 um off the axis;
+  // refined from none, the detector free as always: the offset comes back,
+  // amplitude and direction, and the residual goes to nothing. Without the
+  // offset's span in the normal equations every step had been refused.
+  Experiment truth = real_experiment();
+  const Vec3 axis = truth.goniometer.axis.normalized();
+  const Vec3 across = axis.cross(Vec3{0.0, 0.0, 1.0}).normalized();
+  const Vec3 planted = across * 0.012 + axis.cross(across) * 0.016; // 20 um
+  truth.goniometer.sample_offset = planted;
+  const Table t = table_from(truth, 3.5);
+
+  Experiment start = truth;
+  start.goniometer.sample_offset = Vec3{0.0, 0.0, 0.0};
+  ExperimentList list;
+  list.experiments.push_back(start);
+  RefineOptions options;
+  options.outlier_sigma = 0.0;
+  options.macrocycles = 1;
+  options.sample_offset = true;
+  const RefineResult r = refine(list, t, options);
+  const Vec3 found = list[0].goniometer.sample_offset;
+  check::close((found - planted).norm(), 0.0, 0.002,
+               "the offset within 2 um of the planted 20");
+  check::is_true(r.rmsd_x < 0.01 && r.rmsd_y < 0.01, "the residual gone");
+}
+
 } // namespace mxi

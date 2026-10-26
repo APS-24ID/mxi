@@ -80,7 +80,8 @@ Residual centroid_residual(const Experiment &e, std::size_t panel, int h, int k,
   }
 
   const Vec3 s1 = e.beam.s0() + e.goniometer.rotation_at(best) * r0;
-  const auto hit = e.detector[panel].intersect(s1);
+  const auto hit =
+      e.detector[panel].intersect(s1, e.goniometer.offset_at(best));
   if (!hit)
     return out;
 
@@ -211,6 +212,7 @@ struct ParameterSpan {
   std::uint32_t crystal_low = 0, crystal_high = 0;
   std::uint32_t detector_low = 0, detector_high = 0;
   std::uint32_t beam_low = 0, beam_high = 0;
+  std::uint32_t offset_low = 0, offset_high = 0;
 };
 
 // The analytical Jacobian, an observation at a time: only the parameters its
@@ -222,7 +224,8 @@ struct ParameterSpan {
 // observation here.
 struct SparseJacobian {
   static constexpr std::size_t kCrystal = 36, kDetector = 6, kBeam = 2,
-                               kSlots = kCrystal + kDetector + kBeam;
+                               kOffset = 2,
+                               kSlots = kCrystal + kDetector + kBeam + kOffset;
   std::vector<double> value; // observation x slot x 3
   std::vector<ParameterSpan> span;
 
@@ -237,6 +240,8 @@ struct SparseJacobian {
       at = kCrystal + (p - sp.detector_low);
     else if (p >= sp.beam_low && p < sp.beam_high)
       at = kCrystal + kDetector + (p - sp.beam_low);
+    else if (p >= sp.offset_low && p < sp.offset_high)
+      at = kCrystal + kDetector + kBeam + (p - sp.offset_low);
     else
       return nullptr;
     return &value[(i * kSlots + at) * 3];
@@ -248,7 +253,7 @@ struct SparseJacobian {
 };
 
 struct Layout {
-  bool crystal = false, detector = false, beam = false;
+  bool crystal = false, detector = false, beam = false, offset = false;
   bool shared_crystal = true;
   std::size_t n_experiments = 0;
   std::size_t crystal_blocks = 0;
@@ -257,8 +262,11 @@ struct Layout {
   //: belongs to its experiment, a block of several to them all.
   std::vector<std::size_t> detector_block, beam_block;
   std::vector<std::size_t> detector_members, beam_members;
+  //: Each experiment's sweep's sample offset: a sweep's lattices share one.
+  std::vector<std::size_t> offset_block, offset_members;
   std::size_t n_detectors() const { return detector_members.size(); }
   std::size_t n_beams() const { return beam_members.size(); }
+  std::size_t n_offsets() const { return offset_members.size(); }
 
   void set_sharing(const ExperimentList &experiments) {
     n_experiments = experiments.size();
@@ -283,6 +291,8 @@ struct Layout {
            detector_block, detector_members);
     number([&](std::size_t e) { return experiments.beam_group(e); }, beam_block,
            beam_members);
+    number([&](std::size_t e) { return experiments.sweep(e); }, offset_block,
+           offset_members);
   }
 
   //: Control points per crystal block -- each sweep its own, as its scan's
@@ -307,7 +317,7 @@ struct Layout {
   }
   std::size_t size() const {
     return crystal_size() + (detector ? 6 * n_detectors() : 0) +
-           (beam ? 2 * n_beams() : 0);
+           (beam ? 2 * n_beams() : 0) + (offset ? 2 * n_offsets() : 0);
   }
   std::size_t crystal_at(std::size_t experiment) const {
     return start_of[block_of(experiment)];
@@ -318,6 +328,10 @@ struct Layout {
   std::size_t beam_at(std::size_t experiment) const {
     return crystal_size() + (detector ? 6 * n_detectors() : 0) +
            2 * beam_block[experiment];
+  }
+  std::size_t offset_at(std::size_t experiment) const {
+    return crystal_size() + (detector ? 6 * n_detectors() : 0) +
+           (beam ? 2 * n_beams() : 0) + 2 * offset_block[experiment];
   }
 
   // Which experiment a parameter belongs to, or -1 for one shared by all.
@@ -350,9 +364,23 @@ struct Layout {
       return sole(detector_block, detector_members, q / 6);
     if (detector)
       q -= 6 * n_detectors();
-    return sole(beam_block, beam_members, q / 2);
+    if (beam && q < 2 * n_beams())
+      return sole(beam_block, beam_members, q / 2);
+    if (beam)
+      q -= 2 * n_beams();
+    return sole(offset_block, offset_members, q / 2);
   }
 };
+
+// Two directions perpendicular to the goniometer's axis, in the frame the scan
+// turns: the sample offset's parameters are its components along them.
+void offset_basis(const Goniometer &g, Vec3 *u, Vec3 *v) {
+  const Vec3 a = g.axis.normalized();
+  const Vec3 ref =
+      std::fabs(a.z) < 0.9 ? Vec3{0.0, 0.0, 1.0} : Vec3{1.0, 0.0, 0.0};
+  *u = a.cross(ref).normalized();
+  *v = a.cross(*u);
+}
 
 // Apply a parameter shift to a copy of the models. Shifts are always applied
 // to the state at the start of the step, never accumulated, so a rejected
@@ -391,6 +419,13 @@ void apply(const ExperimentList &base, const Layout &layout,
       const std::size_t at = layout.beam_at(i);
       const double beam_shift[2] = {shift[at], shift[at + 1]};
       e.beam = perturb_beam(e.beam, beam_shift);
+    }
+    if (layout.offset) {
+      const std::size_t at = layout.offset_at(i);
+      Vec3 u, v;
+      offset_basis(e.goniometer, &u, &v);
+      e.goniometer.sample_offset =
+          e.goniometer.sample_offset + u * shift[at] + v * shift[at + 1];
     }
   }
 }
@@ -509,7 +544,10 @@ void build_analytic_jacobian(const ExperimentList &experiments,
       // size.
       const Panel &p = e.detector[o.panel];
       double J[4];
-      p.mm_to_px_jacobian(s.v.x / s.v.z, s.v.y / s.v.z, J);
+      // At the spot as predicted: from the centre of diffraction, where there
+      // is an offset.
+      p.mm_to_px_jacobian(s.v.x / s.v.z * (1.0 - s.w.z) + s.w.x,
+                          s.v.y / s.v.z * (1.0 - s.w.z) + s.w.y, J);
       const double per_image =
           e.scan.osc_width != 0.0 ? 1.0 / Scan::radians(e.scan.osc_width) : 0.0;
 
@@ -594,6 +632,28 @@ void build_analytic_jacobian(const ExperimentList &experiments,
         for (std::size_t k = 0; k < 2; ++k)
           place(at + k, d[k], 1.0);
       }
+      if (layout.offset) {
+        // The ray leaves from d = S R(phi) c, not the origin: in the panel's
+        // homogeneous coordinates the spot moves by w - w_z v / v_z, w = D d --
+        // exactly, linear in c -- and the angle not at all, as where the
+        // crystal sits does not change when it diffracts.
+        const std::size_t at = layout.offset_at(o.experiment);
+        if (span != nullptr) {
+          (*span)[i].offset_low = static_cast<std::uint32_t>(at);
+          (*span)[i].offset_high = static_cast<std::uint32_t>(at + 2);
+        }
+        Vec3 u, v;
+        offset_basis(e.goniometer, &u, &v);
+        const Mat3 turn =
+            e.goniometer.setting * rotation(e.goniometer.axis, s.phi);
+        for (std::size_t k = 0; k < 2; ++k) {
+          const Vec3 w = s.D * (turn * (k == 0 ? u : v));
+          CentroidDerivative d;
+          d.dX = w.x - w.z * s.v.x / s.v.z;
+          d.dY = w.y - w.z * s.v.y / s.v.z;
+          place(at + k, d, 1.0);
+        }
+      }
     }
   };
 
@@ -643,6 +703,10 @@ std::vector<double> step_sizes(const ExperimentList &experiments,
       const std::size_t at = layout.beam_at(i);
       step[at] = step[at + 1] = 1e-7;
     }
+    if (layout.offset) {
+      const std::size_t at = layout.offset_at(i);
+      step[at] = step[at + 1] = 1e-4; // mm
+    }
   }
   return step;
 }
@@ -680,6 +744,7 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
   layout.crystal = options.crystal;
   layout.detector = options.detector;
   layout.beam = options.beam;
+  layout.offset = options.sample_offset;
   layout.shared_crystal = options.shared_crystal;
   layout.set_sharing(experiments);
   layout.crystal_blocks =
@@ -877,13 +942,16 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
               take(0, n);
             } else {
               // In ascending order of parameter index, which the layout
-              // guarantees: crystal, then detector, then beam. The
-              // accumulation below relies on it, and on the sums being formed
-              // in the same order as before.
+              // guarantees: crystal, then detector, then beam, then the
+              // sample offset. The accumulation below relies on it, and on
+              // the sums being formed in the same order as before. (Without
+              // the offset's span here its entries never reached the normal
+              // matrix, and every step was refused.)
               const ParameterSpan &sp = span[i];
               take(sp.crystal_low, sp.crystal_high);
               take(sp.detector_low, sp.detector_high);
               take(sp.beam_low, sp.beam_high);
+              take(sp.offset_low, sp.offset_high);
             }
             for (std::size_t x = 0; x < nonzero.size(); ++x) {
               const std::size_t a = nonzero[x];
@@ -1138,6 +1206,7 @@ JacobianComparison compare_jacobians(const ExperimentList &experiments,
   layout.crystal = options.crystal;
   layout.detector = options.detector;
   layout.beam = options.beam;
+  layout.offset = options.sample_offset;
   layout.shared_crystal = options.shared_crystal;
   layout.set_sharing(experiments);
   layout.crystal_blocks =

@@ -52,6 +52,10 @@ void usage() {
       "  --interval DEG    scan-varying control points one per DEG degrees of\n"
       "                    each sweep (10, at least five by default; at least\n"
       "                    four here) -- 20 or 30 for sparse data\n"
+      "  --sample-offset   the centre of diffraction off the rotation axis,\n"
+      "                    turning with the crystal: two parameters a sweep\n"
+      "                    (amplitude and phase), where the crystal is not\n"
+      "                    centred or the beam not on it\n"
       "  --crystal-restraint W  each control point's A tied to the static A, "
       "a\n"
       "                    prior of about 1/sqrt(W) of A's size: where the\n"
@@ -326,6 +330,7 @@ int run_program(int argc, char **argv) {
                                        "--no-detector",
                                        "--beam",
                                        "--no-beam",
+                                       "--sample-offset",
                                        "--separate",
                                        "--shared-crystal",
                                        "--macrocycles",
@@ -407,6 +412,7 @@ int run_program(int argc, char **argv) {
   // The beam and analytical derivatives by default (Graeme); --beam and
   // --analytic still taken, from older scripts.
   options.beam = !args.has("--no-beam");
+  options.sample_offset = args.has("--sample-offset");
   // Several sweeps refine a crystal each by default, as DIALS refines them:
   // indexing put them in one basis, and one matrix cannot fit sweeps no
   // goniometer quite returns between. --separate was the way to ask for this
@@ -558,6 +564,21 @@ int run_program(int argc, char **argv) {
                   with_esd(v[2], e[2]).c_str(), with_esd(v[3], e[3], 3).c_str(),
                   with_esd(v[4], e[4], 3).c_str(),
                   with_esd(v[5], e[5], 3).c_str(), c.volume());
+      // Where the centre of diffraction sits off the axis, if refined: its
+      // distance, and its direction about the axis from the frame's first
+      // perpendicular, as refinement parameterises it.
+      const Goniometer &g = experiments[i].goniometer;
+      if (g.has_offset()) {
+        const Vec3 ax = g.axis.normalized();
+        const Vec3 ref =
+            std::fabs(ax.z) < 0.9 ? Vec3{0.0, 0.0, 1.0} : Vec3{1.0, 0.0, 0.0};
+        const Vec3 pu = ax.cross(ref).normalized(), pv = ax.cross(pu);
+        const Vec3 &c0 = g.sample_offset;
+        std::printf("  the centre of diffraction %.1f um off the axis, at %.1f "
+                    "deg\n",
+                    1000.0 * c0.norm(),
+                    std::atan2(c0.dot(pv), c0.dot(pu)) * 180.0 / M_PI);
+      }
       json::Array jc, je, jlo, jhi;
       for (int k = 0; k < 6; ++k) {
         jc.push_back(json::Value(v[static_cast<std::size_t>(k)]));

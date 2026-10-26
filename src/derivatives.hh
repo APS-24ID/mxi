@@ -65,6 +65,12 @@ struct PredictionState {
   //: (e x r_phi) . s0, the denominator of eqn (40). Small means phi is ill
   //: determined; DIALS discards below 0.05.
   double volume = 0.0;
+  // The centre of diffraction off the axis (Goniometer::sample_offset), in the
+  // panel's homogeneous coordinates: w = D d(phi), and how it turns with phi.
+  // The spot is then at X = v.x / v.z (1 - w.z) + w.x -- exactly -- and every
+  // derivative carries the change; zero where there is no offset.
+  Vec3 w{0.0, 0.0, 0.0};
+  Vec3 dw_dphi{0.0, 0.0, 0.0};
 };
 
 // Assemble the state for a reflection observed at scan position `z`, choosing

@@ -56,6 +56,19 @@ cmake -S . -B build && cmake --build build
 ctest --test-dir build
 ```
 
+The programs are left in `build/`. Either put that on the `PATH`, or install
+them -- every program, `mxi_mask` with them -- into one `bin` directory and put
+that on it:
+
+```sh
+cmake --install build --prefix ~/.local     # then ~/.local/bin on the PATH
+```
+
+`mxi_mask`, the mask editor, is Python: it needs numpy, h5py, hdf5plugin and
+matplotlib (`pip install numpy h5py hdf5plugin matplotlib`), and finds the
+programs it calls beside itself. It is mxi's, not mxeq's -- `pip install` of
+mxeq does not bring it, as mxeq, the referee, depends on nothing of mxi's.
+
 Build options:
 
 | option | |

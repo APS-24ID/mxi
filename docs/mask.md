@@ -34,8 +34,10 @@ processed side by side. To carry on editing, open `masked.rflx` and name it with
 `-o` to write over it. While the toolbar's zoom or
 pan is on, clicks are the toolbar's: zoom in to draw a fine edge.
 
-It needs numpy, h5py, hdf5plugin and matplotlib. `--snapshot PNG` draws the
-first sweep and its regions to a file, with no window.
+It needs numpy, h5py, hdf5plugin and matplotlib. It is built and installed
+with the other programs (`cmake --install`, the README), and finds `mxi_convert`
+and `mxi_untrusted` beside itself. `--snapshot PNG` draws the first sweep and its
+regions to a file, with no window.
 
 ## Where they are kept, and applying them again
 

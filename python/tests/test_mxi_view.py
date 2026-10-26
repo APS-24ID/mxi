@@ -334,3 +334,44 @@ def test_an_indexed_files_spots_are_shown_by_their_own_experiment(
         assert view.counts[0] == spots.nrows, view.counts
     finally:
         view.viewer.close()
+
+
+@needs_display
+def test_undo_clear_and_same_as_last_are_undone_a_step_at_a_time(tmp_path, monkeypatch):
+    # napari's shapes layer has no undo; mxi_view's records each sweep's
+    # regions before each finished change -- a shape added, removed or
+    # changed, Clear, Same as last -- and Undo puts them back.
+    strong, master = planted(tmp_path, sets=2)
+    monkeypatch.chdir(tmp_path)
+    tools()
+    view = load("mxi_view_module", VIEW).View(str(strong), "masked.rflx", 1)
+    try:
+        layer = view.viewer.layers["untrusted"]
+        layer.add_rectangles(np.array([[49.5, 99.5], [169.5, 259.5]]))
+        layer.add_ellipses(np.array([[10.5, 10.5], [30.5, 30.5]]))
+        assert len(view.current_regions()) == 2
+        view.undo()
+        assert [list(r)[1] for r in view.current_regions()] == ["rectangle"]
+        view.undo()
+        assert view.current_regions() == []
+        view.undo()  # nothing left: no change
+        assert view.current_regions() == []
+        layer = view.viewer.layers["untrusted"]
+        layer.add_rectangles(np.array([[0.0, 0.0], [9.0, 9.0]]))
+        view.clear()
+        assert view.current_regions() == []
+        view.undo()
+        assert len(view.current_regions()) == 1
+        view.show(1)
+        view.same_as_last()
+        assert len(view.current_regions()) == 1
+        view.undo()
+        assert view.current_regions() == []
+        view.same_as_last()
+        view.save()
+        written = rflx.experiments_dict(str(tmp_path / "masked.rflx"))["imageset"]
+        assert written[0]["untrusted"] == written[1]["untrusted"]
+        assert written[1]["untrusted"][0]["rectangle"] == [0.5, 0.5, 9.5, 9.5]
+        assert "Ctrl+Z" in str(view.viewer.layers["untrusted"].keymap)  # Cmd-Z on a Mac
+    finally:
+        view.viewer.close()

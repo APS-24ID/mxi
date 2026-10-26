@@ -61,6 +61,11 @@ class View:
         self.images = {}
         self.current = None
         self.previous = None
+        # Undo: each sweep's regions as they were before each change to them,
+        # latest last; napari's shapes layer has none of its own.
+        self.history = {}
+        self.state = []
+        self.restoring = False
         self.viewer = napari.Viewer(title=f"mxi_view {os.path.basename(path)}")
         self.panel()
         self.show(min(max(sweep, 0), len(self.sweeps) - 1))
@@ -76,11 +81,15 @@ class View:
         self.summed.changed.connect(self.set_window)
         same = PushButton(text="Same as last")
         same.changed.connect(self.same_as_last)
+        undo = PushButton(text="Undo")
+        undo.changed.connect(self.undo)
+        clear = PushButton(text="Clear")
+        clear.changed.connect(self.clear)
         save = PushButton(text=f"Save to {self.output}")
         save.changed.connect(self.save)
         self.status = Label(value="")
         self.container = Container(
-            widgets=[self.choice, self.summed, same, save, self.status]
+            widgets=[self.choice, self.summed, undo, clear, same, save, self.status]
         )
         self.viewer.window.add_dock_widget(self.container, name="mxi", area="right")
 
@@ -90,13 +99,17 @@ class View:
         show."""
         if self.current is None or "untrusted" not in self.viewer.layers:
             return
+        self.regions[self.sweeps[self.current]["index"]] = self.current_regions()
+
+    def current_regions(self) -> list:
+        """The shapes layer's regions, as untrusted regions."""
         layer = self.viewer.layers["untrusted"]
         regions = []
         for kind, vertices in zip(layer.shape_type, layer.data):
             r = mxi_tools.shape_to_untrusted(kind, vertices)
             if r is not None:
                 regions.append(r)
-        self.regions[self.sweeps[self.current]["index"]] = regions
+        return regions
 
     def show(self, k: int, keep: bool = True):
         # The layer's regions kept before another sweep's are drawn -- but not
@@ -139,6 +152,10 @@ class View:
             edge_color="red",
             edge_width=2,
         )
+        layer = self.viewer.layers["untrusted"]
+        layer.events.data.connect(self.on_change)
+        layer.bind_key("Control-Z", lambda _layer: self.undo(), overwrite=True)
+        self.state = self.current_regions()
         self.viewer.dims.set_point(0, max(0, s["first"] - 1))
         self.say(
             f"images {s['first']}-{s['last']}; {self.counts[0]} spots, "
@@ -212,14 +229,67 @@ class View:
             self.viewer.layers["images"].refresh()
             self.add_markers()
 
+    # --- undo
+    def on_change(self, event):
+        """A change finished -- added, removed, or a shape changed -- the
+        regions as they were before it kept to undo; the events while a shape
+        is drawn or dragged, and Undo's own, not."""
+        if self.restoring:
+            return
+        action = getattr(event, "action", None)
+        action = str(getattr(action, "value", action))
+        if action not in ("added", "removed", "changed"):
+            return
+        now = self.current_regions()
+        if now == self.state:
+            return
+        self.history.setdefault(self.sweeps[self.current]["index"], []).append(
+            self.state
+        )
+        self.state = now
+
+    def set_layer(self, regions: list):
+        """The shapes layer made these regions, without recording it."""
+        layer = self.viewer.layers["untrusted"]
+        self.restoring = True
+        try:
+            layer.selected_data = set(range(len(layer.data)))
+            layer.remove_selected()
+            for r in regions:
+                kind, vertices = mxi_tools.untrusted_to_shape(r)
+                layer.add([vertices], shape_type=[kind])
+        finally:
+            self.restoring = False
+        self.state = [dict(r) for r in regions]
+        self.regions[self.sweeps[self.current]["index"]] = [dict(r) for r in regions]
+
+    def undo(self):
+        past = self.history.get(self.sweeps[self.current]["index"], [])
+        if not past:
+            self.say("nothing to undo on this sweep")
+            return
+        self.set_layer(past.pop())
+        self.say(f"undone: {len(self.state)} regions; {len(past)} more to undo")
+
+    def clear(self):
+        if not self.current_regions():
+            return
+        self.history.setdefault(self.sweeps[self.current]["index"], []).append(
+            self.current_regions()
+        )
+        self.set_layer([])
+        self.say("cleared; Undo brings them back")
+
     def same_as_last(self):
         if self.previous is None:
             self.say("no other sweep shown yet")
             return
         self.keep_regions()
         source = self.regions[self.sweeps[self.previous]["index"]]
-        self.regions[self.sweeps[self.current]["index"]] = [dict(r) for r in source]
-        self.show(self.current, keep=False)
+        self.history.setdefault(self.sweeps[self.current]["index"], []).append(
+            self.current_regions()
+        )
+        self.set_layer(source)
 
     def save(self):
         self.keep_regions()

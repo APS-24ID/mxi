@@ -48,7 +48,14 @@ class View:
         if not self.sweeps:
             raise SystemExit(f"{path} has no image sets")
         self.table = mxi_tools.read_reflections(
-            self.path, columns={"id", "xyzobs.px.value", "xyzcal.px"}
+            self.path,
+            columns={
+                "id",
+                "xyzobs.px.value",
+                "xyzobs.px.variance",
+                "xyzcal.px",
+                "bbox",
+            },
         )
         self.regions = {s["index"]: list(s["shapes"]) for s in self.sweeps}
         self.images = {}
@@ -117,29 +124,7 @@ class View:
                 mxi_tools.display_top(images.summed(max(0, s["first"] - 1))),
             ),
         )
-        members = s["experiments"]
-        spots = mxi_tools.points_of(self.table, "xyzobs.px.value", members)
-        if len(spots):
-            self.viewer.add_points(
-                spots,
-                name="spots",
-                size=12,
-                face_color="transparent",
-                border_color="red",
-                border_width=0.1,
-                ndim=3,
-            )
-        predicted = mxi_tools.points_of(self.table, "xyzcal.px", members)
-        if len(predicted):
-            self.viewer.add_points(
-                predicted,
-                name="predictions",
-                size=8,
-                symbol="cross",
-                face_color="cyan",
-                ndim=3,
-                visible=False,
-            )
+        self.add_markers()
         kinds, data = [], []
         for region in self.regions[s["index"]]:
             kind, vertices = mxi_tools.untrusted_to_shape(region)
@@ -156,9 +141,62 @@ class View:
         )
         self.viewer.dims.set_point(0, max(0, s["first"] - 1))
         self.say(
-            f"images {s['first']}-{s['last']}; {len(spots)} spots, "
-            f"{len(predicted)} predicted; {len(self.regions[s['index']])} regions"
+            f"images {s['first']}-{s['last']}; {self.counts[0]} spots, "
+            f"{self.counts[1]} predicted; {len(self.regions[s['index']])} regions"
         )
+
+    def add_markers(self):
+        """The spots and predictions of the sweep on show, a marker on each
+        image each is recorded on (mxi_tools.spot_markers), redrawn as the
+        window changes; the predictions hidden unless already shown."""
+        s = self.sweeps[self.current]
+        visible = (
+            self.viewer.layers["predictions"].visible
+            if "predictions" in self.viewer.layers
+            else False
+        )
+        for name in ("predictions", "spots"):
+            if name in self.viewer.layers:
+                self.viewer.layers.remove(name)
+        members = s["experiments"]
+        self.counts = [0, 0]
+        spots, sizes = mxi_tools.spot_markers(
+            self.table, "xyzobs.px.value", members, self.window
+        )
+        if len(spots):
+            # One size around every spot; red on its own image, a paler red on
+            # the others it is recorded on.
+            own = sizes > 10
+            self.counts[0] = int(own.sum())
+            colours = mxi_tools.np.where(
+                own[:, None], [1.0, 0.0, 0.0, 1.0], [1.0, 0.55, 0.55, 0.8]
+            )
+            self.viewer.add_points(
+                spots,
+                name="spots",
+                size=12,
+                face_color="transparent",
+                border_color=colours,
+                border_width=0.1,
+                ndim=3,
+            )
+        predicted, sizes = mxi_tools.spot_markers(
+            self.table, "xyzcal.px", members, self.window
+        )
+        if len(predicted):
+            self.counts[1] = int(sum(sizes > 10))
+            self.viewer.add_points(
+                predicted,
+                name="predictions",
+                size=sizes,
+                symbol="cross",
+                face_color="cyan",
+                ndim=3,
+                visible=visible,
+            )
+        if "untrusted" in self.viewer.layers:  # kept on top, to draw on
+            layers = self.viewer.layers
+            layers.move(layers.index("untrusted"), len(layers))
 
     def set_window(self, n: int):
         self.window = max(1, int(n))
@@ -167,6 +205,7 @@ class View:
             images._cache.clear()
         if "images" in self.viewer.layers:
             self.viewer.layers["images"].refresh()
+            self.add_markers()
 
     def same_as_last(self):
         if self.previous is None:

@@ -22,8 +22,11 @@ chosen in the panel on the right. The images are a stack with a slider; each
 is shown as the sum of the number set in the panel from it (one to begin
 with), so that a shadow shows against the background; contrast and colour
 are napari's own. Whatever the file holds is drawn on them: the strong spots
-(`xyzobs.px.value`) as red circles, and the predictions (`xyzcal.px`), hidden
-to begin with, as cyan crosses -- each on its own images.
+(`xyzobs.px.value`) as circles, and the predictions (`xyzcal.px`), hidden to
+begin with, as cyan crosses -- each on every image it is recorded on, two
+sigmas of its centroid's z either side (its box, for predictions): red on its
+centroid's image, a paler red on the others. With images summed, a spot is
+marked on any image whose sum includes it.
 
 The untrusted regions are a shapes layer, `untrusted`, over every image of the
 sweep: draw **rectangles**, **ellipses** -- a circle where round, a polygon of 48

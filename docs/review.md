@@ -103,23 +103,36 @@ takes 36.6 s of wall time and 3m42 of CPU (30 September 2026).
 
 ## Where to find things
 
-| step | library | program | reference document |
+| step | library, in `src/` | program | reference document |
 |---|---|---|---|
 | import | `nxmx_import` (the NXmx geometry, its transformation chains) | `mxi_import` | `docs/import.md` |
-| spot finding | `src/` -- `dext.cc` the threshold on the CPU, `dext_metal.cc` and `dext_cuda.cu` on the GPU, `dext_fused.hh` a fused CUDA kernel, `decompress.cc`, `nxmx.cc`, `find_spots.cc` the program | `mxi_find` | `docs/spots.md` |
-| geometry | `geometry` (models, conventions), `predict`, `derivatives`, `derivatives_t` | | `docs/conventions.md` |
-| indexing | `index` (3D FFT), `fft`, `fft_fftw` | `mxi_index` | `CLAUDE.md`, indexing sections; `docs/gpu.md`, Indexing |
-| refinement | `refine`, `target`, `linalg` | `mxi_refine` | `CLAUDE.md`, refinement sections; `docs/gpu.md`, Refinement |
-| integration | `integrate` (summation), `background` (GLM), `shoebox`, `mask`, `profile_model`, `profile_grid`, `reference` (profiles and fitting), `postrefine`; `fit_device.hh`, `fit_batch`, `fit_cuda.cu`, `fit_metal.metal` and `fit_device_*.cc` (fitting on a GPU, `--gpu`) | `mxi_integrate` | `docs/integration.md`; `docs/gpu.md`, Integration |
-| symmetry | `symmetry` (space groups, via gemmi), `laue` | `mxi_symmetry` | `docs/symmetry.md` |
-| scaling | `scale`, `scale_model`, `resolution` | `mxi_scale` | `docs/scaling.md` |
-| formats and plumbing | `expt`, `refl` (msgpack by hand), `json`, `args`, `log_mirror`, `timing`, `parallel`, `summary` | | |
+| the images | `nxmx_reader` (frames, the detector's pixel mask), `decompress`, `hdf5_handle`, `experiment_images`; `untrusted` (regions marked untrusted, joined to the pixel mask) | `mxi_mask` (draw them), `mxi_untrusted` (list, set, clear), `mxi_max` (a maximum projection) | `docs/mask.md` |
+| spot finding | `dext` (the threshold on the CPU), `dext_metal.cc` and `.metal`, `dext_cuda.cu`, `dext_gpu`, `signal_order`, `spots`, `spot_table` | `mxi_find` | `docs/spots.md` |
+| geometry | `geometry` (the models, the sample offset), `predict`, `derivatives`, `linalg` | | `docs/conventions.md` |
+| indexing | `index` (3D FFT, the real-space grid search, a known cell), `fft`, `fft_fftw` | `mxi_index` | `docs/algorithms.md`; `CLAUDE.md`, indexing |
+| refinement | `refine` (static and scan-varying, the crystal tie, the sample offset) | `mxi_refine` | `docs/algorithms.md`; `docs/multi-sweep.md` |
+| integration | `integrate` (summation), `background`, `shoebox`, `mask`, `profile_model`, `profile_grid`, `reference` (profiles and fitting), `postrefine`; on a GPU `fit_batch`, `fit_cuda.cu`, `fit_metal.metal`, `fit_device_*`, `cuda_device.cu`, `metal_device` | `mxi_integrate` | `docs/integration.md`; `docs/gpu.md` |
+| symmetry | `symmetry` (space groups, settings, via gemmi), `laue`, `cosym` | `mxi_symmetry` | `docs/symmetry.md` |
+| scaling | `scale`, `scale_model`, `resolution`, `two_theta` | `mxi_scale` | `docs/scaling.md` |
+| many crystals | `correlation`, `combine` | `mxi_correlation`, `mxi_combine`, `mxi_split` | `docs/correlation.md`, `docs/multi-sweep.md` |
+| output | `rflx`, `refl` (msgpack by hand), `expt`, `views` | `mxi_export`, `mxi_convert`, `mxi_show`, `mxi_report` | `docs/export.md`, `docs/rflx.md` |
+| plumbing | `json`, `args`, `summary`, `processing`, `parallel` | | |
 
-Library files are `src/<name>.hh` and `.cc`. Six more programs are for looking
-at a step rather than doing it: `mxi_profile` estimates the profile model,
-`mxi_mask` marks integration regions, `mxi_grid` and `mxi_forward` show spots in
-Kabsch space and rendered onto the pixels, `mxi_residuals` decomposes centroid
-residuals, and `mxi_background` fits backgrounds to given pixels.
+Library files are `src/<name>.hh` and `.cc`; programs `apps/<name>.cc`, but
+`mxi_mask`, which is Python, `tools/mxi_mask.py`, copied beside the others by
+the build. Seven more programs are for looking at a step rather than doing it:
+`mxi_profile` estimates the profile model, `mxi_foreground` marks each
+reflection's foreground for dials.image_viewer (it was `mxi_mask` until that
+name went to the mask editor), `mxi_grid` and `mxi_forward` show spots in Kabsch
+space and rendered onto the pixels, `mxi_residuals` decomposes centroid
+residuals, `mxi_background` fits backgrounds to given pixels, and
+`mxi_readtest` times reading. `cmake --install` puts every program, `mxi_mask`
+with them, in one `bin`.
+
+The referee, `mxeq`, is in `python/src/mxeq` (`python/README.md`): comparisons
+with DIALS, regression over real data, and `truth.py` -- a scaled data set
+against a refined structure's Fc^2, with figures and the worst observations'
+shoeboxes.
 
 The spot finder began as a project of its own and is now a stage of mxi like
 the others: its table written by the library's writers, its experiment list

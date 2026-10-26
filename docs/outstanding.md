@@ -31,7 +31,23 @@ history on 20 October: four closed, nine rewritten to what is now true.
   near the axis, `mxi_integrate --min-zeta` (0.05 by default, as DIALS): 0.2
   would take a fifth of the outliers beyond 5 sigma, 0.3 a quarter, no unique
   reflection lost (docs/integration.md) -- confirmed by integrating with 0.2:
-  42 outliers gone, the rest unchanged, the sigmas better calibrated; (c) the lowest resolution,
+  42 outliers gone, the rest unchanged, the sigmas better calibrated;
+  masking the backstop and its arm (mxi_mask, 22 October): R(F^2) 0.0657 to
+  0.0627, l-cyst_04 2.9 to 2.4 per cent beyond 5 sigma, the other three little
+  changed -- their outliers are not near the beam. Their shoeboxes, from the
+  whole scaled file, showed why: near-axis streaks running out of their
+  foreground (what --min-zeta 0.2 takes), a first-image partial (item 1), and
+  in images 600-800 of l-cyst_03 (550-700 of l-cyst_01) every spot displaced
+  together, y by -0.3 to -0.4 px and the rotation by up to half an image, a
+  fifth to a quarter of them more than a pixel off, the intensities' spread
+  against Fc^2 wide (0.60-0.96 at image 750, against 0.99-1.01 at 800).
+  Refining again with or without the crystal tie, or with control points every
+  2 deg, leaves the y shift: not the crystal turning but all its spots moving,
+  as a crystal partly leaving the beam -- or the beam moving -- would make
+  them; refinement's beam and detector are static over a sweep. Leaving those
+  images out, with |zeta| below 0.2: R(F^2) 0.0627 to 0.0566, 219 beyond 5
+  sigma to 122, 10 unique reflections of 2606 lost. To decide: a way to leave
+  image ranges out (dials.scale's exclude_images), or a scan-varying beam; (c) the lowest resolution,
   1.6-6.7 A, 10 per cent beyond 5 sigma, 61 per cent of it shared within
   reflections (the model's: Fc^2 a little low at low angle, no bonding
   density) and 39 the processing's; (d) a partial on a sweep's first image,

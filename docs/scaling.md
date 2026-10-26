@@ -194,6 +194,28 @@ crystals' whole background. Both mended, the same two crystals scale with a =
 0.98; insulin's sweep 0.95 1.06 1.09 1.13 1.23 1.20, where it was 0.66 0.92
 1.04 1.13 1.27 1.23. CC half as it was.
 
+## Images left out: --exclude (23 October)
+
+```sh
+mxi_scale symmetrized.rflx --exclude 6:600:800 --exclude 0:550-700
+```
+
+An experiment's images left out of scaling, as dials.scale's
+`exclude_images=`: each `EXPERIMENT:FIRST:LAST` (or `FIRST-LAST`), as many as
+wanted. Experiments are numbered as the file numbers them, as `mxi_show` lists
+them; a sweep's crystal-less experiment stands for its lattices, so either
+number may be given. Images are the file's: image n spans z from n - 1 to n,
+whatever image the scan begins at. The observations there are flagged
+excluded and play no part in the scale model, the error model, the merging
+statistics or what is written; the output says each range and the lattices it
+applies to.
+
+For a stretch where the data cannot be trusted: on Graeme's small molecule,
+200 images of one sweep where every spot moved together, the crystal or the
+beam having moved (docs/outstanding.md, item 78), and 150 of another. Left
+out, R(F^2) against the refined structure 0.0618 to 0.0567, ten unique
+reflections of 2606 lost.
+
 ## Partial reflections (15 October)
 
 Two corrections, both as dials.scale, found on Graeme's 36 insulin crystals

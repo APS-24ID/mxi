@@ -112,6 +112,7 @@ def test_the_scale_comes_back_and_the_sigmas_calibrate():
     assert res.matched == len(obs.hkl) and res.unmatched == 0
     assert res.k == pytest.approx(2.5, rel=0.01)
     assert res.robust_var_z == pytest.approx(1.0, abs=0.15)
+    assert res.robust_var_within == pytest.approx(1.0, abs=0.2)
 
 
 def test_a_single_fault_is_the_processings_and_a_shared_offset_the_models():

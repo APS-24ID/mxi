@@ -70,12 +70,15 @@ Arguments parse_arguments(int argc, char **argv,
           out.error = "option '" + arg + "' needs a value";
           return out;
         }
-        out.options[arg] = argv[++i];
+        out.options[arg] = argv[i + 1];
+        out.repeated[arg].push_back(argv[++i]);
       } else if (optional_value.count(arg)) {
-        if (i + 1 < argc && whole_number(argv[i + 1]))
-          out.options[arg] = argv[++i];
-        else
+        if (i + 1 < argc && whole_number(argv[i + 1])) {
+          out.options[arg] = argv[i + 1];
+          out.repeated[arg].push_back(argv[++i]);
+        } else {
           out.options[arg] = "";
+        }
       } else {
         out.options[arg] = "";
       }

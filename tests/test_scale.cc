@@ -749,6 +749,23 @@ TEST(several_sweeps_observations_each_take_their_own_sweeps_scan) {
       "the second's frame 125: a quarter of its own, not of the first's");
   check::close(data.observation[3].rotation, 0.75, 1e-12,
                "the second's frame 175");
+  // Images left out (mxi_scale --exclude), numbered as the file's: the
+  // second sweep's frame 125 is its image 126, whatever image it begins at --
+  // 26 of the first; two ranges together, each its own experiment's.
+  ScaleDataOptions leave;
+  leave.exclude = {{1, 120, 130}, {0, 70, 80}};
+  const ScaleData kept =
+      build_scale_data(experiments, t, group, ScaleModelShape{3, 0, 0}, leave);
+  check::equal(static_cast<long long>(kept.size()), 2, "two left out");
+  for (std::size_t k = 0; k < kept.size(); ++k)
+    check::is_true(kept.row[k] == 0 || kept.row[k] == 3,
+                   "image 26 of the first and 176 of the second kept");
+  leave.exclude = {{0, 120, 130}};
+  check::equal(
+      static_cast<long long>(build_scale_data(experiments, t, group,
+                                              ScaleModelShape{3, 0, 0}, leave)
+                                 .size()),
+      4, "another experiment's images are not this one's");
   id.ints[3] = 2;
   bool refused = false;
   try {

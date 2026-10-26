@@ -30,6 +30,17 @@ struct ScaleDataOptions {
   //: anomalous=True. Centric reflections stay one group, their mates equal by
   //: symmetry.
   bool anomalous = false;
+  //: Images left out: an experiment's observations whose image -- the whole
+  //: part of z, plus one: image n spans z from n - 1 to n -- is in [first,
+  //: last], numbered as the file's images, as dials.scale's
+  //: exclude_images. As many as are given (mxi_scale --exclude): a stretch
+  //: where the crystal moved in the beam, say, every spot displaced and the
+  //: intensities unsure (Graeme, 23 October).
+  struct Exclusion {
+    std::size_t experiment = 0;
+    std::int64_t first = 0, last = 0;
+  };
+  std::vector<Exclusion> exclude;
 };
 
 //: The observations scaling uses, as parallel arrays.
@@ -332,6 +343,8 @@ struct ScaleRunOptions {
   //: The error model fitted as dials.scale's default does, a and b in turn,
   //: not by regression (refine_error_model).
   bool error_model_individual = false;
+  //: Images left out, an experiment's range each (ScaleDataOptions).
+  std::vector<ScaleDataOptions::Exclusion> exclude;
 };
 
 struct ScaleRun {

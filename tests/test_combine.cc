@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "../src/args.hh"
 #include "../src/combine.hh"
 #include "../src/expt.hh"
 #include "../src/index.hh"
@@ -299,4 +300,20 @@ TEST(untrusted_regions_are_the_pixels_whose_centres_they_hold) {
       {"polygon": [[0,0],[1,0],[0,1]]}, {"circle": [2,2,1]}])")) ==
                      "2 circles, 1 polygon",
                  "described");
+}
+
+// An option given more than once keeps every value, in order, for mxi_scale's
+// --exclude; value() keeps the last, as it always has.
+TEST(a_repeated_option_keeps_every_value) {
+  const char *argv[] = {"prog",    "--exclude", "6:600:800",
+                        "in.rflx", "--exclude", "0:550-700"};
+  const Arguments a = parse_arguments(6, const_cast<char **>(argv),
+                                      {"--exclude"}, {"--exclude"});
+  check::is_true(a.ok, "parsed");
+  check::equal(static_cast<long long>(a.values("--exclude").size()), 2, "both");
+  check::is_true(a.values("--exclude")[0] == "6:600:800" &&
+                     a.values("--exclude")[1] == "0:550-700",
+                 "in order");
+  check::is_true(a.value("--exclude") == "0:550-700", "value() the last");
+  check::is_true(a.positional.size() == 1, "the file");
 }

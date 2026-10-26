@@ -19,6 +19,9 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   `.fcf`): calibration, bins by what processing could get wrong, the model's
   part against the processing's, figures, the worst observations' shoeboxes.
 - `cmake --install` puts every program, `mxi_mask` with them, in one `bin`.
+- `mxi_scale --exclude E:FIRST:LAST`: an experiment's images left out of
+  scaling, as `dials.scale exclude_images=`; as many ranges as wanted,
+  numbered as the file's experiments and images.
 
 **Changes results**
 - `mxi_integrate --min-zeta` now also keeps reflections below the cut out of

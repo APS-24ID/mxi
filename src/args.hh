@@ -27,7 +27,11 @@ namespace mxi {
 struct Arguments {
   std::vector<std::string> positional;
   //: Flag to value. A flag that takes no value maps to the empty string.
+  //: Given more than once, the last.
   std::map<std::string, std::string> options;
+  //: Every value a flag was given, in order: for the options that may be
+  //: repeated, as mxi_scale's --exclude.
+  std::map<std::string, std::vector<std::string>> repeated;
   bool ok = true;
   std::string error;
   bool help = false;
@@ -39,6 +43,10 @@ struct Arguments {
     return it == options.end() ? fallback : it->second;
   }
   double number(const std::string &flag, double fallback) const;
+  std::vector<std::string> values(const std::string &flag) const {
+    auto it = repeated.find(flag);
+    return it == repeated.end() ? std::vector<std::string>{} : it->second;
+  }
 };
 
 // `takes_value` names the flags that consume the following argument. Anything

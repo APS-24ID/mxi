@@ -151,6 +151,17 @@ ScaleData build_scale_data(const ExperimentList &experiments,
       return;
     if (id_col)
       sweep_of[i] = static_cast<std::size_t>(id_col->ints[i]);
+    if (!options.exclude.empty()) {
+      const std::size_t e = sweep_of[i];
+      // z is the frame, from the file's first: image n spans n - 1 to n,
+      // whatever image the scan begins at (a scan from 101 has z from 100).
+      (void)e;
+      const std::int64_t image =
+          static_cast<std::int64_t>(std::floor(cal.reals[i * 3 + 2])) + 1;
+      for (const ScaleDataOptions::Exclusion &x : options.exclude)
+        if (x.experiment == e && image >= x.first && image <= x.last)
+          return;
+    }
     const double v = chosen_var[i];
     const double d = dcol.reals[i];
     if (!(v > 0.0) || !std::isfinite(chosen_value[i]) || !(d > 0.0) ||
@@ -1807,6 +1818,7 @@ ScaleRun scale_sweep(const ExperimentList &experiments,
   data_options.d_min = options.d_min;
   data_options.d_max = options.d_max;
   data_options.anomalous = options.anomalous;
+  data_options.exclude = options.exclude;
   run.data =
       build_scale_data(experiments, reflections, group, shape, data_options);
   step("gathering the observations");

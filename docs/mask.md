@@ -12,8 +12,8 @@ regions **untrusted**, so that spot finding and integration leave them out.
 
 ```sh
 mxi_import ../data/*.nxs
-mxi_mask imported.rflx
-mxi_find imported.rflx
+mxi_mask imported.rflx        # Save writes masked.rflx
+mxi_find masked.rflx
 ```
 
 `mxi_mask` shows each sweep in turn as a sum of images -- the first image and
@@ -27,8 +27,11 @@ shadow shows against the background. Draw:
 **Undo** takes back the last change (u or Ctrl-Z too); **Clear** removes this
 sweep's regions; **Same as last** copies the previous sweep's -- or, on the
 first, the mask last saved -- for sweeps that share their shadows; **Previous**
-and **Next** move between sweeps; **Save** writes every sweep's regions into the
-file and keeps them in `mxi_mask.json` beside it. While the toolbar's zoom or
+and **Next** move between sweeps; **Save** writes the experiment list with every
+sweep's regions to a new file, `masked.rflx` (`-o` to choose), and keeps them in
+`mxi_mask.json`. The input is left as it was, to compare with: masked and not,
+processed side by side. To carry on editing, open `masked.rflx` and name it with
+`-o` to write over it. While the toolbar's zoom or
 pan is on, clicks are the toolbar's: zoom in to draw a fine edge.
 
 It needs numpy, h5py, hdf5plugin and matplotlib. `--snapshot PNG` draws the
@@ -55,11 +58,13 @@ from one run applied to the next:
 
 ```sh
 mxi_untrusted imported.rflx                       # list each image set's
-mxi_untrusted imported.rflx --set mxi_mask.json   # set them
-mxi_untrusted imported.rflx --clear               # remove them
+mxi_untrusted imported.rflx --set mxi_mask.json   # set them: masked.rflx
+mxi_untrusted masked.rflx --clear -o clear.rflx   # remove them
 ```
 
-A mask file is `{"imagesets": {"0": [...], "1": [...]}}` for the image sets it
+Setting or clearing writes a new file, `masked.rflx` unless `-o` names another;
+the input is changed only when named. A mask file is `{"imagesets": {"0": [...],
+"1": [...]}}` for the image sets it
 names, or a list of shapes alone for every image set.
 
 ## How they are applied

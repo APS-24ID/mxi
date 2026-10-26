@@ -60,7 +60,10 @@ def read_experiments(path: str) -> dict:
     with tempfile.TemporaryDirectory() as tmp:
         expt = os.path.join(tmp, "list.expt")
         run = subprocess.run(
-            [program("mxi_convert"), path, "--output-expt", expt],
+            # The path made absolute: mxi_convert runs in the scratch
+            # directory, where a path relative to the user's would not be found
+            # ("mxi_convert: cannot open imported.rflx", Graeme, 22 October).
+            [program("mxi_convert"), os.path.abspath(path), "--output-expt", expt],
             capture_output=True,
             text=True,
             cwd=tmp,
@@ -163,7 +166,7 @@ class Editor:
         from matplotlib.widgets import Button, RadioButtons, Slider, TextBox
 
         self.plt = plt
-        self.path = path
+        self.path = os.path.abspath(path)
         self.output = output
         self.document = document
         self.sweeps = sweeps(document)

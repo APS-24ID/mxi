@@ -317,3 +317,34 @@ TEST(a_repeated_option_keeps_every_value) {
   check::is_true(a.value("--exclude") == "0:550-700", "value() the last");
   check::is_true(a.positional.size() == 1, "the file");
 }
+
+// The crystal over its scan, a sample a degree by A_at, whatever A_points
+// holds: refinement's control points -- a handful, not scan positions -- or a
+// file's samples. Read as scan positions, 37 control points had drawn a
+// 3600-image sweep's cell over its first 37 images (Graeme, 26 October).
+TEST(the_crystal_over_its_scan_is_sampled_by_angle_over_all_of_it) {
+  Scan scan;
+  scan.first_image = 1;
+  scan.last_image = 3600;
+  scan.osc_start = 0.0;
+  scan.osc_width = 0.1;
+  Crystal c;
+  c.A = Mat3::identity() * 0.0125;
+  for (int k = 0; k < 37; ++k) // control points, a cell growing 1% over 360
+    c.A_points.push_back(Mat3::identity() * (0.0125 / (1.0 + 0.01 * k / 36.0)));
+  const std::vector<ScanSample> s = crystal_over_scan(c, scan);
+  check::equal(static_cast<long long>(s.size()), 361,
+               "a sample a degree, both ends");
+  check::close(s.front().angle, 0.0, 1e-9, "from the scan's start");
+  check::close(s.back().angle, 360.0, 1e-9, "to its end");
+  check::close(s.back().image, 3600.0, 1e-9, "the last image's far boundary");
+  check::close(s.back().A(0, 0), c.A_points.back()(0, 0), 1e-12,
+               "the clamped spline's end, its last control point");
+  // A file's samples, one an image boundary: the same angles.
+  Crystal f = c;
+  f.A_points.assign(3601, Mat3::identity() * 0.0125);
+  f.A_points_are_samples = true;
+  const std::vector<ScanSample> g = crystal_over_scan(f, scan, 10.0);
+  check::equal(static_cast<long long>(g.size()), 37, "every ten degrees");
+  check::close(g[18].angle, 180.0, 1e-9, "the middle at 180");
+}

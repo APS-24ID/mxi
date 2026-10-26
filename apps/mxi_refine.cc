@@ -589,15 +589,19 @@ int run_program(int argc, char **argv) {
         std::array<double, 6> lo, hi;
         lo.fill(HUGE_VAL);
         hi.fill(-HUGE_VAL);
-        json::Array s_image, s_a, s_b, s_c, s_alpha, s_beta, s_gamma;
-        for (std::size_t point = 0; point < x.A_points.size(); ++point) {
-          const Mat3 &A = x.A_points[point];
+        // The model at each degree of the scan (crystal_over_scan), not its
+        // control points read as scan positions: those had drawn a 3600-image
+        // sweep's cell over its first 37 images, and the ranges below from
+        // coefficients the cell never takes in the interior.
+        const std::vector<ScanSample> samples =
+            crystal_over_scan(x, experiments[i].scan);
+        json::Array s_angle, s_image, s_a, s_b, s_c, s_alpha, s_beta, s_gamma;
+        for (const ScanSample &sample : samples) {
           Crystal at = x;
-          at.A = A;
+          at.A = sample.A;
           const UnitCell p = at.cell();
-          s_image.push_back(
-              json::Value(static_cast<double>(experiments[i].scan.first_image) +
-                          static_cast<double>(point) - 0.5));
+          s_angle.push_back(json::Value(sample.angle));
+          s_image.push_back(json::Value(sample.image));
           s_a.push_back(json::Value(p.a));
           s_b.push_back(json::Value(p.b));
           s_c.push_back(json::Value(p.c));
@@ -613,6 +617,7 @@ int run_program(int argc, char **argv) {
         }
         json::Object scan_cell;
         scan_cell["experiment"] = json::Value(static_cast<long>(i));
+        scan_cell["angle"] = json::Value(std::move(s_angle));
         scan_cell["image"] = json::Value(std::move(s_image));
         scan_cell["a"] = json::Value(std::move(s_a));
         scan_cell["b"] = json::Value(std::move(s_b));
@@ -634,8 +639,8 @@ int run_program(int argc, char **argv) {
           B(2, 2) = std::sqrt(G(2, 2) - B(0, 2) * B(0, 2) - B(1, 2) * B(1, 2));
           return A * B.inverse();
         };
-        const Mat3 R = orientation(x.A_points.back()) *
-                       orientation(x.A_points.front()).transpose();
+        const Mat3 R = orientation(samples.back().A) *
+                       orientation(samples.front().A).transpose();
         const double cosine = (R(0, 0) + R(1, 1) + R(2, 2) - 1.0) / 2.0;
         turned =
             std::acos(std::fmax(-1.0, std::fmin(1.0, cosine))) * 180.0 / M_PI;

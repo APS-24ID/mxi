@@ -351,4 +351,25 @@ reciprocal_lattice_points(const Experiment &e,
   return out;
 }
 
+std::vector<ScanSample> crystal_over_scan(const Crystal &crystal,
+                                          const Scan &scan, double step) {
+  std::vector<ScanSample> out;
+  const double n = static_cast<double>(scan.num_images());
+  const double span = std::fabs(scan.osc_width) * n;
+  if (!(n > 0.0))
+    return out;
+  const std::size_t intervals =
+      std::max<std::size_t>(1, static_cast<std::size_t>(std::ceil(
+                                   span / (step > 0.0 ? step : 1.0) - 1e-9)));
+  for (std::size_t k = 0; k <= intervals; ++k) {
+    const double t = static_cast<double>(k) / static_cast<double>(intervals);
+    ScanSample s;
+    s.angle = scan.osc_start + t * n * scan.osc_width;
+    s.image = static_cast<double>(scan.first_image) - 1.0 + t * n;
+    s.A = crystal.A_at(t);
+    out.push_back(s);
+  }
+  return out;
+}
+
 } // namespace mxi

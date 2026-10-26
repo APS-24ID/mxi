@@ -53,12 +53,13 @@ beams, refinement sweep by sweep); refinement's scan-varying pass and its
 restraints, from a small molecule; mxi_combine and mxi_split; --known-cell and
 the real-space grid search; mxi_correlation's normalisation; the
 cows-pigs-people tutorial; the orthorhombic setting; release notes.
-22 and 23 October, to 547 commits, unreleased: `mxeq truth`, a scaled data set
+22 to 26 October, released as 1.0.6: `mxeq truth`, a scaled data set
 judged against a refined structure's Fc^2 (figures, zeta, the outliers'
 shoeboxes); `mxi_integrate --min-zeta` reaching the profile model; untrusted
 regions -- `mxi_view` to draw them, `mxi_untrusted`, applied in spot finding and
 integration; `cmake --install`; `mxi_refine --sample-offset`, each lattice's
-centre of diffraction off the axis.
+centre of diffraction off the axis; `mxi_scale --exclude`; `mxi_view`, napari,
+which replaced the matplotlib mask editor; the progress bar.
 For a new session to
 pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in

@@ -60,7 +60,8 @@ struct RefineOptions {
   bool crystal = true;
   bool detector = true;
   bool beam = false;
-  //: The centre of diffraction off the rotation axis, two parameters a sweep
+  //: Each crystal's centre of diffraction off the rotation axis, two
+  //: parameters a lattice -- several on one sweep each their own
   //: (Goniometer::sample_offset): the illuminated volume's centre of mass,
   //: turning on a circle with the crystal (Graeme, 22 October).
   bool sample_offset = false;

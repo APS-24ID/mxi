@@ -53,7 +53,7 @@ void usage() {
       "                    each sweep (10, at least five by default; at least\n"
       "                    four here) -- 20 or 30 for sparse data\n"
       "  --sample-offset   the centre of diffraction off the rotation axis,\n"
-      "                    turning with the crystal: two parameters a sweep\n"
+      "                    turning with the crystal: two parameters a lattice\n"
       "                    (amplitude and phase), where the crystal is not\n"
       "                    centred or the beam not on it\n"
       "  --crystal-restraint W  each control point's A tied to the static A, "

@@ -617,4 +617,44 @@ TEST(a_planted_sample_offset_is_recovered) {
   check::is_true(r.rmsd_x < 0.01 && r.rmsd_y < 0.01, "the residual gone");
 }
 
+TEST(two_lattices_on_one_sweep_each_have_their_own_sample_offset) {
+  // Two crystals in the beam on one sweep, sharing its beam and detector,
+  // each its own centre of diffraction -- here different in amplitude and in
+  // phase. Each lattice has its own two parameters (Graeme: the lattices will
+  // have different phase angles at least), and each comes back.
+  Experiment one = real_experiment();
+  const Vec3 axis = one.goniometer.axis.normalized();
+  const Vec3 across = axis.cross(Vec3{0.0, 0.0, 1.0}).normalized();
+  const Vec3 further = axis.cross(across);
+  one.goniometer.sample_offset = across * 0.015; // 15 um at 0 deg
+  Experiment two = one;
+  const Mat3 turn = rotation(Vec3{0.3, 0.5, 0.8}.normalized(), 0.6);
+  two.crystal->A = turn * one.crystal->A;          // another crystal
+  two.goniometer.sample_offset = further * -0.025; // 25 um, at -90
+  Table a = table_from(one, 3.5);
+  Table b = table_from(two, 3.5);
+  for (std::int64_t &v : b.modify_int_column("id", "int", 1).ints)
+    v = 1;
+  const Table t = concat_rows({a, b});
+
+  ExperimentList list;
+  list.experiments = {one, two};
+  for (Experiment &e : list.experiments)
+    e.goniometer.sample_offset = Vec3{0.0, 0.0, 0.0};
+  list.beam_of = {0, 0};
+  list.detector_of = {0, 0};
+  list.sweep_of = {0, 0};
+  RefineOptions options;
+  options.outlier_sigma = 0.0;
+  options.macrocycles = 1;
+  options.shared_crystal = false;
+  options.sample_offset = true;
+  const RefineResult r = refine(list, t, options);
+  check::close((list[0].goniometer.sample_offset - across * 0.015).norm(), 0.0,
+               0.002, "the first lattice's 15 um, at its own phase");
+  check::close((list[1].goniometer.sample_offset - further * -0.025).norm(),
+               0.0, 0.002, "the second's 25 um, at its own");
+  check::is_true(r.rmsd_x < 0.01 && r.rmsd_y < 0.01, "the residual gone");
+}
+
 } // namespace mxi

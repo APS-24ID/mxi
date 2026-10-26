@@ -156,9 +156,13 @@ def test_the_window_shows_the_spots_and_saves_the_regions(tmp_path, monkeypatch)
         # Each spot point on its spot: the brightest pixel near it, on its own
         # image, within a pixel -- the two conventions met (napari's pixel i
         # centred on i, DIALS's spanning i to i + 1). Measured: on it.
-        points = view.viewer.layers["spots"].data
+        layer = view.viewer.layers["spots"]
+        centres = layer.data[
+            np.asarray(layer.border_color)[:, 1] < 0.1
+        ]  # its own image: red
+        assert len(layer.data) > len(centres)  # and the others it is on
         images = view.viewer.layers["images"].data
-        for z, y, x in points[:20]:
+        for z, y, x in centres[:20]:
             frame = images[int(round(z))]
             yi, xi = int(round(y)), int(round(x))
             w = frame[yi - 4 : yi + 5, xi - 4 : xi + 5]
@@ -219,3 +223,41 @@ def test_compressed_columns_are_read_in_a_fresh_process(tmp_path):
     run = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert run.returncode == 0, run.stderr
     assert run.stdout.strip() == "(1000, 3) 2999.0"
+
+
+def test_a_spot_is_marked_on_every_image_it_is_recorded_on():
+    # Not only its centroid's: a box spans a median of 13 images on a small
+    # molecule, and one marker marked a twelfth of the spots on an image.
+    t = tools()
+    table = {
+        "id": np.array([0, 0]),
+        "xyzobs.px.value": np.array([[10.5, 20.5, 10.4], [5.5, 5.5, 3.2]]),
+        "xyzobs.px.variance": np.array([[0.1, 0.1, 1.0], [0.1, 0.1, 0.01]]),
+    }
+    points, sizes = t.spot_markers(table, "xyzobs.px.value", [0])
+    first = points[:, 1] == 20.0
+    assert sorted(points[first, 0].tolist()) == [
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+    ]  # +/- 2 sigma
+    assert sizes[first][points[first, 0] == 10.0].tolist() == [
+        12.0
+    ]  # its own image larger
+    second = points[:, 1] == 5.0
+    assert sorted(points[second, 0].tolist()) == [2.0, 3.0, 4.0]  # at least one image
+    # Three images summed for each shown: marked on the two before as well.
+    points, _ = t.spot_markers(table, "xyzobs.px.value", [0], window=3)
+    assert sorted(points[points[:, 1] == 20.0, 0].tolist()) == list(
+        map(float, range(6, 13))
+    )
+    # With no variance, its box: z0 to z1 - 1.
+    box = {
+        "id": np.array([0]),
+        "xyzcal.px": np.array([[1.5, 1.5, 4.5]]),
+        "bbox": np.array([[0, 3, 0, 3, 2, 7]]),
+    }
+    points, _ = t.spot_markers(box, "xyzcal.px", [0])
+    assert points[:, 0].tolist() == [2.0, 3.0, 4.0, 5.0, 6.0]

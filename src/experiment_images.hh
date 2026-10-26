@@ -19,6 +19,7 @@
 #ifndef MXI_EXPERIMENT_IMAGES_HH
 #define MXI_EXPERIMENT_IMAGES_HH
 
+#include "json.hh"
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -55,6 +56,9 @@ struct ExperimentImages {
   // than resolved, because guessing which file the placeholders stand for is
   // dials.import's job and it has already done it.
   bool templated = false;
+  // The image set's untrusted regions, as mxi_mask draws them (untrusted.hh);
+  // null where it has none.
+  json::Value untrusted;
 
   // The entries of single_file_indices. They are zero-based array indices,
   // where image_range counts from one.

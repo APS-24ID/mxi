@@ -229,6 +229,8 @@ ExperimentList experiments_from_json(const json::Value &document) {
     if (own.is_object() && own["template"].is_string()) {
       list.image_template = own["template"].as_string();
     }
+    if (own.is_object() && own["untrusted"].is_array())
+      list.untrusted = own["untrusted"];
   }
 
   // The profile blocks, if the file has them: the first as the list's own,

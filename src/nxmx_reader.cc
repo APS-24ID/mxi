@@ -633,6 +633,18 @@ public:
 
   std::string describe() const override { return master_; }
 
+  void add_masked(const std::vector<std::uint64_t> &pixels) override {
+    if (pixels.empty())
+      return;
+    auto merged = std::make_shared<std::vector<std::uint64_t>>();
+    if (masked_)
+      merged->assign(masked_->begin(), masked_->end());
+    merged->insert(merged->end(), pixels.begin(), pixels.end());
+    std::sort(merged->begin(), merged->end());
+    merged->erase(std::unique(merged->begin(), merged->end()), merged->end());
+    masked_ = std::move(merged);
+  }
+
   std::unique_ptr<Reader> reader() override {
     return std::unique_ptr<Reader>(new NxmxReader(blocks_, masked_));
   }
@@ -732,8 +744,8 @@ private:
       std::snprintf(name, sizeof name, "/entry/data/data_%06d", k);
       if (H5Lexists(file, name, H5P_DEFAULT) <= 0)
         break;
-        // H5Lget_info2 from HDF5 1.12; before, H5Lget_info, with the same
-        // fields this needs.
+      // H5Lget_info2 from HDF5 1.12; before, H5Lget_info, with the same
+      // fields this needs.
 #if H5_VERSION_GE(1, 12, 0)
       H5L_info2_t link;
       ok(H5Lget_info2(file, name, &link, H5P_DEFAULT), "H5Lget_info2");

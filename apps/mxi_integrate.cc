@@ -35,6 +35,7 @@
 
 #include "../src/expt.hh"
 #include "../src/refl.hh"
+#include "../src/untrusted.hh"
 #include "args.hh"
 #include "background.hh"
 #include "fill_row.hh"
@@ -1328,6 +1329,18 @@ int run_program(int argc, char **argv) {
                    "since the .expt was written, give --images\n",
                    image_path.c_str());
       return 1;
+    }
+    // The image set's untrusted regions (mxi_mask), joined to the detector's
+    // own mask before any reader is made: a voxel there is no measurement,
+    // as a bad pixel's is.
+    if (experiments.untrusted.is_array() &&
+        !experiments.untrusted.as_array().empty()) {
+      const std::vector<std::uint64_t> pixels =
+          mxi::untrusted_pixels(experiments.untrusted, info.width, info.height);
+      images->add_masked(pixels);
+      std::printf("Untrusted regions: %s, %zu pixels\n",
+                  mxi::describe_untrusted(experiments.untrusted).c_str(),
+                  pixels.size());
     }
 
     std::size_t workers =

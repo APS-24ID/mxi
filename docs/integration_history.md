@@ -53,6 +53,10 @@ parts of it can be written at all.
 Not started. The profile model is implemented and the tools to judge it exist;
 nothing integrates yet.
 
+*(`mxi_mask` in this history is the program now called `mxi_foreground`: it
+writes each predicted reflection's foreground region for dials.image_viewer.
+Its name went to the mask editor on 22 October, `docs/mask.md`.)*
+
 | | |
 | --- | --- |
 | profile model | implemented, `mxi_profile`; does not yet match DIALS |

@@ -114,6 +114,7 @@ add_library(mxi
   src/two_theta.cc
   src/correlation.cc
   src/spot_table.cc
+  src/untrusted.cc
   src/experiment_images.cc
   src/hdf5_handle.cc
   src/combine.cc
@@ -214,9 +215,11 @@ add_executable(mxi_profile apps/mxi_profile.cc)
 target_link_libraries(mxi_profile PRIVATE mxi)
 target_compile_options(mxi_profile PRIVATE -Wall -Wextra)
 
-add_executable(mxi_mask apps/mxi_mask.cc)
-target_link_libraries(mxi_mask PRIVATE mxi)
-target_compile_options(mxi_mask PRIVATE -Wall -Wextra)
+# Each predicted reflection's foreground region, for dials.image_viewer (was
+# mxi_mask, whose name the mask editor took, 22 October).
+add_executable(mxi_foreground apps/mxi_foreground.cc)
+target_link_libraries(mxi_foreground PRIVATE mxi)
+target_compile_options(mxi_foreground PRIVATE -Wall -Wextra)
 
 add_executable(mxi_background apps/mxi_background.cc)
 target_link_libraries(mxi_background PRIVATE mxi)
@@ -235,6 +238,13 @@ target_compile_options(mxi_combine PRIVATE -Wall -Wextra)
 add_executable(mxi_split apps/mxi_split.cc)
 target_link_libraries(mxi_split PRIVATE mxi)
 target_compile_options(mxi_split PRIVATE -Wall -Wextra)
+# mxi_mask, in Python: copied beside the programs, its version filled in.
+configure_file(tools/mxi_mask.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_mask @ONLY
+  FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
+  GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+add_executable(mxi_untrusted apps/mxi_untrusted.cc)
+target_link_libraries(mxi_untrusted PRIVATE mxi)
+target_compile_options(mxi_untrusted PRIVATE -Wall -Wextra)
 
 add_executable(mxi_grid apps/mxi_grid.cc)
 target_link_libraries(mxi_grid PRIVATE mxi)

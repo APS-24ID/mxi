@@ -13,6 +13,7 @@
 #include "../src/json.hh"
 #include "../src/postrefine.hh"
 #include "../src/refl.hh"
+#include "../src/untrusted.hh"
 #include "check.hh"
 
 using namespace mxi;
@@ -249,4 +250,53 @@ TEST(the_real_space_grid_search_finds_a_planted_lattice) {
   check::is_true(cells_match(crystal.cell(), reduced_primitive(known), known),
                  "the planted cell");
   check::is_true(indexed > points.size() * 9 / 10, "most points indexed");
+}
+
+// Untrusted regions, as mxi_mask draws them: a pixel inside when its centre
+// is, DIALS's pixel convention; clipped at the frame's edge; a concave polygon
+// by the even-odd rule; a shape on another panel refused.
+TEST(untrusted_regions_are_the_pixels_whose_centres_they_hold) {
+  const auto shapes = [](const char *text) { return json::parse(text); };
+  // A 2 x 2 rectangle, corners either way round: four pixels.
+  auto r = untrusted_pixels(shapes(R"([{"rectangle": [3, 2, 5, 4]}])"), 10, 10);
+  check::equal(static_cast<long long>(r.size()), 4, "a 2 x 2 rectangle");
+  check::equal(static_cast<long long>(r.front()), 2 * 10 + 3, "its first");
+  check::equal(
+      static_cast<long long>(
+          untrusted_pixels(shapes(R"([{"rectangle": [5, 4, 3, 2]}])"), 10, 10)
+              .size()),
+      4, "corners the other way round");
+  // A circle of radius 1.5 about a pixel's centre: that pixel and its eight
+  // neighbours' centres within 1.5 -- the four edge ones, the corners at
+  // 1.41 too.
+  auto c = untrusted_pixels(shapes(R"([{"circle": [5.5, 5.5, 1.5]}])"), 10, 10);
+  check::equal(static_cast<long long>(c.size()), 9, "nine pixels");
+  // Clipped at the edge: a circle about a corner keeps only what is inside.
+  auto e = untrusted_pixels(shapes(R"([{"circle": [0, 0, 2]}])"), 10, 10);
+  for (std::uint64_t i : e)
+    check::is_true(i % 10 < 2 && i / 10 < 2, "inside the frame");
+  // A concave polygon, an L: its notch is not inside.
+  auto l = untrusted_pixels(
+      shapes(R"([{"polygon": [[0,0],[4,0],[4,2],[2,2],[2,4],[0,4]]}])"), 10,
+      10);
+  check::equal(static_cast<long long>(l.size()), 12, "the L's twelve pixels");
+  check::is_true(!std::binary_search(l.begin(), l.end(), 3 * 10 + 3),
+                 "the notch left out");
+  // Overlaps counted once.
+  auto o = untrusted_pixels(
+      shapes(R"([{"rectangle": [0,0,2,2]}, {"rectangle": [1,1,3,3]}])"), 10,
+      10);
+  check::equal(static_cast<long long>(o.size()), 7,
+               "four and four, one shared");
+  bool refused = false;
+  try {
+    untrusted_pixels(shapes(R"([{"panel": 1, "circle": [1, 1, 1]}])"), 10, 10);
+  } catch (const std::runtime_error &) {
+    refused = true;
+  }
+  check::is_true(refused, "another panel refused");
+  check::is_true(describe_untrusted(shapes(R"([{"circle": [1,1,1]},
+      {"polygon": [[0,0],[1,0],[0,1]]}, {"circle": [2,2,1]}])")) ==
+                     "2 circles, 1 polygon",
+                 "described");
 }

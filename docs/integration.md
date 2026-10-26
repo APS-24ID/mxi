@@ -297,6 +297,18 @@ molecule): the tenth of observations nearest the axis held 6.7 per cent beyond
 away from the axis in another sweep. Predicted from the scaled data; integrated
 with the cut, the profile model is spared them as well.
 
+Integrated with `--min-zeta 0.2` (Graeme, 21 October), it did as predicted:
+the 134 observations below the cut gone, 42 of the outliers beyond 5 sigma
+with them; every other observation's intensity the same (ratio 1.0000, 90 per
+cent within 0.6 per cent). And the error model refitted without the near-axis
+outliers, a 1.94 to 1.66, b 0.016 to 0.019: sigmas 12 per cent smaller, their
+calibration against Fc^2 better (robust variance of z 0.81 to 1.01, the
+weakest bins from 0.5 to 0.7) -- so 33 observations near 5 sigma crossed it,
+their intensities unchanged. Counted in sigmas, outliers are a moving measure
+when the sigmas move; against the first run's, 228 became 186. The default
+stays DIALS's 0.05: with one sweep, a reflection left out near the axis is
+not measured elsewhere, and completeness would pay; with several, 0.2.
+
 ## Several lattices, and neighbours masked
 
 **Neighbours.** Each reflection's shoebox has the voxels inside any other

@@ -26,7 +26,8 @@ are napari's own. Whatever the file holds is drawn on them: the strong spots
 begin with, as cyan crosses -- each on every image it is recorded on, two
 sigmas of its centroid's z either side (its box, for predictions): red on its
 centroid's image, a paler red on the others. With images summed, a spot is
-marked on any image whose sum includes it.
+marked on any image whose sum includes it. Markers are at least ten screen pixels across
+however far out the view is, so that they show on a large detector seen whole.
 
 The untrusted regions are a shapes layer, `untrusted`, over every image of the
 sweep: draw **rectangles**, **ellipses** -- a circle where round, a polygon of 48

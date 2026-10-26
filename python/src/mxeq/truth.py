@@ -153,6 +153,7 @@ class Observations:
     scale: np.ndarray | None = None
     rejected: np.ndarray | None = None  # rejected as an outlier by scaling
     names: dict = field(default_factory=dict)  # experiment -> its images' file
+    zeta: np.ndarray | None = None  # nearness to the rotation axis, 0 on it
 
 
 # DIALS's scaling flags, as mxi writes them (src/scale.hh: kOutlierInScaling,
@@ -270,6 +271,7 @@ def read_scaled(path: str) -> Observations:
             ((flags[keep] & _OUTLIER_IN_SCALING) != 0) if flags is not None else None
         ),
         names=names,
+        zeta=col("zeta"),
     )
 
 
@@ -506,6 +508,10 @@ def analyse(
         res.bins["profile / summed"] = binned(ratio, z, rel, bins)
     if obs.scale is not None:
         res.bins["inverse scale factor"] = binned(sub(obs.scale), z, rel, bins)
+    if obs.zeta is not None:
+        res.bins["|zeta| (0 on the rotation axis)"] = binned(
+            np.abs(sub(obs.zeta)), z, rel, bins
+        )
 
     if obs.rejected is not None:
         rej = sub(obs.rejected).astype(bool)
@@ -884,4 +890,83 @@ def plot(obs: Observations, res: Result, outdir: str, reindex=None) -> list:
             "What a reflection's observations share (colour: log10 k Fc^2)", fontsize=10
         )
         save(fig, "reflection_mean_z")
+    # 7. Where the measurement departs: (Fo - Fc) / Fc on the detector, the
+    # reflections strong enough for it to mean something -- z can be many
+    # sigma for a small difference, and points then look "too strong"
+    # (Graeme, 21 October).
+    if obs.x is not None and obs.y is not None:
+        x_, y_ = obs.x[rows], obs.y[rows]
+        sig = np.sqrt(obs.variance[rows])
+        strong = (res.model > 0) & (res.model > 10 * sig)
+        fo = np.sqrt(np.clip(i_obs, 0, None))
+        fc = np.sqrt(np.clip(res.model, 1e-12, None))
+        dF = (fo - fc) / fc
+        fig, axes = panels(len(sets))
+        for ax, x in zip(axes, sets):
+            sel = (exp == x) & strong
+            order = np.argsort(np.abs(dF[sel]))
+            sc = ax.scatter(
+                x_[sel][order],
+                y_[sel][order],
+                c=np.clip(dF[sel][order], -0.3, 0.3),
+                s=np.where(np.abs(dF[sel][order]) > 0.1, 12, 3),
+                cmap="RdBu_r",
+                vmin=-0.3,
+                vmax=0.3,
+                lw=0,
+                rasterized=True,
+            )
+            lowf = np.mean(dF[sel] < -0.1)
+            highf = np.mean(dF[sel] > 0.1)
+            ax.set_title(
+                f"{name(x)}: {lowf:.1%} over 10% low, {highf:.1%} over 10% high",
+                fontsize=9,
+            )
+            ax.set_aspect("equal")
+            ax.invert_yaxis()
+            ax.set_xlabel("x (px)")
+            ax.set_ylabel("y (px)")
+        for ax in axes[len(sets) :]:
+            ax.axis("off")
+        fig.colorbar(
+            sc, ax=axes.tolist(), shrink=0.7, label="(Fo - Fc) / Fc, clipped to +/-0.3"
+        )
+        fig.suptitle(
+            "Where Fo departs from Fc: reflections with k Fc^2 above 10 sigma",
+            fontsize=11,
+        )
+        save(fig, "relative_difference_on_the_detector")
+
+    # 8. Against nearness to the rotation axis.
+    if obs.zeta is not None:
+        zt = np.abs(obs.zeta[rows])
+        sig = np.sqrt(obs.variance[rows])
+        strong = (res.model > 0) & (res.model > 10 * sig)
+        fo = np.sqrt(np.clip(i_obs, 0, None))
+        fc = np.sqrt(np.clip(res.model, 1e-12, None))
+        dF = (fo - fc) / fc
+        fig, axes = plt.subplots(1, 2, figsize=(13, 4))
+        scatter(axes[0], zt, zc, np.ones(len(rows), bool))
+        axes[0].set_ylabel("z")
+        axes[0].set_ylim(-15.5, 15.5)
+        axes[1].scatter(
+            zt[strong],
+            np.clip(dF[strong], -0.6, 0.6),
+            s=3,
+            c="0.4",
+            lw=0,
+            rasterized=True,
+        )
+        run = _running(zt[strong], dF[strong], 30)
+        axes[1].plot(run[:, 0], run[:, 1], c="k", lw=1.2)
+        axes[1].fill_between(
+            run[:, 0], run[:, 2], run[:, 3], color="k", alpha=0.12, lw=0
+        )
+        axes[1].set_ylabel("(Fo - Fc) / Fc, k Fc^2 above 10 sigma")
+        for ax in axes:
+            ax.axhline(0, c="k", lw=0.5)
+            ax.set_xscale("log")
+            ax.set_xlabel("|zeta| (0 on the rotation axis)")
+        fig.suptitle("Near the rotation axis", fontsize=11)
+        save(fig, "by_zeta")
     return paths

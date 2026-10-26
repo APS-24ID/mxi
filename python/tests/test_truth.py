@@ -186,7 +186,7 @@ def test_the_figures_are_drawn(tmp_path):
     obs.names = {0: "a.nxs", 1: "b.nxs"}
     res = truth.analyse(obs, fcf, anomalous=False, bins=4)
     paths = truth.plot(obs, res, str(tmp_path / "plots"))
-    assert len(paths) == 6
+    assert len(paths) == 7  # no zeta, so no figure against it
     assert all(
         (tmp_path / "plots" / p.split("/")[-1]).stat().st_size > 1000 for p in paths
     )

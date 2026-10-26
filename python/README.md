@@ -254,7 +254,10 @@ z = (I - k Fc^2) / sigma:
 `--plots DIR` draws it: z along the rotation and on the detector, a data set a
 panel, the worst marked and those scaling rejected crossed; observed against
 calculated; z against resolution and intensity with running medians; a normal
-probability plot; and each reflection's mean z, the model's part. On Graeme's
+probability plot; each reflection's mean z, the model's part; (Fo - Fc) / Fc on
+the detector, for reflections whose k Fc^2 is above 10 sigma -- where z can
+mislead, a small difference many sigma; and both against |zeta|, nearness to
+the rotation axis, which also gets a table of its own. On Graeme's
 small molecule the detector's panels showed the backstop's arm across one data
 set and its edge beside the beam in two others (`docs/backstop.md`).
 

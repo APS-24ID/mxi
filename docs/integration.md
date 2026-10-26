@@ -280,6 +280,23 @@ the 300 image sweep had said 49000 and 1.1 -- boxes wait longer than the estimat
 allowed. Integration there took 19.4 s against two passes' 28.4, and decompressing
 41 thread-seconds against 80.
 
+## Near the rotation axis: --min-zeta
+
+A reflection's extent in phi goes as 1/|zeta|, so those nearest the rotation
+axis are the deepest boxes, the most images read, and the worst measured.
+`--min-zeta Z` (0.05, as DIALS) refuses them before a box is made -- no
+shoebox in flight, no reading, no part in the profile model, whose estimate
+of sigma_m and sigma_b uses the same cut (since 21 October; it had a fixed
+0.05). The report says how many: "zeta below the cut, |zeta| below Z".
+
+Against a refined structure (`mxeq truth`, Graeme's four-sweep small
+molecule): the tenth of observations nearest the axis held 6.7 per cent beyond
+5 sigma, against about 1 elsewhere. Leaving out |zeta| below 0.2 would remove
+134 observations of 12259 and a fifth of the outliers beyond 5 sigma; below
+0.3, 315 and a quarter -- no unique reflection lost either way, each measured
+away from the axis in another sweep. Predicted from the scaled data; integrated
+with the cut, the profile model is spared them as well.
+
 ## Several lattices, and neighbours masked
 
 **Neighbours.** Each reflection's shoebox has the voxels inside any other

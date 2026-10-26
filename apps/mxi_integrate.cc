@@ -315,9 +315,16 @@ void usage(const char *program) {
       "  --box-scale S     box is S times wider than the foreground (1.9)\n"
       "  --min-zeta Z      skip reflections nearer the rotation axis than "
       "this\n"
-      "                    (0.05). A reflection's extent in phi goes as "
-      "1/|zeta|,\n"
-      "                    so the smallest are forty images deep\n"
+      "                    (0.05, as DIALS): no box, no reading, no part in "
+      "the\n"
+      "                    profile model. A reflection's extent in phi goes "
+      "as\n"
+      "                    1/|zeta|, so the smallest are forty images deep. "
+      "0.2 to\n"
+      "                    0.3 for several sweeps of a small molecule: a "
+      "fifth of\n"
+      "                    the outliers against Fc^2, no unique reflection "
+      "lost\n"
       "  --d-min D         resolution limit\n"
       "  --d-max D         low resolution limit: nothing integrated with d "
       "above\n"
@@ -1193,7 +1200,9 @@ int run_program(int argc, char **argv) {
             }
             const Vec3 beam{s1_in.real(i, 0), s1_in.real(i, 1),
                             s1_in.real(i, 2)};
-            if (std::fabs(compute_zeta(le, beam)) < 0.05)
+            // The same cut as integration's (--min-zeta): a spot integration
+            // will refuse does not shape the profile model either.
+            if (std::fabs(compute_zeta(le, beam)) < mask_options.min_zeta)
               continue;
             if (!has_prediction(*strong, i))
               continue;
@@ -1416,7 +1425,12 @@ int run_program(int argc, char **argv) {
         if (outside_range > 0)
           std::printf("  %8zu  outside the image range\n", outside_range);
         for (const auto &entry : refused)
-          std::printf("  %8zu  %s\n", entry.second, entry.first.c_str());
+          if (entry.first == describe(BoxRejection::kSmallZeta))
+            std::printf("  %8zu  %s, |zeta| below %g (--min-zeta)\n",
+                        entry.second, entry.first.c_str(),
+                        mask_options.min_zeta);
+          else
+            std::printf("  %8zu  %s\n", entry.second, entry.first.c_str());
       } else {
         std::printf("\n");
       }

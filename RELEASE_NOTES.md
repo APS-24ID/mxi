@@ -4,31 +4,7 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
-## Unreleased -- since 1.0.5
-
-**New**
-- `mxi_view`: the images in napari (an optional dependency), a sweep at a
-  time, each shown summed over as many images as asked, with the strong spots
-  and predictions on them; and the detector's untrusted regions -- a backstop,
-  its arm, a shadow -- drawn as rectangles, ellipses and polygons, with Undo,
-  Clear and Same as last, saved to `masked.rflx`, the input left as it was. `mxi_untrusted` lists, sets and
-  clears them with no window. Spot finding and integration
-  leave them out as they do the detector's bad pixels (`docs/mask.md`).
-- `mxi_refine --sample-offset`: each lattice's centre of diffraction off the
-  rotation axis, turning with the crystal -- two parameters, amplitude and
-  phase -- used by prediction and so by integration.
-- `mxeq truth`: a scaled data set against a refined structure's Fc^2 (a SHELXL
-  `.fcf`): calibration, bins by what processing could get wrong, the model's
-  part against the processing's, figures, the worst observations' shoeboxes.
-- `cmake --install` puts every program, `mxi_view` with them, in one `bin`.
-- `mxi_scale --exclude E:FIRST:LAST`: an experiment's images left out of
-  scaling, as `dials.scale exclude_images=`; as many ranges as wanted,
-  numbered as the file's experiments and images.
-
-**Changed**
-- `mxi_integrate`'s progress is a bar, as tqdm draws one, on a terminal --
-  written to the terminal alone, so the log does not keep it -- and the plain
-  line each tenth of the way, as before, where the output is not a terminal.
+## 1.0.6 -- 26 October 2026
 
 **Changes results**
 - `mxi_integrate --min-zeta` now also keeps reflections below the cut out of
@@ -38,6 +14,33 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 - The diagnostic that marked each reflection's foreground for
   dials.image_viewer, `mxi_mask`, is now `mxi_foreground`; there is no program
   called `mxi_mask` any more.
+
+**New**
+- `mxi_view`: the images in napari (an optional dependency), a sweep at a
+  time, each shown summed over as many images as asked, with the strong spots
+  and predictions on every image they are recorded on; and the detector's
+  untrusted regions -- a backstop, its arm, a shadow -- drawn as rectangles,
+  ellipses and polygons, with Undo, Clear and Same as last, and saved to
+  `masked.rflx`, the input left as it was. `mxi_untrusted` lists, sets and
+  clears them with no window. Spot finding and integration leave them out as
+  they do the detector's bad pixels (`docs/mask.md`).
+- `mxi_scale --exclude E:FIRST:LAST`: an experiment's images left out of
+  scaling, as `dials.scale exclude_images=`; as many ranges as wanted,
+  numbered as the file's experiments and images.
+- `mxi_refine --sample-offset`: each lattice's centre of diffraction off the
+  rotation axis, turning with the crystal -- two parameters, amplitude and
+  phase -- used by prediction and so by integration.
+- `mxeq truth`: a scaled data set against a refined structure's Fc^2 (a SHELXL
+  `.fcf`): calibration -- against Fc^2, and against each reflection's own
+  equivalents -- bins by what processing could get wrong, the model's part
+  against the processing's, figures, the worst observations' shoeboxes.
+- `cmake --install` puts every program, `mxi_view` with them, in one `bin`.
+
+**Changed**
+- `mxi_integrate`'s progress is a bar, as tqdm draws one, on a terminal, as
+  wide as the terminal allows -- written to the terminal alone, so the log does
+  not keep it -- and the plain line each tenth of the way, as before, where the
+  output is not a terminal.
 
 ## 1.0.5 -- 22 October 2026
 

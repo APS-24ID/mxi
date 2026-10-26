@@ -51,7 +51,13 @@ history on 20 October: four closed, nine rewritten to what is now true.
   `mxi_refine --sample-offset` (stage 1): on this data 5 to 20 um, l-cyst_03
   the most, the RMSDs as before and the shift in images 650-800 untouched -- a
   disturbance over 20 deg of a 170 deg sweep is not a circle. Next, if wanted:
-  the offset varying along the scan (stage 2), or image ranges left out; (c) the lowest resolution,
+  the offset varying along the scan (stage 2), or image ranges left out;
+  Graeme's run with all three -- the mask, --min-zeta 0.2, --sample-offset
+  (offsets 4-18 um) -- 23 October: R(F^2) 0.0618 and 186 beyond 5 sigma,
+  against 0.0657 and 228 at first; the sigmas calibrated (robust variance of z
+  1.02); l-cyst_04 2.9 to 1.6 per cent. The offset neutral here (the mask and
+  the cut alone predict the same R), the crystal well centred; l-cyst_03's
+  images 650-800 unchanged, the largest left (leaving them out: R 0.0566); (c) the lowest resolution,
   1.6-6.7 A, 10 per cent beyond 5 sigma, 61 per cent of it shared within
   reflections (the model's: Fc^2 a little low at low angle, no bonding
   density) and 39 the processing's; (d) a partial on a sweep's first image,

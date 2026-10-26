@@ -172,3 +172,21 @@ def test_the_scaled_intensity_is_divided_by_the_inverse_scale(monkeypatch):
     obs = truth.read_scaled("x.rflx")
     assert obs.intensity.tolist() == [50.0, 100.0]
     assert obs.variance.tolist() == [1.0, 4.0]
+
+
+def test_the_figures_are_drawn(tmp_path):
+    pytest.importorskip("matplotlib")
+    obs, fcf, *_ = planted()
+    n = len(obs.hkl)
+    rng = np.random.default_rng(1)
+    obs.image = rng.uniform(0, 100, n)
+    obs.x, obs.y = rng.uniform(0, 1000, n), rng.uniform(0, 1000, n)
+    obs.experiment = (np.arange(n) % 2).astype(float)
+    obs.d = rng.uniform(0.8, 5.0, n)
+    obs.names = {0: "a.nxs", 1: "b.nxs"}
+    res = truth.analyse(obs, fcf, anomalous=False, bins=4)
+    paths = truth.plot(obs, res, str(tmp_path / "plots"))
+    assert len(paths) == 6
+    assert all(
+        (tmp_path / "plots" / p.split("/")[-1]).stat().st_size > 1000 for p in paths
+    )

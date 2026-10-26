@@ -472,6 +472,13 @@ def build_parser() -> argparse.ArgumentParser:
     tr.add_argument(
         "--csv", default=None, help="every matched observation to this file"
     )
+    tr.add_argument(
+        "--plots",
+        default=None,
+        help="figures to this directory: z by image and on the detector, a data "
+        "set a panel; observed against calculated; z by resolution and "
+        "intensity; a normal probability plot; reflections' mean z",
+    )
 
     fl = sub.add_parser(
         "failures",
@@ -707,6 +714,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.csv:
             truth.write_csv(args.csv, obs, res, op)
             print(f"\nEvery matched observation: {args.csv}")
+        if args.plots:
+            for p in truth.plot(obs, res, args.plots, op):
+                print(f"Figure: {p}")
         return 0
 
     if args.command == "failures":

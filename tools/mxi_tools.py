@@ -86,6 +86,28 @@ def sweeps(document: dict) -> list[dict]:
     return out
 
 
+# --- HDF5 --------------------------------------------------------------------
+
+
+def h5py_with_filters():
+    """h5py, with hdf5plugin's filters registered first: mxi writes every
+    numeric column of 256 elements or more bitshuffle-LZ4 (HDF5 filter 32008),
+    and DECTRIS's frames are compressed the same, so neither reads without it
+    -- HDF5 then looks for a plugin directory and fails with that instead. Its
+    absence said plainly. (Reading reflections had not imported it: a fresh
+    process failed on Graeme's indexed.rflx, 23 October.)"""
+    import h5py
+
+    try:
+        import hdf5plugin  # noqa: F401 -- bitshuffle and LZ4, registered
+    except ImportError:
+        raise SystemExit(
+            "mxi's tools need hdf5plugin to read compressed files: "
+            "pip install hdf5plugin"
+        )
+    return h5py
+
+
 # --- reflections -------------------------------------------------------------
 
 
@@ -93,7 +115,7 @@ def read_reflections(path: str, columns=None) -> dict:
     """A .rflx's reflection tables, joined in the order mxi writes them
     (shortest name first, then by name), as {column: array}: the columns
     asked for, or all; an empty dict where the file holds none."""
-    import h5py
+    h5py = h5py_with_filters()
 
     out: dict = {}
     with h5py.File(path, "r") as f:
@@ -144,12 +166,7 @@ class Images:
     for, so that a shadow shows against the background."""
 
     def __init__(self, master: str, window: int = 1):
-        import h5py
-
-        try:
-            import hdf5plugin  # noqa: F401 -- bitshuffle and LZ4, registered
-        except ImportError:
-            pass
+        h5py = h5py_with_filters()
         self.file = h5py.File(master, "r")
         data = self.file["/entry/data"]
         names = sorted(n for n in data if n == "data" or n.startswith("data_"))

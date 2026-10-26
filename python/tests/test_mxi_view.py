@@ -190,3 +190,32 @@ def test_the_grey_scale_tops_out_well_above_the_background():
     top = t.display_top(frame)
     assert top >= 10.0 and top > 4 * np.median(frame)
     assert t.display_top(np.zeros((4, 4))) == 10.0
+
+
+def test_compressed_columns_are_read_in_a_fresh_process(tmp_path):
+    # mxi writes a numeric column of 256 elements or more bitshuffle-LZ4
+    # (filter 32008). Read in a process that has imported nothing else -- here,
+    # pytest had imported hdf5plugin through mxeq, and a test file too small
+    # to be compressed hid it; Graeme's indexed.rflx did not.
+    import h5py
+    import hdf5plugin
+
+    path = tmp_path / "compressed.rflx"
+    xyz = np.arange(3000, dtype=float).reshape(1000, 3)
+    with h5py.File(path, "w") as f:
+        g = f.create_group("reflections/0")
+        g.create_dataset(
+            "xyzobs.px.value",
+            data=xyz,
+            chunks=(1000, 3),
+            **hdf5plugin.Bitshuffle(cname="lz4"),
+        )
+        g.create_dataset("id", data=np.zeros(1000, np.int32))
+    code = (
+        f"import sys; sys.path.insert(0, {BUILD!r}); import mxi_tools; "
+        f"t = mxi_tools.read_reflections({str(path)!r}); "
+        "print(t['xyzobs.px.value'].shape, float(t['xyzobs.px.value'][-1, -1]))"
+    )
+    run = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert run.returncode == 0, run.stderr
+    assert run.stdout.strip() == "(1000, 3) 2999.0"

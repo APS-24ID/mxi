@@ -10,8 +10,8 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 - `mxi_view`: the images in napari (an optional dependency), a sweep at a
   time, each shown summed over as many images as asked, with the strong spots
   and predictions on them; and the detector's untrusted regions -- a backstop,
-  its arm, a shadow -- drawn as rectangles, ellipses and polygons, saved to
-  `masked.rflx`, the input left as it was. `mxi_untrusted` lists, sets and
+  its arm, a shadow -- drawn as rectangles, ellipses and polygons, with Undo,
+  Clear and Same as last, saved to `masked.rflx`, the input left as it was. `mxi_untrusted` lists, sets and
   clears them with no window. Spot finding and integration
   leave them out as they do the detector's bad pixels (`docs/mask.md`).
 - `mxi_refine --sample-offset`: each lattice's centre of diffraction off the

@@ -30,13 +30,26 @@ marked on any image whose sum includes it. Markers are at least ten screen pixel
 however far out the view is, so that they show on a large detector seen whole.
 
 The untrusted regions are a shapes layer, `untrusted`, over every image of the
-sweep: draw **rectangles**, **ellipses** -- a circle where round, a polygon of 48
-sides where not -- and **polygons** with napari's tools, and edit, select,
-delete and undo them as napari does. **Same as last** copies the regions of
-the sweep shown before, for sweeps that share their shadows. **Save** writes
-the experiment list with every sweep's regions to a new file, `masked.rflx`
-(`-o` to choose), and keeps them in `mxi_mask.json`. The input is left as it
-was, to compare with: masked and not, processed side by side.
+sweep -- selected when a sweep opens, its tools in the layer controls. To find a
+shadow, raise **images summed** to 10 or 50; scroll to zoom, hold **Space** to
+pan without leaving the tool. Then draw:
+
+* **R**, a rectangle, dragged corner to corner;
+* **E**, an ellipse, dragged by its box -- a circle where round, a polygon of 48
+  sides where not;
+* **P**, a polygon, a click at each vertex, **Enter** or **Esc** to close it;
+  **Shift-P** a polygon traced freehand.
+
+**S** selects a shape to move or resize it, **D** moves its vertices, **Delete**
+removes it. napari's shapes layer has no undo of its own, so the panel has one:
+**Undo** (or Ctrl-Z, Cmd-Z on a Mac) puts the sweep's regions back as they were
+before the last change -- a shape added, removed or changed, Clear, Same as
+last -- a step at a time, each sweep its own. **Clear** removes the sweep's
+regions; **Same as last** copies those of the sweep shown before, for sweeps
+that share their shadows. **Save** writes the experiment list with every
+sweep's regions to a new file, `masked.rflx` (`-o` to choose), and keeps them in
+`mxi_mask.json`. The input is left as it was, to compare with: masked and not,
+processed side by side; process `masked.rflx` from spot finding on.
 
 napari is an optional dependency: `pip install "napari[all]" h5py
 hdf5plugin`. Nothing else in mxi needs it, and `mxi_view` says what to install

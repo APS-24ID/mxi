@@ -95,6 +95,17 @@ def test_every_program_named_is_built(document):
     named = set(PROGRAM.findall((ROOT / document).read_text()))
     # Names of mxi's that are not programs: mxi_physical, the scale model's type.
     unknown = named - built - {"mxi_physical"}
+    # Programs retired, which only the histories may name: the release notes,
+    # the outstanding list, CLAUDE.md and the integration's history. Anywhere
+    # else a mention of one is stale.
+    retired = {"mxi_mask"}  # the matplotlib mask editor, now mxi_view's
+    if document in (
+        "RELEASE_NOTES.md",
+        "docs/outstanding.md",
+        "CLAUDE.md",
+        "docs/integration_history.md",
+    ):
+        unknown -= retired
     assert not unknown, f"{document} names programs the build does not make: {unknown}"
 
 

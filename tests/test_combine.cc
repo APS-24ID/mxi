@@ -253,7 +253,7 @@ TEST(the_real_space_grid_search_finds_a_planted_lattice) {
   check::is_true(indexed > points.size() * 9 / 10, "most points indexed");
 }
 
-// Untrusted regions, as mxi_mask draws them: a pixel inside when its centre
+// Untrusted regions, as mxi_view draws them: a pixel inside when its centre
 // is, DIALS's pixel convention; clipped at the frame's edge; a concave polygon
 // by the even-odd rule; a shape on another panel refused.
 TEST(untrusted_regions_are_the_pixels_whose_centres_they_hold) {

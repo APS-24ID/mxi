@@ -57,16 +57,17 @@ ctest --test-dir build
 ```
 
 The programs are left in `build/`. Either put that on the `PATH`, or install
-them -- every program, `mxi_mask` with them -- into one `bin` directory and put
+them -- every program, `mxi_view` with them -- into one `bin` directory and put
 that on it:
 
 ```sh
 cmake --install build --prefix ~/.local     # then ~/.local/bin on the PATH
 ```
 
-`mxi_mask`, the mask editor, is Python: it needs numpy, h5py, hdf5plugin and
-matplotlib (`pip install numpy h5py hdf5plugin matplotlib`), and finds the
-programs it calls beside itself. It is mxi's, not mxeq's -- `pip install` of
+`mxi_view`, the image viewer and mask editor, is Python on napari, which is
+optional: it needs `pip install "napari[all]" h5py hdf5plugin`, and finds the
+programs it calls, and its module `mxi_tools.py`, beside itself. Nothing else
+in mxi needs napari. It is mxi's, not mxeq's -- `pip install` of
 mxeq does not bring it, as mxeq, the referee, depends on nothing of mxi's.
 
 Build options:
@@ -145,12 +146,12 @@ The options most often wanted:
 | `mxi_convert` | between `.rflx` and DIALS' `.expt` and `.refl` (below) |
 | `mxi_combine` | several runs' files joined into one: data sets processed separately, to go through symmetry and scaling together |
 | `mxi_split` | a file's data sets apart, each into its own file, or the ones named into one |
-| `mxi_mask` | draw a sweep's untrusted regions -- a backstop, its arm, a shadow -- over a sum of its images, in a window ([`docs/mask.md`](docs/mask.md)) |
+| `mxi_view` | the images in napari, with the spots and predictions found on them, and the detector's untrusted regions drawn and saved ([`docs/mask.md`](docs/mask.md)) |
 | `mxi_untrusted` | list, set from a mask file, or clear the untrusted regions, with no window |
 | `mxi_max` | the largest count on a valid pixel, and whether the images fit in 16 bits (for `mxi_find --gpu-force`) |
 | `mxi_profile` | the profile model estimated from strong spots, and how much of each spot it holds |
 | `mxi_residuals` | refinement's residuals by resolution, detector module, or anything else |
-| `mxi_mask` | shoeboxes marking the integration region, for the image viewer |
+| `mxi_foreground` | shoeboxes marking the integration region, for dials.image_viewer |
 | `mxi_grid` | spot density in Kabsch's frame, and spot widths across the detector |
 | `mxi_forward` | the model rendered onto the pixels, against the data |
 | `mxi_background` | the robust background fitted to pixel values |

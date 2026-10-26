@@ -82,7 +82,7 @@ struct ExperimentList {
   //: image file as well -- the .expt already says, and being given both is how
   //: they come to disagree.
   std::string image_template;
-  //: The same image set's untrusted regions, as mxi_mask draws them
+  //: The same image set's untrusted regions, as mxi_view draws them
   //: (untrusted.hh); null where it has none.
   json::Value untrusted;
 

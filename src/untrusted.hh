@@ -1,5 +1,5 @@
 // Regions of the detector a user has marked untrusted -- a backstop, its arm,
-// a shadow -- drawn with mxi_mask and kept in each image set's block of the
+// a shadow -- drawn with mxi_view and kept in each image set's block of the
 // experiment list, so that they travel with the data through every program:
 //
 //     "untrusted": [{"panel": 0, "circle": [x, y, r]},

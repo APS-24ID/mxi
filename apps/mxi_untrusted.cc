@@ -1,6 +1,6 @@
 // mxi_untrusted: each image set's untrusted regions, listed, set from a mask
-// file, or cleared -- the shapes mxi_mask draws (src/untrusted.hh), written
-// into the experiment list where every later program finds them. mxi_mask
+// file, or cleared -- the shapes mxi_view draws (src/untrusted.hh), written
+// into the experiment list where every later program finds them. mxi_view
 // calls it to save; on its own it applies a mask kept from before to another
 // run's sweeps, with no window.
 
@@ -25,7 +25,7 @@ const char *const kUsage =
     "\n"
     "Each image set's untrusted regions -- circles, rectangles and polygons\n"
     "on the detector that spot finding and integration leave out, as they do\n"
-    "the detector's own bad pixels. mxi_mask draws them; this lists, sets and\n"
+    "the detector's own bad pixels. mxi_view draws them; this lists, sets and\n"
     "clears them. With neither --set nor --clear, lists them.\n"
     "\n"
     "  --set MASK.json  the regions from a mask file: {\"imagesets\": {\"0\":\n"

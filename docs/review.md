@@ -106,7 +106,7 @@ takes 36.6 s of wall time and 3m42 of CPU (30 September 2026).
 | step | library, in `src/` | program | reference document |
 |---|---|---|---|
 | import | `nxmx_import` (the NXmx geometry, its transformation chains) | `mxi_import` | `docs/import.md` |
-| the images | `nxmx_reader` (frames, the detector's pixel mask), `decompress`, `hdf5_handle`, `experiment_images`; `untrusted` (regions marked untrusted, joined to the pixel mask) | `mxi_mask` (draw them), `mxi_untrusted` (list, set, clear), `mxi_max` (a maximum projection) | `docs/mask.md` |
+| the images | `nxmx_reader` (frames, the detector's pixel mask), `decompress`, `hdf5_handle`, `experiment_images`; `untrusted` (regions marked untrusted, joined to the pixel mask) | `mxi_view` (napari: the images, the spots, and the regions drawn), `mxi_untrusted` (list, set, clear), `mxi_max` (a maximum projection) | `docs/mask.md` |
 | spot finding | `dext` (the threshold on the CPU), `dext_metal.cc` and `.metal`, `dext_cuda.cu`, `dext_gpu`, `signal_order`, `spots`, `spot_table` | `mxi_find` | `docs/spots.md` |
 | geometry | `geometry` (the models, the sample offset), `predict`, `derivatives`, `linalg` | | `docs/conventions.md` |
 | indexing | `index` (3D FFT, the real-space grid search, a known cell), `fft`, `fft_fftw` | `mxi_index` | `docs/algorithms.md`; `CLAUDE.md`, indexing |
@@ -119,14 +119,13 @@ takes 36.6 s of wall time and 3m42 of CPU (30 September 2026).
 | plumbing | `json`, `args`, `summary`, `processing`, `parallel` | | |
 
 Library files are `src/<name>.hh` and `.cc`; programs `apps/<name>.cc`, but
-`mxi_mask`, which is Python, `tools/mxi_mask.py`, copied beside the others by
-the build. Seven more programs are for looking at a step rather than doing it:
+`mxi_view`, which is Python on napari (optional), `tools/mxi_view.py`, copied
+beside the others by the build with the module it shares, `tools/mxi_tools.py`. Seven more programs are for looking at a step rather than doing it:
 `mxi_profile` estimates the profile model, `mxi_foreground` marks each
-reflection's foreground for dials.image_viewer (it was `mxi_mask` until that
-name went to the mask editor), `mxi_grid` and `mxi_forward` show spots in Kabsch
+reflection's foreground for dials.image_viewer, `mxi_grid` and `mxi_forward` show spots in Kabsch
 space and rendered onto the pixels, `mxi_residuals` decomposes centroid
 residuals, `mxi_background` fits backgrounds to given pixels, and
-`mxi_readtest` times reading. `cmake --install` puts every program, `mxi_mask`
+`mxi_readtest` times reading. `cmake --install` puts every program, `mxi_view`
 with them, in one `bin`.
 
 The referee, `mxeq`, is in `python/src/mxeq` (`python/README.md`): comparisons

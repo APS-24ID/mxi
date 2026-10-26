@@ -1,4 +1,4 @@
-# Masking the detector: mxi_mask and mxi_untrusted
+# Viewing the images, and masking the detector: mxi_view and mxi_untrusted
 
 A backstop, its arm, a cryo nozzle, the goniometer: whatever shadows the
 detector makes observations there wrong -- low where the spot is shadowed, high
@@ -8,36 +8,38 @@ of it. On a small molecule refined to R1 0.026, most of the observations beyond
 (`docs/outstanding.md`, item 78; `mxeq truth`). These two programs mark such
 regions **untrusted**, so that spot finding and integration leave them out.
 
-## Drawing them
+## Viewing and drawing them: mxi_view
 
 ```sh
 mxi_import ../data/*.nxs
-mxi_mask imported.rflx        # Save writes masked.rflx
+mxi_view imported.rflx        # Save writes masked.rflx
 mxi_find masked.rflx
+mxi_view strong.rflx          # the strong spots on the images
 ```
 
-`mxi_mask` shows each sweep in turn as a sum of images -- the first image and
-how many set at the bottom, 10 to begin with, and the contrast -- so that a
-shadow shows against the background. Draw:
+`mxi_view` shows an experiment list's images in napari, a sweep at a time,
+chosen in the panel on the right. The images are a stack with a slider; each
+is shown as the sum of the number set in the panel from it (one to begin
+with), so that a shadow shows against the background; contrast and colour
+are napari's own. Whatever the file holds is drawn on them: the strong spots
+(`xyzobs.px.value`) as red circles, and the predictions (`xyzcal.px`), hidden
+to begin with, as cyan crosses -- each on its own images.
 
-* **rectangles**, dragged from a corner;
-* **circles**, dragged from the centre;
-* **polygons**, a click at each vertex, closed with a right click or Enter.
+The untrusted regions are a shapes layer, `untrusted`, over every image of the
+sweep: draw **rectangles**, **ellipses** -- a circle where round, a polygon of 48
+sides where not -- and **polygons** with napari's tools, and edit, select,
+delete and undo them as napari does. **Same as last** copies the regions of
+the sweep shown before, for sweeps that share their shadows. **Save** writes
+the experiment list with every sweep's regions to a new file, `masked.rflx`
+(`-o` to choose), and keeps them in `mxi_mask.json`. The input is left as it
+was, to compare with: masked and not, processed side by side.
 
-**Undo** takes back the last change (u or Ctrl-Z too); **Clear** removes this
-sweep's regions; **Same as last** copies the previous sweep's -- or, on the
-first, the mask last saved -- for sweeps that share their shadows; **Previous**
-and **Next** move between sweeps; **Save** writes the experiment list with every
-sweep's regions to a new file, `masked.rflx` (`-o` to choose), and keeps them in
-`mxi_mask.json`. The input is left as it was, to compare with: masked and not,
-processed side by side. To carry on editing, open `masked.rflx` and name it with
-`-o` to write over it. While the toolbar's zoom or
-pan is on, clicks are the toolbar's: zoom in to draw a fine edge.
-
-It needs numpy, h5py, hdf5plugin and matplotlib. It is built and installed
-with the other programs (`cmake --install`, the README), and finds `mxi_convert`
-and `mxi_untrusted` beside itself. `--snapshot PNG` draws the first sweep and its
-regions to a file, with no window.
+napari is an optional dependency: `pip install "napari[all]" h5py
+hdf5plugin`. Nothing else in mxi needs it, and `mxi_view` says what to install
+where it is missing. It is built and installed with the other programs
+(`cmake --install`, the README), and finds `mxi_convert`, `mxi_untrusted` and
+its module, `mxi_tools.py`, beside itself. Over a remote desktop it needs one
+that carries OpenGL, as NoMachine does.
 
 ## Where they are kept, and applying them again
 

@@ -58,7 +58,9 @@ pass's reflections**, its outliers kept out. With `--sample-offset`, the **centr
 diffraction off the rotation axis**: the illuminated volume -- the crystal
 convolved with the beam -- has its centre of mass at an offset c from the axis,
 perpendicular to it, which turns with the crystal, d(phi) = S R(phi) c (Graeme's
-two-parameter model, amplitude and phase), a sweep's lattices sharing it. The
+two-parameter model, amplitude and phase) -- each lattice its own, as each
+crystal sits in its own place in the beam, several on one sweep each with
+their own phase at least. The
 diffracted rays leave from d(phi), not the origin; in the panel's homogeneous
 coordinates the spot is at X = Xb (1 - w_z) + w_x, w = D d, exactly and linear in
 c, the angle unchanged; every derivative carries it. Kept in the goniometer's

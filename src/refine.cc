@@ -262,7 +262,11 @@ struct Layout {
   //: belongs to its experiment, a block of several to them all.
   std::vector<std::size_t> detector_block, beam_block;
   std::vector<std::size_t> detector_members, beam_members;
-  //: Each experiment's sweep's sample offset: a sweep's lattices share one.
+  //: Each lattice's sample offset: its own, as each crystal sits in its own
+  //: place in the beam -- several on one sweep each with their own amplitude
+  //: and phase (Graeme, 22 October). An experiment with no crystal has none:
+  //: no reflections would hold it.
+  static constexpr std::size_t kNoOffset = static_cast<std::size_t>(-1);
   std::vector<std::size_t> offset_block, offset_members;
   std::size_t n_detectors() const { return detector_members.size(); }
   std::size_t n_beams() const { return beam_members.size(); }
@@ -291,8 +295,13 @@ struct Layout {
            detector_block, detector_members);
     number([&](std::size_t e) { return experiments.beam_group(e); }, beam_block,
            beam_members);
-    number([&](std::size_t e) { return experiments.sweep(e); }, offset_block,
-           offset_members);
+    offset_block.assign(n_experiments, kNoOffset);
+    offset_members.clear();
+    for (std::size_t e = 0; e < n_experiments; ++e)
+      if (experiments[e].crystal) {
+        offset_block[e] = offset_members.size();
+        offset_members.push_back(1);
+      }
   }
 
   //: Control points per crystal block -- each sweep its own, as its scan's
@@ -420,7 +429,7 @@ void apply(const ExperimentList &base, const Layout &layout,
       const double beam_shift[2] = {shift[at], shift[at + 1]};
       e.beam = perturb_beam(e.beam, beam_shift);
     }
-    if (layout.offset) {
+    if (layout.offset && e.crystal) {
       const std::size_t at = layout.offset_at(i);
       Vec3 u, v;
       offset_basis(e.goniometer, &u, &v);
@@ -703,7 +712,7 @@ std::vector<double> step_sizes(const ExperimentList &experiments,
       const std::size_t at = layout.beam_at(i);
       step[at] = step[at + 1] = 1e-7;
     }
-    if (layout.offset) {
+    if (layout.offset && experiments[i].crystal) {
       const std::size_t at = layout.offset_at(i);
       step[at] = step[at + 1] = 1e-4; // mm
     }

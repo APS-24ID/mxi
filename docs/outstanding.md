@@ -47,7 +47,7 @@ history on 20 October: four closed, nine rewritten to what is now true.
   them; refinement's beam and detector are static over a sweep. Leaving those
   images out, with |zeta| below 0.2: R(F^2) 0.0627 to 0.0566, 219 beyond 5
   sigma to 122, 10 unique reflections of 2606 lost. Graeme's model of the centre
-  of diffraction turning off the axis, two parameters a sweep, is now
+  of diffraction turning off the axis, two parameters a lattice, is now
   `mxi_refine --sample-offset` (stage 1): on this data 5 to 20 um, l-cyst_03
   the most, the RMSDs as before and the shift in images 650-800 untouched -- a
   disturbance over 20 deg of a 170 deg sweep is not a circle. Next, if wanted:

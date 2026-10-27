@@ -7,6 +7,11 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.0.6
 
 **Fixed**
+- `mxi_view` marks a spot on exactly the images its box spans. Its extent had
+  come from the centroid's variance -- its uncertainty, not the spot's spread
+  -- with an image either side at least, so that a spot on one image was
+  marked on its neighbours too: against the spot finder's boxes on a 16M
+  sweep, only 15% of spots had been marked on just their own images.
 - `mxi_view` starts in about a second on an integrated 16M sweep of millions
   of reflections, where it took some 15 s: its markers are picked out for the
   image shown as the slider moves -- a few hundred -- rather than built for

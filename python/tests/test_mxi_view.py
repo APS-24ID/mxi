@@ -171,6 +171,20 @@ def test_the_window_shows_the_spots_and_saves_the_regions(tmp_path, monkeypatch)
             assert abs(yi - 4 + j - y) <= 1 and abs(xi - 4 + i - x) <= 1
         view.viewer.dims.set_point(0, 4)
         assert not np.array_equal(own, view.viewer.layers["spots"].data)  # follows
+        # And in z: on each image, a spot is marked where its pixels have
+        # signal there -- well above the background -- and only there.
+        images = view.viewer.layers["images"].data
+        everywhere = view.markers["spots"].yx
+        for f in range(images.shape[0]):
+            view.viewer.dims.set_point(0, f)
+            marked = {tuple(p) for p in view.viewer.layers["spots"].data.tolist()}
+            frame = images[f]
+            for y, x in everywhere.tolist():
+                yi, xi = int(round(y)), int(round(x))
+                lit = frame[yi - 1 : yi + 2, xi - 1 : xi + 2].max() > 10 * np.median(
+                    frame
+                )
+                assert lit == ((y, x) in marked), (f, y, x, lit)
         # A rectangle drawn on the first sweep; Same as last on the second.
         view.viewer.layers["untrusted"].add_rectangles(
             np.array([[49.5, 99.5], [169.5, 259.5]])
@@ -228,23 +242,25 @@ def test_compressed_columns_are_read_in_a_fresh_process(tmp_path):
     assert run.stdout.strip() == "(1000, 3) 2999.0"
 
 
-def test_a_spot_is_marked_on_every_image_it_is_recorded_on():
-    # Not only its centroid's: a box spans a median of 13 images on a small
-    # molecule, and one marker marked a twelfth of the spots on an image. Asked
-    # for one image at a time: the whole sweep's at once had been millions.
+def test_a_spot_is_marked_on_exactly_the_images_of_its_box():
+    # Its box's images, z0 to z1 - 1: the spot finder's are its pixels'. Not
+    # from the centroid's variance -- its uncertainty, not its spread -- with
+    # an image either side at least: a spot on one image was marked on its
+    # neighbours, "highlighted on the next image" (Graeme, 26 October).
     t = tools()
     table = {
         "id": np.array([0, 0]),
-        "xyzobs.px.value": np.array([[10.5, 20.5, 10.4], [5.5, 5.5, 3.2]]),
-        "xyzobs.px.variance": np.array([[0.1, 0.1, 1.0], [0.1, 0.1, 0.01]]),
+        "xyzobs.px.value": np.array([[10.5, 20.5, 10.4], [5.5, 5.5, 3.5]]),
+        "xyzobs.px.variance": np.array([[0.1, 0.1, 1.0], [0.1, 0.1, 0.08]]),
+        "bbox": np.array([[9, 12, 19, 22, 8, 13], [4, 7, 4, 7, 3, 4]]),
     }
     m = t.Markers(table, "xyzobs.px.value", [0])
 
     def images(row_y):
         return [f for f in range(0, 20) if any(m.on(f)[0][:, 0] == row_y)]
 
-    assert images(20.0) == [8, 9, 10, 11, 12]  # +/- 2 sigma about image 10
-    assert images(5.0) == [2, 3, 4]  # at least one image either side
+    assert images(20.0) == [8, 9, 10, 11, 12]  # its box's images
+    assert images(5.0) == [3]  # one image: not its neighbours
     yx, own = m.on(10)
     assert yx.tolist() == [[20.0, 10.0]] and own.tolist() == [True]  # its own: red
     assert m.on(9)[1].tolist() == [False]
@@ -252,14 +268,10 @@ def test_a_spot_is_marked_on_every_image_it_is_recorded_on():
     assert any(m.on(6, window=3)[0][:, 0] == 20.0) and not any(
         m.on(5, window=3)[0][:, 0] == 20.0
     )
-    # With no variance, its box: z0 to z1 - 1.
-    box = {
-        "id": np.array([0]),
-        "xyzcal.px": np.array([[1.5, 1.5, 4.5]]),
-        "bbox": np.array([[0, 3, 0, 3, 2, 7]]),
-    }
-    p = t.Markers(box, "xyzcal.px", [0])
-    assert [f for f in range(10) if len(p.on(f)[0])] == [2, 3, 4, 5, 6]
+    # With no box, its own image alone.
+    bare = {"id": np.array([0]), "xyzcal.px": np.array([[1.5, 1.5, 4.5]])}
+    p = t.Markers(bare, "xyzcal.px", [0])
+    assert [f for f in range(10) if len(p.on(f)[0])] == [4]
 
 
 def test_a_master_with_data_and_its_blocks_counts_each_frame_once(tmp_path):

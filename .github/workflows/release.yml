@@ -1,0 +1,150 @@
+# A release, made when a tag v* is pushed: the complete source, Linux with
+# CUDA, macOS with Metal, and mxeq's wheel, each built and its tests run
+# before anything is published; then a GitHub release with them, its text
+# RELEASE_NOTES.md's section for the version (scripts/release_notes.py). A tag
+# with -rc, -alpha or -beta makes a pre-release: push v1.0.7-rc1 first, to see
+# the whole of it work. docs/release.md.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  # Apple's metal-cpp headers, which the Metal build needs. Not tried from the
+  # sandbox this was written in: if the download fails, the current zip's name
+  # is on https://developer.apple.com/metal/cpp/
+  METAL_CPP_URL: https://developer.apple.com/metal/cpp/files/metal-cpp_macOS15_iOS18.zip
+  # Volta to Hopper: V100, T4, A100, the 30x0s, L4 and the 40x0s, H100/GH200.
+  CUDA_ARCHITECTURES: "70;75;80;86;89;90"
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: The complete source, submodules and all
+        run: scripts/source_archive.sh "${GITHUB_REF_NAME}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source
+          path: mxi-*-source.tar.gz
+
+  linux-cuda:
+    # The oldest supported Ubuntu, so that the binaries run on most current
+    # distributions (glibc is the one library they take from the system).
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: The CUDA toolkit (compiling needs no GPU)
+        run: |
+          wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+          sudo dpkg -i cuda-keyring_1.1-1_all.deb
+          sudo apt-get update -q
+          sudo apt-get install -y -q cuda-toolkit-12-6 ninja-build
+          echo /usr/local/cuda/bin >> "$GITHUB_PATH"
+      # A static HDF5 and zlib, from vcpkg's manifest (vcpkg.json), release
+      # builds only (the -release triplets), so that the programs need nothing
+      # but the C library: libstdc++ and libgcc linked in too, for older
+      # distributions -- RHEL among them -- than the build's.
+      - name: vcpkg, for a static HDF5
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=x64-linux-release
+          -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc"
+          -DMXI_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="$CUDA_ARCHITECTURES"
+      - name: Build
+        run: cmake --build build
+      - name: "Test: the CPU paths, the runner having no GPU"
+        run: |
+          ctest --test-dir build --output-on-failure -E 'gpu|device'
+          python3 -m pip install -q pytest numpy scipy msgpack gemmi h5py hdf5plugin matplotlib
+          cd python && MXI_FIND=../build/mxi_find MXI_BUILD=../build PYTHONPATH=src:tests python3 -m pytest -q tests
+      - name: Package
+        run: scripts/package_release.sh build "${GITHUB_REF_NAME}" linux-x86_64-cuda
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64-cuda
+          path: mxi-*-linux-x86_64-cuda.tar.gz
+
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: The Metal compiler, and metal-cpp
+        run: |
+          # Recent Xcodes ship the Metal toolchain as a separate component.
+          xcrun -f metal || xcodebuild -downloadComponent MetalToolchain
+          curl -fsSL -o metal-cpp.zip "$METAL_CPP_URL"
+          unzip -q metal-cpp.zip -d "$RUNNER_TEMP"
+          echo "METAL_CPP_DIR=$(dirname "$(find "$RUNNER_TEMP" -name Metal.hpp -path '*Metal/Metal.hpp' | head -1)")/.." >> "$GITHUB_ENV"
+          brew install ninja
+      - name: vcpkg, for a static HDF5
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=arm64-osx-release
+          -DMXI_METAL=ON -DMETAL_CPP_DIR="$METAL_CPP_DIR"
+      - name: Build
+        run: cmake --build build
+      - name: "Test: the CPU paths, a hosted runner's GPU not to be relied on"
+        run: |
+          ctest --test-dir build --output-on-failure -E 'gpu|device'
+          python3 -m pip install -q --break-system-packages pytest numpy scipy msgpack gemmi h5py hdf5plugin matplotlib
+          cd python && MXI_FIND=../build/mxi_find MXI_BUILD=../build PYTHONPATH=src:tests python3 -m pytest -q tests
+      - name: Package
+        run: scripts/package_release.sh build "${GITHUB_REF_NAME}" macos-arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: mxi-*-macos-arm64.tar.gz
+
+  wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: mxeq's wheel
+        run: |
+          python3 -m pip install -q build
+          python3 -m build --wheel --outdir dist python
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel
+          path: dist/*.whl
+
+  release:
+    needs: [source, linux-cuda, macos, wheel]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          python3 scripts/release_notes.py "$tag" > notes.md
+          case "$tag" in *-rc*|*-alpha*|*-beta*) pre=--prerelease ;; *) pre= ;; esac
+          gh release create "$tag" --title "mxi ${tag#v}" --notes-file notes.md $pre assets/*

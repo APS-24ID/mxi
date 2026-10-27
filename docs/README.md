@@ -11,6 +11,7 @@ its conclusions sometimes overturned later, with an index of those.
 | [`docs/review.md`](review.md) | guide | for reviewers: what this is, how it differs from DIALS, where things are |
 | [`docs/algorithms.md`](algorithms.md) | reference | each stage's methods, their sources, where they live and how they differ from DIALS |
 | [`docs/mask.md`](mask.md) | guide | viewing the images, and the detector's untrusted regions: drawing them with mxi_view, keeping and applying them with mxi_untrusted |
+| [`docs/release.md`](release.md) | guide | making a release: the tag, the builds for Linux with CUDA and macOS with Metal, what they test, the source archive, macOS's quarantine |
 | [`RELEASE_NOTES.md`](../RELEASE_NOTES.md) | reference | what each release changed, newest first |
 | [`docs/tutorials/cows-pigs-people.md`](tutorials/cows-pigs-people.md) | tutorial | 36 insulin crystals from three species: processing many crystals, and finding which belong together |
 | [`docs/outstanding.md`](outstanding.md) | list | every open task, with its evidence |

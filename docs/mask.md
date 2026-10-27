@@ -23,9 +23,10 @@ is shown as the sum of the number set in the panel from it (one to begin
 with), so that a shadow shows against the background; contrast and colour
 are napari's own. Whatever the file holds is drawn on them: the strong spots
 (`xyzobs.px.value`) as circles, and the predictions (`xyzcal.px`), hidden to
-begin with, as cyan crosses -- each on every image it is recorded on, two
-sigmas of its centroid's z either side (its box, for predictions): red on its
-centroid's image, a paler red on the others. With images summed, a spot is
+begin with, as cyan crosses -- each on the images its box spans: the spot
+finder's box, exactly the images its pixels are on, in a strong or indexed
+file; integration's in an integrated one. Red on its centroid's image, a paler
+red on the others. With images summed, a spot is
 marked on any image whose sum includes it. Markers are at least ten screen pixels across
 however far out the view is, so that they show on a large detector seen whole.
 

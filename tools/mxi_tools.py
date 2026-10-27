@@ -234,8 +234,15 @@ class Markers:
     for its predictions, some 15 s to start (Graeme, 26 October); for one image
     they are a few hundred, a few milliseconds.
 
-    A spot's extent: two sigmas of its centroid's z either side
-    (xyzobs.px.variance), at least one image; else its box; else its own image.
+    A spot's extent: the images its box spans, z0 to z1 - 1 -- the spot
+    finder's box, its pixels' images, exactly, in a strong or indexed file;
+    integration's, the reflection's extent by the mosaicity model, in an
+    integrated one -- else its own image. Not from xyzobs.px.variance, which
+    is the centroid's uncertainty, not the spot's spread: so used, with at
+    least an image either side, a spot recorded on one image was marked on its
+    neighbours too, and against the spot finder's boxes on a 16M sweep only 15
+    per cent of spots were marked on just their images -- 119000 images marked
+    with no spot, 211000 of a spot's unmarked (Graeme, 26 October).
     Positions are napari's: DIALS's less half a pixel."""
 
     def __init__(self, table: dict, column: str, experiments):
@@ -250,16 +257,14 @@ class Markers:
             rows &= np.any(xyz != 0, axis=1)  # a position of zero: none
             index = np.where(rows)[0]
         z = xyz[index, 2]
-        variance = column.replace(".value", ".variance")
-        if len(index) and column.endswith(".value") and variance in table:
-            sz = np.sqrt(np.clip(np.asarray(table[variance], float)[index, 2], 0, None))
-            half = np.maximum(1.0, 2.0 * sz)
-            self.lo, self.hi = np.floor(z - half), np.floor(z + half)
-        elif len(index) and "bbox" in table:
+        own = np.floor(z)
+        if len(index) and "bbox" in table:
             box = np.asarray(table["bbox"])[index]
-            self.lo, self.hi = box[:, 4].astype(float), box[:, 5].astype(float) - 1
+            # Its own image always among them, whatever the box says.
+            self.lo = np.minimum(box[:, 4].astype(float), own)
+            self.hi = np.maximum(box[:, 5].astype(float) - 1, own)
         else:
-            self.lo = self.hi = np.floor(z)
+            self.lo = self.hi = own
         self.centre = np.floor(z)
         self.yx = np.column_stack([xyz[index, 1], xyz[index, 0]]) - 0.5
 

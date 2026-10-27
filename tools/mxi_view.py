@@ -67,6 +67,8 @@ class View:
         self.state = []
         self.restoring = False
         self.viewer = napari.Viewer(title=f"mxi_view {os.path.basename(path)}")
+        self.markers = {}
+        self.viewer.dims.events.current_step.connect(lambda _e: self.update_markers())
         self.panel()
         self.show(min(max(sweep, 0), len(self.sweeps) - 1))
 
@@ -163,9 +165,13 @@ class View:
         )
 
     def add_markers(self):
-        """The spots and predictions of the sweep on show, a marker on each
-        image each is recorded on (mxi_tools.spot_markers), redrawn as the
-        window changes; the predictions hidden unless already shown."""
+        """The spots and predictions of the sweep on show, as markers for the
+        image shown only (mxi_tools.Markers), picked out afresh as the slider
+        or the window moves: a few hundred, not the whole sweep's millions,
+        which had taken some 15 s to start on an integrated 16M sweep. Red on a
+        spot's centroid's image, a paler red on the others it is recorded on;
+        the predictions cyan, hidden unless already shown, and not picked out
+        while hidden."""
         s = self.sweeps[self.current]
         visible = (
             self.viewer.layers["predictions"].visible
@@ -176,49 +182,58 @@ class View:
             if name in self.viewer.layers:
                 self.viewer.layers.remove(name)
         members = s["experiments"]
-        self.counts = [0, 0]
-        spots, sizes = mxi_tools.spot_markers(
-            self.table, "xyzobs.px.value", members, self.window
-        )
-        if len(spots):
-            # One size around every spot; red on its own image, a paler red on
-            # the others it is recorded on.
-            own = sizes > 10
-            self.counts[0] = int(own.sum())
-            colours = mxi_tools.np.where(
-                own[:, None], [1.0, 0.0, 0.0, 1.0], [1.0, 0.55, 0.55, 0.8]
-            )
+        self.markers = {
+            "spots": mxi_tools.Markers(self.table, "xyzobs.px.value", members),
+            "predictions": mxi_tools.Markers(self.table, "xyzcal.px", members),
+        }
+        self.counts = [len(self.markers["spots"]), len(self.markers["predictions"])]
+        empty = mxi_tools.np.zeros((0, 2))
+        # At least ten screen pixels, however far out: a marker 12 detector
+        # pixels across is a speck on a 16M detector seen whole (23 October).
+        limits = (10, 10000)
+        if self.counts[0]:
             self.viewer.add_points(
-                spots,
+                empty,
                 name="spots",
                 size=12,
                 face_color="transparent",
-                border_color=colours,
+                border_color="red",
                 border_width=0.15,
-                ndim=3,
-                # At least ten screen pixels, however far out: a marker 12
-                # detector pixels across is a speck on a 16M detector seen
-                # whole (Graeme, 23 October); it grows as one zooms in.
-                canvas_size_limits=(10, 10000),
+                ndim=2,
+                canvas_size_limits=limits,
             )
-        predicted, sizes = mxi_tools.spot_markers(
-            self.table, "xyzcal.px", members, self.window
-        )
-        if len(predicted):
-            self.counts[1] = int(sum(sizes > 10))
-            self.viewer.add_points(
-                predicted,
+        if self.counts[1]:
+            layer = self.viewer.add_points(
+                empty,
                 name="predictions",
-                size=sizes,
+                size=8,
                 symbol="cross",
                 face_color="cyan",
-                ndim=3,
+                ndim=2,
                 visible=visible,
-                canvas_size_limits=(10, 10000),
+                canvas_size_limits=limits,
             )
+            layer.events.visible.connect(lambda _e: self.update_markers())
+        self.update_markers()
         if "untrusted" in self.viewer.layers:  # kept on top, to draw on
             layers = self.viewer.layers
             layers.move(layers.index("untrusted"), len(layers))
+
+    def update_markers(self):
+        """The markers on the image shown -- and the window's."""
+        frame = int(self.viewer.dims.current_step[0])
+        for name, markers in getattr(self, "markers", {}).items():
+            if name not in self.viewer.layers or not len(markers):
+                continue
+            layer = self.viewer.layers[name]
+            if not layer.visible:
+                continue
+            yx, own = markers.on(frame, self.window)
+            layer.data = yx
+            if name == "spots" and len(yx):
+                layer.border_color = mxi_tools.np.where(
+                    own[:, None], [1.0, 0.0, 0.0, 1.0], [1.0, 0.55, 0.55, 0.8]
+                )
 
     def set_window(self, n: int):
         self.window = max(1, int(n))
@@ -227,7 +242,7 @@ class View:
             images._cache.clear()
         if "images" in self.viewer.layers:
             self.viewer.layers["images"].refresh()
-            self.add_markers()
+            self.update_markers()
 
     # --- undo
     def on_change(self, event):

@@ -153,24 +153,24 @@ def test_the_window_shows_the_spots_and_saves_the_regions(tmp_path, monkeypatch)
     try:
         layers = [layer.name for layer in view.viewer.layers]
         assert {"images", "spots", "untrusted"} <= set(layers)
-        # Each spot point on its spot: the brightest pixel near it, on its own
-        # image, within a pixel -- the two conventions met (napari's pixel i
-        # centred on i, DIALS's spanning i to i + 1). Measured: on it.
+        # The markers are the image shown's alone -- a few, not the sweep's --
+        # and each red one, its spot centred there, on its spot's brightest
+        # pixel: the two conventions met (napari's pixel i centred on i,
+        # DIALS's spanning i to i + 1).
+        view.viewer.dims.set_point(0, 1)  # 24 of the 48 span image 1
         layer = view.viewer.layers["spots"]
-        centres = layer.data[
-            np.asarray(layer.border_color)[:, 1] < 0.1
-        ]  # its own image: red
-        assert len(layer.data) > len(centres)  # and the others it is on
-        # Visible however far out: at least ten screen pixels (a 16M detector
-        # seen whole had made them specks).
-        assert tuple(layer.canvas_size_limits)[0] >= 10
-        images = view.viewer.layers["images"].data
-        for z, y, x in centres[:20]:
-            frame = images[int(round(z))]
+        assert layer.ndim == 2 and 0 < len(layer.data) < view.counts[0]
+        view.viewer.dims.set_point(0, 2)  # all 48 span it, on six images
+        own = layer.data[np.asarray(layer.border_color)[:, 1] < 0.1]
+        assert 0 < len(own) < len(layer.data)  # and the others recorded there
+        frame = view.viewer.layers["images"].data[2]
+        for y, x in own:
             yi, xi = int(round(y)), int(round(x))
             w = frame[yi - 4 : yi + 5, xi - 4 : xi + 5]
             j, i = np.unravel_index(np.argmax(w), w.shape)
             assert abs(yi - 4 + j - y) <= 1 and abs(xi - 4 + i - x) <= 1
+        view.viewer.dims.set_point(0, 4)
+        assert not np.array_equal(own, view.viewer.layers["spots"].data)  # follows
         # A rectangle drawn on the first sweep; Same as last on the second.
         view.viewer.layers["untrusted"].add_rectangles(
             np.array([[49.5, 99.5], [169.5, 259.5]])
@@ -230,31 +230,27 @@ def test_compressed_columns_are_read_in_a_fresh_process(tmp_path):
 
 def test_a_spot_is_marked_on_every_image_it_is_recorded_on():
     # Not only its centroid's: a box spans a median of 13 images on a small
-    # molecule, and one marker marked a twelfth of the spots on an image.
+    # molecule, and one marker marked a twelfth of the spots on an image. Asked
+    # for one image at a time: the whole sweep's at once had been millions.
     t = tools()
     table = {
         "id": np.array([0, 0]),
         "xyzobs.px.value": np.array([[10.5, 20.5, 10.4], [5.5, 5.5, 3.2]]),
         "xyzobs.px.variance": np.array([[0.1, 0.1, 1.0], [0.1, 0.1, 0.01]]),
     }
-    points, sizes = t.spot_markers(table, "xyzobs.px.value", [0])
-    first = points[:, 1] == 20.0
-    assert sorted(points[first, 0].tolist()) == [
-        8.0,
-        9.0,
-        10.0,
-        11.0,
-        12.0,
-    ]  # +/- 2 sigma
-    assert sizes[first][points[first, 0] == 10.0].tolist() == [
-        12.0
-    ]  # its own image larger
-    second = points[:, 1] == 5.0
-    assert sorted(points[second, 0].tolist()) == [2.0, 3.0, 4.0]  # at least one image
-    # Three images summed for each shown: marked on the two before as well.
-    points, _ = t.spot_markers(table, "xyzobs.px.value", [0], window=3)
-    assert sorted(points[points[:, 1] == 20.0, 0].tolist()) == list(
-        map(float, range(6, 13))
+    m = t.Markers(table, "xyzobs.px.value", [0])
+
+    def images(row_y):
+        return [f for f in range(0, 20) if any(m.on(f)[0][:, 0] == row_y)]
+
+    assert images(20.0) == [8, 9, 10, 11, 12]  # +/- 2 sigma about image 10
+    assert images(5.0) == [2, 3, 4]  # at least one image either side
+    yx, own = m.on(10)
+    assert yx.tolist() == [[20.0, 10.0]] and own.tolist() == [True]  # its own: red
+    assert m.on(9)[1].tolist() == [False]
+    # Three images summed for each shown: on 6, its window 6-8 reaches 8.
+    assert any(m.on(6, window=3)[0][:, 0] == 20.0) and not any(
+        m.on(5, window=3)[0][:, 0] == 20.0
     )
     # With no variance, its box: z0 to z1 - 1.
     box = {
@@ -262,8 +258,8 @@ def test_a_spot_is_marked_on_every_image_it_is_recorded_on():
         "xyzcal.px": np.array([[1.5, 1.5, 4.5]]),
         "bbox": np.array([[0, 3, 0, 3, 2, 7]]),
     }
-    points, _ = t.spot_markers(box, "xyzcal.px", [0])
-    assert points[:, 0].tolist() == [2.0, 3.0, 4.0, 5.0, 6.0]
+    p = t.Markers(box, "xyzcal.px", [0])
+    assert [f for f in range(10) if len(p.on(f)[0])] == [2, 3, 4, 5, 6]
 
 
 def test_a_master_with_data_and_its_blocks_counts_each_frame_once(tmp_path):

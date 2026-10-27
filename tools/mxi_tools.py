@@ -224,50 +224,56 @@ def points_of(table: dict, column: str, experiments) -> np.ndarray:
     return np.column_stack([xyz[:, 2], xyz[:, 1], xyz[:, 0]]) - 0.5
 
 
-def spot_markers(table: dict, column: str, experiments, window: int = 1):
-    """A marker for each image a spot is recorded on, not only its centroid's:
-    a spot spans several images -- a box's median 13 on Graeme's small
-    molecule -- so a marker on one marked only a twelfth of the spots on any
-    image (23 October). Its extent: two sigmas of its centroid's z either side
+class Markers:
+    """A sweep's spots (or predictions) as markers on the images they are
+    recorded on -- not only their centroid's: a spot spans several images, a
+    box's median 13 on a small molecule -- for one image at a time: the
+    extents worked out once, vectorised, and the markers for the image shown
+    picked out as the slider moves. Built for the whole sweep at once they had
+    been 6 million points for an integrated 16M sweep's spots and 26 million
+    for its predictions, some 15 s to start (Graeme, 26 October); for one image
+    they are a few hundred, a few milliseconds.
+
+    A spot's extent: two sigmas of its centroid's z either side
     (xyzobs.px.variance), at least one image; else its box; else its own image.
-    With `window` images summed for each shown, a marker too on the window - 1
-    before. Returns napari points (z, y, x) and their sizes, the centroid's
-    image's larger."""
-    if column not in table or "id" not in table:
-        return np.zeros((0, 3)), np.zeros(0)
-    xyz = np.asarray(table[column], float)
-    rows = np.isin(np.asarray(table["id"]), list(experiments)) & np.all(
-        np.isfinite(xyz), axis=1
-    )
-    rows &= np.any(xyz != 0, axis=1)  # a position of zero: none
-    index = np.where(rows)[0]
-    z = xyz[index, 2]
-    variance = column.replace(".value", ".variance")
-    if column.endswith(".value") and variance in table:
-        half = np.maximum(
-            1.0,
-            2.0
-            * np.sqrt(np.clip(np.asarray(table[variance], float)[index, 2], 0, None)),
-        )
-        lo, hi = np.floor(z - half), np.floor(z + half)
-    elif "bbox" in table:
-        b = np.asarray(table["bbox"])[index]
-        lo, hi = b[:, 4].astype(float), b[:, 5].astype(float) - 1
-    else:
-        lo = hi = np.floor(z)
-    lo = np.maximum(0, lo - (max(1, int(window)) - 1))
-    centre = np.floor(z)
-    counts = (hi - lo + 1).clip(min=1).astype(int)
-    frames = (
-        np.concatenate([np.arange(a, a + n) for a, n in zip(lo, counts)])
-        if len(index)
-        else np.zeros(0)
-    )
-    which = np.repeat(np.arange(len(index)), counts)
-    y = xyz[index, 1][which] - 0.5
-    x = xyz[index, 0][which] - 0.5
-    sizes = np.where(frames == centre[which], 12.0, 7.0)
-    return np.column_stack([frames, y, x]), sizes
+    Positions are napari's: DIALS's less half a pixel."""
+
+    def __init__(self, table: dict, column: str, experiments):
+        if column not in table or "id" not in table:
+            xyz = np.zeros((0, 3))
+            index = np.zeros(0, np.int64)
+        else:
+            xyz = np.asarray(table[column], float)
+            rows = np.isin(np.asarray(table["id"]), list(experiments)) & np.all(
+                np.isfinite(xyz), axis=1
+            )
+            rows &= np.any(xyz != 0, axis=1)  # a position of zero: none
+            index = np.where(rows)[0]
+        z = xyz[index, 2]
+        variance = column.replace(".value", ".variance")
+        if len(index) and column.endswith(".value") and variance in table:
+            sz = np.sqrt(np.clip(np.asarray(table[variance], float)[index, 2], 0, None))
+            half = np.maximum(1.0, 2.0 * sz)
+            self.lo, self.hi = np.floor(z - half), np.floor(z + half)
+        elif len(index) and "bbox" in table:
+            box = np.asarray(table["bbox"])[index]
+            self.lo, self.hi = box[:, 4].astype(float), box[:, 5].astype(float) - 1
+        else:
+            self.lo = self.hi = np.floor(z)
+        self.centre = np.floor(z)
+        self.yx = np.column_stack([xyz[index, 1], xyz[index, 0]]) - 0.5
+
+    def __len__(self):
+        return len(self.yx)
+
+    def on(self, frame: int, window: int = 1):
+        """The markers on image `frame` (napari's slice: image frame + 1) --
+        or, with `window` images summed for each shown, on any of frame to
+        frame + window - 1: their (y, x), and whether each is centred there."""
+        last = frame + max(1, int(window)) - 1
+        shown = (self.lo <= last) & (self.hi >= frame)
+        centre = self.centre[shown]
+        return self.yx[shown], (centre >= frame) & (centre <= last)
 
 
 # --- images ------------------------------------------------------------------

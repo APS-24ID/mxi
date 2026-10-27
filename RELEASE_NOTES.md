@@ -7,6 +7,11 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.0.6
 
 **Fixed**
+- `mxi_view` starts in about a second on an integrated 16M sweep of millions
+  of reflections, where it took some 15 s: its markers are picked out for the
+  image shown as the slider moves -- a few hundred -- rather than built for
+  every image of the sweep at once, 6 million points for the spots and 26
+  million for the predictions.
 - `mxi_report`'s cell over the scan is drawn against the rotation angle, a
   point a degree over the whole scan. It had read the scan-varying model's
   control points -- a few dozen -- as image numbers, so that a 3600-image

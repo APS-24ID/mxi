@@ -6,7 +6,16 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 ## Unreleased -- since 1.0.6
 
+**New**
+- Releases on GitHub, built when a tag is pushed: Linux x86_64 with CUDA and
+  macOS arm64 with Metal, each self-contained -- HDF5 linked in -- and tested
+  before it is published; the complete source with its submodules; mxeq's
+  wheel (`docs/release.md`).
+
 **Fixed**
+- Building with `-DMXI_TESTS=OFF` makes every program: `mxi_import`,
+  `mxi_integrate`, `mxi_max` and `mxi_readtest` had been defined only with the
+  tests.
 - `mxi_view` marks a spot on exactly the images its box spans. Its extent had
   come from the centroid's variance -- its uncertainty, not the spot's spread
   -- with an image either side at least, so that a spot on one image was

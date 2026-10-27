@@ -1,8 +1,9 @@
 {
-  "name": "mxi-spotfinder",
+  "name": "mxi",
   "version-string": "1.0.6",
-  "description": "The DIALS extended dispersion spot finder on a GPU, from NXmx to a reflection table",
+  "description": "Rotation and multi-sweep crystallographic data processing, from NXmx images to merged intensities",
   "dependencies": [
-    "hdf5"
+    "hdf5",
+    "zlib"
   ]
 }

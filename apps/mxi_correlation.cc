@@ -30,8 +30,8 @@
 namespace {
 
 const char *kUsage =
-    "usage: mxi_correlation SCALED.rflx [options]\n"
-    "       mxi_correlation SCALED.expt SCALED.refl [options]\n"
+    "usage: mxi correlation SCALED.rflx [options]\n"
+    "       mxi correlation SCALED.expt SCALED.refl [options]\n"
     "\n"
     "The correlation of every pair of data sets -- each lattice of a scaled\n"
     "file -- weighted by the intensities' uncertainties, as\n"
@@ -56,7 +56,7 @@ const char *kUsage =
     "                      principal components, the dimension functional\n"
     "  --write-clusters    each cluster as its own .rflx, PREFIX_0.rflx and\n"
     "                      on: its data sets and their reflections, for\n"
-    "                      mxi_scale\n"
+    "                      mxi scale\n"
     "  --prefix PREFIX     those files' names (cluster)\n"
     "  --json FILE         the matrix, its weights, the data sets, the\n"
     "                      coordinates and their principal components\n"
@@ -200,7 +200,7 @@ int mxi_correlation_main(int argc, char **argv) {
         break;
       }
     if (first == nullptr) {
-      std::fprintf(stderr, "mxi_correlation: no experiment has a crystal\n");
+      std::fprintf(stderr, "mxi correlation: no experiment has a crystal\n");
       return 1;
     }
     const SpaceGroup group =
@@ -383,14 +383,14 @@ int mxi_correlation_main(int argc, char **argv) {
       std::ostringstream html;
       html
           << "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>"
-             "mxi_correlation: "
+             "mxi correlation: "
           << args.positional[0]
           << "</title><script src=\"https://cdn.plot.ly/plotly-2.27.0.min.js\">"
              "</script><style>body{font-family:sans-serif;margin:2em;"
              "max-width:1100px}table{border-collapse:collapse}td,th{padding:"
              "2px 10px;text-align:right}th{border-bottom:1px solid #888}"
              ".plot{margin:1em 0}</style></head><body>\n"
-             "<h1>mxi_correlation</h1>\n<p>"
+             "<h1>mxi correlation</h1>\n<p>"
           << n << " data sets of " << args.positional[0] << ", in "
           << group.name()
           << ". Clustered as dials.correlation_matrix (Thompson et al. "
@@ -654,7 +654,7 @@ int mxi_correlation_main(int argc, char **argv) {
                   args.value("--json", "correlation.json").c_str());
     }
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_correlation: %s\n", e.what());
+    std::fprintf(stderr, "mxi correlation: %s\n", e.what());
     return 1;
   }
   return 0;

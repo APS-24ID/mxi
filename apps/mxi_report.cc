@@ -964,7 +964,7 @@ int run_report(int argc, char **argv) {
     if (!summary)
       throw std::runtime_error(input +
                                " has no processing summary: written before "
-                               "mxi kept one, or by mxi_convert from a pair");
+                               "mxi kept one, or by mxi convert from a pair");
     std::optional<ExperimentList> list;
     try {
       list = read_experiments(input);
@@ -1069,7 +1069,7 @@ int run_report(int argc, char **argv) {
                 steps.size());
     return 0;
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi_report: %s\n", error.what());
+    std::fprintf(stderr, "mxi report: %s\n", error.what());
     return 1;
   }
 }

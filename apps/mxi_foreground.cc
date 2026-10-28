@@ -77,12 +77,12 @@ int run_foreground(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi_foreground: %s\n", args.error.c_str());
+    std::fprintf(stderr, "mxi foreground: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.empty() || args.positional.size() > 2) {
     std::fprintf(stderr,
-                 "mxi_foreground: expected an .expt and optionally a .refl\n");
+                 "mxi foreground: expected an .expt and optionally a .refl\n");
     usage(argv[0]);
     return 2;
   }
@@ -92,7 +92,7 @@ int run_foreground(int argc, char **argv) {
     timing.add("reading", Timing::now() - mark);
     mark = Timing::now();
     if (experiments.size() == 0) {
-      std::fprintf(stderr, "mxi_foreground: no experiments\n");
+      std::fprintf(stderr, "mxi foreground: no experiments\n");
       return 1;
     }
     const Experiment &e = experiments[0];
@@ -104,7 +104,7 @@ int run_foreground(int argc, char **argv) {
     if (args.value("--shape", "box") == "ellipsoid") {
       options.shape = RegionShape::kEllipsoid;
     } else if (args.value("--shape", "box") != "box") {
-      std::fprintf(stderr, "mxi_foreground: --shape is box or ellipsoid\n");
+      std::fprintf(stderr, "mxi foreground: --shape is box or ellipsoid\n");
       return 2;
     }
     options.sigma_d = args.number("--sigma-b", 0.0);
@@ -116,7 +116,7 @@ int run_foreground(int argc, char **argv) {
       if (args.positional.size() < 2) {
         std::fprintf(
             stderr,
-            "mxi_foreground: give a .refl to estimate the profile model "
+            "mxi foreground: give a .refl to estimate the profile model "
             "from, or --sigma-b and --sigma-m\n");
         return 2;
       }
@@ -125,7 +125,7 @@ int run_foreground(int argc, char **argv) {
       if (boxes.empty()) {
         std::fprintf(
             stderr,
-            "mxi_foreground: %s has no shoeboxes, so the profile model "
+            "mxi foreground: %s has no shoeboxes, so the profile model "
             "cannot be estimated from it\n",
             args.positional[1].c_str());
         return 1;
@@ -168,7 +168,7 @@ int run_foreground(int argc, char **argv) {
                 options.shape == RegionShape::kEllipsoid ? "ellipsoid" : "box");
     if (!(options.sigma_d > 0.0) || !(options.sigma_m > 0.0)) {
       std::fprintf(stderr,
-                   "mxi_foreground: the profile model came out empty\n");
+                   "mxi foreground: the profile model came out empty\n");
       return 1;
     }
 
@@ -219,7 +219,7 @@ int run_foreground(int argc, char **argv) {
         "%zu for leaving the scan\n",
         kept.size(), skipped_range, skipped_zeta, skipped_box);
     if (kept.empty()) {
-      std::fprintf(stderr, "mxi_foreground: nothing to write\n");
+      std::fprintf(stderr, "mxi foreground: nothing to write\n");
       return 1;
     }
 
@@ -303,7 +303,7 @@ int run_foreground(int argc, char **argv) {
     timing.report(stdout);
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_foreground: %s\n", e.what());
+    std::fprintf(stderr, "mxi foreground: %s\n", e.what());
     return 1;
   }
 }

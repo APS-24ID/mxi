@@ -25,7 +25,7 @@
 namespace {
 
 const char *const kUsage =
-    "usage: mxi_split FILE.rflx [--experiments 0,3,...] [-o PATH | --prefix "
+    "usage: mxi split FILE.rflx [--experiments 0,3,...] [-o PATH | --prefix "
     "P]\n"
     "\n"
     "A file's data sets apart: each data set -- each experiment with a "
@@ -35,7 +35,7 @@ const char *const kUsage =
     "own, P_0.rflx, P_1.rflx, ... numbered by experiment; or, with\n"
     "--experiments, the ones named together into one. Before indexing, with "
     "no\n"
-    "crystals, each sweep. mxi_combine does the reverse.\n"
+    "crystals, each sweep. mxi combine does the reverse.\n"
     "\n"
     "  --experiments I,J  those experiments, by index, into one file\n"
     "  -o PATH            where that one file goes (split.rflx)\n"
@@ -57,7 +57,7 @@ int mxi_split_main(int argc, char **argv) {
     return 0;
   }
   if (!args.ok || args.positional.size() != 1) {
-    std::fprintf(stderr, "mxi_split: %s\n%s",
+    std::fprintf(stderr, "mxi split: %s\n%s",
                  args.ok ? "one file to split" : args.error.c_str(), kUsage);
     return 2;
   }
@@ -117,7 +117,7 @@ int mxi_split_main(int argc, char **argv) {
     }
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_split: %s\n", e.what());
+    std::fprintf(stderr, "mxi split: %s\n", e.what());
     return 1;
   }
 }

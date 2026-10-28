@@ -136,7 +136,7 @@ std::uint64_t fnv1a(const std::uint8_t *p, std::size_t n) {
 }
 
 const char *kUsage =
-    "usage: mxi_readtest EXPT (--direct-chunk | --pread) [options]\n"
+    "usage: mxi readtest EXPT (--direct-chunk | --pread) [options]\n"
     "  Reads and decompresses every frame of the images EXPT names, on N\n"
     "  threads, and reports how fast -- to measure reading apart from the\n"
     "  programs that use it.\n"
@@ -168,7 +168,7 @@ int mxi_readtest_main(int argc, char **argv) {
   if (!args.ok || args.positional.size() != 1 ||
       args.has("--direct-chunk") == args.has("--pread")) {
     if (!args.ok)
-      std::fprintf(stderr, "mxi_readtest: %s\n", args.error.c_str());
+      std::fprintf(stderr, "mxi readtest: %s\n", args.error.c_str());
     std::fprintf(stderr, "%s", kUsage);
     return 2;
   }
@@ -291,7 +291,7 @@ int mxi_readtest_main(int argc, char **argv) {
       decomp += decompressing_s[w];
     }
     const double gb = static_cast<double>(compressed.load()) / 1e9;
-    std::printf("mxi_readtest: %s, %llu frames of %zu x %zu, %u bit, %s\n",
+    std::printf("mxi readtest: %s, %llu frames of %zu x %zu, %u bit, %s\n",
                 master.c_str(),
                 static_cast<unsigned long long>(read_frames.load()), width,
                 height, bit_depth,
@@ -317,7 +317,7 @@ int mxi_readtest_main(int argc, char **argv) {
                 static_cast<unsigned long long>(checksum.load()));
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_readtest: %s\n", e.what());
+    std::fprintf(stderr, "mxi readtest: %s\n", e.what());
     return 1;
   }
 }

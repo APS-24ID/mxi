@@ -21,11 +21,11 @@
 namespace {
 
 const char *const kUsage =
-    "usage: mxi_untrusted FILE.rflx [--set MASK.json | --clear] [-o OUT.rflx]\n"
+    "usage: mxi untrusted FILE.rflx [--set MASK.json | --clear] [-o OUT.rflx]\n"
     "\n"
     "Each image set's untrusted regions -- circles, rectangles and polygons\n"
     "on the detector that spot finding and integration leave out, as they do\n"
-    "the detector's own bad pixels. mxi_view draws them; this lists, sets and\n"
+    "the detector's own bad pixels. mxi view draws them; this lists, sets and\n"
     "clears them. With neither --set nor --clear, lists them.\n"
     "\n"
     "  --set MASK.json  the regions from a mask file: {\"imagesets\": {\"0\":\n"
@@ -60,7 +60,7 @@ int mxi_untrusted_main(int argc, char **argv) {
   }
   if (!args.ok || args.positional.size() != 1 ||
       (args.has("--set") && args.has("--clear"))) {
-    std::fprintf(stderr, "mxi_untrusted: %s\n%s",
+    std::fprintf(stderr, "mxi untrusted: %s\n%s",
                  !args.ok                      ? args.error.c_str()
                  : args.positional.size() != 1 ? "one experiment list"
                                                : "--set or --clear, not both",
@@ -130,7 +130,7 @@ int mxi_untrusted_main(int argc, char **argv) {
     std::printf("Wrote %s\n", out.c_str());
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_untrusted: %s\n", e.what());
+    std::fprintf(stderr, "mxi untrusted: %s\n", e.what());
     return 1;
   }
 }

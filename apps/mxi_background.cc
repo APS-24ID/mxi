@@ -46,7 +46,7 @@ int run_background(int argc, char **argv) {
   Timing timing(args.has("--timing"));
   double mark = Timing::now();
   if (!args.ok) {
-    std::fprintf(stderr, "mxi_background: %s\n", args.error.c_str());
+    std::fprintf(stderr, "mxi background: %s\n", args.error.c_str());
     return 2;
   }
   // --help printed nothing and then waited for standard input, which on a
@@ -63,7 +63,7 @@ int run_background(int argc, char **argv) {
   if (!args.positional.empty()) {
     file.open(args.positional[0]);
     if (!file) {
-      std::fprintf(stderr, "mxi_background: cannot open %s\n",
+      std::fprintf(stderr, "mxi background: cannot open %s\n",
                    args.positional[0].c_str());
       return 1;
     }

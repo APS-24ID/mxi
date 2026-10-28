@@ -60,11 +60,11 @@ int run_forward(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi_forward: %s\n", args.error.c_str());
+    std::fprintf(stderr, "mxi forward: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.size() != 2) {
-    std::fprintf(stderr, "mxi_forward: expected an .expt and a .refl\n");
+    std::fprintf(stderr, "mxi forward: expected an .expt and a .refl\n");
     usage(argv[0]);
     return 2;
   }
@@ -76,7 +76,7 @@ int run_forward(int argc, char **argv) {
     mark = Timing::now();
     const std::vector<Shoebox> boxes = decode_shoeboxes(t);
     if (boxes.empty()) {
-      std::fprintf(stderr, "mxi_forward: %s has no shoeboxes\n",
+      std::fprintf(stderr, "mxi forward: %s has no shoeboxes\n",
                    args.positional[1].c_str());
       return 1;
     }
@@ -129,7 +129,7 @@ int run_forward(int argc, char **argv) {
     const std::string path = args.value("--out", "forward.txt");
     std::FILE *out = std::fopen(path.c_str(), "w");
     if (out == nullptr) {
-      std::fprintf(stderr, "mxi_forward: cannot write %s\n", path.c_str());
+      std::fprintf(stderr, "mxi forward: cannot write %s\n", path.c_str());
       return 1;
     }
     std::fprintf(out, "# obliquity_deg counts shift_fast shift_slow shift_z "
@@ -171,7 +171,7 @@ int run_forward(int argc, char **argv) {
     timing.report(stdout);
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_forward: %s\n", e.what());
+    std::fprintf(stderr, "mxi forward: %s\n", e.what());
     return 1;
   }
 }

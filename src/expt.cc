@@ -317,7 +317,7 @@ ExperimentList experiments_from_json(const json::Value &document) {
           "the crystal has " + std::to_string(x.crystal->A_points.size()) +
           " scan points and the scan " + std::to_string(x.scan.num_images()) +
           " images, where there must be one more point than images; "
-          "a scan-varying model written by an older mxi_refine may "
+          "a scan-varying model written by an older mxi refine may "
           "have this, and refining it again from a static model "
           "gives a good one");
     }

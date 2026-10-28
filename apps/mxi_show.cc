@@ -241,7 +241,7 @@ int run_show(int argc, char **argv) {
     }
     return 0;
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi_show: %s\n", error.what());
+    std::fprintf(stderr, "mxi show: %s\n", error.what());
     return 1;
   }
 }

@@ -20,7 +20,7 @@
 namespace {
 
 const char *kUsage =
-    "usage: mxi_import MASTER [MASTER ...] [options]\n"
+    "usage: mxi import MASTER [MASTER ...] [options]\n"
     "  An experiment list -- beam, detector, goniometer, scan, image set -- "
     "from\n"
     "  NXmx HDF5 master files, as dials.import writes it: one experiment a\n"
@@ -63,7 +63,7 @@ void describe(const std::string &master, const mxi::json::Value &expt,
   using namespace mxi;
   const auto &e = expt.as_object();
   const auto num = [](const json::Value &v) { return v.as_number(); };
-  std::printf("mxi_import: %s\n", master.c_str());
+  std::printf("mxi import: %s\n", master.c_str());
   std::printf("  wavelength %.6f A\n",
               num(e.at("beam").as_array()[0].as_object().at("wavelength")));
   for (const json::Value &pv :
@@ -206,7 +206,7 @@ int mxi_import_main(int argc, char **argv) {
   }
   if (!args.ok || args.positional.empty()) {
     if (!args.ok)
-      std::fprintf(stderr, "mxi_import: %s\n", args.error.c_str());
+      std::fprintf(stderr, "mxi import: %s\n", args.error.c_str());
     std::fprintf(stderr, "%s", kUsage);
     return 2;
   }
@@ -290,7 +290,7 @@ int mxi_import_main(int argc, char **argv) {
     std::printf("Wrote %s\n", rflx::describe(out, true, false).c_str());
     return 0;
   } catch (const std::exception &ex) {
-    std::fprintf(stderr, "mxi_import: %s\n", ex.what());
+    std::fprintf(stderr, "mxi import: %s\n", ex.what());
     return 1;
   }
 }

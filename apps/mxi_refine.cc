@@ -30,7 +30,7 @@ namespace mxi {
 namespace {
 void usage() {
   std::printf(
-      "usage: mxi_refine INDEXED.expt INDEXED.refl [options]\n"
+      "usage: mxi refine INDEXED.expt INDEXED.refl [options]\n"
       "  --no-crystal      hold the crystal fixed\n"
       "  --jacobian-threads N  threads for the Jacobian; 0 is one per core "
       "(0)\n"
@@ -191,7 +191,7 @@ int refine_apart(const Arguments &args,
   const std::size_t n = document["experiment"].as_array().size();
   const Table indexed = read_reflections(args.positional[1]);
   if (!indexed.has("id")) {
-    std::fprintf(stderr, "mxi_refine: %s has no id column\n",
+    std::fprintf(stderr, "mxi refine: %s has no id column\n",
                  args.positional[1].c_str());
     return 1;
   }
@@ -248,7 +248,7 @@ int refine_apart(const Arguments &args,
       x = local[static_cast<std::size_t>(x)];
     part.identifiers.clear();
     write_reflections(in_refl, part);
-    std::vector<std::string> words = {"mxi_refine", in_expt, in_refl};
+    std::vector<std::string> words = {"mxi refine", in_expt, in_refl};
     for (const auto &[flag, value] : args.options) {
       if (flag == "-o" || flag == "--output-expt" || flag == "--output-refl")
         continue;
@@ -264,7 +264,7 @@ int refine_apart(const Arguments &args,
     std::printf(" ===\n");
     std::fflush(stdout);
     if (run(words) != 0) {
-      std::fprintf(stderr, "mxi_refine: group %zu did not refine\n", g);
+      std::fprintf(stderr, "mxi refine: group %zu did not refine\n", g);
       tidy();
       return 1;
     }
@@ -374,18 +374,18 @@ int run_refine(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi_refine: %s\n", args.error.c_str());
+    std::fprintf(stderr, "mxi refine: %s\n", args.error.c_str());
     return 2;
   }
   if (args.has("--static") && args.has("--scan-varying")) {
     std::fprintf(
         stderr,
-        "mxi_refine: --static and --scan-varying contradict each other\n");
+        "mxi refine: --static and --scan-varying contradict each other\n");
     return 2;
   }
   if (args.positional.size() != 2) {
     std::fprintf(stderr,
-                 "mxi_refine: expected an .expt and a .refl, got %zu file "
+                 "mxi refine: expected an .expt and a .refl, got %zu file "
                  "arguments\n",
                  args.positional.size());
     usage();
@@ -516,7 +516,7 @@ int run_refine(int argc, char **argv) {
     }
     RefineResult result = two.final();
     if (result.n_used == 0) {
-      std::fprintf(stderr, "mxi_refine: nothing to refine against\n");
+      std::fprintf(stderr, "mxi refine: nothing to refine against\n");
       return 1;
     }
     std::printf(
@@ -762,7 +762,7 @@ int run_refine(int argc, char **argv) {
     }
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_refine: %s\n", e.what());
+    std::fprintf(stderr, "mxi refine: %s\n", e.what());
     return 1;
   }
 }

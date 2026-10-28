@@ -24,18 +24,18 @@
 namespace {
 
 const char *const kUsage =
-    "usage: mxi_combine A.rflx B.rflx [...] [-o combined.rflx]\n"
+    "usage: mxi combine A.rflx B.rflx [...] [-o combined.rflx]\n"
     "\n"
     "Several runs' files joined into one: every experiment and its models, "
     "and\n"
     "every reflection, renumbered to its experiment in the whole. Typically\n"
     "integrated data sets, each processed on its own, to go through\n"
-    "mxi_symmetry and mxi_scale together; mxi_split does the reverse.\n"
+    "mxi symmetry and mxi scale together; mxi split does the reverse.\n"
     "\n"
     "The same experiment twice (one identifier in two inputs) is refused. The\n"
     "columns kept are those every input has, shoeboxes included where every\n"
     "input has them; any other is left out, and named. A DIALS pair is made a\n"
-    ".rflx first by mxi_convert.\n"
+    ".rflx first by mxi convert.\n"
     "\n"
     "  -o PATH           where to write (combined.rflx)\n"
     "  --help, --version\n";
@@ -53,7 +53,7 @@ int mxi_combine_main(int argc, char **argv) {
     return 0;
   }
   if (!args.ok || args.positional.size() < 2) {
-    std::fprintf(stderr, "mxi_combine: %s\n%s",
+    std::fprintf(stderr, "mxi combine: %s\n%s",
                  args.ok ? "two files or more to join" : args.error.c_str(),
                  kUsage);
     return 2;
@@ -66,7 +66,7 @@ int mxi_combine_main(int argc, char **argv) {
       if (!rflx::has_experiments(path))
         throw std::runtime_error(path +
                                  " is not a .rflx with an experiment "
-                                 "list (a DIALS pair: mxi_convert first)");
+                                 "list (a DIALS pair: mxi convert first)");
       const std::optional<json::Value> experiments =
           rflx::read_experiments(path);
       std::vector<std::string> skipped;
@@ -104,7 +104,7 @@ int mxi_combine_main(int argc, char **argv) {
                 combined.reflections.nrows);
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_combine: %s\n", e.what());
+    std::fprintf(stderr, "mxi combine: %s\n", e.what());
     return 1;
   }
 }

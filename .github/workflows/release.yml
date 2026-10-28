@@ -124,11 +124,18 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
           "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+      # For macOS 13 and later, mxi and its static libraries alike (an overlay
+      # triplet, cmake/triplets); unset, both took the runner's macOS 15 as
+      # their minimum. Any API newer than 13 used without a check is an
+      # error, so that the binaries cannot fail on an older macOS at run time.
       - name: Configure
         run: >
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake"
           -DVCPKG_TARGET_TRIPLET=arm64-osx-release
+          -DVCPKG_OVERLAY_TRIPLETS="$GITHUB_WORKSPACE/cmake/triplets"
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+          -DCMAKE_CXX_FLAGS="-Werror=unguarded-availability-new"
           -DMXI_METAL=ON -DMETAL_CPP_DIR="$METAL_CPP_DIR"
       - name: Build
         run: cmake --build build

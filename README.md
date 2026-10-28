@@ -38,6 +38,44 @@ CBF by [cbf2nxmx](https://github.com/graeme-winter/cbf2nxmx).
 * **What changed in each release:** [`RELEASE_NOTES.md`](RELEASE_NOTES.md).
 * **Open issues:** [`docs/outstanding.md`](docs/outstanding.md).
 
+## Installing
+
+Each release on this repository's GitHub **Releases** page has the programs
+built, ready to run. Download the archive for your machine:
+
+| archive | for |
+|---|---|
+| `mxi-<version>-linux-x86_64.tar.gz` | Linux on x86_64, on the CPU: any current distribution, RHEL among them, no GPU or driver needed |
+| `mxi-<version>-linux-x86_64-cuda.tar.gz` | the same, with an NVIDIA GPU from Volta (V100) on: needs the NVIDIA driver for CUDA 12 (525 or later) |
+| `mxi-<version>-macos-arm64.tar.gz` | macOS 13 or later on Apple silicon, with Metal |
+
+Unpack it and put its `bin` on the `PATH` -- nothing else needs installing:
+HDF5 and the rest are built in.
+
+```sh
+tar -xzf mxi-<version>-linux-x86_64.tar.gz
+export PATH="$PWD/mxi-<version>-linux-x86_64/bin:$PATH"   # and in ~/.bashrc
+mxi_find --version
+```
+
+On macOS the programs are not signed, so macOS blocks them once downloaded:
+clear the quarantine flag once, after unpacking.
+
+```sh
+xattr -dr com.apple.quarantine mxi-<version>-macos-arm64
+```
+
+`mxi_view`, the image viewer and mask editor, is Python on napari, which is
+optional and installed apart: `pip install "napari[all]" h5py hdf5plugin`
+(`docs/mask.md`). Every other program runs without Python.
+
+`mxeq`, the referee, is on the same page as a wheel:
+`pip install mxeq-<version>-py3-none-any.whl`.
+
+To build instead, take `mxi-<version>-source.tar.gz` from the same page: the
+complete source, its submodules included, which GitHub's own source archives
+leave out. How releases are made: `docs/release.md`.
+
 ## Building
 
 Requires CMake 3.20 or later, a C++20 compiler, and HDF5's C library; and two

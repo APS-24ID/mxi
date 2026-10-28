@@ -90,7 +90,7 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake"
           -DVCPKG_TARGET_TRIPLET=x64-linux-release
           -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc"
-          -DMXI_FFTW=OFF
+          -DVCPKG_MANIFEST_FEATURES=fftw -DMXI_FFTW=ON
           -DMXI_CUDA=${{ matrix.cuda }} -DCMAKE_CUDA_ARCHITECTURES="$CUDA_ARCHITECTURES"
       - name: Build
         run: cmake --build build
@@ -139,7 +139,7 @@ jobs:
           -DVCPKG_OVERLAY_TRIPLETS="$GITHUB_WORKSPACE/cmake/triplets"
           -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
           -DCMAKE_CXX_FLAGS="-Werror=unguarded-availability-new"
-          -DMXI_FFTW=OFF
+          -DVCPKG_MANIFEST_FEATURES=fftw -DMXI_FFTW=ON
           -DMXI_METAL=ON -DMETAL_CPP_DIR="$METAL_CPP_DIR"
       - name: Build
         run: cmake --build build

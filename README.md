@@ -50,7 +50,9 @@ built, ready to run. Download the archive for your machine:
 | `mxi-<version>-macos-arm64.tar.gz` | macOS 13 or later on Apple silicon, with Metal |
 
 Unpack it and put its `bin` on the `PATH` -- nothing else needs installing:
-HDF5 and the rest are built in, their licences in the archive's `licenses/`.
+HDF5, FFTW and the rest are built in, their licences in the archive's
+`licenses/`. With FFTW, which is GPL, the released program is distributed
+under the GPL's terms; mxi's own source is BSD-3-Clause.
 
 ```sh
 tar -xzf mxi-<version>-linux-x86_64.tar.gz

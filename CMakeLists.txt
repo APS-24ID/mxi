@@ -326,8 +326,8 @@ target_compile_definitions(mxi PRIVATE MXI_HAVE_BITSHUFFLE)
 # spot finder's CUDA is on, and otherwise the stubs, which fit in single
 # precision on the CPU instead.
 if(MXI_CUDA)
-    target_sources(mxi_integrate PRIVATE src/fit_device_cuda.cc src/fit_cuda.cu
-                                         src/cuda_device.cu)
+    target_sources(mxi_integrate PRIVATE src/fit_device_cuda.cc src/fit_cuda.cu)
+    target_link_libraries(mxi_integrate PRIVATE mxi_cuda_device)
 elseif(MXI_METAL)
     # The shader compiled, linked and embedded as the spot finder's is, with the
     # same flags, under a name of its own.
@@ -423,6 +423,27 @@ set(MXI_PROGRAMS
   mxi_foreground mxi_forward mxi_grid mxi_import mxi_index mxi_integrate
   mxi_max mxi_profile mxi_readtest mxi_refine mxi_report mxi_residuals
   mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted)
+# No source in two commands: they are one binary, and a source compiled into
+# two is defined twice -- src/cuda_device.cu was, in mxi_find and
+# mxi_integrate, and the CUDA release build failed to link (1.1.0). Shared code
+# goes in a library (mxi_cuda_device, mxi_metal), linked once. Checked at
+# configure, for whatever backend is configured.
+set(mxi_seen_sources "")
+foreach(program ${MXI_PROGRAMS})
+  get_target_property(program_sources ${program} SOURCES)
+  foreach(source ${program_sources})
+    get_filename_component(source "${source}" ABSOLUTE)
+    list(FIND mxi_seen_sources "${source}" seen)
+    if(NOT seen EQUAL -1)
+      list(GET mxi_seen_owners ${seen} owner)
+      message(FATAL_ERROR "${source} is compiled into both ${owner} and "
+              "${program}, which are one binary: put it in a library both link")
+    endif()
+    list(APPEND mxi_seen_sources "${source}")
+    list(APPEND mxi_seen_owners ${program})
+  endforeach()
+endforeach()
+
 # The target mxi_program, its file mxi: the target mxi is the library's.
 add_executable(mxi_program apps/mxi.cc)
 set_target_properties(mxi_program PROPERTIES OUTPUT_NAME mxi)

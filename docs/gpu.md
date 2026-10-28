@@ -2,7 +2,7 @@
 
 STATUS: a plan for a device at each stage, with how an experiment is judged;
 then the measurements, in three parts -- integration, indexing and refinement.
-Done: profile fitting on Metal, `mxi_integrate --gpu`, the M4 Max's 16M
+Done: profile fitting on Metal, `mxi integrate --gpu`, the M4 Max's 16M
 integration 14.6 s against the CPU's 20.0. Tried and removed: reading frames
 around HDF5's lock. Paused: background and summation (item 47). The refinement
 target's port is designed here and not written; the spot finder's GPU threshold,
@@ -111,7 +111,7 @@ symmetry and scaling alongside, as they are cheaper and certain.
 
 ## The first experiment: profile fitting on the device
 
-`mxi_integrate -g` (or `--gpu`) fits profiles on the device in single
+`mxi integrate -g` (or `--gpu`) fits profiles on the device in single
 precision; the default stays the CPU's double. Verified on the CPU; the CUDA
 kernel has run on an RTX 4060; the Metal kernel is written and not yet
 compiled.
@@ -324,7 +324,7 @@ Reading is decompression on the CPU and would not move with it.
 On 1800 frames on a MacBook, 16 threads, one pass: 6.6 s, of which profile
 fitting is 2.4 (36.5 per cent), reading frames 1.1, writing 0.7, the profile
 model, background and summation, and opening shoeboxes about 0.45 each. Fitting,
-split by `mxi_integrate --timing` on the 300 image sweep: carrying the reference
+split by `mxi integrate --timing` on the 300 image sweep: carrying the reference
 profile onto the pixels 86 per cent of its thread-seconds, the least squares 14,
 interpolating the reference 1. And of the carrying, a throwaway probe put 90 per
 cent in `pixel_cells`: for each subdivision of each pixel -- 5 x 5 a pixel, some
@@ -367,11 +367,11 @@ pass and in two, which computes them afresh.
 ## Indexing
 
 The transform, the peak search and the refinement inside the macrocycles,
-measured phase by phase with `mxi_index --timing`.
+measured phase by phase with `mxi index --timing`.
 
 ### Where indexing's time actually goes
 
-Measured with `mxi_index --timing` on 78618 reflections of insulin, a 256^3
+Measured with `mxi index --timing` on 78618 reflections of insulin, a 256^3
 grid, one core:
 
     reciprocal points        0.008 s    0.1%
@@ -736,7 +736,7 @@ the corner of an Eiger2 panel, which is small and is a hundred times the
 tolerance the derivatives are held to. `Panel::mm_to_px_jacobian` computes it
 analytically, for the same reason as everything else here.
 
-**The default since 14 October** (`mxi_refine --numerical` for finite
+**The default since 14 October** (`mxi refine --numerical` for finite
 differences). On insulin it reaches the same model
 to five decimal places in detector distance and four in cell, six times faster;
 on four sweeps of l-cysteine with about two hundred parameters, 12 s against
@@ -795,7 +795,7 @@ rather than an answer.
 The static case measured above, under "It is the only thing worth moving", is
 not the command anyone actually runs. This is:
 
-    mxi_refine indexed.rflx --scan-varying 18
+    mxi refine indexed.rflx --scan-varying 18
 
 (the beam refined and the derivatives analytic, both the defaults now; when
 this was measured they were `--beam` and `--analytic`).
@@ -912,7 +912,7 @@ comparison downstream meaningless, so that is tested as well.
 
 ### Refinement on its own is dominated by file I/O
 
-`mxi_refine --timing`, on 78618 reflections whose table carries shoeboxes:
+`mxi refine --timing`, on 78618 reflections whose table carries shoeboxes:
 
     read                       0.293 s   28.7%
     build the target rows      0.032 s    3.1%
@@ -957,7 +957,7 @@ check worth making on a change to framing: values that survive a round trip
 would survive most ways of getting the framing wrong.
 
 Which is worth saying plainly: refinement's arithmetic is now a smaller part of
-`mxi_refine` than its file handling, and no amount of threading or device work
+`mxi refine` than its file handling, and no amount of threading or device work
 on the Jacobian will change that. The cheapest remaining second is in the
 reader.
 

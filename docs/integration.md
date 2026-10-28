@@ -1,18 +1,18 @@
 # Integration
 
-`mxi_integrate` integrates rotation data by summation and by profile fitting,
+`mxi integrate` integrates rotation data by summation and by profile fitting,
 and writes a reflection table that DIALS reads -- `dials.scale`,
 `dials.export` and `dials.image_viewer` take it as they take their own, as the
 DIALS pair: written by `-o integrated.refl --output-expt integrated.expt`, or
 from `integrated.rflx`, what it writes otherwise (`docs/rflx.md`), by
-`mxi_convert integrated.rflx`.
+`mxi convert integrated.rflx`.
 
 This is the reference: what it does, how to run it, what it writes, the
 conventions it follows, and what is still open. **Why** it is the way it is --
 the measurements behind each choice and the mistakes made on the way -- is in
 `docs/integration_history.md`, a notebook kept as the work happened.
 
-**Several sweeps.** Given an experiment list of several, `mxi_integrate`
+**Several sweeps.** Given an experiment list of several, `mxi integrate`
 integrates each sweep alone -- a whole run on a list of that one, its
 reflections chosen by `id` with their shoeboxes -- and joins the tables, each row
 its sweep's `id` and its image set's `imageset_id` in the joined list, as
@@ -51,8 +51,8 @@ Speed, on a 3600 image Eiger 16M sweep, 1.08 million reflections, 16 threads
 
 ## Running it
 
-    mxi_integrate refined.rflx                                    # integrated.rflx
-    mxi_integrate refined.expt refined.refl -o integrated.refl    # the DIALS pair
+    mxi integrate refined.rflx                                    # integrated.rflx
+    mxi integrate refined.expt refined.refl -o integrated.refl    # the DIALS pair
 
 `refined.expt` is a refined experiment, scan-static or scan-varying.
 `refined.refl` is optional: given, the profile model is estimated from its
@@ -64,11 +64,11 @@ are found from the `.expt`'s imageset template, or named with `--images`.
 Every run writes `integrated.rflx` -- or the pair, `integrated.refl` and
 `integrated.expt`, when `-o` names a `.refl` or `--output-expt` is given -- the
 reflections and the models integrated with, and the profile model used as DIALS' `gaussian_rs`
-block -- what `mxi_symmetry` and anything after it read. Integrating again from
+block -- what `mxi symmetry` and anything after it read. Integrating again from
 that `.expt` alone takes the profile model from its block, and reproduces the
 first integration byte for byte.
 
-`mxi_integrate --help` is the authority on options and defaults. By purpose:
+`mxi integrate --help` is the authority on options and defaults. By purpose:
 
 | purpose | options |
 | --- | --- |
@@ -98,7 +98,7 @@ Choosing a few of them:
   centre of mass: an undetected one's observed position is its prediction, and
   a residual of exactly zero pulls the refinement back to where it began.
   `--postrefine-points` sets the scan-varying control points; the default is
-  one per 10 degrees, at least five, as `mxi_refine --scan-varying` with no
+  one per 10 degrees, at least five, as `mxi refine --scan-varying` with no
   number (36 degrees and two more before 30 September 2026). It removes the
   z offset described under open questions, at the cost of integrating twice.
 * **`--save-shoeboxes`** keeps pixels and masks, about 31 kB a reflection. A
@@ -111,8 +111,8 @@ Choosing a few of them:
    strong spots, else the `.expt`, in that order. From the strong spots, each
    pixel's count less the background its shoebox records, as Kabsch section 3.1
    step (v) says and DIALS does not: on a table from `dials.find_spots`, or
-   `mxi_find` by default, that background is zero and nothing changes; under
-   `mxi_find --subtract-background` it is the threshold's local mean, and the
+   `mxi find` by default, that background is zero and nothing changes; under
+   `mxi find --subtract-background` it is the threshold's local mean, and the
    widths are the spots', not the spots' and their background's. On the 300
    image insulin sweep it took sigma_b from 0.0273 to 0.0270 degrees and left
    sigma_m at 0.1286 -- so background in the spots is not why sigma_m is wider

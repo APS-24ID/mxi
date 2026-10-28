@@ -1,4 +1,4 @@
-# mxi_import
+# mxi import
 
 STATUS: first version, 2 October 2026; several masters, 5 October. Right on
 masters from two writers -- DECTRIS's for insulin (the 4M cut of ins10_1),
@@ -6,9 +6,9 @@ redhorn-archive's for thaumatin (thau_1_3) -- its goniometer, axes, sensor, mu,
 trusted range and scan identical to dials.import's on insulin. To be made right on the population of
 data sets one at a time, `mxeq compare-expt` saying what differs.
 
-`mxi_import master.nxs` writes `imported.rflx` (`docs/rflx.md`) -- or, with
+`mxi import master.nxs` writes `imported.rflx` (`docs/rflx.md`) -- or, with
 `-o imported.expt`, the `.expt` that `dials.import master.nxs` writes -- so that
-nothing of DIALS is needed for the chain. `mxi_import a.nxs
+nothing of DIALS is needed for the chain. `mxi import a.nxs
 b.nxs` writes one experiment a master, as dials.import writes several sweeps:
 each with a beam, detector, goniometer, scan and image set of its own, the
 experiments' indices numbered past those before, each its own identifier. The
@@ -106,7 +106,7 @@ are what is read, so a single panel is the frames' size as the data have it:
 those not to be opened, the detector's `pixel_mask`, a frame's shape. Where
 the file disagrees, a note says what it said and whether its two were simply
 swapped. A detector of several modules is left as the file has it, the
-modules being the frame between them. `mxi_find`, given a list imported
+modules being the frame between them. `mxi find`, given a list imported
 before, says so when a panel is the frames turned round, and to import again.
 
 ## The older DECTRIS file writer's masters
@@ -116,7 +116,7 @@ example a 2023 Eiger 16M on firmware 1.6.6: no NXdetector_module, no depends_on
 chains, no /entry/data/data, the geometry in its own fields and the frames in
 /entry/data/data_000001 and on, each an external link to a data file. dials.import
 reads them through dxtbx's FormatHDF5EigerNearlyNexus, whose EigerNXmxFixer
-builds the missing structure; mxi_import recognises the same masters -- an entry
+builds the missing structure; mxi import recognises the same masters -- an entry
 with no definition, a detector described as a DECTRIS Eiger, geometry/orientation
 and geometry/translation present -- and makes the models by the fixer's rules,
 so that the two agree:
@@ -151,14 +151,14 @@ used is said.
 ## Against dials.import
 
     dials.import master.nxs output.experiments=dials.expt
-    mxi_import master.nxs
+    mxi import master.nxs
     mxeq compare-expt imported.rflx dials.expt     # mxeq reads either kind
 
 prints each model's parts, "same" or the difference: origins in mm, axes in
 degrees, numbers relatively. On insulin, against dials.import of the full 16M
 master, the differences were the origin and image size -- a different file --
 and the exposure time, 0.0026 s here where dials.import wrote 0, since settled:
-mxi_import now takes frame_time, as dials.import does, and insulin's master has
+mxi import now takes frame_time, as dials.import does, and insulin's master has
 none.
 
 Two things learned from Diamond's Eiger masters. Their offsets come without
@@ -166,7 +166,7 @@ Two things learned from Diamond's Eiger masters. Their offsets come without
 thousandth of the way out; now read in the transformation's units, as nxmx
 reads them. And their count limit and bit depth are links into the `_meta.h5`
 beside the master: without that file the links cannot be followed, and
-mxi_import had taken them for absent and fallen back to 65534 -- itself the
+mxi import had taken them for absent and fallen back to 65534 -- itself the
 bad-pixel marker, and a 16-bit limit wrongly applied to 32-bit data. Now it
 says where a link leads, takes the lower of the two limits when they can be
 read, and 2147483647 when neither can, as dxtbx does.

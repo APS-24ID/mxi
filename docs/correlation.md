@@ -1,9 +1,9 @@
-# Clustering data sets by their intensities: mxi_correlation
+# Clustering data sets by their intensities: mxi correlation
 
 STATUS: built, 15 October 2026 -- the correlation matrix, the cosym
 coordinates, OPTICS, each cluster as its own .rflx, and the report.
 
-`mxi_correlation` is to do what dials.correlation_matrix does (Thompson et al.
+`mxi correlation` is to do what dials.correlation_matrix does (Thompson et al.
 2025, Acta Cryst. D81, 278-290): from a scaled file whose lattices are each a
 data set -- many crystals, as in Graeme's COWS_PIGS_PEOPLE tutorial -- find
 the groups of data sets that belong together, by their intensities, where
@@ -98,7 +98,7 @@ same, every distance to 1e-12, the silhouette too
 groups of eight through all three stages: three clusters, each a group, no
 outliers. Insulin's four sweeps of one crystal: one cluster.
 
-`mxi_correlation` prints the clusters, each with its data sets by experiment,
+`mxi correlation` prints the clusters, each with its data sets by experiment,
 and the outliers; `--xi`, `--max-distance`, `--min-samples` (no search);
 `--json` adds the labels, the reachability plot in order, and the search's
 scores.
@@ -107,7 +107,7 @@ scores.
 
 Graeme's 100 K bovine, porcine and human insulin, 36 crystals, 12 of each
 (the paper's section 3.2.1), all from dials.symmetry; then either dials.scale
-or mxi_convert and mxi_scale. On mxi's scaling, mxi_correlation: 3
+or mxi convert and mxi_scale. On mxi's scaling, mxi correlation: 3
 dimensions, min_samples 6, the three species exactly, silhouette 0.837. On
 DIALS's scaling, dials.correlation_matrix: 3 dimensions, min_samples 6, the
 same three clusters, silhouette 0.833 -- every min_samples from 6 to 12 giving
@@ -134,7 +134,7 @@ compare data set by data set.
 
 **Normalised since 20 October.** Each data set's merged intensities are now
 divided by a Wilson model fitted to it by maximum likelihood before their
-correlations -- the normalisation mxi_symmetry uses (laue.hh: dials.symmetry's
+correlations -- the normalisation mxi symmetry uses (laue.hh: dials.symmetry's
 ml_aniso, a light atom's scattering left in), not mmtbx's isotropic fit above;
 `--no-normalise` for none. Found on the twelve cows from mxi's own pipeline:
 unnormalised, the data set with the most extreme fall-off correlated worst
@@ -159,13 +159,13 @@ mxi's own files keep their sweeps), and their reflections, the ids renumbered
 and the identifier map to match (keep_experiments, which dials_form now
 uses), the input's processing summary carried. On Graeme's 36 crystals: three
 files of 12, about 420000 rows each; the second scaled on its own by
-mxi_scale, completeness 90.1 per cent and multiplicity 9.8, as
+mxi scale, completeness 90.1 per cent and multiplicity 9.8, as
 dials.correlation_matrix reports that cluster (90.1, 9.74); R merge 0.146
 against 0.225 with the three species together.
 
-**The report (built).** mxi_correlation writes its own HTML, as
+**The report (built).** mxi correlation writes its own HTML, as
 dials.correlation_matrix does -- mxi_correlation.html, `--html` to name it;
-Plotly, as mxi_report: the clusters' table; the correlation matrix and the
+Plotly, as mxi report: the clusters' table; the correlation matrix and the
 cosine-angle matrix between the coordinates, each a heat map in its Ward
 dendrogram's order with the dendrogram above (distances 1 - value, as DIALS);
 the reachability plot in OPTICS's order, by cluster; the coordinates' first

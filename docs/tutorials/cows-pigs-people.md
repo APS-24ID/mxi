@@ -37,20 +37,20 @@ cd ..
 
 | step | mxi | DIALS |
 | --- | --- | --- |
-| read the data | `mxi_import` | `dials.import` |
-| find spots | `mxi_find` | `dials.find_spots` |
-| index | `mxi_index --no-joint` | `dials.index joint=false` |
-| refine | `mxi_refine` | `dials.refine` |
-| integrate | `mxi_integrate` | `dials.integrate` |
-| symmetry, and the crystals into one setting | `mxi_symmetry` | `dials.cosym` |
-| scale | `mxi_scale` | `dials.scale` |
-| which data sets belong together | `mxi_correlation` | `dials.correlation_matrix` |
-| export | `mxi_export` | `dials.export` |
+| read the data | `mxi import` | `dials.import` |
+| find spots | `mxi find` | `dials.find_spots` |
+| index | `mxi index --no-joint` | `dials.index joint=false` |
+| refine | `mxi refine` | `dials.refine` |
+| integrate | `mxi integrate` | `dials.integrate` |
+| symmetry, and the crystals into one setting | `mxi symmetry` | `dials.cosym` |
+| scale | `mxi scale` | `dials.scale` |
+| which data sets belong together | `mxi correlation` | `dials.correlation_matrix` |
+| export | `mxi export` | `dials.export` |
 
 Two things differ from one crystal. The crystals share no orientation, so
 each is indexed on its own (`--no-joint`). And the lattice's symmetry (cubic,
 I) is higher than the data's (I2₁3, Laue group m-3), so each crystal can be
-indexed in either of two settings that the data tell apart: `mxi_symmetry`
+indexed in either of two settings that the data tell apart: `mxi symmetry`
 brings them to one, with cosym, whenever it is given several crystals --
 there is no separate program for it.
 
@@ -63,7 +63,7 @@ First the twelve bovine data sets alone, in a directory of their own:
 
 ```sh
 mkdir cows && cd cows
-mxi_import ../data/CIX*.nxs
+mxi import ../data/CIX*.nxs
 ```
 
 Each sweep, as mxi reads it:
@@ -80,13 +80,13 @@ Twelve sweeps of 100 images, 10 degrees each: small data sets, as from many
 crystals.
 
 Check this before anything else: as with DIALS, many problems are solved
-here. `mxi_show imported.rflx` shows mxi's understanding of every sweep --
+here. `mxi show imported.rflx` shows mxi's understanding of every sweep --
 its images, its rotation, the detector and the beam.
 
 ### Spot finding
 
 ```sh
-mxi_find imported.rflx
+mxi find imported.rflx
 ```
 
 ```
@@ -103,14 +103,14 @@ Wrote 83544 reflections to strong.rflx (11.6 MB, most of it shoeboxes)
 The second, CIX10, is the weakest of the twelve -- a third of the first's
 signal pixels -- which matters later.
 
-`mxi_find --gpu` finds them on a GPU, where the build has one: the same
+`mxi find --gpu` finds them on a GPU, where the build has one: the same
 spots.
 
 ### Indexing and refinement
 
 ```sh
-mxi_index strong.rflx --no-joint
-mxi_show indexed.rflx | grep experiment
+mxi index strong.rflx --no-joint
+mxi show indexed.rflx | grep experiment
 ```
 
 ```
@@ -130,13 +130,13 @@ crystal's basis, as `unit_cell=` does for dials.index -- given conventional,
 with its lattice:
 
 ```sh
-mxi_index strong.rflx --no-joint --known-cell 78,78,78,90,90,90 --known-space-group I213
+mxi index strong.rflx --no-joint --known-cell 78,78,78,90,90,90 --known-space-group I213
 ```
 
 It is not needed here. Then refinement:
 
 ```sh
-mxi_refine indexed.rflx
+mxi refine indexed.rflx
 ```
 
 ```
@@ -156,7 +156,7 @@ different crystals, mounted apart.
 ### Integration
 
 ```sh
-mxi_integrate refined.rflx
+mxi integrate refined.rflx
 ```
 
 ```
@@ -170,12 +170,12 @@ Wrote 375723 reflections of 24 experiments, and the models, to integrated.rflx
 
 Each sweep its own profile model: the crystals' reflecting ranges differ.
 
-`mxi_integrate --gpu` fits the profiles on a GPU.
+`mxi integrate --gpu` fits the profiles on a GPU.
 
 ### Symmetry and scaling
 
 ```sh
-mxi_symmetry integrated.rflx
+mxi symmetry integrated.rflx
 ```
 
 ```
@@ -194,7 +194,7 @@ Then scaling, the resolution limit estimated from CC½ and the data scaled
 again to it:
 
 ```sh
-mxi_scale symmetrized.rflx --d-min-auto
+mxi scale symmetrized.rflx --d-min-auto
 ```
 
 ```
@@ -212,11 +212,11 @@ CC half                                         0.996   0.994   0.244
 ### Do they belong together?
 
 So far we have assumed the twelve are isomorphous -- that they merge well --
-without testing it. `mxi_correlation` measures how alike every pair of data
+without testing it. `mxi correlation` measures how alike every pair of data
 sets is and clusters them:
 
 ```sh
-mxi_correlation scaled.rflx --html correlation.html
+mxi correlation scaled.rflx --html correlation.html
 ```
 
 ```
@@ -244,13 +244,13 @@ merge, close enough to merge by accident. First, ignorantly, as one:
 
 ```sh
 cd .. && mkdir all && cd all
-mxi_import ../data/CIX*.nxs ../data/PIX*.nxs ../data/X*.nxs
-mxi_find imported.rflx
-mxi_index strong.rflx --no-joint
-mxi_refine indexed.rflx
-mxi_integrate refined.rflx
-mxi_symmetry integrated.rflx
-mxi_scale symmetrized.rflx --d-min-auto
+mxi import ../data/CIX*.nxs ../data/PIX*.nxs ../data/X*.nxs
+mxi find imported.rflx
+mxi index strong.rflx --no-joint
+mxi refine indexed.rflx
+mxi integrate refined.rflx
+mxi symmetry integrated.rflx
+mxi scale symmetrized.rflx --d-min-auto
 ```
 
 ```
@@ -272,7 +272,7 @@ The cells alone do not separate the three -- they are too alike -- but the
 intensities do:
 
 ```sh
-mxi_correlation scaled.rflx --html correlation.html --write-clusters
+mxi correlation scaled.rflx --html correlation.html --write-clusters
 ```
 
 ```
@@ -293,9 +293,9 @@ cows, the pigs and the people -- with no outliers.
 
 ```sh
 mkdir 0 1 2
-cd 0 && mxi_scale ../cluster_0.rflx --d-min-auto && cd ..
-cd 1 && mxi_scale ../cluster_1.rflx --d-min-auto && cd ..
-cd 2 && mxi_scale ../cluster_2.rflx --d-min-auto && cd ..
+cd 0 && mxi scale ../cluster_0.rflx --d-min-auto && cd ..
+cd 1 && mxi scale ../cluster_1.rflx --d-min-auto && cd ..
+cd 2 && mxi scale ../cluster_2.rflx --d-min-auto && cd ..
 ```
 
 | cluster | d_min (A) | I/sigma, inner | R_merge, inner | CC half |
@@ -311,14 +311,14 @@ cluster is exactly the cows processed alone.
 ## Export
 
 ```sh
-mxi_export scaled.rflx
+mxi export scaled.rflx
 ```
 
 writes `scaled.mtz`, unmerged, for CCP4 or PHENIX.
 
 ## Working alongside DIALS
 
-Any step can be DIALS's. `mxi_convert scaled.rflx` writes the DIALS pair, so
+Any step can be DIALS's. `mxi convert scaled.rflx` writes the DIALS pair, so
 `dials.image_viewer`, `dials.reciprocal_lattice_viewer` and `dials.report`
 show mxi's results.
 

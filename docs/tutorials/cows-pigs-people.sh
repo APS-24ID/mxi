@@ -8,7 +8,7 @@
 # https://zenodo.org/records/23423865; WHERE (cows-pigs-people) is made, with
 # cows/ and all/ in it, and output/ holding each step's printout as
 # <part>-<step>.txt. Stops at the first step that fails. The mxi programs on
-# PATH are the ones run; mxi_find --version is printed first, to say which.
+# PATH are the ones run; mxi find --version is printed first, to say which.
 
 set -eu
 
@@ -28,37 +28,37 @@ step() { # part, name, command...
   }
 }
 
-mxi_find --version | tee "$OUT/version.txt"
+mxi find --version | tee "$OUT/version.txt"
 
 # The cows alone.
 mkdir -p "$WHERE/cows" && cd "$WHERE/cows"
-step cows import mxi_import "$DATA"/CIX*.nxs
-step cows find mxi_find imported.rflx
-step cows index mxi_index strong.rflx --no-joint
-mxi_show indexed.rflx | grep experiment > "$OUT/cows-cells.txt"
-step cows refine mxi_refine indexed.rflx
-step cows integrate mxi_integrate refined.rflx
-step cows symmetry mxi_symmetry integrated.rflx
-step cows scale mxi_scale symmetrized.rflx --d-min-auto
-step cows correlation mxi_correlation scaled.rflx --html correlation.html
+step cows import mxi import "$DATA"/CIX*.nxs
+step cows find mxi find imported.rflx
+step cows index mxi index strong.rflx --no-joint
+mxi show indexed.rflx | grep experiment > "$OUT/cows-cells.txt"
+step cows refine mxi refine indexed.rflx
+step cows integrate mxi integrate refined.rflx
+step cows symmetry mxi symmetry integrated.rflx
+step cows scale mxi scale symmetrized.rflx --d-min-auto
+step cows correlation mxi correlation scaled.rflx --html correlation.html
 
 # All thirty-six.
 mkdir -p "$WHERE/all" && cd "$WHERE/all"
-step all import mxi_import "$DATA"/CIX*.nxs "$DATA"/PIX*.nxs "$DATA"/X*.nxs
-step all find mxi_find imported.rflx
-step all index mxi_index strong.rflx --no-joint
-step all refine mxi_refine indexed.rflx
-step all integrate mxi_integrate refined.rflx
-step all symmetry mxi_symmetry integrated.rflx
-step all scale mxi_scale symmetrized.rflx --d-min-auto
-step all correlation mxi_correlation scaled.rflx --html correlation.html \
+step all import mxi import "$DATA"/CIX*.nxs "$DATA"/PIX*.nxs "$DATA"/X*.nxs
+step all find mxi find imported.rflx
+step all index mxi index strong.rflx --no-joint
+step all refine mxi refine indexed.rflx
+step all integrate mxi integrate refined.rflx
+step all symmetry mxi symmetry integrated.rflx
+step all scale mxi scale symmetrized.rflx --d-min-auto
+step all correlation mxi correlation scaled.rflx --html correlation.html \
   --write-clusters
 for c in 0 1 2; do
   [ -f "cluster_$c.rflx" ] || continue
   mkdir -p "$c" && cd "$c"
-  step all "cluster$c-scale" mxi_scale "../cluster_$c.rflx" --d-min-auto
+  step all "cluster$c-scale" mxi scale "../cluster_$c.rflx" --d-min-auto
   cd ..
 done
-step all export mxi_export scaled.rflx
+step all export mxi export scaled.rflx
 
 echo "done: $OUT"

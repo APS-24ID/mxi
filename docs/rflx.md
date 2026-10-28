@@ -1,7 +1,7 @@
 # rflx: one HDF5 file a step
 
 STATUS: agreed and built, October 2026: HDF5 required; the library,
-src/rflx.cc -- the tree, the tables and the file; mxi_convert; mxeq reading
+src/rflx.cc -- the tree, the tables and the file; mxi convert; mxeq reading
 .rflx; every program reading it, and writing it unless told the pair. On the
 insulin sweep the chain from images to MTZ on .rflx alone writes, step by step,
 exactly what the pair chain writes, and the same MTZ but for the time it was
@@ -12,7 +12,7 @@ mxi's primary file format becomes `.rflx`: one HDF5 file holding the experiment
 list, the reflection table, or both, in the layout specified by dxtbx-h5
 (github.com/graeme-winter/dxtbx-h5, docs/HANDOVER.md, Part 1). Each program
 writes one `.rflx` holding everything that step knows, so the next step reads one
-file, not a pair that may not belong together. One converter, mxi_convert, moves
+file, not a pair that may not belong together. One converter, mxi convert, moves
 between `.rflx` and the DIALS pair, `.expt` and `.refl`; and every program still
 reads the DIALS pair directly, as it does now.
 
@@ -68,7 +68,7 @@ checklist (its section 8) as reader and writer. The points mxi depends on:
 * Numbers bitshuffle-LZ4 (below, "Compression"), since 13 October; before,
   none in the programs' files -- gzip on one thread had made Graeme's
   benchmark, the 16M sweep from images to scaled data, half again as long, 36
-  s to 54 -- and gzip with shuffle in mxi_convert's.
+  s to 54 -- and gzip with shuffle in mxi convert's.
 * Nothing under `/dials`, and no `/images` links.
 
 ### What mxi reads
@@ -89,7 +89,7 @@ counts, shoebox pixels 4.2 and the spot finder's zero backgrounds 150; floating
 point that is measured, positions and variances, 1.1 to 1.2. The spot finder's
 file 14.2 MB to 2.4, indexing's 16.5 to 4.1, integration's 9.0 to 6.7. A
 reader needs the filter: h5py with hdf5plugin (mxeq imports it), DIALS's HDF5.
-`mxi_convert --no-compress` writes no filter at all, for one without.
+`mxi convert --no-compress` writes no filter at all, for one without.
 
 ## The processing's summary
 
@@ -102,8 +102,8 @@ has no place for it.
 
 **Input.** One `.rflx`, or the DIALS pair as now:
 
-    mxi_index imported.rflx                    # one file
-    mxi_index imported.expt strong.refl        # the pair, as now
+    mxi index imported.rflx                    # one file
+    mxi index imported.expt strong.refl        # the pair, as now
 
 A program needing reflections refuses a `.rflx` without them, by name.
 
@@ -111,39 +111,39 @@ A program needing reflections refuses a `.rflx` without them, by name.
 `indexed.rflx`, `refined.rflx`, `integrated.rflx`, `symmetrized.rflx`,
 `scaled.rflx` -- holding the models and the step's reflections. `-o PATH` names
 it; its extension decides its meaning: `.rflx` one file, `.refl` the meaning `-o`
-has now in mxi_find, mxi_integrate and mxi_scale, so that scripts keep working.
+has now in mxi find, mxi integrate and mxi scale, so that scripts keep working.
 `--output-expt` and `--output-refl`, where a program has them, still write the
 DIALS pair when given, any half not named under its old default name. So a
 script naming its outputs writes what it always wrote: Graeme's chain scripts
-need no change. mxi_import's `-o` naming an `.expt` writes JSON, as before.
+need no change. mxi import's `-o` naming an `.expt` writes JSON, as before.
 
 Every program writes its `.rflx` directly, with no file written only to be
 read again -- as the first versions of these two did, at a cost Graeme had
-noticed. mxi_find encodes its table with the spot finder's own writer into
+noticed. mxi find encodes its table with the spot finder's own writer into
 memory, reads it back as a file's would be, and writes it into the `.rflx` with
 the experiment list it was given -- none, given only a master, and then the
-`.rflx` holds the spots alone. mxi_integrate's final write, of one sweep, of
+`.rflx` holds the spots alone. mxi integrate's final write, of one sweep, of
 several joined, or of the second run after post-refinement, goes to the
 `.rflx`; only its intermediate files -- each sweep's run, the first run and the
 post-refined models before the second -- are pairs, beside the result, removed.
 
 So the chain becomes
 
-    mxi_import    master.nxs         # imported.rflx
-    mxi_find      imported.rflx      # strong.rflx: the models and the spots
-    mxi_index     strong.rflx        # indexed.rflx
-    mxi_refine    indexed.rflx       # refined.rflx
-    mxi_integrate refined.rflx       # integrated.rflx
-    mxi_symmetry  integrated.rflx    # symmetrized.rflx
-    mxi_scale     symmetrized.rflx   # scaled.rflx
-    mxi_export    scaled.rflx        # scaled.mtz
+    mxi import    master.nxs         # imported.rflx
+    mxi find      imported.rflx      # strong.rflx: the models and the spots
+    mxi index     strong.rflx        # indexed.rflx
+    mxi refine    indexed.rflx       # refined.rflx
+    mxi integrate refined.rflx       # integrated.rflx
+    mxi symmetry  integrated.rflx    # symmetrized.rflx
+    mxi scale     symmetrized.rflx   # scaled.rflx
+    mxi export    scaled.rflx        # scaled.mtz
 
 **The converter**, its direction from what it is given:
 
-    mxi_convert indexed.expt indexed.refl              # indexed.rflx
-    mxi_convert indexed.rflx                           # indexed.expt, indexed.refl
-    mxi_convert indexed.rflx -o other.rflx             # a .rflx rewritten
-    mxi_convert indexed.expt                           # experiments alone
+    mxi convert indexed.expt indexed.refl              # indexed.rflx
+    mxi convert indexed.rflx                           # indexed.expt, indexed.refl
+    mxi convert indexed.rflx -o other.rflx             # a .rflx rewritten
+    mxi convert indexed.expt                           # experiments alone
 
 Written as the pair, the experiment list is as the .rflx has it, each
 sweep's crystal-less experiment with it (`docs/multi-lattice.md`, stage 2):
@@ -171,7 +171,7 @@ Three pieces of library, each tested on its own before any program uses it:
    attributes; HDF5's own lock around every call, as the frame reader takes it;
    across HDF5 1.10 to 2.0, whose API differs in places this will touch.
 
-Then mxi_convert; then each program's input, then its output; then mxeq.
+Then mxi convert; then each program's input, then its output; then mxeq.
 
 ## How it will be judged
 
@@ -192,13 +192,13 @@ Then mxi_convert; then each program's input, then its output; then mxeq.
 ## Open questions
 
 1. **Compression**: settled, October 2026 -- none in the programs' files,
-   gzip in mxi_convert's (above). Parallel gzip, compressing chunks on every
+   gzip in mxi convert's (above). Parallel gzip, compressing chunks on every
    core and writing them direct, could make a compressed default cheap, if disk
    ever matters more.
 2. **Masks, gain and pedestal**, which dxtbx stores as absolute paths: kept as
    paths, as dxtbx-h5 keeps them for now, so a `.rflx` moved away from its masks
    loses them, as an `.expt` does.
-3. **DIALS's own HDF5 `.refl`** (dials/dials#3255): through mxi_convert, later,
+3. **DIALS's own HDF5 `.refl`** (dials/dials#3255): through mxi convert, later,
    when it is settled.
 4. **`.rflx` from DIALS directly**, by dxtbx-h5's `dxh5 combine`, which writes
    this layout already: nothing more needed from mxi.
@@ -206,7 +206,7 @@ Then mxi_convert; then each program's input, then its output; then mxeq.
 ## To DIALS: the sweeps' crystal-less experiments left out
 
 mxi carries each sweep as an experiment without a crystal beside its lattices
-(docs/multi-lattice.md). `mxi_convert` to the DIALS pair leaves those out by
+(docs/multi-lattice.md). `mxi convert` to the DIALS pair leaves those out by
 default, once any experiment has a crystal -- their spots' id -1, as
 dials.index leaves unindexed spots -- so that the files go straight into DIALS
 (Graeme); `--keep-sweeps` keeps them; and before indexing, with no crystal

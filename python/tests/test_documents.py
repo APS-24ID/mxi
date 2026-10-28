@@ -128,3 +128,36 @@ def test_every_mxeq_subcommand_named_exists():
         text = (ROOT / document).read_text()
         for m in re.finditer(r"`mxeq ([a-z][a-z-]*)", text):
             assert m.group(1) in commands, (document, m.group(1), sorted(commands))
+
+
+# The commands mxi has (apps/mxi.cc's table): mxi find, mxi view ...
+def _commands():
+    text = (ROOT / "apps/mxi.cc").read_text()
+    return set(re.findall(r'^\s*\{"([a-z]+)", ', text, re.M))
+
+
+# The histories, which name programs as they were: mxi_find before 1.1.
+HISTORIES = {"docs/integration_history.md", "CLAUDE.md", "RELEASE_NOTES.md"}
+
+# An old program name, mxi_find, not a file's (mxi_find.log, mxi_view.py,
+# apps/mxi_find.cc) nor a step's as files record it ("mxi_find").
+OLD_NAME = re.compile(r'(?<![/"\w])mxi_([a-z]+)\b(?![.\w"])')
+
+
+@pytest.mark.parametrize("document", DOCUMENTS)
+def test_programs_are_named_as_mxi_commands(document):
+    """Since 1.1 every program is a command of one, mxi find: the old names
+    belong to the histories alone, and every mxi command named is one of mxi's
+    (Graeme, 28 October)."""
+    text = (ROOT / document).read_text()
+    commands = _commands()
+    assert "find" in commands and "view" in commands
+    named = set(re.findall(r"`(?:\./build/)?mxi ([a-z]+)\b", text))
+    unknown = named - commands - {"help"}
+    assert not unknown, f"{document} names commands mxi does not have: {unknown}"
+    if document in HISTORIES:
+        return
+    if document == "RELEASE_NOTES.md":
+        return
+    stale = sorted({m for m in OLD_NAME.findall(text) if m in commands})
+    assert not stale, f"{document} still names programs the old way: mxi_{stale}"

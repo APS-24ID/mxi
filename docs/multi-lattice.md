@@ -10,15 +10,15 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   integration first uses it.
 * Stage 2, sweeps carried through (dials/dials#1029), the default (Graeme:
   even in DIALS's format, since dials.split_experiments can take the
-  crystal-less experiment off to be indexed); mxi_index --no-keep-sweeps and
-  mxi_convert for the lattices alone (by default, once there are any;
+  crystal-less experiment off to be indexed); mxi index --no-keep-sweeps and
+  mxi convert for the lattices alone (by default, once there are any;
   --keep-sweeps keeps the sweeps). The two views in one
   place (src/views.cc) -- the lattices taken out of a list for a program and
   put back, each crystal-less experiment given the models its sweep's
-  lattices refined; mxi_index writing each sweep given first, crystal-less,
-  its unindexed spots its own, the lattices after it; mxi_refine,
-  mxi_integrate, mxi_symmetry, mxi_scale and mxi_export reading through the
-  views; mxi_convert, the crystal-less left out by default and their
+  lattices refined; mxi index writing each sweep given first, crystal-less,
+  its unindexed spots its own, the lattices after it; mxi refine,
+  mxi integrate, mxi symmetry, mxi scale and mxi export reading through the
+  views; mxi convert, the crystal-less left out by default and their
   spots -1. On Graeme's two crystals, indexed with and without the
   sweep from the same spots and carried through every program: the same
   refined models, the same integrated and scaled tables but for id, I 2 3
@@ -29,7 +29,7 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   table as without, the lattices' ids two on.
 
   A lattice missed, recovered (Graeme: an unindexed lattice found at the end
-  with the refined geometry of another): mxi_index given a list with lattices
+  with the refined geometry of another): mxi index given a list with lattices
   already, and --max-lattices more than it has, keeps them and their
   identifiers, sets aside the spots they index, looks for more among the rest
   with the geometry they refined, and assigns and refines all together; the
@@ -38,7 +38,7 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   the second found, 5916 of the 6001 left; after assignment 13616 and 7580,
   99.5 per cent, RMSD 0.256 and 0.263 px and 0.226 images -- as both found
   together at the start, 13617 and 7579.
-* Stage 3, before stage 2: mxi_index --max-lattices N (index_lattices in the
+* Stage 3, before stage 2: mxi index --max-lattices N (index_lattices in the
   library). The search as dials.index's; then, every lattice known, each spot
   assigned again globally -- to the lattice whose integer indices it lies
   nearest, within the tolerance -- and all refined together with one detector,
@@ -51,7 +51,7 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   refinement pulls neither model; closest keeps each with the nearer. On
   Graeme's ins2_27: 13617 and 7579 spots, 99.5 per cent, 17 ambiguous; one
   detector, 0.257 and 0.263 px and 0.226 images; scatter 0.00029 and 0.00034
-  1/A. mxi_refine takes the file as it is. Unindexed spots kept mxi's
+  1/A. mxi refine takes the file as it is. Unindexed spots kept mxi's
   convention, Miller index 0 0 0 and `id` 0, until stage 2 gave them their
   sweep's own experiment (below). Several sweeps with several lattices in one
   indexing: refused still.
@@ -59,7 +59,7 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   default, finds the overlaps between reflections and masks nothing with them
   (src/dials/algorithms/integration/integrator.py, read for this); only
   3d_threaded marks a neighbour's foreground in a shoebox Overlapped. So one
-  lattice is integrated alone as beside the other, and mxi_integrate's
+  lattice is integrated alone as beside the other, and mxi integrate's
   experiment-at-a-time path is already that: each lattice its own profile
   model, from its own spots -- sigma_b 0.0214 and 0.0193, sigma_m 0.0557 and
   0.0437, where DIALS has 0.0227 and 0.0206, 0.0473 and 0.0454 -- 42137 and
@@ -115,7 +115,7 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   sums in another order; 16.6 s where a run each took 20.1, on two threads.
   Lattice 1's profiles learned from 4336 reflections, lattice 2's from 1246,
   22 of its 54 regions borrowing.
-* Stage 6, symmetry: cosym (src/cosym.cc), in mxi_symmetry before the
+* Stage 6, symmetry: cosym (src/cosym.cc), in mxi symmetry before the
   pooling, for experiments whose crystals are not one model. Each experiment's
   intensities merged in P1, normalised, Friedel mates averaged; each pair's
   correlation under each of the lattice's rotations, so the matrix r_ik,jl as
@@ -156,8 +156,8 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   in I 2 3, 80420 reflections, 1200 batches, the second crystal's from 701 --
   1001 since, Graeme's blocks (below) -- one
   data set (one wavelength, as dials.export). So the whole chain runs on two
-  crystals in one beam: mxi_index --max-lattices 2, mxi_refine, mxi_integrate,
-  mxi_symmetry, mxi_scale, mxi_export.
+  crystals in one beam: mxi index --max-lattices 2, mxi refine, mxi integrate,
+  mxi symmetry, mxi scale, mxi_export.
 
   Against dials.scale, run by Graeme on dials.cosym's output from mxi's own
   integration, the same observations, matched by predicted position (0.01 to
@@ -251,13 +251,13 @@ program that predicts takes the lattices; every program that reads images
 takes the sweeps -- two views of the one list, made in one place, so that no
 program asks of an experiment whether it has a crystal.
 
-For DIALS, mxi_convert writes what DIALS expects: the crystal-less experiments
+For DIALS, mxi convert writes what DIALS expects: the crystal-less experiments
 dropped, the ids renumbered, unindexed spots -1 again -- that conversion, too,
 in one place.
 
 ## The programs
 
-**Indexing** (mxi_index `--max-lattices N`, default 1). As dials.index:
+**Indexing** (mxi index `--max-lattices N`, default 1). As dials.index:
 index; refine; take the spots the lattice indexes out; index what remains;
 until N lattices or too few spots are left. A lattice that is the same as one
 found -- the same cell and orientation to within the tolerance, or related to
@@ -266,7 +266,7 @@ two lattices both predict within the tolerance goes to the nearer prediction,
 and is flagged; a minimum number of spots makes a lattice. Each found lattice
 refined with those before it, between cycles, as dials.index does.
 
-**Refinement** (mxi_refine). One parameter block for each distinct model, not
+**Refinement** (mxi refine). One parameter block for each distinct model, not
 each experiment: the lattices of a sweep share one detector, one beam, one
 goniometer and so one set of their parameters; each lattice its own crystal,
 static or scan-varying, with the sweep's control points. Now each experiment
@@ -274,7 +274,7 @@ gets its own six detector and two beam parameters -- fine for separate sweeps,
 wrong for lattices on the same images, which would refine as many detectors as
 lattices. Outliers judged within each lattice, as now within each sweep.
 
-**Integration** (mxi_integrate). The lattices of a sweep integrated together,
+**Integration** (mxi integrate). The lattices of a sweep integrated together,
 in one pass over its images -- not each in a run of its own, as several sweeps
 are now, which would read every image once a lattice and leave each lattice
 blind to the others' spots. Every lattice predicts; where one reflection's
@@ -285,7 +285,7 @@ own profile model, sigma_b and sigma_m, from its own strong spots, and learns
 its own reference profiles: a split crystal's two halves need not be equally
 mosaic.
 
-**Symmetry** (mxi_symmetry). Lattices of different crystals -- the first case,
+**Symmetry** (mxi symmetry). Lattices of different crystals -- the first case,
 two crystals in the beam -- are separate data sets, each indexed in a basis of
 its own choosing among those its lattice's symmetry allows: before they can be
 scaled together they must be brought to one setting, and their Patterson group
@@ -312,9 +312,9 @@ With two data sets the matrix is small and the answer could be had by trying
 the ambiguity's operators directly; built as the paper describes, it serves
 any number of crystals, and a multi-crystal data set is the next case after
 two lattices. The Patterson group so found is then tested, and the space group
-chosen by absences, by what mxi_symmetry already does for one data set.
+chosen by absences, by what mxi symmetry already does for one data set.
 
-**Scaling** (mxi_scale). A scale model a lattice, as now a sweep; mxi_export a
+**Scaling** (mxi scale). A scale model a lattice, as now a sweep; mxi export a
 data set a lattice, with its own batches.
 
 ## The plan
@@ -340,7 +340,7 @@ crystal give the bytes they give now, stage by stage.
    shares -- and judged on its own.
 2. **Carrying sweeps through** (#1029): the crystal-less experiments, `id` and
    `imageset_id`, every program reading the list through the two views;
-   mxi_convert's DIALS form. A sweep that indexes nothing still there, its
+   mxi convert's DIALS form. A sweep that indexes nothing still there, its
    spots on its images.
 3. **Indexing several lattices.** On the planted data, both lattices found, to
    their true cells and orientations; one lattice not found twice; on the real

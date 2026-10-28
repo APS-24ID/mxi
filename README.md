@@ -55,7 +55,7 @@ HDF5 and the rest are built in, their licences in the archive's `licenses/`.
 ```sh
 tar -xzf mxi-<version>-linux-x86_64.tar.gz
 export PATH="$PWD/mxi-<version>-linux-x86_64/bin:$PATH"   # and in ~/.bashrc
-mxi_find --version
+mxi find --version
 ```
 
 On macOS the programs are not signed, so macOS blocks them once downloaded:
@@ -65,7 +65,7 @@ clear the quarantine flag once, after unpacking.
 xattr -dr com.apple.quarantine mxi-<version>-macos-arm64
 ```
 
-`mxi_view`, the image viewer and mask editor, is Python on napari, which is
+`mxi view`, the image viewer and mask editor, is Python on napari, which is
 optional and installed apart: `pip install "napari[all]" h5py hdf5plugin`
 (`docs/mask.md`). Every other program runs without Python.
 
@@ -94,15 +94,16 @@ cmake -S . -B build && cmake --build build
 ctest --test-dir build
 ```
 
-The programs are left in `build/`. Either put that on the `PATH`, or install
-them -- every program, `mxi_view` with them -- into one `bin` directory and put
-that on it:
+The build leaves one program, `mxi`, in `build/`: every step is a command of it
+-- `mxi find`, `mxi index` -- and `mxi help` lists them. Either put `build/` on
+the `PATH`, or install `mxi`, with `mxi view`'s Python beside it, into a `bin`
+directory and put that on it:
 
 ```sh
 cmake --install build --prefix ~/.local     # then ~/.local/bin on the PATH
 ```
 
-`mxi_view`, the image viewer and mask editor, is Python on napari, which is
+`mxi view`, the image viewer and mask editor, is Python on napari, which is
 optional: it needs `pip install "napari[all]" h5py hdf5plugin`, and finds the
 programs it calls, and its module `mxi_tools.py`, beside itself. Nothing else
 in mxi needs napari. It is mxi's, not mxeq's -- `pip install` of
@@ -124,14 +125,14 @@ Build options:
 ### The main sequence
 
 ```sh
-mxi_import    master.nxs              # the experiment list, a sweep each master  -> imported.rflx
-mxi_find      imported.rflx           # strong spots on every image                -> strong.rflx
-mxi_index     strong.rflx             # the lattice, by 3D FFT                     -> indexed.rflx
-mxi_refine    indexed.rflx            # beam, detector, scan-varying crystal       -> refined.rflx
-mxi_integrate refined.rflx            # summation and profile fitting              -> integrated.rflx
-mxi_symmetry  integrated.rflx         # the Laue group and space group, reindexed  -> symmetrized.rflx
-mxi_scale     symmetrized.rflx        # scaled, with merging statistics            -> scaled.rflx
-mxi_export    scaled.rflx             # an unmerged MTZ                            -> scaled.mtz
+mxi import    master.nxs              # the experiment list, a sweep each master  -> imported.rflx
+mxi find      imported.rflx           # strong spots on every image                -> strong.rflx
+mxi index     strong.rflx             # the lattice, by 3D FFT                     -> indexed.rflx
+mxi refine    indexed.rflx            # beam, detector, scan-varying crystal       -> refined.rflx
+mxi integrate refined.rflx            # summation and profile fitting              -> integrated.rflx
+mxi symmetry  integrated.rflx         # the Laue group and space group, reindexed  -> symmetrized.rflx
+mxi scale     symmetrized.rflx        # scaled, with merging statistics            -> scaled.rflx
+mxi export    scaled.rflx             # an unmerged MTZ                            -> scaled.mtz
 ```
 
 Each step reads the last one's file and writes its own, under the name shown
@@ -141,66 +142,66 @@ experiment list, the reflections and the processing's summary
 `mxi_<program>.log` and takes `--help` and `--version`; the main sequence's
 programs take `--timing`, where the time went, and use every core;
 `-j N` or `--threads N` sets fewer, where a program has the choice.
-`mxi_find --gpu` and `mxi_integrate --gpu` use a GPU where the build has one.
+`mxi find --gpu` and `mxi integrate --gpu` use a GPU where the build has one.
 
-**Several sweeps of one crystal:** name every master to `mxi_import`; each
+**Several sweeps of one crystal:** name every master to `mxi import`; each
 program takes them all, the sweeps indexed in one basis, each its own crystal
 and scale model ([`docs/multi-sweep.md`](docs/multi-sweep.md)).
 
-**Several crystals in one beam:** `mxi_index --max-lattices N`; each lattice
+**Several crystals in one beam:** `mxi index --max-lattices N`; each lattice
 is refined, integrated and scaled as its own experiment, the detector shared,
-cosym bringing them to one setting in `mxi_symmetry`
+cosym bringing them to one setting in `mxi symmetry`
 ([`docs/multi-lattice.md`](docs/multi-lattice.md)).
 
 **Many crystals, a data set each:** after scaling them together,
-`mxi_correlation scaled.rflx --write-clusters` finds the groups that belong
+`mxi correlation scaled.rflx --write-clusters` finds the groups that belong
 together by their intensities, writes each as its own `.rflx` to scale alone,
 and an HTML report ([`docs/correlation.md`](docs/correlation.md)).
 
 **Data sets processed separately** -- each integrated on its own, say -- are
-joined by `mxi_combine a.rflx b.rflx ... -o combined.rflx`, then go through
-`mxi_symmetry` and `mxi_scale` together; `mxi_split` takes data sets out
+joined by `mxi combine a.rflx b.rflx ... -o combined.rflx`, then go through
+`mxi symmetry` and `mxi scale` together; `mxi split` takes data sets out
 again, each alone or a chosen few together.
 
 The options most often wanted:
 
 | program | options |
 | --- | --- |
-| `mxi_find` | `-g`/`--gpu`; `--min-spot-size N`; `--no-shoeboxes` |
-| `mxi_index` | `--d-min D`; `--max-cell A`; `--max-lattices N`; `--no-joint` sweeps indexed apart; `--known-cell a,b,c,α,β,γ` with `--known-space-group NAME` the basis chosen to match a known cell; `--real-space-grid` the basis vectors by the real-space grid search, with a known cell |
-| `mxi_refine` | `--static` one crystal setting for the scan; `--scan-varying N` N control points; `--shared-crystal`; `--joint` several sweeps in one fit, where by default each sweep is refined on its own; `--interval DEG` a control point per DEG degrees (10); `--crystal-restraint W` the scan-varying crystal tied to the static one (1e6); `--sample-offset` each crystal's centre of diffraction off the rotation axis, two parameters a lattice |
-| `mxi_integrate` | `-g`/`--gpu`; `--d-min D`, `--d-max D`; `--postrefine`; `--summation-only` |
-| `mxi_symmetry` | `--max-delta D` the lattice's tolerance; `--no-cosym` |
-| `mxi_scale` | `--d-min-auto`, `--d-min D`, `--d-max D`; `--space-group NAME`; `--anomalous`; `--absorption-level low|medium|high`; `--error-model-fit regression|individual`; `--scale-restraint W` each sweep's scale tied to its level (1); `--exclude E:FIRST:LAST` an experiment's images left out, as many as wanted |
-| `mxi_correlation` | `--write-clusters`, `--prefix P`; `--html FILE`; `--min-samples N`; `--dimensions N` |
-| `mxi_export` | `--partiality-threshold P`; `--min-isigi S`; `--d-min D` |
+| `mxi find` | `-g`/`--gpu`; `--min-spot-size N`; `--no-shoeboxes` |
+| `mxi index` | `--d-min D`; `--max-cell A`; `--max-lattices N`; `--no-joint` sweeps indexed apart; `--known-cell a,b,c,α,β,γ` with `--known-space-group NAME` the basis chosen to match a known cell; `--real-space-grid` the basis vectors by the real-space grid search, with a known cell |
+| `mxi refine` | `--static` one crystal setting for the scan; `--scan-varying N` N control points; `--shared-crystal`; `--joint` several sweeps in one fit, where by default each sweep is refined on its own; `--interval DEG` a control point per DEG degrees (10); `--crystal-restraint W` the scan-varying crystal tied to the static one (1e6); `--sample-offset` each crystal's centre of diffraction off the rotation axis, two parameters a lattice |
+| `mxi integrate` | `-g`/`--gpu`; `--d-min D`, `--d-max D`; `--postrefine`; `--summation-only` |
+| `mxi symmetry` | `--max-delta D` the lattice's tolerance; `--no-cosym` |
+| `mxi scale` | `--d-min-auto`, `--d-min D`, `--d-max D`; `--space-group NAME`; `--anomalous`; `--absorption-level low|medium|high`; `--error-model-fit regression|individual`; `--scale-restraint W` each sweep's scale tied to its level (1); `--exclude E:FIRST:LAST` an experiment's images left out, as many as wanted |
+| `mxi correlation` | `--write-clusters`, `--prefix P`; `--html FILE`; `--min-samples N`; `--dimensions N` |
+| `mxi export` | `--partiality-threshold P`; `--min-isigi S`; `--d-min D` |
 
 ### The other tools
 
 | program | |
 | --- | --- |
-| `mxi_show` | what a file holds: the models, the reflections by what has been done to them, each program's summary ([`docs/output.md`](docs/output.md)) |
-| `mxi_report` | an HTML report of a file's processing, every step's figures and plots ([`docs/output.md`](docs/output.md)) |
-| `mxi_convert` | between `.rflx` and DIALS' `.expt` and `.refl` (below) |
-| `mxi_combine` | several runs' files joined into one: data sets processed separately, to go through symmetry and scaling together |
-| `mxi_split` | a file's data sets apart, each into its own file, or the ones named into one |
-| `mxi_view` | the images in napari, with the spots and predictions found on them, and the detector's untrusted regions drawn and saved ([`docs/mask.md`](docs/mask.md)) |
-| `mxi_untrusted` | list, set from a mask file, or clear the untrusted regions, with no window |
-| `mxi_max` | the largest count on a valid pixel, and whether the images fit in 16 bits (for `mxi_find --gpu-force`) |
-| `mxi_profile` | the profile model estimated from strong spots, and how much of each spot it holds |
-| `mxi_residuals` | refinement's residuals by resolution, detector module, or anything else |
-| `mxi_foreground` | shoeboxes marking the integration region, for dials.image_viewer |
-| `mxi_grid` | spot density in Kabsch's frame, and spot widths across the detector |
-| `mxi_forward` | the model rendered onto the pixels, against the data |
-| `mxi_background` | the robust background fitted to pixel values |
-| `mxi_readtest` | how fast the images read and decompress |
+| `mxi show` | what a file holds: the models, the reflections by what has been done to them, each program's summary ([`docs/output.md`](docs/output.md)) |
+| `mxi report` | an HTML report of a file's processing, every step's figures and plots ([`docs/output.md`](docs/output.md)) |
+| `mxi convert` | between `.rflx` and DIALS' `.expt` and `.refl` (below) |
+| `mxi combine` | several runs' files joined into one: data sets processed separately, to go through symmetry and scaling together |
+| `mxi split` | a file's data sets apart, each into its own file, or the ones named into one |
+| `mxi view` | the images in napari, with the spots and predictions found on them, and the detector's untrusted regions drawn and saved ([`docs/mask.md`](docs/mask.md)) |
+| `mxi untrusted` | list, set from a mask file, or clear the untrusted regions, with no window |
+| `mxi max` | the largest count on a valid pixel, and whether the images fit in 16 bits (for `mxi find --gpu-force`) |
+| `mxi profile` | the profile model estimated from strong spots, and how much of each spot it holds |
+| `mxi residuals` | refinement's residuals by resolution, detector module, or anything else |
+| `mxi foreground` | shoeboxes marking the integration region, for dials.image_viewer |
+| `mxi grid` | spot density in Kabsch's frame, and spot widths across the detector |
+| `mxi forward` | the model rendered onto the pixels, against the data |
+| `mxi background` | the robust background fitted to pixel values |
+| `mxi readtest` | how fast the images read and decompress |
 
 ## Working with DIALS
 
 **The files.** Every program reads DIALS' `.expt` and `.refl` as well as a
 `.rflx`, and writes them on request (`--output-expt`, `--output-refl`, or `-o`
-naming a `.refl`). `mxi_convert` goes either way: `mxi_convert indexed.rflx`
-writes `indexed.expt` and `indexed.refl`; `mxi_convert indexed.expt
+naming a `.refl`). `mxi convert` goes either way: `mxi convert indexed.rflx`
+writes `indexed.expt` and `indexed.refl`; `mxi convert indexed.expt
 indexed.refl` the `.rflx`. Two things DIALS cannot read stay behind: each
 sweep's own crystal-less experiment, which mxi carries through indexing
 (dials/dials#1029; `--keep-sweeps` keeps them), and mxi's scale model.
@@ -213,16 +214,16 @@ and `dials.image_viewer`, `dials.export` and `dials.merge` read mxi's output.
 
 | mxi | DIALS |
 | --- | --- |
-| `mxi_import` | `dials.import` |
-| `mxi_find` | `dials.find_spots` |
-| `mxi_index` | `dials.index` |
-| `mxi_refine` | `dials.refine` |
-| `mxi_integrate` | `dials.integrate` |
-| `mxi_symmetry` | `dials.symmetry`, with `dials.cosym` for several crystals |
-| `mxi_scale` | `dials.scale`, with `dials.estimate_resolution` and `dials.two_theta_refine` |
-| `mxi_correlation` | `dials.correlation_matrix` |
-| `mxi_export` | `dials.export` |
-| `mxi_show`, `mxi_report` | `dials.show`, `dials.report` |
+| `mxi import` | `dials.import` |
+| `mxi find` | `dials.find_spots` |
+| `mxi index` | `dials.index` |
+| `mxi refine` | `dials.refine` |
+| `mxi integrate` | `dials.integrate` |
+| `mxi symmetry` | `dials.symmetry`, with `dials.cosym` for several crystals |
+| `mxi scale` | `dials.scale`, with `dials.estimate_resolution` and `dials.two_theta_refine` |
+| `mxi correlation` | `dials.correlation_matrix` |
+| `mxi export` | `dials.export` |
+| `mxi show`, `mxi report` | `dials.show`, `dials.report` |
 
 Where they differ, and by how much, is in [`docs/review.md`](docs/review.md).
 

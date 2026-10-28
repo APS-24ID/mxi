@@ -12,8 +12,8 @@ history on 20 October: four closed, nine rewritten to what is now true.
 
 * **80.** **output -- refinement's summary when sweeps are refined apart.** Each
   sweep's run (refine_apart) writes its own summary, but the joined file's
-  mxi_refine step keeps only "apart" and "groups": none of the per-sweep cells,
-  RMSDs, cycles or cell over the scan. mxi_report then draws the cell over the
+  mxi refine step keeps only "apart" and "groups": none of the per-sweep cells,
+  RMSDs, cycles or cell over the scan. mxi report then draws the cell over the
   scan from the file's crystals (correct, since 26 October), but the rest of
   refinement's section is empty for any multi-sweep run. The sweeps' records
   should be joined into the summary, their experiments renumbered as the
@@ -36,7 +36,7 @@ history on 20 October: four closed, nine rewritten to what is now true.
   34 per cent of them below 0.8 of the background usual at their resolution,
   against 15 per cent of the rest, 30 per cent within 300 px of the beam
   against 5.5. Shadow on the background reads high, on the spot low;
-  near the axis, `mxi_integrate --min-zeta` (0.05 by default, as DIALS): 0.2
+  near the axis, `mxi integrate --min-zeta` (0.05 by default, as DIALS): 0.2
   would take a fifth of the outliers beyond 5 sigma, 0.3 a quarter, no unique
   reflection lost (docs/integration.md) -- confirmed by integrating with 0.2:
   42 outliers gone, the rest unchanged, the sigmas better calibrated;
@@ -56,7 +56,7 @@ history on 20 October: four closed, nine rewritten to what is now true.
   images out, with |zeta| below 0.2: R(F^2) 0.0627 to 0.0566, 219 beyond 5
   sigma to 122, 10 unique reflections of 2606 lost. Graeme's model of the centre
   of diffraction turning off the axis, two parameters a lattice, is now
-  `mxi_refine --sample-offset` (stage 1): on this data 5 to 20 um, l-cyst_03
+  `mxi refine --sample-offset` (stage 1): on this data 5 to 20 um, l-cyst_03
   the most, the RMSDs as before and the shift in images 650-800 untouched -- a
   disturbance over 20 deg of a 170 deg sweep is not a circle. Next, if wanted:
   the offset varying along the scan (stage 2), or image ranges left out;
@@ -66,7 +66,7 @@ history on 20 October: four closed, nine rewritten to what is now true.
   1.02); l-cyst_04 2.9 to 1.6 per cent. The offset neutral here (the mask and
   the cut alone predict the same R), the crystal well centred; l-cyst_03's
   images 650-800 unchanged, the largest left (leaving them out: R 0.0566).
-  Left out with `mxi_scale --exclude 6:600:800 --exclude 0:550-700`: R(F^2)
+  Left out with `mxi scale --exclude 6:600:800 --exclude 0:550-700`: R(F^2)
   0.0618 to 0.0567, as predicted, 10 unique reflections of 2606 lost; the
   sigmas against each reflection's own equivalents 0.65 to 0.90 (robust
   variance) -- against Fc^2 1.02 to 1.63 only as the model's share of the
@@ -77,8 +77,8 @@ history on 20 October: four closed, nine rewritten to what is now true.
   density) and 39 the processing's; (d) a partial on a sweep's first image,
   partiality 0.50, measuring 0.36 of its full intensity (item 1); and the
   error model's shape, item 69.
-* **76.** **question -- mxi_correlation's per-data-set B against DIALS's.**
-  mxi_correlation now normalises each data set (docs/correlation.md), which
+* **76.** **question -- mxi correlation's per-data-set B against DIALS's.**
+  mxi correlation now normalises each data set (docs/correlation.md), which
   brought the cows to DIALS's one cluster; but its B values, the isotropic
   equivalent of mxi's anisotropic ML fit, are 16-20 A^2 where
   dials.correlation_matrix prints 11-16, the ranking different (mxi has the
@@ -89,7 +89,7 @@ history on 20 October: four closed, nine rewritten to what is now true.
   anisotropic, a light atom). To settle: the same model both ways, data set
   by data set. 20 October.
 * **75.** **validation -- the real-space grid search is not yet shown better than
-  the FFT on data.** `mxi_index --real-space-grid` (Gildea et al. 2014) finds
+  the FFT on data.** `mxi index --real-space-grid` (Gildea et al. 2014) finds
   exactly the FFT's basis on insulin's four sweeps and on a four-sweep small
   molecule, and a planted lattice in a test; but on both data sets the FFT
   succeeds anyway, so its advantage -- sparse, stills-like or multi-lattice
@@ -108,7 +108,7 @@ history on 20 October: four closed, nine rewritten to what is now true.
   changes more than a crystal can is a WARNING: RMSDs 0.15/0.19 px, 0.12
   images and like, as DIALS's. Open: (a) sweep 1 still 0.30/0.49 px, its
   static fit poor from indexing; (b) 23 reflections 6.7-12 A integrated but
-  neither scaled nor excluded by mxi_scale, unsaid, so the merge starts at
+  neither scaled nor excluded by mxi scale, unsaid, so the merge starts at
   6.73 A against DIALS's 12.03; (c) sigma_m 0.15-0.21 deg against DIALS's
   0.078 -- to see again now the rotation residuals are DIALS's (item 63).
   Graeme, after the fix: SHELXT and SHELXL now give fairly comparable
@@ -136,7 +136,7 @@ history on 20 October: four closed, nine rewritten to what is now true.
     dials.scale's. Earlier text: **the error model's b, twice dials.scale's on
     many crystals.** Graeme's 36 insulin crystals (three species, 12 each): after
     partials were combined and partiality kept off the profile-fitted
-    intensities (docs/scaling.md), mxi_scale's b is 0.056 where dials.scale's
+    intensities (docs/scaling.md), mxi scale's b is 0.056 where dials.scale's
     is 0.026 on the same observations, so I / sigma is capped at 3.8
     rather than 9.9. The intensities agree with each other nearly as well as
     dials.scale's (unweighted correlations between crystals 0.991 and 0.956
@@ -156,11 +156,11 @@ history on 20 October: four closed, nine rewritten to what is now true.
     DIALS's default, measures how far a spot's foreground spans, which grows
     with brightness -- on NE-CAT insulin 0.040 degrees for the weakest sixth to
     0.179 for the strongest. Weighted by each image's counts (DIALS's
-    `extended`; `mxi_integrate --sigma-m-estimator extended`) it is 0.0835 on
+    `extended`; `mxi integrate --sigma-m-estimator extended`) it is 0.0835 on
     insulin here, with mxsim's 0.0826, its second moments' 0.083 to 0.090 and
     DIALS's 0.089. But integrated with it insulin merges worse: R merge 0.035 to
     0.039, the low shell 0.026 to 0.032, <I/sigma> 17.5 to 16.4 (as item 3's
-    0.086 did). mxi_profile says why: at that width the rotation profile's
+    0.086 did). mxi profile says why: at that width the rotation profile's
     core is near Gaussian but its tails are heavy -- 0.934, 0.982 and 0.996 of
     the counts within 2, 3 and 4 sigma, where a Gaussian holds 0.954, 0.997
     and 0.99994 -- so a box of 3 sigma loses 1.8 per cent of every spot's
@@ -186,7 +186,7 @@ history on 20 October: four closed, nine rewritten to what is now true.
   recovered exactly from their own partialities -- and DIALS's 0.089 (item 3). A
   sigma_m half again too wide makes a cut box's rocking curve look more partial
   than it is, and dividing by that overshoots: items 1 and 3 are likely one. To
-  test, `mxi_integrate --sigma-m 0.086` and the tool again.
+  test, `mxi integrate --sigma-m 0.086` and the tool again.
   Done (October 2026): at 0.086 degrees merging is worse -- R merge 0.035 to
   0.038, merged I/sigma 18.6 to 16.8 -- and the partials' excess mixed, +13.6
   to +7.7 per cent at partiality 0.8 to 0.9, +1.7 to +7.5 at 0.9 to 0.99: not
@@ -303,8 +303,8 @@ history on 20 October: four closed, nine rewritten to what is now true.
     pass's outliers out (18 October), which on a small molecule brought RMSDs
     to DIALS's. To measure again on that sweep (review, 20 October).
 * **14.** **capability -- Refinement does not constrain the cell to the lattice's
-    symmetry**: 77.93 77.90 77.89 A after `mxi_symmetry`, where DIALS reports
-    77.898. `mxi_scale`'s cell from two-theta is constrained (cubic: 77.99264(4)
+    symmetry**: 77.93 77.90 77.89 A after `mxi symmetry`, where DIALS reports
+    77.898. `mxi scale`'s cell from two-theta is constrained (cubic: 77.99264(4)
     A on 36 crystals), as dials.two_theta_refine's; the crystal models carried
     through refinement are not. `docs/symmetry.md`.
 * **15.** **correctness, untested -- Two conventions with no data to settle them**:
@@ -355,7 +355,7 @@ history on 20 October: four closed, nine rewritten to what is now true.
 * **22.** **capability -- No free-set validation**, the check for overfitting.
 ## New programs
 
-* **28.** **mxi_export: mmCIF.** The unmerged MTZ is written, as dials.export's
+* **28.** **mxi export: mmCIF.** The unmerged MTZ is written, as dials.export's
     (`docs/export.md`); mmCIF is not.
 ## The spot finder
 
@@ -365,7 +365,7 @@ history on 20 October: four closed, nine rewritten to what is now true.
   (`MXI_GPU_STAGE2=direct`). `stage0_tile` has run on real data on an RTX
   4060, output byte-identical to the direct kernel's, and slower. The paths it
   runs agree with Metal exactly. `docs/spots.md`.
-* **35.** **speed -- Where the spot finder's time goes.** `mxi_find --timing`,
+* **35.** **speed -- Where the spot finder's time goes.** `mxi find --timing`,
   on 3600 frames of 4148 x 4362 pixels, 10 GB compressed, with 16 threads:
   * **Metal, 13.9 s:** reading from HDF5 39 per cent of the threads' time, 24 ms a
     frame from an external drive -- 10 GB in 13.9 s is 0.72 GB/s, in the range of
@@ -388,7 +388,7 @@ history on 20 October: four closed, nine rewritten to what is now true.
     threads and 22.5 on 16, for the same data. `docs/spots.md`.
 
 * **43.** **try -- A device for each stage**, `docs/gpu.md`. Profile fitting,
-  `mxi_integrate --gpu`, single precision, is done for Metal: on an M4 Max, the
+  `mxi integrate --gpu`, single precision, is done for Metal: on an M4 Max, the
   16M sweep's integration 14.6 s against the CPU's 20.0, overlapped with reading
   frames and packed straight into the GPU's memory; verified on the CPU through
   `--gpu-emulate` (a median of 9e-6 sigma from the double fit) and a pretended
@@ -399,10 +399,10 @@ history on 20 October: four closed, nine rewritten to what is now true.
 * **44.** **speed -- Indexing's peak search walks the whole grid**: 1.52 s against
   the transform's 0.94 on one thread.
 
-* **49.** **population -- `mxi_import` across data sets.** Right on two masters
+* **49.** **population -- `mxi import` across data sets.** Right on two masters
   from two writers, and against dials.import on insulin the same in all but the
   file's own size and the exposure time (count_time here, 0 there; to settle on
-  a matched pair). For each new data set: dials.import and mxi_import on the same
+  a matched pair). For each new data set: dials.import and mxi import on the same
   master, `mxeq compare-expt`, and what differs made right or recorded in
   `docs/import.md`. Untested: several modules, a moving detector, beam direction
   or polarisation from the file, materials but silicon.
@@ -422,9 +422,9 @@ history on 20 October: four closed, nine rewritten to what is now true.
 
 Closed in the review of 20 October, against the code and the history:
 
-* **17.** **Normalisation by resolution shells.** mxi_symmetry has normalised by an
+* **17.** **Normalisation by resolution shells.** mxi symmetry has normalised by an
   anisotropic maximum-likelihood Wilson model, dials.symmetry's ml_aniso, since
-  fffaa80 (src/laue.cc), shells only where the fit fails; mxi_correlation uses
+  fffaa80 (src/laue.cc), shells only where the fit fails; mxi correlation uses
   the same since 20 October.
 * **55.** **Summation 2 to 3 per cent below DIALS's**, understood: the foreground's
   extent, a constant fraction which scaling takes up -- an error only if it
@@ -433,7 +433,7 @@ Closed in the review of 20 October, against the code and the history:
   (now 6000 a thread); the fill converts a row at a time; boxes left unzeroed
   tried and reverted. What is left, reading bound by memory traffic, is in 11.
 * **32.** **The device port designed but not written**, overtaken: profile fitting
-  runs on a device (`mxi_integrate --gpu`, Metal and CUDA); what remains is in 43
+  runs on a device (`mxi integrate --gpu`, Metal and CUDA); what remains is in 43
   and 47.
 * **Diamond's Eiger masters** (5 October): an offset without offset_units, in
   metres, had been taken as millimetres -- fixed, as nxmx reads it; their count
@@ -452,7 +452,7 @@ Closed in the review of 20 October, against the code and the history:
   says "Integrated 31295 reflections"; only the whole's line names a file.
   Test: test_integrate_sweeps.
 
-* **74.** Closed 19 October. **mxi_index could not be given a known cell.**
+* **74.** Closed 19 October. **mxi index could not be given a known cell.**
   `--known-cell a,b,c,alpha,beta,gamma` with `--known-space-group NAME`: only
   candidate bases whose reduced cell matches the known one's reduced primitive
   cell (10 per cent, 5 deg, as dials.index) are eligible; none, a refusal that
@@ -461,17 +461,17 @@ Closed in the review of 20 October, against the code and the history:
 
 * **72.** Closed 17 October, confirmed by Graeme on his 16 data sets. **Data
   sets processed together scaled much worse than processed apart** -- inner
-  R_merge 0.125 and b 0.125, against 0.049 and 0.050. `mxi_index --no-joint`
+  R_merge 0.125 and b 0.125, against 0.049 and 0.050. `mxi index --no-joint`
   joined its sweeps with identical beams merged into one, 14 of the 16
-  sharing a header wavelength, and mxi_refine fitted that one beam for all of
-  them. Now --no-joint keeps each sweep's beam and detector, and mxi_refine
+  sharing a header wavelength, and mxi refine fitted that one beam for all of
+  them. Now --no-joint keeps each sweep's beam and detector, and mxi refine
   refines independent experiments apart (`--joint` for one fit). Ruled out on
   the way, each by an identical comparison: the import, integration (one file,
   two files, two detectors), symmetry and scaling. Also fixed on the way: a
   list's images were its document's first image set's, so a split or combined
   file integrated one data set from another's images.
 
-* **71.** Closed 17 October. **mxi_scale's scale wandered, through zero, where
+* **71.** Closed 17 October. **mxi scale's scale wandered, through zero, where
   the data did not hold it, and said nothing.** Reproduced on 7.5 degree wedges
   of insulin scaled alone: one diverged (scale -0.71 to 0.41, R_meas 1.9e6).
   Each sweep's scale is now tied weakly to its own level (`--scale-restraint`,
@@ -490,7 +490,7 @@ Closed in the review of 20 October, against the code and the history:
   `docs/spots.md`, the reference, and `docs/spots_notes.md`, the notes for
   working on it; how it came in is the history's.
 
-* **70.** Closed 15 October. **mxi_symmetry takes its input's cell as
+* **70.** Closed 15 October. **mxi symmetry takes its input's cell as
   primitive.** Input already in a centred setting is now taken to its
   primitive cell first -- the centring from the crystal's Hall symbol, the
   standard change of basis for I, F, C, A, B and R, any reflection the
@@ -508,7 +508,7 @@ Closed in the review of 20 October, against the code and the history:
     by regression the ten-turn insulin's random halves are 1.034, its slope
     1.133 the signal above them.
 
-* **13.** e.s.d.s for the cell: from two-theta in mxi_scale, as
+* **13.** e.s.d.s for the cell: from two-theta in mxi scale, as
     dials.two_theta_refine (`docs/scaling.md`, "The cell from two-theta");
     refinement's covariance e.s.d.s, which came first, are gone.
 * **3.** sigma_m too wide on insulin: not so. At 0.086 rather than 0.128
@@ -521,7 +521,7 @@ Closed in the review of 20 October, against the code and the history:
     "The weights apart from the variance"). Graeme's small-molecule set as it
     was: R merge 0.037, 0.029 at low resolution.
 
-* **27.** mxi_report: an HTML report of the processing a .rflx records, each
+* **27.** mxi report: an HTML report of the processing a .rflx records, each
     step's figures, tables and plots, after dials.scale's (`docs/output.md`).
 
 * **21.** One sweep only, in scaling: several sweeps, and several crystals,
@@ -538,12 +538,12 @@ Closed in the review of 20 October, against the code and the history:
 
 * **57.** Sweeps carried through (dials/dials#1029): each sweep's own
     experiment, crystal-less, carried through every program by default, its
-    unindexed spots its own; `mxi_index --no-keep-sweeps` the lattices alone,
-    `mxi_convert` the pair without them (the default since 14 October). A missed lattice
+    unindexed spots its own; `mxi index --no-keep-sweeps` the lattices alone,
+    `mxi convert` the pair without them (the default since 14 October). A missed lattice
     recovered beside refined ones. `docs/multi-lattice.md`, stage 2.
 
 * **16.** Several crystals on one side of the indexing ambiguity: cosym in
-    `mxi_symmetry`, the same coset as dials.cosym on two crystals of insulin.
+    `mxi symmetry`, the same coset as dials.cosym on two crystals of insulin.
     `docs/symmetry.md`, `docs/multi-lattice.md`.
 
 * **25.** dials.merge on `scaled.refl`: it takes it, run by Graeme.
@@ -583,14 +583,14 @@ Closed in the review of 20 October, against the code and the history:
   threads defeating the drive's read-ahead. Reading through HDF5 was fast enough
   there, and a second path to keep was not worth it; removed (commits 0619381
   and c7e1879, reverted).
-* **41.** `mxi_scale --threads`, measured: on the MacBook's 16M sweep with
+* **41.** `mxi scale --threads`, measured: on the MacBook's 16M sweep with
   `--d-min-auto`, 5.3 s, then 2.9 once the thread pool, the error model's search
   and gathering were fixed (item 45). Byte-identical on any count.
-* **24.** An anomalous option in scaling: `mxi_scale --anomalous` scales an
+* **24.** An anomalous option in scaling: `mxi scale --anomalous` scales an
   acentric reflection's Friedel mates as separate groups. Merged, a +-10 per
   cent anomalous difference inflated the error model's a from 1.36 to 3.24 and
   had a fifth of the observations rejected as outliers. `docs/scaling.md`.
-* **37.** `mxi_symmetry` on dense data: on ferritin with 32 threads, 17 s on one
+* **37.** `mxi symmetry` on dense data: on ferritin with 32 threads, 17 s on one
   core to 7.0 s, its elements scored and its subgroups named in parallel, mates
   found by hash (and item 40 with it). Byte-identical. `docs/symmetry.md`.
 * **50.** The integrator filled a bad pixel (0xfffe in 16 bits, 0xfffffffe in
@@ -618,7 +618,7 @@ Closed in the review of 20 October, against the code and the history:
   sigma_m or sigma_b forced small on insulin, the device's path, phi wrapping,
   empty scan blocks in one pass.
 * **52.** **correctness -- DIALS's inner shell a shade better in CC1/2 and
-  I/sigma**, on ferritin and before; `mxi_find --subtract-background` made it
+  I/sigma**, on ferritin and before; `mxi find --subtract-background` made it
   slightly worse there, the RMSDs slightly better. `mxeq unique` compares the two
   scaled data sets one unique reflection at a time, splitting I/sigma into
   intensity, multiplicity and per-observation sigma, and comparing the
@@ -657,7 +657,7 @@ every one: the shadow's edge attenuates signal and background alike, so a
 reflection's background against that expected at its radius is its
 transmission. Scaling's rejection, a 1/sigma^2-weighted mean of the others,
 sinks towards the attenuated, whose sigmas are small (item 53). `--d-max D`, in
-mxi_integrate and mxi_scale, leaves the reflections out to test it: on insulin,
+mxi integrate and mxi scale, leaves the reflections out to test it: on insulin,
 8 beyond 30 A, the inner shell's CC1/2 0.977 to 0.979. The plan is
 `docs/backstop.md`.
   The background's dispersion, Graeme's metric, measured on ferritin: it does

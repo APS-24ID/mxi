@@ -60,6 +60,10 @@ regions -- `mxi_view` to draw them, `mxi_untrusted`, applied in spot finding and
 integration; `cmake --install`; `mxi_refine --sample-offset`, each lattice's
 centre of diffraction off the axis; `mxi_scale --exclude`; `mxi_view`, napari,
 which replaced the matplotlib mask editor; the progress bar.
+26 to 28 October, released as 1.0.7: releases on GitHub (Linux on the CPU
+and with CUDA, macOS with Metal, self-contained, tested before publishing;
+docs/release.md); mxi_view's markers for the image shown, bounded by each
+spot's box; the cell over the scan by rotation angle; -DMXI_TESTS=OFF building.
 For a new session to
 pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in

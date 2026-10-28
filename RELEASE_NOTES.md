@@ -7,11 +7,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.0.6
 
 **New**
-- Releases on GitHub, built for a tag when asked (`gh workflow run release.yml
-  -f tag=...`): Linux x86_64 on the CPU and with CUDA, and macOS arm64 with
-  Metal (macOS 13 and later), each self-contained -- HDF5 linked in -- and
-  tested before it is published; the complete source with its submodules;
-  mxeq's wheel (`docs/release.md`). The README says how to install them.
+- Releases on GitHub, built when a tag is pushed (or by hand, `gh workflow run
+  release.yml -f tag=...`): Linux x86_64 on the CPU and with CUDA, and macOS
+  arm64 with Metal (macOS 13 and later), each self-contained -- HDF5 linked in
+  -- and tested before it is published; the complete source with its
+  submodules; mxeq's wheel (`docs/release.md`). The README says how to install
+  them.
 
 **Fixed**
 - Building with `-DMXI_TESTS=OFF` makes every program: `mxi_import`,

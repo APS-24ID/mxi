@@ -1,9 +1,8 @@
 # Making a release
 
-A release is made by hand, for a tag already pushed: GitHub builds it, tests
-it and publishes it (`.github/workflows/release.yml`). Nothing is published
-unless every build and its tests pass. Tags can be pushed as freely as ever:
-only a release costs Actions minutes, a macOS runner's most.
+A release is made by pushing a tag: GitHub builds it, tests it and publishes
+it (`.github/workflows/release.yml`). Nothing is published unless every build
+and its tests pass. Actions minutes are free for a public repository.
 
 ```sh
 # The version in its five places (CMakeLists.txt, vcpkg.json, python/
@@ -11,11 +10,16 @@ only a release costs Actions minutes, a macOS runner's most.
 # RELEASE_NOTES.md's section for it, then:
 git tag -a v1.0.7 -m "mxi 1.0.7"
 git push origin v1.0.7
-gh workflow run release.yml -f tag=v1.0.7    # or Actions, release, Run workflow
 ```
 
-Release a candidate first -- `v1.0.7-rc1` -- to see the whole of it work: a
-tag with `-rc`, `-alpha` or `-beta` makes a pre-release. Its notes are 1.0.7's
+It can be run by hand too, for a tag pushed already -- to make a release again
+after a failure, say -- from the Actions page (release, Run workflow) or
+`gh workflow run release.yml -f tag=v1.0.7`. A tag whose release exists must
+have it deleted first (`gh release delete v1.0.7`): GitHub keeps one release a
+tag.
+
+Push a candidate first -- `v1.0.7-rc1` -- to see the whole of it work: a tag
+with `-rc`, `-alpha` or `-beta` makes a pre-release. Its notes are 1.0.7's
 section where there is one yet, and otherwise the "Unreleased" section, said
 to be a candidate's. The release itself must have its section: without one
 nothing is published.

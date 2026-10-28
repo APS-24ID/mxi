@@ -1,5 +1,5 @@
-# A release, made by hand for a tag already pushed -- not on every tag, each
-# run costing Actions minutes (macOS's most) -- from the Actions page or:
+# A release, made when a tag v* is pushed -- Actions minutes are free for a
+# public repository -- or by hand for a tag pushed already, to make one again:
 #
 #   gh workflow run release.yml -f tag=v1.0.7
 #
@@ -11,6 +11,8 @@
 name: release
 
 on:
+  push:
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
@@ -22,7 +24,7 @@ permissions:
   contents: write
 
 env:
-  TAG: ${{ inputs.tag }}
+  TAG: ${{ inputs.tag || github.ref_name }}
   # Apple's metal-cpp headers, which the Metal build needs. Not tried from the
   # sandbox this was written in: if the download fails, the current zip's name
   # is on https://developer.apple.com/metal/cpp/
@@ -36,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ inputs.tag || github.ref }}
           submodules: recursive
           fetch-depth: 0
       - name: The complete source, submodules and all
@@ -62,7 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ inputs.tag || github.ref }}
           submodules: recursive
       - name: Ninja
         run: sudo apt-get install -y -q ninja-build
@@ -110,7 +112,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ inputs.tag || github.ref }}
           submodules: recursive
       - name: The Metal compiler, and metal-cpp
         run: |
@@ -158,7 +160,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ inputs.tag || github.ref }}
       - name: mxeq's wheel
         run: |
           python3 -m pip install -q build
@@ -174,7 +176,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ inputs.tag || github.ref }}
       - uses: actions/download-artifact@v4
         with:
           path: assets

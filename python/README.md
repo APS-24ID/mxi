@@ -29,7 +29,7 @@ mxeq trend    ours.refl theirs.refl --value intensity.prf.value
 mxeq html     ours.refl theirs.refl -o comparison.html
 mxeq disagree ours.refl theirs.refl -o disagree.refl --sigma 5
 mxeq residuals integrated.refl -o residuals.html    # one file: predicted positions
-mxeq profiles profiles.txt -o profiles.png          # mxi_integrate --save-profiles
+mxeq profiles profiles.txt -o profiles.png          # mxi integrate --save-profiles
 ```
 
 **The ratio is always the first file over the second**, so the order of the
@@ -116,7 +116,7 @@ reflection whose z lies beyond `--z-max` (5) is flagged, and one whose
 background is too low -- by default only those, being the biased;
 `--reject-high` takes the too-high too -- has, in the filtered table, its
 integrated flags cleared and excluded-for-scaling set, so that neither
-`mxi_scale` nor `dials.scale` takes it. Every reflection gains
+`mxi scale` nor `dials.scale` takes it. Every reflection gains
 `background.expected` and `background.z`. The report gives, by resolution
 shell, the median of observed over model, the z spread -- 1 where model and
 counting explain the backgrounds -- and how many were flagged low and high;
@@ -149,7 +149,7 @@ maximisation finds Ibar. A reflection too weak for its equivalents to judge, or
 observed fewer than three times, is judged by its background alone, against the
 model's expectation; without one it is kept. Observations more likely
 attenuated than good are flagged: `--apply-to symmetrized.refl --next
-next.refl` writes `mxi_scale`'s next input with them left out, to iterate until
+next.refl` writes `mxi scale`'s next input with them left out, to iterate until
 nothing more is flagged, and `--show H,K,L` lists one reflection's judgement.
 Flags accumulate: one flagged is not judged again.
 
@@ -168,7 +168,7 @@ have are left out, so DIALS's tables list too.
 ## Where profile fitting fails
 
 `mxeq failures integrated.refl` reads the `profile.failure` column
-`mxi_integrate` writes -- each reflection's reason for not being profile fitted,
+`mxi integrate` writes -- each reflection's reason for not being profile fitted,
 0 if it was -- counts the reasons, and bins the failures by position in the
 scan, |zeta|, the box's depth and width, place on the detector, resolution and
 summed I/sigma (`--code N` for one reason). A cause shows as the variable whose
@@ -181,7 +181,7 @@ side -- the beam's wavelength and direction; each panel's origin, axes, pixel an
 image size, trusted range and sensor; the goniometer's axes and angles; the
 scan's images and angles -- and says of each "same", within tolerances small
 enough that a difference means something, or by how much it differs. It exits 1
-if anything differs. For `mxi_import` against `dials.import` on each new data
+if anything differs. For `mxi import` against `dials.import` on each new data
 set (`docs/import.md`).
 
 ## Bias against the data itself
@@ -204,7 +204,7 @@ observation shows without a second program or a reference data set.
   `profile.measured` -- the profile's fraction on valid pixels, which a module
   gap lowers -- by the masked-foreground flag, by images from each end of the
   scan, by the background's dispersion where the table has it
-  (`mxi_integrate --save-background-parameters`), and by resolution
+  (`mxi integrate --save-background-parameters`), and by resolution
   (quantiles of what is counted) and I/sigma as controls; each counts, by default, only the observations clean in every other
   respect (`--all` for every one). Read the median and the ratio of the sums.
 * **sigma_m from the partials.** A partial's intensity before the division by
@@ -260,7 +260,7 @@ mislead, a small difference many sigma; and both against |zeta|, nearness to
 the rotation axis, which also gets a table of its own.
 
 `--shoeboxes-from integrated.rflx` -- an integrated file written with
-`mxi_integrate --save-shoeboxes` -- writes the pixels of the worst 300
+`mxi integrate --save-shoeboxes` -- writes the pixels of the worst 300
 observations, and of 100 strong ones agreeing with Fc^2 within 1 sigma for
 comparison, to one compressed file (`--shoeboxes`, outliers.npz): each box's
 data, background and mask, concatenated with their offsets, and its figures.
@@ -350,10 +350,10 @@ reporting a near-total disagreement in intensity.
 ## Status
 
 The `.refl` format is validated against real `dials.find_spots` and
-`mxi_find` output, and `tests/data` holds a 48-row cut of it so
+`mxi find` output, and `tests/data` holds a 48-row cut of it so
 that is checked on every run. `.expt` is read from real `dials.import`,
-`mxi_import` and `mxi_scale` output by `compare-expt` and `equivalents`, and
-`tests/test_import.py` holds `mxi_import`'s against `dials.import`'s.
+`mxi import` and `mxi scale` output by `compare-expt` and `equivalents`, and
+`tests/test_import.py` holds `mxi import`'s against `dials.import`'s.
 
 The first version of the reader was wrong about the format in two ways and its
 entire test suite passed, because the only format check was a round-trip

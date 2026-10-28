@@ -15,11 +15,11 @@ one crystal** (`docs/multi-sweep.md`), **or several crystals in one beam**
 (`docs/multi-lattice.md`), step for step as DIALS divides it, with the spot
 finder's threshold and the profile fitting also on the GPU (Metal and CUDA):
 
-    mxi_find -> mxi_index -> mxi_refine -> mxi_integrate -> mxi_symmetry -> mxi_scale -> mxi_export
+    mxi find -> mxi index -> mxi refine -> mxi integrate -> mxi symmetry -> mxi scale -> mxi export
 
 Its own files are `.rflx`, one HDF5 file a step in dxtbx-h5's layout
 (`docs/rflx.md`); it reads and writes DIALS' own `.expt` and `.refl` as well,
-and `mxi_convert` goes between them, so any step can be replaced by its
+and `mxi convert` goes between them, so any step can be replaced by its
 `dials.*` counterpart and the rest carries on: `dials.scale` has scaled
 this code's integrated tables, and `dials.merge` and `dials.estimate_resolution`
 have read its scaled ones. It is **not a fork of DIALS** and depends on neither
@@ -53,8 +53,8 @@ sigmas' calibration and the anomalous slope's control, and writes its model
 into the scaled file; the cell's e.s.d.s come from two-theta.
 
 Each .rflx carries the processing's summary, every program's figures and
-tables in the order they ran; `mxi_show` tells a file's state and
-`mxi_report` draws it as a page (`docs/output.md`). Numbers are stored
+tables in the order they ran; `mxi show` tells a file's state and
+`mxi report` draws it as a page (`docs/output.md`). Numbers are stored
 bitshuffle-LZ4 (`docs/rflx.md`).
 
 ## Building it and running it on your data
@@ -71,21 +71,21 @@ Add `-DMXI_METAL=ON` or `-DMXI_CUDA=ON` for the GPU threshold and profile fittin
 `-DMXI_FFTW=ON` for FFTW. The `README.md` has the details and the dependencies
 by platform.
 
-The chain on your own data needs nothing of DIALS -- `mxi_import` reads the
+The chain on your own data needs nothing of DIALS -- `mxi import` reads the
 NXmx master, and `dials.import`'s `imported.expt` serves as well; every
 program answers `--help` and `--version` and mirrors its output to
 `mxi_<program>.log`, and the main sequence's take `--timing`. Each step reads
 the last one's `.rflx` and writes its own:
 
 ```sh
-mxi_import    master.nxs          # imported.rflx
-mxi_find      imported.rflx       # strong.rflx; --gpu for the GPU
-mxi_index     strong.rflx         # indexed.rflx
-mxi_refine    indexed.rflx        # refined.rflx: scan-varying, a point per 10 degrees
-mxi_integrate refined.rflx        # integrated.rflx; --gpu: fitting on the GPU, in float
-mxi_symmetry  integrated.rflx     # symmetrized.rflx
-mxi_scale     symmetrized.rflx    # scaled.rflx
-mxi_export    scaled.rflx         # scaled.mtz, unmerged
+mxi import    master.nxs          # imported.rflx
+mxi find      imported.rflx       # strong.rflx; --gpu for the GPU
+mxi index     strong.rflx         # indexed.rflx
+mxi refine    indexed.rflx        # refined.rflx: scan-varying, a point per 10 degrees
+mxi integrate refined.rflx        # integrated.rflx; --gpu: fitting on the GPU, in float
+mxi symmetry  integrated.rflx     # symmetrized.rflx
+mxi scale     symmetrized.rflx    # scaled.rflx
+mxi export    scaled.rflx         # scaled.mtz, unmerged
 ```
 
 Beside a DIALS run of the same data, `mxeq` (in `python/`) compares the two at
@@ -97,36 +97,47 @@ reflection at a time. It needs no cctbx.
 
 On the 3600 images of an EIGER2 XE 16M sweep -- `ins10_1.nxs` of
 https://zenodo.org/records/8376818 -- on an M4 Max MacBook, the chain from the
-images to scaled data, `mxi_find -j 16 --gpu`, `mxi_index`, `mxi_refine` (the
-beam, analytically: the default since 14 October), `mxi_integrate --gpu`, `mxi_symmetry` and `mxi_scale --d-min-auto`,
+images to scaled data, `mxi find -j 16 --gpu`, `mxi index`, `mxi refine` (the
+beam, analytically: the default since 14 October), `mxi integrate --gpu`, `mxi symmetry` and `mxi scale --d-min-auto`,
 takes 36.6 s of wall time and 3m42 of CPU (30 September 2026).
 
 ## Where to find things
 
 | step | library, in `src/` | program | reference document |
 |---|---|---|---|
-| import | `nxmx_import` (the NXmx geometry, its transformation chains) | `mxi_import` | `docs/import.md` |
-| the images | `nxmx_reader` (frames, the detector's pixel mask), `decompress`, `hdf5_handle`, `experiment_images`; `untrusted` (regions marked untrusted, joined to the pixel mask) | `mxi_view` (napari: the images, the spots, and the regions drawn), `mxi_untrusted` (list, set, clear), `mxi_max` (a maximum projection) | `docs/mask.md` |
-| spot finding | `dext` (the threshold on the CPU), `dext_metal.cc` and `.metal`, `dext_cuda.cu`, `dext_gpu`, `signal_order`, `spots`, `spot_table` | `mxi_find` | `docs/spots.md` |
+| import | `nxmx_import` (the NXmx geometry, its transformation chains) | `mxi import` | `docs/import.md` |
+| the images | `nxmx_reader` (frames, the detector's pixel mask), `decompress`, `hdf5_handle`, `experiment_images`; `untrusted` (regions marked untrusted, joined to the pixel mask) | `mxi view` (napari: the images, the spots, and the regions drawn), `mxi untrusted` (list, set, clear), `mxi max` (a maximum projection) | `docs/mask.md` |
+| spot finding | `dext` (the threshold on the CPU), `dext_metal.cc` and `.metal`, `dext_cuda.cu`, `dext_gpu`, `signal_order`, `spots`, `spot_table` | `mxi find` | `docs/spots.md` |
 | geometry | `geometry` (the models, the sample offset), `predict`, `derivatives`, `linalg` | | `docs/conventions.md` |
-| indexing | `index` (3D FFT, the real-space grid search, a known cell), `fft`, `fft_fftw` | `mxi_index` | `docs/algorithms.md`; `CLAUDE.md`, indexing |
-| refinement | `refine` (static and scan-varying, the crystal tie, the sample offset) | `mxi_refine` | `docs/algorithms.md`; `docs/multi-sweep.md` |
-| integration | `integrate` (summation), `background`, `shoebox`, `mask`, `profile_model`, `profile_grid`, `reference` (profiles and fitting), `postrefine`; on a GPU `fit_batch`, `fit_cuda.cu`, `fit_metal.metal`, `fit_device_*`, `cuda_device.cu`, `metal_device` | `mxi_integrate` | `docs/integration.md`; `docs/gpu.md` |
-| symmetry | `symmetry` (space groups, settings, via gemmi), `laue`, `cosym` | `mxi_symmetry` | `docs/symmetry.md` |
-| scaling | `scale`, `scale_model`, `resolution`, `two_theta` | `mxi_scale` | `docs/scaling.md` |
-| many crystals | `correlation`, `combine` | `mxi_correlation`, `mxi_combine`, `mxi_split` | `docs/correlation.md`, `docs/multi-sweep.md` |
-| output | `rflx`, `refl` (msgpack by hand), `expt`, `views` | `mxi_export`, `mxi_convert`, `mxi_show`, `mxi_report` | `docs/export.md`, `docs/rflx.md` |
+| indexing | `index` (3D FFT, the real-space grid search, a known cell), `fft`, `fft_fftw` | `mxi index` | `docs/algorithms.md`; `CLAUDE.md`, indexing |
+| refinement | `refine` (static and scan-varying, the crystal tie, the sample offset) | `mxi refine` | `docs/algorithms.md`; `docs/multi-sweep.md` |
+| integration | `integrate` (summation), `background`, `shoebox`, `mask`, `profile_model`, `profile_grid`, `reference` (profiles and fitting), `postrefine`; on a GPU `fit_batch`, `fit_cuda.cu`, `fit_metal.metal`, `fit_device_*`, `cuda_device.cu`, `metal_device` | `mxi integrate` | `docs/integration.md`; `docs/gpu.md` |
+| symmetry | `symmetry` (space groups, settings, via gemmi), `laue`, `cosym` | `mxi symmetry` | `docs/symmetry.md` |
+| scaling | `scale`, `scale_model`, `resolution`, `two_theta` | `mxi scale` | `docs/scaling.md` |
+| many crystals | `correlation`, `combine` | `mxi correlation`, `mxi combine`, `mxi split` | `docs/correlation.md`, `docs/multi-sweep.md` |
+| output | `rflx`, `refl` (msgpack by hand), `expt`, `views` | `mxi export`, `mxi convert`, `mxi show`, `mxi report` | `docs/export.md`, `docs/rflx.md` |
 | plumbing | `json`, `args`, `summary`, `processing`, `parallel` | | |
 
-Library files are `src/<name>.hh` and `.cc`; programs `apps/<name>.cc`, but
-`mxi_view`, which is Python on napari (optional), `tools/mxi_view.py`, copied
-beside the others by the build with the module it shares, `tools/mxi_tools.py`. Seven more programs are for looking at a step rather than doing it:
-`mxi_profile` estimates the profile model, `mxi_foreground` marks each
-reflection's foreground for dials.image_viewer, `mxi_grid` and `mxi_forward` show spots in Kabsch
-space and rendered onto the pixels, `mxi_residuals` decomposes centroid
-residuals, `mxi_background` fits backgrounds to given pixels, and
-`mxi_readtest` times reading. `cmake --install` puts every program, `mxi_view`
-with them, in one `bin`.
+Library files are `src/<name>.hh` and `.cc`. There is one program, `mxi`, and
+every step is a command of it (since 1.1): `apps/mxi.cc` dispatches -- `mxi
+find ...` runs `mxi_find_main` -- and each command is still its own source,
+`apps/mxi_<name>.cc`, built as an object library with its own settings and
+linked into `mxi`. `mxi view` is Python on napari (optional), `tools/mxi_view.py`,
+copied beside `mxi` by the build with the module it shares,
+`tools/mxi_tools.py`, and run by it. In the build directory each command's old
+name, `"mxi_find"`, is a link to `mxi`, which runs the command it is called by:
+the tests run them so; they are not installed. Seven commands are for looking at
+a step rather than doing it, listed apart by `mxi help`: `mxi profile`
+estimates the profile model, `mxi foreground` marks each reflection's
+foreground for dials.image_viewer, `mxi grid` and `mxi forward` show spots in
+Kabsch space and rendered onto the pixels, `mxi residuals` decomposes centroid
+residuals, `mxi background` fits backgrounds to given pixels, and `mxi
+readtest` times reading. `cmake --install` puts `mxi`, with `mxi view`'s
+Python, in a `bin`.
+
+What files record is unchanged: each processing step is named as before,
+`"mxi_find"`, `"mxi_refine"`, in a file's summary, and each command's log is
+`mxi_find.log` -- so that files written before 1.1 read as they did.
 
 The referee, `mxeq`, is in `python/src/mxeq` (`python/README.md`): comparisons
 with DIALS, regression over real data, and `truth.py` -- a scaled data set
@@ -163,7 +174,7 @@ matters: the median times 1.5, as it was, let a small molecule with a second
 lattice in it index in a supercell twice the true one's volume. And it has a
 macrocycle of assignment and refinement. The transform, its candidates and the
 basis follow fft3d's in three more ways, each found missing on a cell of 43.6,
-43.6, 212 A that dials.index indexed and mxi_index did not: the reciprocal grid
+43.6, 212 A that dials.index indexed and mxi index did not: the reciprocal grid
 a step of 1 / (2.5 max_cell), as fft3d's, and no point beyond its reach, where
 1 / (2 max_cell) put c* 2.7 steps apart and the points beyond wrapped round;
 candidate peaks a whole multiple of a stronger one dropped, where 2a to 6a had
@@ -186,7 +197,7 @@ refinement (Graeme's choice; `--ambiguous closest` gives it to the nearer).
 Given a refined list, a lattice missed at first is looked for again with the
 geometry refined since. Each sweep's own crystal-less experiment is carried
 through every program, its unindexed spots its own, as dials/dials#1029
-proposes; `mxi_convert` leaves it out for DIALS's later programs, by default
+proposes; `mxi convert` leaves it out for DIALS's later programs, by default
 once there are lattices (`--keep-sweeps` keeps it).
 
 **Refinement** has analytical derivatives for crystal, detector and beam,
@@ -291,7 +302,7 @@ there:
   since 15 October: mxi had divided the profile-fitted intensity too, and
   scaled the pieces apart).
 
-**Clustering** (`docs/correlation.md`): `mxi_correlation` is
+**Clustering** (`docs/correlation.md`): `mxi correlation` is
 dials.correlation_matrix -- the sigma-weighted correlation of every pair of
 data sets, cosym's coordinates and their dimension, OPTICS as scikit-learn's
 (every ordering, predecessor and label the same on four test sets), each
@@ -311,15 +322,15 @@ phase of every program is reported by `--timing`.
 
 The chain is complete for one sweep, for several of one crystal, and for many
 crystals -- indexed apart, brought to one setting by cosym, sorted by
-`mxi_correlation`, joined and parted by `mxi_combine` and `mxi_split`; beyond
+`mxi correlation`, joined and parted by `mxi combine` and `mxi split`; beyond
 it (`docs/outstanding.md` has the numbered list):
 
 * Free-set validation of scaling; overloads flagged in integration; the cell
-  constrained to the lattice's symmetry in refinement (`mxi_scale`'s cell from
+  constrained to the lattice's symmetry in refinement (`mxi scale`'s cell from
   two-theta is constrained, with e.s.d.s); cosym for many small partial data
   sets.
 * Reports and merged output: an HTML report, merged MTZ and mmCIF are not
-  written; `mxi_export` writes the unmerged MTZ, which AIMLESS reads
+  written; `mxi export` writes the unmerged MTZ, which AIMLESS reads
   (`docs/export.md`), and `dials.merge` takes the scaled table.
 * **Known biases in integration** (`docs/outstanding.md`, items 1 to 4):
   reflections cut by a gap, high by a few per cent where a third is lost; a

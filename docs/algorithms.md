@@ -7,14 +7,14 @@ reason is in the document given. `docs/review.md` says the same for a
 reviewer, as differences from DIALS; this is for someone who wants to know how
 it works.
 
-## Import -- `mxi_import` (`docs/import.md`)
+## Import -- `mxi import` (`docs/import.md`)
 
 **Reading NXmx** (HDF5): the beam, the detector's panels with their
 transformations and parallax, the goniometer's axes and the scan, as
 dials.import reads them, into one experiment a sweep; the detector's own pixel
 mask with it. `--split N` cuts a sweep into N for testing.
 
-## Spot finding -- `mxi_find` (`docs/spots.md`)
+## Spot finding -- `mxi find` (`docs/spots.md`)
 
 **The extended dispersion threshold**, DIALS's default (`src/dext*`): a
 pixel is signal where the local index of dispersion and the local mean say so,
@@ -23,7 +23,7 @@ over windows of 7 x 7, 5 x 5 and 11 x 11, on the CPU, CUDA or Metal; then
 Frames are read straight from their compressed chunks (bitshuffle-LZ4) by
 pread, outside HDF5's lock.
 
-## Indexing -- `mxi_index`
+## Indexing -- `mxi index`
 
 **The three-dimensional FFT** (Bricogne 1986), as DIALS's fft3d: the spots'
 reciprocal-space positions sampled onto a grid a step of 1 / (2.5 max_cell),
@@ -41,7 +41,7 @@ assignment and refinement. Several lattices (`--max-lattices`) found in turn,
 each spot assigned again to the lattice it lies nearest
 (`docs/multi-lattice.md`).
 
-## Refinement -- `mxi_refine`
+## Refinement -- `mxi refine`
 
 **Weighted least squares on the spot centroids**, x and y on the detector and
 the rotation angle, by **Gauss-Newton with Levenberg damping**
@@ -72,7 +72,7 @@ the rotation axis crosses the Ewald sphere where |r0|^2 + 2 s0 . R(phi) r0 = 0,
 which about the axis is B cos(phi) + C sin(phi) + A0 = 0: closed form, one atan2
 and one acos, two roots, no iteration.
 
-## Integration -- `mxi_integrate` (`docs/integration.md`)
+## Integration -- `mxi integrate` (`docs/integration.md`)
 
 * **The profile model** after Kabsch (2010): the spot's spread in the
   diffracted beam's direction, sigma_b, from each refined spot's pixels about
@@ -96,7 +96,7 @@ and one acos, two roots, no iteration.
   the grid -- by iteratively reweighted least squares, on the CPU, CUDA or
   Metal; one pass over the images.
 
-## Symmetry -- `mxi_symmetry` (`docs/symmetry.md`)
+## Symmetry -- `mxi symmetry` (`docs/symmetry.md`)
 
 * **Centred input** taken to its primitive cell first, by the standard change
   of basis for its centring.
@@ -113,7 +113,7 @@ and one acos, two roots, no iteration.
   resolution limit from CC half.
 * **The space group by its absences**, then the data reindexed into it.
 
-## Scaling -- `mxi_scale` (`docs/scaling.md`)
+## Scaling -- `mxi scale` (`docs/scaling.md`)
 
 * **The physical model** of Beilsten-Edmands et al. (2020), as dials.scale's:
   a scale C(phi) and a decay B(phi), each a cubic B-spline, and absorption by
@@ -134,7 +134,7 @@ and one acos, two roots, no iteration.
 * **The resolution limit** as dials.estimate_resolution's, CC half fitted.
 * **The cell's e.s.d.s from two-theta**, as dials.two_theta_refine.
 
-## Clustering -- `mxi_correlation` (`docs/correlation.md`)
+## Clustering -- `mxi correlation` (`docs/correlation.md`)
 
 As dials.correlation_matrix (Thompson et al. 2025):
 
@@ -151,7 +151,7 @@ As dials.correlation_matrix (Thompson et al. 2025):
 * **Ward's hierarchical clustering** for the report's dendrograms, by the
   Lance-Williams update, as scipy's.
 
-## Export -- `mxi_export` (`docs/export.md`)
+## Export -- `mxi export` (`docs/export.md`)
 
 **An unmerged MTZ** as dials.export writes it: the intensities and their
 corrections, the columns, a batch an image with its header.

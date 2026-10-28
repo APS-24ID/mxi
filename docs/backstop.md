@@ -31,7 +31,7 @@ unharmed ones read some 950.
   `mxeq attenuation`, each observation good or attenuated from its equivalents
   and its background together, attenuation only lowering;
 * and `--d-max` in integration and scaling, `--save-background-parameters` and
-  `mxi_find --subtract-background`.
+  `mxi find --subtract-background`.
 
 **What was learned.** A background too low means an intensity too low (z below
 -5: 8 to 18 per cent); too high barely matters (1 to 1.5 per cent). Nothing
@@ -169,7 +169,7 @@ advance.
 `integrated.refl` as `background.dispersion`, with how many pixels it was taken
 over, so that on ferritin `mxeq observations` and `mxeq equivalents` can show
 whether the edge stands out, where the flare falls, and whether dense regions
-flag falsely. Then the test, `mxi_integrate --flag-background`, off until it has
+flag falsely. Then the test, `mxi integrate --flag-background`, off until it has
 been judged; the flag goes into the table, so `mxeq` can count it.
 
 ## 2. Outlier rejection that the few cannot win
@@ -208,7 +208,7 @@ plane for the background there, or a flag and leaving them out.
 
 ## Measured so far
 
-`mxi_integrate --save-background-parameters` writes `background.dispersion`
+`mxi integrate --save-background-parameters` writes `background.dispersion`
 -- only when asked, so that by default the table is what it was -- over every
 valid background pixel, and `background.dispersion_trimmed`, leaving out those beyond five
 Poisson standard deviations of the robust mean, with
@@ -550,8 +550,8 @@ scale, judge, flag, scale again, until the flags stop changing.
 
 **Built in two steps**: a prototype, `mxeq attenuation scaled.expt
 scaled.refl`, writing each observation's probability of attenuation and the
-flags for `mxi_scale`'s next round, judged on (3,1,1) and the equivalents' tables
-and Graeme's refinement; then, if it holds, inside `mxi_scale`'s outlier
+flags for `mxi scale`'s next round, judged on (3,1,1) and the equivalents' tables
+and Graeme's refinement; then, if it holds, inside `mxi scale`'s outlier
 rejection, where it also mends item 53 -- a few small sigmas outvoting many good
 observations. `--reject-inner` stays, an option.
 
@@ -559,7 +559,7 @@ observations. `--reject-inner` stays, an option.
 
 Built as designed, with Graeme's three answers: the background compared locally,
 knowing the flare can bias it; rejected, not corrected; iterated outside
-`mxi_scale` for now. Two additions found in building it. A reflection observed
+`mxi scale` for now. Two additions found in building it. A reflection observed
 fewer than three times has no group to compare with, and one too weak for its
 equivalents is perhaps weak because attenuated: both are judged by the
 background alone, against the background model's expectation where the table

@@ -35,7 +35,9 @@ DOCUMENTS = sorted(
     if str(p.relative_to(ROOT)) not in HISTORY
 )
 
-COMMAND = re.compile(r"(?:\./build/|build/)?(mxi_[a-z]+)\b(.*)")
+# A command, mxi find ... as now (mxi 1.1), or mxi_find ... as the histories
+# have it; either is checked against mxi_find, its link in the build directory.
+COMMAND = re.compile(r"(?:\./build/|build/)?mxi[_ ]([a-z]+)\b(.*)")
 
 
 def commands(text):
@@ -46,13 +48,13 @@ def commands(text):
             in_fence = not in_fence
             continue
         found = []
-        if in_fence or re.match(r"    (?:\$ )?(?:\./build/)?mxi_[a-z]+ ", line):
+        if in_fence or re.match(r"    (?:\$ )?(?:\./build/)?mxi[_ ][a-z]+ ", line):
             found.append(line.strip().removeprefix("$ "))
-        found += re.findall(r"`((?:\./build/)?mxi_[a-z]+ [^`]+)`", line)
+        found += re.findall(r"`((?:\./build/)?mxi[_ ][a-z]+ [^`]+)`", line)
         for candidate in found:
             m = COMMAND.match(candidate)
-            if m:
-                yield n, m.group(1), m.group(2).split("#")[0]
+            if m and m.group(1) != "help":  # mxi help: the list, no options
+                yield n, "mxi_" + m.group(1), m.group(2).split("#")[0]
 
 
 _helps = {}

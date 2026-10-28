@@ -1,6 +1,6 @@
 # Scaling
 
-STATUS: `mxi_scale` scales one sweep, and several of one crystal together
+STATUS: `mxi scale` scales one sweep, and several of one crystal together
 (5 October 2026). Not yet: free-set validation. `docs/outstanding.md` has the
 whole list.
 
@@ -14,24 +14,24 @@ each sweep's apart, so the sweeps' relative scale is kept: it is what scaling
 them together is for. The report gives each sweep's scale and relative B. A
 sweep with no observations is refused (`docs/multi-sweep.md`).
 
-`mxi_scale` puts every observation of a sweep on one scale, refines an error
+`mxi scale` puts every observation of a sweep on one scale, refines an error
 model, and reports merging statistics -- the physical model of Beilsten-Edmands
 et al. (2020), Acta Cryst. D76, 385-399, with cubic B-splines for the scale and
 decay and the paper's spherical harmonics for the absorption surface.
 
 ## Running it
 
-    mxi_scale symmetrized.rflx      # scaled.rflx
+    mxi scale symmetrized.rflx      # scaled.rflx
 
 or from and to the DIALS pair, as `docs/rflx.md` describes:
 
-    mxi_scale symmetrized.expt symmetrized.refl -o scaled.refl --output-expt scaled.expt
+    mxi scale symmetrized.expt symmetrized.refl -o scaled.refl --output-expt scaled.expt
 
-The space group is the crystal's, as `mxi_symmetry` wrote it (`docs/symmetry.md`).
+The space group is the crystal's, as `mxi symmetry` wrote it (`docs/symmetry.md`).
 `--space-group` and `--change-of-basis` override it for data that have not been
-through `mxi_symmetry`; `--d-min`, `--d-max` (a low resolution limit: beside a
+through `mxi symmetry`; `--d-min`, `--d-max` (a low resolution limit: beside a
 backstop, see `docs/backstop.md`), `--no-absorption`, `--profile-only` and
-`--shells N` (20) do what they say. `mxi_scale --help` is the authority.
+`--shells N` (20) do what they say. `mxi scale --help` is the authority.
 
 ## The model
 
@@ -115,7 +115,7 @@ A scaled, unmerged reflection table with dials.scale's columns --
 `inverse_scale_factor` and its variance, `intensity.scale.value` and variance --
 and its flags (scaled, bit 26; an outlier in scaling, bit 23; excluded, bit 24)
 ADDED to those integration set, and dials.merge takes it -- as the DIALS pair,
-from `scaled.rflx` by `mxi_convert scaled.rflx`, which leaves out each
+from `scaled.rflx` by `mxi convert scaled.rflx`, which leaves out each
 sweep's crystal-less experiment by default. With `--keep-sweeps`, and in the
 pair `-o scaled.refl --output-expt scaled.expt` writes, each sweep's
 crystal-less experiment is carried
@@ -126,7 +126,7 @@ does, so nothing downstream should add `inverse_scale_factor_variance` to it
 again. The models, reindexed, go with it, into `scaled.rflx` (`scaled.expt` in the
 pair). It prints the model, the error
 model, merging statistics in twenty shells and dials.scale's summary. HTML
-reports are for a later mxi_report, MTZ and mmCIF for a later mxi_export.
+reports are for a later mxi report, MTZ and mmCIF for a later mxi_export.
 
 ## Against dials.scale, on the 300 image sweep
 
@@ -197,12 +197,12 @@ crystals' whole background. Both mended, the same two crystals scale with a =
 ## Images left out: --exclude (23 October)
 
 ```sh
-mxi_scale symmetrized.rflx --exclude 6:600:800 --exclude 0:550-700
+mxi scale symmetrized.rflx --exclude 6:600:800 --exclude 0:550-700
 ```
 
 An experiment's images left out of scaling, as dials.scale's
 `exclude_images=`: each `EXPERIMENT:FIRST:LAST` (or `FIRST-LAST`), as many as
-wanted. Experiments are numbered as the file numbers them, as `mxi_show` lists
+wanted. Experiments are numbered as the file numbers them, as `mxi show` lists
 them; a sweep's crystal-less experiment stands for its lattices, so either
 number may be given. Images are the file's: image n spans z from n - 1 to n,
 whatever image the scan begins at. The observations there are flagged
@@ -219,7 +219,7 @@ reflections of 2606 lost.
 ## Partial reflections (15 October)
 
 Two corrections, both as dials.scale, found on Graeme's 36 insulin crystals
-(dials.symmetry's output, scaled by dials.scale and by mxi_scale):
+(dials.symmetry's output, scaled by dials.scale and by mxi scale):
 
 * **Partiality divides the summed intensity only.** A profile-fitted
   intensity estimates the whole reflection whatever part of it was recorded;
@@ -231,7 +231,7 @@ Two corrections, both as dials.scale, found on Graeme's 36 insulin crystals
   (sum_partial_reflections): pieces of partiality under 0.99 with positive
   variances, within an experiment; the profile-fitted value a mean weighted by
   I^2 / sigma^2, the summed values and variances added, the partialities
-  added; the partiality cutoff applied after. mxi_scale scaled each piece
+  added; the partiality cutoff applied after. mxi scale scaled each piece
   apart -- 23170 of them there, 8 per cent of the observations of raw I/sigma
   over 100. It now combines them and says how many: 23170, exactly the rows
   dials.scale's output has fewer.
@@ -272,7 +272,7 @@ sweep -- threefold, from a sample poorly centred in a beam smaller than it,
 its illuminated volume changing as it turns (Graeme) -- is held by the data
 and stays.
 
-And where a scale reaches zero or below regardless, mxi_scale says so: a
+And where a scale reaches zero or below regardless, mxi scale says so: a
 WARNING naming the experiment, rather than a result written in silence.
 
 ## The error model's fit: which is dials.scale's default (15 October)
@@ -337,7 +337,7 @@ printed a bin at a time.
 
 ## The scale model, written
 
-`mxi_scale` writes its model into the scaled experiments, as dials.scale writes
+`mxi scale` writes its model into the scaled experiments, as dials.scale writes
 its `scaling_model` (outstanding 26): an entry a lattice, the experiment's
 `scaling_model` its index. mxi's own type, `mxi_physical`: the same three
 corrections as DIALS's physical model, but cubic B-splines where DIALS smooths
@@ -348,7 +348,7 @@ with Gaussians, so its numbers would be read wrongly as DIALS's. Each entry:
 says in words how to evaluate g: t the observation's place in its scan from
 `xyzcal.px`, the spline's segments and weights, the harmonics' order and frame.
 Evaluated from the entry alone, g matches every scaled reflection's
-`inverse_scale_factor` to 1e-9 (tests/test_scaling_model.py). `mxi_convert`
+`inverse_scale_factor` to 1e-9 (tests/test_scaling_model.py). `mxi convert`
 leaves it out of DIALS files, which DIALS could not read, and a program told
 to write the DIALS pair writes none.
 
@@ -362,7 +362,7 @@ variances before the error model ("raw") and after ("final"); and each as a
 mean square and robustly, (1.4826 MAD)^2, so a few wild observations show as
 the two apart. Printed above the summary of merging statistics; in the
 .rflx's summary (`calibration_by_resolution`, `calibration_by_intensity`);
-drawn by mxi_report, plain and robust, raw and final, on a log scale. The two insulin crystals: final 0.95 to 1.03
+drawn by mxi report, plain and robust, raw and final, on a log scale. The two insulin crystals: final 0.95 to 1.03
 nearly everywhere, plain and robust alike. Insulin's sweep before the error
 model: the strongest sixth 7.8 plain, 2.3 robust -- a tail of a few -- 1.10 and
 0.76 after. Written for Graeme's 6S0R set, whose error model came out a = 4.8
@@ -393,10 +393,10 @@ d_i d_i^T - den G G^T), sum w g_i d_i being den G: each observation's own
 parameters, then G G^T once a group. Formed an observation at a time, every row
 was dense at high multiplicity -- Graeme's 36000 images, multiplicity 374 over
 ten turns, 448 parameters: three fits of 22 to 30 s each, twice over with
---d-min-auto, of mxi_scale's 188. The same sum rearranged: the inverse scales
+--d-min-auto, of mxi scale's 188. The same sum rearranged: the inverse scales
 agree with the old to 2e-15, insulin replicated twentyfold and the two crystals.
 Graeme's 36000 images then: each fit 0.3 to 0.4 s where it had been 22 to 30,
-mxi_scale 188 s to 22.5. The scale's uncertainty, 3 s of what remained, inverted
+mxi scale 188 s to 22.5. The scale's uncertainty, 3 s of what remained, inverted
 its constrained normal matrix a column at a time with a factorisation each, m^4
 / 3 at 446 parameters; one Cholesky factorisation now, the columns solved from
 it, the same numbers to the bit; and each observation's variance from the
@@ -445,7 +445,7 @@ two 0.4 and 1.4 to 1.0 and 2.4; insulin -0.05 to -0.17 to within 0.06. The
 calibration by mean intensity sextile, the two crystals 0.42 0.80 1.06 1.05
 0.93 0.98 to 0.79 1.01 1.02 0.98 0.98 0.99; insulin 0.99 to 1.21 as it was.
 
-`mxi_scale --no-model-variances` keeps each variance as integrated, for
+`mxi scale --no-model-variances` keeps each variance as integrated, for
 comparison: on insulin the two agree, R merge 0.035 and CC half 0.987 either
 way.
 
@@ -472,7 +472,7 @@ worst-determined parts of a scan over every observation.
 
 ## The summary, and what the error model does to it
 
-mxi_scale ends with dials.scale's summary -- overall, lowest shell, highest --
+mxi scale ends with dials.scale's summary -- overall, lowest shell, highest --
 with iotbx.merging_statistics' definitions, which dials.scale reports: R factors
 with Friedel mates merged and apart, anomalous completeness against the complete
 acentric set, anomalous multiplicity over the groups with mates apart, the
@@ -614,6 +614,6 @@ the flag, every table is byte-identical to before it.
 
 * **gemmi** for space groups, pinned at a release as a submodule, behind
   `src/symmetry.hh`; only its symmetry source is compiled.
-* **Reports** of merging statistics go in a later mxi_report; **MTZ and
-  mmCIF** in a later mxi_export. `mxi_scale` prints its tables, as the other
+* **Reports** of merging statistics go in a later mxi report; **MTZ and
+  mmCIF** in a later mxi_export. `mxi scale` prints its tables, as the other
   programs do.

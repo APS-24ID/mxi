@@ -6,7 +6,7 @@ dials.export's MTZ writer (`dials/util/export_mtz.py`, with
 `filter_reflections.py`, `batch_handling.py` and the C++ `ub_to_mosflm_u`),
 read for this; each rule below is that code's.
 
-`mxi_export EXPT REFL -o scaled.mtz` writes the unmerged MTZ that AIMLESS,
+`mxi export EXPT REFL -o scaled.mtz` writes the unmerged MTZ that AIMLESS,
 POINTLESS and the rest of CCP4 read: one row an observation, a batch header an
 image. One sweep or several. Written through gemmi's C++ `Mtz`, as dials.export
 writes through gemmi's Python one -- `third_party/gemmi`'s `mtz.cpp`, `gz.cpp`
@@ -90,7 +90,7 @@ gemmi puts indices in the asymmetric unit, and sets M/ISYM, only for data it
 has been told hold their original indices: `switch_to_original_hkl()` called
 before the data are set -- which, with no data yet, only marks it, as
 dials.export does -- or `switch_to_asu_hkl()` returns false and does nothing,
-leaving every M/ISYM zero. mxi_export now marks the data and refuses if the
+leaving every M/ISYM zero. mxi export now marks the data and refuses if the
 switch reports failure.
 
 ## How it is judged
@@ -101,7 +101,7 @@ SCALEUSED, XDET, YDET and FRACTIONCALC the table's, every row's batch a header,
 each header's U orthonormal and the scan axis on +Z; integrated: IPR and SIGIPR
 by LP / QE, I and SIGI by LP / QE / partiality; and two sweeps overlapping in
 their image numbers, the second's batches moved to 201. And the test that
-counts: AIMLESS reads mxi_export's output and understands it (Graeme). A
+counts: AIMLESS reads mxi export's output and understands it (Graeme). A
 comparison with dials.export column by column and header by header has not
 been made, and is there if a difference ever needs explaining. As designed: the columns and their values against the table,
 corrections and all; the batch numbering across sweeps against dials' rules;

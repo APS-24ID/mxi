@@ -66,8 +66,8 @@ none of its own.
 
 `run` first runs each program once with --help, untimed: macOS checks a
 binary the first time it runs, some 2 s over the chain that would otherwise
-count against the first data set (Graeme). Then it takes the chain, mxi_import
-to mxi_scale and mxi_report, a step at a time, stopping at a failure, which is recorded as such. Each step's peak memory
+count against the first data set (Graeme). Then it takes the chain, mxi import
+to mxi scale and mxi report, a step at a time, stopping at a failure, which is recorded as such. Each step's peak memory
 and CPU time are its own, from wait4 (kB on Linux, bytes on macOS, kept in MB). Each data set's
 total, import to scale without the report -- images to scaled data, the
 figure quoted for mxi -- is printed and kept as `time.total`, its CPU time as
@@ -102,5 +102,5 @@ differing -- this machine's noise, the spot finder 32.5 s then 19.4.
 * `mxeq regress bisect --dataset D --figure F GOOD BAD`: each commit built and
   that data set run until the step where the figure changed is found.
 * A history page: each figure's history for each data set, plotly, as
-  mxi_report draws.
+  mxi report draws.
 * DIALS's figures for each data set, kept once, a column beside mxi's.

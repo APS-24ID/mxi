@@ -1,4 +1,4 @@
-# Spot finding: mxi_find
+# Spot finding: mxi find
 
 The first step after import: every image of every sweep thresholded, the
 signal pixels grouped into spots in three dimensions, and the spots written as
@@ -6,9 +6,9 @@ a reflection table with centroids, intensities and shoeboxes -- on the CPU, or
 on a GPU through CUDA or Metal, the same spots either way.
 
 ```sh
-mxi_import /data/ins10_1_master.h5
-mxi_find imported.rflx            # -> strong.rflx
-mxi_find imported.rflx --gpu      # the threshold on the GPU
+mxi import /data/ins10_1_master.h5
+mxi find imported.rflx            # -> strong.rflx
+mxi find imported.rflx --gpu      # the threshold on the GPU
 ```
 
 **The threshold** is the extended dispersion threshold, DIALS's default
@@ -26,7 +26,7 @@ filter pipeline, and decompressed by bitshuffle (`src/nxmx_reader.cc`,
 Apple GPUs have no double precision at all, so a 32-bit path under Metal would
 be a different calculation from the CPU's. It refuses rather than quietly
 running in float; `--gpu-force` narrows 32-bit frames to 16 bits where every
-count fits (`mxi_max` says whether they do). The CPU path takes both.
+count fits (`mxi max` says whether they do). The CPU path takes both.
 
 ## Building
 
@@ -40,8 +40,8 @@ asked for, so a machine with neither still configures.
 ## Running
 
 ```
-mxi_find IMPORTED.rflx [options]
-mxi_find MASTER.nxs [options]
+mxi find IMPORTED.rflx [options]
+mxi find MASTER.nxs [options]
 
   -x MASTER.nxs      the images, where the experiment list's have moved
   -o file            a .rflx (strong.rflx, with the experiment list), or a
@@ -66,15 +66,15 @@ mxi_find MASTER.nxs [options]
 the outside and the CPU and the two devices are not the same program:
 
 ```
-$ mxi_find --version
-mxi_find 1.0.7 (Metal)
+$ mxi find --version
+mxi find 1.0.7 (Metal)
 ```
 
 What it prints follows `dials.find_spots`' summary, wording included, so that
 the two can be read side by side:
 
 ```
-$ mxi_find -j 4 series.expt series.nxs
+$ mxi find -j 4 series.expt series.nxs
 Experiments: 1 experiment, images 1 to 12, 1 panel of 256 x 384, identifier 1c0ffee0
 Series series: 12 images of 256 x 384, from series.nxs, 4 threads, on the CPU
 Grouping in three dimensions, 3 to 1000 pixels a spot, peak within 2.0 of the centroid
@@ -100,14 +100,14 @@ peak-centroid line appears only when that filter is on, since "Filtered 48 of
 device is present: it is an explicit request, and answering with the other
 implementation would misreport where the results came from.
 
-`mxi_find` waits for a master file that does not exist yet, up to `-t`, and
+`mxi find` waits for a master file that does not exist yet, up to `-t`, and
 takes frames as their files are written -- a bounded queue between the reading
 and the threads that threshold (`src/queue.hh`) -- so it can be pointed at a
 series still being collected.
 
 ### The experiment list
 
-The experiment list -- `mxi_import`'s, or a DIALS `.expt` -- says where each
+The experiment list -- `mxi import`'s, or a DIALS `.expt` -- says where each
 sweep's images are, and three things more (`src/experiment_images.*`, which
 unlike the full reader takes a scan with no oscillation, for stills):
 
@@ -205,7 +205,7 @@ They carry nothing the pixel list does not. Worth having for
 One panel. A segmented detector would need a panel number per spot, and is
 refused rather than guessed at.
 
-Several experiments -- several sweeps, as `mxi_import a.nxs b.nxs` writes them --
+Several experiments -- several sweeps, as `mxi import a.nxs b.nxs` writes them --
 are found one after another, each from the images its own image set names, into
 one table: every spot with its experiment's index as its `id`, and each
 experiment's identifier in the table's map, as dials.find_spots writes them. The
@@ -223,7 +223,7 @@ Not "it is broken" -- the list is short and each item is attributable:
   pixel bad wherever it is not zero. The NXmx reader reads it when it opens the
   series, and every frame decoded has the masked pixels stamped with the
   sentinel, `max() - 1`, before anything else sees it -- so spot finding,
-  integration and `mxi_max` all leave them out, as they leave out the sentinels
+  integration and `mxi max` all leave them out, as they leave out the sentinels
   the detector wrote, with no change to any kernel. A mask of the wrong shape is
   not used, said so. Until October 2026 only the sentinels were recognised, and
   a bad pixel recorded with a plausible value was masked by DIALS and measured
@@ -260,7 +260,7 @@ table decodes, every reflection comes back as one spot where it was planted,
 `--2d` gives exactly three times as many, a missing frame splits the
 reflections that spanned it and no others, one thread and eight agree byte for
 byte, and a mismatched experiment list is refused. `python3 -m
-mxeq.fixtures.nxmx DIR 12`, `mxi_find DIR/series.expt DIR/series.nxs` and
+mxeq.fixtures.nxmx DIR 12`, `mxi find DIR/series.expt DIR/series.nxs` and
 `python -m mxeq.checks.planted_spots DIR/manifest.json strong.rflx` do the same
 by hand.
 
@@ -425,8 +425,8 @@ pixels directly or build summed-area tables in threadgroup memory, and each
 choice is independent:
 
 ```sh
-MXI_GPU_STAGE0=tile   mxi_find --gpu series.nxs
-MXI_GPU_STAGE2=direct mxi_find --gpu series.nxs
+MXI_GPU_STAGE0=tile   mxi find --gpu series.nxs
+MXI_GPU_STAGE2=direct mxi find --gpu series.nxs
 ```
 
 `tile` touches each pixel about twice but fills its tables with a few dozen of
@@ -492,8 +492,8 @@ threadgroup shape and the scheduler and would break quietly if relied on.
 The threshold emits each signal pixel with its local background: the mean, over
 its final window, of the pixels the dispersion stage did not take for signal --
 a fair background, the spot left out. DIALS' spot finder discards it, weighting
-each centroid by raw counts and summing them for the intensity, and `mxi_find`
-does the same by default, byte for byte. `mxi_find --subtract-background` keeps
+each centroid by raw counts and summing them for the intensity, and `mxi find`
+does the same by default, byte for byte. `mxi find --subtract-background` keeps
 it:
 
 * the centroid weighted by count less background, clamped at zero, so that a
@@ -501,7 +501,7 @@ it:
   the middle of its images;
 * the intensity the sum of count less background, unclamped, its variance still
   the counts';
-* the background written into the shoeboxes, where `mxi_integrate`'s profile
+* the background written into the shoeboxes, where `mxi integrate`'s profile
   model subtracts it before measuring sigma_b and sigma_m.
 
 It is the same on every backend, since the background comes from the CPU's,
@@ -517,16 +517,16 @@ background should show more.
 
 Metal's threshold takes 16-bit frames only, Apple's GPUs having no double
 precision. Many detectors write 32-bit frames whose counts, the dose kept down
-for radiation damage, never come near 65535. `mxi_max EXPT` reads and
+for radiation damage, never come near 65535. `mxi max EXPT` reads and
 decompresses every frame on every core and reports the largest count on a
 valid pixel -- neither the bad pixel's marker, max() - 1, nor the tile join's,
 max(), a count, and each reported apart -- and whether it is below 0xFFFD, the values above being the 16-bit markers; it exits 0 if so.
 
-`mxi_find --gpu --gpu-force` then narrows each 32-bit frame to 16 bits before
+`mxi find --gpu --gpu-force` then narrows each 32-bit frame to 16 bits before
 the threshold, keeping each pixel's low half: the bad pixel 0xfffffffe and the
 tile join 0xffffffff become the 16-bit markers 0xfffe and 0xffff, and every count
 is copied as it is, in one branch-free pass the compiler makes SIMD. A valid count of 0xFFFD or more
-stops it, the image and the count named -- it does not trust that `mxi_max` was
+stops it, the image and the count named -- it does not trust that `mxi max` was
 run. Values and badness carry over exactly, so the spots are the 32-bit
 threshold's, byte for byte; `python/tests/test_max.py` holds it to that on a
 planted 32-bit series with a tile join's column and a dead pixel, and holds the

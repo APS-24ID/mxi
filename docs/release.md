@@ -29,21 +29,21 @@ nothing is published.
 | asset | what |
 |---|---|
 | `mxi-1.0.7-source.tar.gz` | the complete source: the repository and its submodules, gemmi and bitshuffle, at the commits the tag pins. GitHub's own source archives leave the submodules out, and without them nothing builds; this is also the source for a conda-forge recipe |
-| `mxi-1.0.7-linux-x86_64.tar.gz` | every program, built on Ubuntu 22.04, for the CPU: it runs anywhere, no CUDA driver needed |
-| `mxi-1.0.7-linux-x86_64-cuda.tar.gz` | every program, built on Ubuntu 22.04 with CUDA for Volta to Hopper (V100 to H100 and GH200) |
-| `mxi-1.0.7-macos-arm64.tar.gz` | every program, for Apple silicon, with Metal: macOS 13 or later, its static libraries too (an overlay triplet, `cmake/triplets`); any API newer than 13 used without a check fails the build, so that the binaries cannot fail on an older macOS |
+| `mxi-1.0.7-linux-x86_64.tar.gz` | `mxi`, built on Ubuntu 22.04, for the CPU: it runs anywhere, no CUDA driver needed |
+| `mxi-1.0.7-linux-x86_64-cuda.tar.gz` | `mxi`, built on Ubuntu 22.04 with CUDA for Volta to Hopper (V100 to H100 and GH200) |
+| `mxi-1.0.7-macos-arm64.tar.gz` | `mxi`, for Apple silicon, with Metal: macOS 13 or later, its static libraries too (an overlay triplet, `cmake/triplets`); any API newer than 13 used without a check fails the build, so that the binaries cannot fail on an older macOS |
 | `mxeq-1.0.7-py3-none-any.whl` | the referee, `pip install` it |
 
-Each binary archive is `bin/` -- the programs, `mxi_view` and its module
-`mxi_tools.py` -- with the licence, the README and the release notes. Unpack
-it and put its `bin` on the PATH. The programs need nothing installed: HDF5
-and zlib are linked in, from vcpkg (`vcpkg.json`), and on Linux the C++
-runtime too, so that they run on distributions older than the build's, RHEL
-among them; the CUDA driver is the system's. `scripts/package_release.sh`
-refuses to package a build that would need anything else. `mxi_view` needs
-napari, as always (`docs/mask.md`).
+Each binary archive is `bin/` -- `mxi`, every step a command of it, with `mxi
+view`'s Python and its module `mxi_tools.py` beside it -- with the licence,
+the README and the release notes. Unpack it and put its `bin` on the PATH. The
+program needs nothing installed: HDF5 and zlib are linked in, from vcpkg
+(`vcpkg.json`), and on Linux the C++ runtime too, so that it runs on
+distributions older than the build's, RHEL among them; the CUDA driver is the
+system's. `scripts/package_release.sh` refuses to package a build that would
+need anything else. `mxi view` needs napari, as always (`docs/mask.md`).
 
-The archive is some 50 MB: each program carries its own HDF5.
+One program, not 24 each with its own HDF5: the archive is a few megabytes, where 24 programs had made it some 50.
 
 ## Licences
 

@@ -1,6 +1,6 @@
 # Symmetry
 
-STATUS: `mxi_symmetry` works on one sweep, and on several of one crystal
+STATUS: `mxi symmetry` works on one sweep, and on several of one crystal
 indexed together (5 October 2026). Not yet: sweeps indexed apart, and so the
 indexing ambiguity between them; sweeps on much different scales, which would
 want each normalised before they are pooled. `docs/outstanding.md` has the
@@ -13,7 +13,7 @@ their cells must agree to 2 per cent -- the lattice is the first's -- which
 joint indexing gives them; otherwise refused, with the reason
 (`docs/multi-sweep.md`).
 
-`mxi_symmetry` finds the Laue group and space group of one sweep's integrated
+`mxi symmetry` finds the Laue group and space group of one sweep's integrated
 data and writes the data reindexed into them, as dials.symmetry does.
 
 **The cell is made the group's**, as dials.symmetry leaves it: a = b = c and
@@ -23,16 +23,16 @@ rotations, (1/n) sum R^T G R, as cctbx's `average_unit_cell` does -- which needs
 no table of crystal systems and holds in any setting -- and the crystal's
 orientation kept: A = U B, U kept and B made anew from the averaged cell, at
 every scan point too. On insulin, 77.905 A on every edge and 90 degrees, to
-1e-13 at all 301 points. `reindex` does it, so `mxi_scale --change-of-basis`
+1e-13 at all 301 points. `reindex` does it, so `mxi scale --change-of-basis`
 does too.
 
 ## Running it
 
-    mxi_symmetry integrated.rflx      # symmetrized.rflx
+    mxi symmetry integrated.rflx      # symmetrized.rflx
 
 or from and to the DIALS pair, as `docs/rflx.md` describes:
 
-    mxi_symmetry integrated.expt integrated.refl \
+    mxi symmetry integrated.expt integrated.refl \
         --output-expt symmetrized.expt --output-refl symmetrized.refl
 
 `--max-delta D` sets the lattice's tolerance in degrees of obliquity (2). It
@@ -87,9 +87,9 @@ On the 300 image sweep, integrated here:
 
 The candidates are the same Patterson groups with the same multiplicities as
 dials.symmetry lists; monoclinic ones are named C 1 2/m 1, the reference
-setting, where dials.symmetry gives I 1 2/m 1. mxi_scale on symmetrized.expt
+setting, where dials.symmetry gives I 1 2/m 1. mxi scale on symmetrized.expt
 with no options gives merging statistics identical, and scaled.refl
-byte-identical, to mxi_scale given the space group and change of basis by hand.
+byte-identical, to mxi scale given the space group and change of basis by hand.
 The cell is written reindexed but not constrained: 77.93 77.90 77.89 A where
 dials.symmetry reports 77.898.
 
@@ -128,7 +128,7 @@ which permutations are candidates. Test: tests/test_lattice.cc.
 
 ## A dataset measured to the corner: two simplifications undone
 
-On a sweep dials.symmetry called I m -3, mxi_symmetry chose P -1: the true
+On a sweep dials.symmetry called I m -3, mxi symmetry chose P -1: the true
 three-folds scored CC 0.27 where dials.symmetry has 0.97. The lattice's rotations
 were right -- they keep the cell's metric to 0.2 per cent, transposed they are
 167 per cent off -- and the difference was in the data scored:
@@ -166,7 +166,7 @@ cubic lattice. For one sweep either is right and scales the same; symmetrized.re
 is not index for index the same as dials.symmetry's, and sweeps -- or a sweep
 and a reference -- must be put on the same side before they are merged.
 
-For several crystals that is done: `mxi_symmetry` runs cosym (Gildea &
+For several crystals that is done: `mxi symmetry` runs cosym (Gildea &
 Winter, 2018; `src/cosym.cc`) before it pools experiments whose crystals are
 not one model -- each crystal's intensities merged in P1 and normalised,
 correlated with every other's under every rotation of the lattice, the

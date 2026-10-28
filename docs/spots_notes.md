@@ -7,7 +7,7 @@ are expensive to rediscover, and what is not yet proven. Its reference is
 ## The experiment list says where the images are
 
 The import records the file in the imageset block -- `template` names it,
-`single_file_indices` lists the array indices within it -- so `mxi_find
+`single_file_indices` lists the array indices within it -- so `mxi find
 imported.rflx` alone is enough and the master file need not be named twice.
 `-x` still wins,
 because the recorded path is absolute and a dataset that has moved since import

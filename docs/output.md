@@ -51,7 +51,7 @@ and resolution -- but uneven.
 * Developer detail under `--verbose`, to the terminal and the log alike;
   without it the crystallography alone, to both (`cat mxi_find.log`).
 * No hint of the next step.
-* `mxi_show state.rflx`: the state of processing, summary statistics with it.
+* `mxi show state.rflx`: the state of processing, summary statistics with it.
 * The GUI later.
 
 ## What was built
@@ -59,12 +59,12 @@ and resolution -- but uneven.
 **The summary** (`src/processing.cc`): `{"steps": [...]}` at `/summary`, in the
 encoding the experiment list has; one step a program run, `program` and `time`
 first, then its figures and tables, a table column by column. A program reads
-its input's steps and writes them before its own; `mxi_convert` carries them
+its input's steps and writes them before its own; `mxi convert` carries them
 between .rflx files and adds none; the DIALS pair has no place for them. On
 insulin, from import to scaling: seven steps. `mxeq.rflx.summary_dict` reads
 it in Python.
 
-**mxi_show FILE [REFL]**: each sweep's images, rotation, wavelength, distance
+**mxi show FILE [REFL]**: each sweep's images, rotation, wavelength, distance
 and beam centre once, each experiment on it -- its cell and space group, or the
 sweep's own crystal-less one -- and its profile model; the reflections by
 experiment, strong, indexed, summed, fitted, scaled, outliers; every step of
@@ -72,30 +72,30 @@ the summary in order.
 
 **Each program:**
 
-* **mxi_import** -- the total rotation; the first step, each sweep as imported.
-* **mxi_find** -- "Finding spots on N images" where the images' path, the
+* **mxi import** -- the total rotation; the first step, each sweep as imported.
+* **mxi find** -- "Finding spots on N images" where the images' path, the
   experiments, the series, threads, mask and grouping were (now `--verbose`);
   spots by resolution, ten shells of equal reciprocal volume, from the
   experiment's geometry; the ice rings the spots crowd, three times a uniform
   share and twenty spots or more; its step, with the spots per image.
-* **mxi_index** -- the candidate solutions the basis search weighed, its ten
+* **mxi index** -- the candidate solutions the basis search weighed, its ten
   best distinct reduced cells, the chosen one marked; the beam centre and
   distance as given and after indexing; the FFT grid under `--verbose`.
-* **mxi_refine** -- the cell (its e.s.d.s are scaling's, from two-theta, since
+* **mxi refine** -- the cell (its e.s.d.s are scaling's, from two-theta, since
   14 October: `docs/scaling.md`); scan-varying,
   the cell's range over the scan and the orientation's turn; the geometry as
   given and refined.
-* **mxi_integrate** -- progress each tenth of the way on runs of 100000
+* **mxi integrate** -- progress each tenth of the way on runs of 100000
   reflections or more (`--progress-from`); the image path, neighbours and
   reference profiles' bookkeeping under `--verbose`; several sweeps, their
   summaries as one after each sweep's own.
-* **mxi_symmetry** -- each element by its order and axis as cctbx describes it,
+* **mxi symmetry** -- each element by its order and axis as cctbx describes it,
   2 |(1,1,0), beside its letter, the likely ones marked.
-* **mxi_scale** -- the mean scale over each tenth of each sweep, on a line.
-* **mxi_export** -- the MTZ's summary: space group, cell, resolution, batches,
+* **mxi scale** -- the mean scale over each tenth of each sweep, on a line.
+* **mxi export** -- the MTZ's summary: space group, cell, resolution, batches,
   every column with its type.
 
-**mxi_report FILE.rflx [-o REPORT.html]** (13 October): the processing a file
+**mxi report FILE.rflx [-o REPORT.html]** (13 October): the processing a file
 records as a page, after dials.scale's report (Graeme's example), the file
 named in its title. The steps run and when, the experiments; then each step's
 section from its summary, a plot a sweep wherever the data are a sweep's:
@@ -135,10 +135,10 @@ model's normal probability plot, anomalous plots, Wilson plots -- dials.scale's 
 Port `dials_ui` to mxi as a second back end in the same program, not a copy:
 its steps, runner and frame are about running programs in order and showing
 their output, and only its step definitions and its parsers are DIALS's. An
-mxi back end is a step list (`mxi_import` to `mxi_export`, their options) and a
+mxi back end is a step list (`mxi import` to `mxi export`, their options) and a
 reader of `mxi_<program>.json` in place of the log parsers. The viewers
 (image viewer, reciprocal lattice viewer) stay DIALS's, given the DIALS pair
-through `mxi_convert` where they need it.
+through `mxi convert` where they need it.
 
 ## --timing
 

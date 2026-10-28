@@ -8,31 +8,31 @@ left the RMSDs high; with a crystal a sweep, refined apart after indexing with
 one matrix, as DIALS does, it works well (Graeme). DIALS processes several sweeps of
 one crystal together -- imported as one experiment each, indexed jointly to one
 crystal, refined, integrated sweep by sweep, and symmetry and scaling over all
-of them -- and mxi should, from `mxi_import` to `mxi_scale`.
+of them -- and mxi should, from `mxi import` to `mxi scale`.
 
 ## Where each program stands
 
 | program | more than one sweep |
 | --- | --- |
-| `mxi_import` | built: several masters, one experiment each (step 1) |
-| `mxi_find` | built: each experiment from its own images, one table with `id`s (step 2) |
-| `mxi_index` | joint indexing with one matrix, then each sweep's crystal refined apart (step 3) |
-| `mxi_refine` | each sweep refined on its own, its beam and detector its own; `--joint` for one fit |
-| `mxi_integrate` | built: each sweep alone, its own profile model, one table with `id`s (step 4) |
-| `mxi_symmetry` | built: the sweeps pooled, every experiment reindexed alike (step 5) |
-| `mxi_scale` | built: a model a sweep, sharing the merged intensities (step 6) |
+| `mxi import` | built: several masters, one experiment each (step 1) |
+| `mxi find` | built: each experiment from its own images, one table with `id`s (step 2) |
+| `mxi index` | joint indexing with one matrix, then each sweep's crystal refined apart (step 3) |
+| `mxi refine` | each sweep refined on its own, its beam and detector its own; `--joint` for one fit |
+| `mxi integrate` | built: each sweep alone, its own profile model, one table with `id`s (step 4) |
+| `mxi symmetry` | built: the sweeps pooled, every experiment reindexed alike (step 5) |
+| `mxi scale` | built: a model a sweep, sharing the merged intensities (step 6) |
 
 ## The steps
 
-1. **`mxi_import`, several masters** -- built: one experiment a master, each
+1. **`mxi import`, several masters** -- built: one experiment a master, each
    with its own models, as dials.import writes them (`docs/import.md`). With it, an
    offset without `offset_units` read in its transformation's units, and
    `mxeq compare-expt` comparing experiment by experiment.
-2. **`mxi_find`** -- built: the spots of every experiment, from its own images,
+2. **`mxi find`** -- built: the spots of every experiment, from its own images,
    in one table with each spot's `id` and each identifier in the map. One sweep
    byte-identical to before; the insulin sweep split at image 150, found as two
    experiments, exactly the two halves found apart, every column.
-3. **`mxi_index` and `mxi_refine`** -- built, and a bug found under them. The two
+3. **`mxi index` and `mxi refine`** -- built, and a bug found under them. The two
    halves indexed together gave 67.9 per cent where each alone gave 98.1: the
    second half's angles were 30 to 45 degrees where its images are 15 to 30.
    mxi took z, a frame's array index, from image one, where dxtbx takes it from
@@ -67,10 +67,10 @@ of them -- and mxi should, from `mxi_import` to `mxi_scale`.
    **A crystal a sweep** (Graeme, on the four insulin sweeps: the cell held identical
    across them in refinement, and the RMSDs high). DIALS's protocol: index with
    one matrix, which puts the sweeps in one basis, then in refinement a crystal
-   for each scan, refined apart. So now `mxi_index`'s macrocycles refine the one
+   for each scan, refined apart. So now `mxi index`'s macrocycles refine the one
    matrix together, and with several sweeps the last refines each sweep's
    crystal apart from it, indices then assigned through each reflection's own
-   sweep's crystal; `mxi_refine` refines several sweeps a crystal each by
+   sweep's crystal; `mxi refine` refines several sweeps a crystal each by
    default (it had `--separate`, never the default). `--shared-crystal` keeps
    one in either. One sweep byte-identical to before through both. Insulin's
    halves: refined apart, RMSD 0.297, 0.228 px, 0.244 images, as each half alone
@@ -79,7 +79,7 @@ of them -- and mxi should, from `mxi_import` to `mxi_scale`.
    -- one basis -- their cells within 0.03 per cent; symmetry and scaling as
    with one crystal. Small on one sweep cut in two, as it must be; four real
    sweeps are where it counts -- and on Graeme's four, it worked well.
-4. **`mxi_integrate`** -- built. Each sweep integrated alone, by a whole run of
+4. **`mxi integrate`** -- built. Each sweep integrated alone, by a whole run of
    the program on a list of that one sweep -- its reflections, by `id`, with
    their shoeboxes for its profile model -- `--postrefine` and all; then the
    tables joined, each row its sweep's `id`, and the lists joined, each sweep
@@ -99,7 +99,7 @@ of them -- and mxi should, from `mxi_import` to `mxi_scale`.
    not the reference profiles, so a sweep's angles wrong would show there.
    Indexed, refined and integrated as two from their spots: 21029 reflections
    against the whole sweep's 21031, sigma_m 0.126 and 0.130 against 0.129.
-5. **`mxi_symmetry`** -- built. Scaling's data gathering, which merging in P1
+5. **`mxi symmetry`** -- built. Scaling's data gathering, which merging in P1
    uses, took only id 0, "one sweep, for now": now every sweep's observations,
    each with its sweep and its place in the rotation from its own sweep's scan
    -- and absorption's crystal frame from its own goniometer and beam -- and an
@@ -107,10 +107,10 @@ of them -- and mxi should, from `mxi_import` to `mxi_scale`.
    crystal and the cells agree to 2 per cent, the lattice being the first's.
    One sweep's symmetry and scaling byte-identical to before. On insulin as two
    sweeps: the same 20020 observations, I m -3 at NetZcc 8.41 against 8.42, the
-   same space group, the crystal still shared. `mxi_scale` still refuses
+   same space group, the crystal still shared. `mxi scale` still refuses
    several: its model has one set of parameters, and two sweeps each running
    0 to 1 in rotation would share them -- step 6.
-6. **`mxi_scale`** -- built. The model holds a block of parameters for each
+6. **`mxi scale`** -- built. The model holds a block of parameters for each
    sweep -- scale, decay and absorption, from that sweep's own width of rotation
    -- one after another, an observation's sweep choosing its block; the fit sees
    only indices and gradients and needed no change. The one overall scale and
@@ -133,13 +133,13 @@ As for one sweep, each program given the list of several; every reflection
 carries its sweep's index as `id` from spot finding on:
 
 ```sh
-mxi_import    a.nxs b.nxs           # one experiment a master   -> imported.rflx
-mxi_find      imported.rflx         # each sweep from its own images
-mxi_index     strong.rflx           # one matrix, then a crystal a sweep
-mxi_refine    indexed.rflx
-mxi_integrate refined.rflx          # each sweep alone, then joined
-mxi_symmetry  integrated.rflx       # pooled
-mxi_scale     symmetrized.rflx      # a model a sweep
+mxi import    a.nxs b.nxs           # one experiment a master   -> imported.rflx
+mxi find      imported.rflx         # each sweep from its own images
+mxi index     strong.rflx           # one matrix, then a crystal a sweep
+mxi refine    indexed.rflx
+mxi integrate refined.rflx          # each sweep alone, then joined
+mxi symmetry  integrated.rflx       # pooled
+mxi scale     symmetrized.rflx      # a model a sweep
 ```
 
 Integration wants the refined reflections, as for one sweep: its profile model
@@ -154,14 +154,14 @@ and has a single-sweep answer to agree with; and the tests built on it. Then the
 real test, by Graeme: the four insulin sweeps of https://zenodo.org/records/8376818,
 each at its own orientation, the whole chain from their masters.
 
-## Sweeps of different crystals: mxi_index --no-joint
+## Sweeps of different crystals: mxi index --no-joint
 
 By default several sweeps are indexed together, one basis searched for from
 all their spots, the last cycle refining each sweep's crystal apart: right for
 sweeps of one crystal. Sweeps of different crystals share no matrix -- Graeme's
 COWS_PIGS_PEOPLE tutorial, 36 crystals of three insulins -- and `--no-joint`,
 as dials.index joint=false, indexes each on its own: each sweep's experiment
-and spots written apart, mxi_index run on them with the options given, the
+and spots written apart, mxi index run on them with the options given, the
 lists and tables joined, each sweep's crystal-less experiment followed by its
 lattices, the ids moved past the experiments before. A sweep that will not
 index is carried without a crystal, its spots unindexed, the rest going on.
@@ -169,7 +169,7 @@ Each sweep keeps its own beam and detector through the join, even where
 their values agree: these are different crystals, and a beam merged because
 two headers agree was refined as one for all of them -- 14 of Graeme's 16
 data sets shared one beam, each pulled from where it lies alone (17 October).
-mxi_refine then refines each sweep on its own, in a run of its own, the results
+mxi refine then refines each sweep on its own, in a run of its own, the results
 joined in order (`--joint` for one fit of them all).
 
 ## The order of the experiments
@@ -180,7 +180,7 @@ sweeps of one crystal are experiments 0 to 3, with no crystal, and their
 lattices 4 to 7, in the same order. `--no-joint` writes each sweep followed by
 its own lattice, so the sweeps are even and the lattices odd. Every program
 follows an experiment's own image set, not its position; to say which data set
-an experiment is, name its images, as `mxi_show` lists them and `mxeq truth`
+an experiment is, name its images, as `mxi show` lists them and `mxeq truth`
 labels them.
 
 ## Each sweep refined on its own (18 October)
@@ -194,7 +194,7 @@ comes out its own (169.84 to 169.91 mm, against one 169.870 jointly) and the
 inner shell a little better (I/sigma 26.3 against 26.1, R_merge 0.032 against
 0.033). `--joint` refines all in one fit, sharing what they share, until a case
 needs it; `--shared-crystal`, one crystal across sweeps, implies it.
-mxi_symmetry then finds the crystals' orientations apart and runs cosym, which
-puts them in one setting. Insulin as four sweeps (mxi_import --split 4),
+mxi symmetry then finds the crystals' orientations apart and runs cosym, which
+puts them in one setting. Insulin as four sweeps (mxi import --split 4),
 indexed apart: four cells, cosym's cosines 0.999 to 1.000, I 2 3, R merge 0.040
 and CC half 0.986, as indexed together (0.040, 0.985).

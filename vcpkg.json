@@ -1,6 +1,6 @@
 {
   "name": "mxi",
-  "version-string": "1.0.7",
+  "version-string": "1.1.0",
   "description": "Rotation and multi-sweep crystallographic data processing, from NXmx images to merged intensities",
   "dependencies": [
     "hdf5",

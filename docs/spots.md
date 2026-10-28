@@ -67,7 +67,7 @@ the outside and the CPU and the two devices are not the same program:
 
 ```
 $ mxi find --version
-mxi find 1.0.7 (Metal)
+mxi find 1.1.0 (Metal)
 ```
 
 What it prints follows `dials.find_spots`' summary, wording included, so that

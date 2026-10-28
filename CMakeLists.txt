@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 # against each other: vcpkg reads its manifest before CMake runs, so nothing
 # else would catch them drifting. "Which build is this?" is the first question
 # asked in an incident and a quietly wrong answer is worse than none.
-project(mxi VERSION 1.0.7 LANGUAGES CXX)
+project(mxi VERSION 1.1.0 LANGUAGES CXX)
 
 # Installed programs keep the paths to the libraries they were linked against
 # outside the system's own -- HDF5 from conda or Homebrew -- or they would not

@@ -4,14 +4,33 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
-## Unreleased -- since 1.0.7
+## 1.1.0 -- 28 October 2026
+
+**Changes commands**
+- **One program, `mxi`, every step a command of it:** `mxi import`, `mxi find`,
+  `mxi index`, `mxi refine`, `mxi integrate`, `mxi symmetry`, `mxi scale`,
+  and the rest, where they had been 24 programs, `mxi_find` and so on. `mxi
+  help` lists the commands, `mxi COMMAND --help` each one's options, `mxi
+  --version` the version; `mxi view` runs the image viewer. A script that ran
+  `mxi_find strong.rflx` runs `mxi find strong.rflx`. The documents and the
+  tutorial say so throughout.
+- What files record is unchanged, so that files written by 1.0 read as before:
+  each step is named in a file's summary as it was (`mxi_refine`), and each
+  command's log is `mxi_<command>.log`.
+- One program rather than 24, each of which carried its own HDF5: a release
+  archive is some 5 MB, where 1.0.7's was some 54.
+
+**New**
+- The releases include FFTW for indexing's transform (a vcpkg feature,
+  `fftw`). FFTW is GPL, so the released program is distributed under the GPL's
+  terms as a whole; mxi's source remains BSD-3-Clause, and a build without
+  FFTW -- the default -- uses the built-in transform.
 
 **Fixed**
-- The release archives carry the licences of the code linked into the programs
-  -- gemmi, bitshuffle and its LZ4, HDF5, libaec, zlib, and NVIDIA's CUDA
-  runtime in the CUDA build -- in `licenses/`, as those licences ask of binary
-  copies. The release builds say `-DMXI_FFTW=OFF`, and packaging refuses a
-  program containing FFTW, which is GPL.
+- The release archives carry the licences of everything linked into the
+  program -- gemmi, bitshuffle and its LZ4, HDF5, libaec, zlib, FFTW, and
+  NVIDIA's CUDA runtime in the CUDA build -- in `licenses/`, as those licences
+  ask of binary copies, with a README saying which is which.
 
 ## 1.0.7 -- 28 October 2026
 

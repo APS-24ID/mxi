@@ -84,7 +84,9 @@ jobs:
         run: |
           ctest --test-dir build --output-on-failure -E 'gpu|device'
           python3 -m pip install -q pytest numpy scipy msgpack gemmi h5py hdf5plugin matplotlib
-          cd python && MXI_FIND=../build/mxi_find MXI_BUILD=../build PYTHONPATH=src:tests python3 -m pytest -q tests
+          # Absolute: tests run the programs from temporary directories (the
+          # suite makes them so as well, tests/conftest.py).
+          cd python && MXI_FIND="$GITHUB_WORKSPACE/build/mxi_find" MXI_BUILD="$GITHUB_WORKSPACE/build" PYTHONPATH=src:tests python3 -m pytest -q tests
       - name: Package
         run: scripts/package_release.sh build "${GITHUB_REF_NAME}" "${{ matrix.platform }}"
       - uses: actions/upload-artifact@v4
@@ -122,7 +124,9 @@ jobs:
         run: |
           ctest --test-dir build --output-on-failure -E 'gpu|device'
           python3 -m pip install -q --break-system-packages pytest numpy scipy msgpack gemmi h5py hdf5plugin matplotlib
-          cd python && MXI_FIND=../build/mxi_find MXI_BUILD=../build PYTHONPATH=src:tests python3 -m pytest -q tests
+          # Absolute: tests run the programs from temporary directories (the
+          # suite makes them so as well, tests/conftest.py).
+          cd python && MXI_FIND="$GITHUB_WORKSPACE/build/mxi_find" MXI_BUILD="$GITHUB_WORKSPACE/build" PYTHONPATH=src:tests python3 -m pytest -q tests
       - name: Package
         run: scripts/package_release.sh build "${GITHUB_REF_NAME}" macos-arm64
       - uses: actions/upload-artifact@v4

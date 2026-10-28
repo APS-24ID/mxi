@@ -1,5 +1,5 @@
-# A release, made when a tag v* is pushed: the complete source, Linux with
-# CUDA, macOS with Metal, and mxeq's wheel, each built and its tests run
+# A release, made when a tag v* is pushed: the complete source, Linux on the
+# CPU and with CUDA, macOS with Metal, and mxeq's wheel, each built and its tests run
 # before anything is published; then a GitHub release with them, its text
 # RELEASE_NOTES.md's section for the version (scripts/release_notes.py). A tag
 # with -rc, -alpha or -beta makes a pre-release: push v1.0.7-rc1 first, to see
@@ -36,20 +36,32 @@ jobs:
           name: source
           path: mxi-*-source.tar.gz
 
-  linux-cuda:
+  linux:
     # The oldest supported Ubuntu, so that the binaries run on most current
     # distributions (glibc is the one library they take from the system).
+    # Two builds: the CPU's, which runs anywhere, no CUDA driver needed; and
+    # CUDA's, for machines with an NVIDIA GPU.
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        include:
+          - platform: linux-x86_64
+            cuda: "OFF"
+          - platform: linux-x86_64-cuda
+            cuda: "ON"
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Ninja
+        run: sudo apt-get install -y -q ninja-build
       - name: The CUDA toolkit (compiling needs no GPU)
+        if: matrix.cuda == 'ON'
         run: |
           wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt-get update -q
-          sudo apt-get install -y -q cuda-toolkit-12-6 ninja-build
+          sudo apt-get install -y -q cuda-toolkit-12-6
           echo /usr/local/cuda/bin >> "$GITHUB_PATH"
       # A static HDF5 and zlib, from vcpkg's manifest (vcpkg.json), release
       # builds only (the -release triplets), so that the programs need nothing
@@ -65,7 +77,7 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake"
           -DVCPKG_TARGET_TRIPLET=x64-linux-release
           -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc"
-          -DMXI_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="$CUDA_ARCHITECTURES"
+          -DMXI_CUDA=${{ matrix.cuda }} -DCMAKE_CUDA_ARCHITECTURES="$CUDA_ARCHITECTURES"
       - name: Build
         run: cmake --build build
       - name: "Test: the CPU paths, the runner having no GPU"
@@ -74,11 +86,11 @@ jobs:
           python3 -m pip install -q pytest numpy scipy msgpack gemmi h5py hdf5plugin matplotlib
           cd python && MXI_FIND=../build/mxi_find MXI_BUILD=../build PYTHONPATH=src:tests python3 -m pytest -q tests
       - name: Package
-        run: scripts/package_release.sh build "${GITHUB_REF_NAME}" linux-x86_64-cuda
+        run: scripts/package_release.sh build "${GITHUB_REF_NAME}" "${{ matrix.platform }}"
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-x86_64-cuda
-          path: mxi-*-linux-x86_64-cuda.tar.gz
+          name: ${{ matrix.platform }}
+          path: mxi-*-${{ matrix.platform }}.tar.gz
 
   macos:
     runs-on: macos-15
@@ -132,7 +144,7 @@ jobs:
           path: dist/*.whl
 
   release:
-    needs: [source, linux-cuda, macos, wheel]
+    needs: [source, linux, macos, wheel]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -20,6 +20,7 @@ with `-rc`, `-alpha` or `-beta` makes a pre-release, its notes 1.0.7's.
 | asset | what |
 |---|---|
 | `mxi-1.0.7-source.tar.gz` | the complete source: the repository and its submodules, gemmi and bitshuffle, at the commits the tag pins. GitHub's own source archives leave the submodules out, and without them nothing builds; this is also the source for a conda-forge recipe |
+| `mxi-1.0.7-linux-x86_64.tar.gz` | every program, built on Ubuntu 22.04, for the CPU: it runs anywhere, no CUDA driver needed |
 | `mxi-1.0.7-linux-x86_64-cuda.tar.gz` | every program, built on Ubuntu 22.04 with CUDA for Volta to Hopper (V100 to H100 and GH200) |
 | `mxi-1.0.7-macos-arm64.tar.gz` | every program, for Apple silicon, with Metal |
 | `mxeq-1.0.7-py3-none-any.whl` | the referee, `pip install` it |
@@ -53,7 +54,7 @@ Each build runs ctest and the Python suite, the tests that need no external
 data, before its archive is kept. Hosted runners have no GPU to rely on, so
 the device tests (ctest's `dext_gpu`) are left out: the CUDA and Metal builds
 are released tested on their CPU paths, their device paths tested on real
-machines as before.
+machines as before; the CPU build is tested whole.
 
 The Metal build downloads Apple's metal-cpp headers from the URL at the top of
 the workflow (`METAL_CPP_URL`); if Apple renames the zip, the current name is
@@ -64,7 +65,7 @@ on https://developer.apple.com/metal/cpp/.
 ```sh
 scripts/source_archive.sh v1.0.7         # mxi-1.0.7-source.tar.gz
 scripts/release_notes.py v1.0.7 > notes.md
-scripts/package_release.sh build v1.0.7 linux-x86_64-cuda
+scripts/package_release.sh build v1.0.7 linux-x86_64
 ```
 
 A static build like the release's, here, needs vcpkg:

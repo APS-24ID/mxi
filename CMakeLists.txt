@@ -169,15 +169,15 @@ target_link_libraries(mxi PUBLIC Threads::Threads)
 target_include_directories(mxi PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_options(mxi PRIVATE -Wall -Wextra -Wpedantic)
 
-add_executable(mxi_index apps/mxi_index.cc)
+add_library(mxi_index OBJECT apps/mxi_index.cc)
 target_link_libraries(mxi_index PRIVATE mxi)
 target_compile_options(mxi_index PRIVATE -Wall -Wextra)
 
-add_executable(mxi_refine apps/mxi_refine.cc)
+add_library(mxi_refine OBJECT apps/mxi_refine.cc)
 target_link_libraries(mxi_refine PRIVATE mxi)
 target_compile_options(mxi_refine PRIVATE -Wall -Wextra)
 
-add_executable(mxi_scale apps/mxi_scale.cc)
+add_library(mxi_scale OBJECT apps/mxi_scale.cc)
 target_link_libraries(mxi_scale PRIVATE mxi)
 target_compile_options(mxi_scale PRIVATE -Wall -Wextra)
 
@@ -194,53 +194,53 @@ target_include_directories(mxi_gemmi_mtz SYSTEM PUBLIC
 target_link_libraries(mxi_gemmi_mtz PUBLIC ZLIB::ZLIB mxi_gemmi)
 target_compile_options(mxi_gemmi_mtz PRIVATE -w)
 
-add_executable(mxi_export apps/mxi_export.cc)
+add_library(mxi_export OBJECT apps/mxi_export.cc)
 target_link_libraries(mxi_export PRIVATE mxi mxi_gemmi_mtz)
 target_compile_options(mxi_export PRIVATE -Wall -Wextra)
 
-add_executable(mxi_symmetry apps/mxi_symmetry.cc)
+add_library(mxi_symmetry OBJECT apps/mxi_symmetry.cc)
 target_link_libraries(mxi_symmetry PRIVATE mxi)
 target_compile_options(mxi_symmetry PRIVATE -Wall -Wextra)
-add_executable(mxi_show apps/mxi_show.cc)
+add_library(mxi_show OBJECT apps/mxi_show.cc)
 target_link_libraries(mxi_show PRIVATE mxi)
 target_compile_options(mxi_show PRIVATE -Wall -Wextra)
 
-add_executable(mxi_correlation apps/mxi_correlation.cc)
+add_library(mxi_correlation OBJECT apps/mxi_correlation.cc)
 target_link_libraries(mxi_correlation PRIVATE mxi)
 target_compile_options(mxi_correlation PRIVATE -Wall -Wextra)
-add_executable(mxi_report apps/mxi_report.cc)
+add_library(mxi_report OBJECT apps/mxi_report.cc)
 target_link_libraries(mxi_report PRIVATE mxi)
 target_compile_options(mxi_report PRIVATE -Wall -Wextra)
 
-add_executable(mxi_residuals apps/mxi_residuals.cc)
+add_library(mxi_residuals OBJECT apps/mxi_residuals.cc)
 target_link_libraries(mxi_residuals PRIVATE mxi)
 target_compile_options(mxi_residuals PRIVATE -Wall -Wextra)
 
-add_executable(mxi_profile apps/mxi_profile.cc)
+add_library(mxi_profile OBJECT apps/mxi_profile.cc)
 target_link_libraries(mxi_profile PRIVATE mxi)
 target_compile_options(mxi_profile PRIVATE -Wall -Wextra)
 
 # Each predicted reflection's foreground region, for dials.image_viewer (was
 # mxi_mask, whose name the mask editor took, 22 October).
-add_executable(mxi_foreground apps/mxi_foreground.cc)
+add_library(mxi_foreground OBJECT apps/mxi_foreground.cc)
 target_link_libraries(mxi_foreground PRIVATE mxi)
 target_compile_options(mxi_foreground PRIVATE -Wall -Wextra)
 
-add_executable(mxi_background apps/mxi_background.cc)
+add_library(mxi_background OBJECT apps/mxi_background.cc)
 target_link_libraries(mxi_background PRIVATE mxi)
 target_compile_options(mxi_background PRIVATE -Wall -Wextra)
 
-add_executable(mxi_forward apps/mxi_forward.cc)
+add_library(mxi_forward OBJECT apps/mxi_forward.cc)
 target_link_libraries(mxi_forward PRIVATE mxi)
 target_compile_options(mxi_forward PRIVATE -Wall -Wextra)
 
-add_executable(mxi_convert apps/mxi_convert.cc)
+add_library(mxi_convert OBJECT apps/mxi_convert.cc)
 target_link_libraries(mxi_convert PRIVATE mxi)
 target_compile_options(mxi_convert PRIVATE -Wall -Wextra)
-add_executable(mxi_combine apps/mxi_combine.cc)
+add_library(mxi_combine OBJECT apps/mxi_combine.cc)
 target_link_libraries(mxi_combine PRIVATE mxi)
 target_compile_options(mxi_combine PRIVATE -Wall -Wextra)
-add_executable(mxi_split apps/mxi_split.cc)
+add_library(mxi_split OBJECT apps/mxi_split.cc)
 target_link_libraries(mxi_split PRIVATE mxi)
 target_compile_options(mxi_split PRIVATE -Wall -Wextra)
 # mxi_view, in Python (napari, optional): copied beside the programs, its
@@ -250,11 +250,11 @@ configure_file(tools/mxi_view.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_view @ONLY
   GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 configure_file(tools/mxi_tools.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_tools.py
   COPYONLY)
-add_executable(mxi_untrusted apps/mxi_untrusted.cc)
+add_library(mxi_untrusted OBJECT apps/mxi_untrusted.cc)
 target_link_libraries(mxi_untrusted PRIVATE mxi)
 target_compile_options(mxi_untrusted PRIVATE -Wall -Wextra)
 
-add_executable(mxi_grid apps/mxi_grid.cc)
+add_library(mxi_grid OBJECT apps/mxi_grid.cc)
 target_link_libraries(mxi_grid PRIVATE mxi)
 target_compile_options(mxi_grid PRIVATE -Wall -Wextra)
 
@@ -413,17 +413,32 @@ target_link_libraries(mxi_tests PRIVATE mxi mxi_dext mxi_signal_order mxi_spots)
 target_compile_options(mxi_tests PRIVATE -Wall -Wextra)
 add_test(NAME mxi_tests COMMAND mxi_tests)
 
-# Installing: every program, mxi_view with them, in one bin directory --
-#   cmake --install build --prefix ~/.local
-# -- which then wants to be on the PATH. mxi_view finds mxi_convert,
-# mxi_untrusted and mxi_tools.py beside itself, here as in the build directory. The library is
-# linked into each program; nothing else is needed beside them (the Metal
-# libraries are compiled in). Tests and benchmarks are not installed.
+# One program, mxi, every other a subcommand of it: mxi find, mxi index ...
+# (apps/mxi.cc). Each program above is an object library, its entry
+# mxi_<name>_main, its own sources and settings kept; mxi links them all. One
+# binary rather than 24, each of which carried its own HDF5 and library -- 156
+# MB where one is some 8 -- and one name to install (Graeme, 28 October).
 set(MXI_PROGRAMS
   mxi_background mxi_combine mxi_convert mxi_correlation mxi_export mxi_find
   mxi_foreground mxi_forward mxi_grid mxi_import mxi_index mxi_integrate
   mxi_max mxi_profile mxi_readtest mxi_refine mxi_report mxi_residuals
   mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted)
-install(TARGETS ${MXI_PROGRAMS} RUNTIME DESTINATION bin)
+# The target mxi_program, its file mxi: the target mxi is the library's.
+add_executable(mxi_program apps/mxi.cc)
+set_target_properties(mxi_program PROPERTIES OUTPUT_NAME mxi)
+target_link_libraries(mxi_program PRIVATE ${MXI_PROGRAMS} mxi)
+target_compile_definitions(mxi_program PRIVATE MXI_VERSION="${PROJECT_VERSION}")
+target_compile_options(mxi_program PRIVATE -Wall -Wextra)
+# In the build directory, each program's old name a link to mxi, which runs
+# the program it is called by: the tests run them so. Not installed.
+foreach(program ${MXI_PROGRAMS})
+  file(CREATE_LINK mxi ${CMAKE_CURRENT_BINARY_DIR}/${program} SYMBOLIC)
+endforeach()
+
+# Installing: mxi, with mxi_view and the module it shares beside it --
+#   cmake --install build --prefix ~/.local
+# -- which then wants to be on the PATH. The library is linked in; nothing
+# else is needed beside it (the Metal libraries are compiled in).
+install(TARGETS mxi_program RUNTIME DESTINATION bin)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/mxi_view DESTINATION bin)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mxi_tools.py DESTINATION bin)

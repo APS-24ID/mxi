@@ -1,6 +1,6 @@
 #!/bin/sh
-# A release's binaries from a build: every program, mxi_view and the module
-# it shares with them, installed into mxi-VERSION-PLATFORM/bin, with the
+# A release's binaries from a build: mxi, with mxi_view and the module it
+# shares beside it, installed into mxi-VERSION-PLATFORM/bin, with the
 # licence, the README and the release notes; checked to need nothing but the
 # system's own libraries -- HDF5 linked in, from vcpkg -- and archived.
 #
@@ -54,7 +54,7 @@ NOTE
 # Self-contained: no HDF5, zlib or vcpkg library to be found at run time. On
 # Linux libcuda (the driver) is the system's, as it must be.
 bad=0
-for p in "$name"/bin/mxi_*; do
+for p in "$name"/bin/mxi "$name"/bin/mxi_*; do
     [ -f "$p" ] && [ -x "$p" ] || continue
     head -c 4 "$p" | grep -q '#!' && continue   # mxi_view, Python
     if [ "$(uname)" = Darwin ]; then
@@ -70,15 +70,14 @@ done
 [ "$bad" = 0 ] || { echo "not self-contained" >&2; exit 1; }
 
 # No FFTW, which is GPL: the release builds are BSD with the notices above.
-for p in "$name"/bin/mxi_*; do
+for p in "$name"/bin/mxi; do
     if [ -x "$p" ] && grep -a -q -i 'fftw_plan' "$p"; then
         echo "$p contains FFTW, which is GPL: build without -DMXI_FFTW=ON" >&2
         exit 1
     fi
 done
-count=0
-for p in "$name"/bin/mxi_*; do
-    [ -x "$p" ] && count=$((count + 1))
-done
+# One program, mxi, every other its subcommand.
+[ -x "$name/bin/mxi" ] || { echo "no bin/mxi" >&2; exit 1; }
+count=$("$name/bin/mxi" help | grep -c '^  [a-z]')
 tar -czf "$name.tar.gz" "$name"
-echo "$name.tar.gz: $count programs"
+echo "$name.tar.gz: mxi and its $count commands"

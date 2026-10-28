@@ -38,7 +38,7 @@ void usage(const char *program) {
 }
 } // namespace
 
-int run_program(int argc, char **argv) {
+int run_background(int argc, char **argv) {
   const std::set<std::string> known = {"--timing", "--tuning"};
   std::set<std::string> takes_value = known;
   takes_value.erase("--timing");
@@ -87,10 +87,11 @@ int run_program(int argc, char **argv) {
 
 } // namespace mxi
 
-int main(int argc, char **argv) {
+// The program's entry, run by mxi (background) -- apps/mxi.cc.
+int mxi_background_main(int argc, char **argv) {
   // Mirrored to mxi_background.log in the working directory, as DIALS writes
   // dials.<program>.log; not for a run that only asks for help.
   if (!mxi::only_asks_for_help(argc, argv))
     mxi::mirror_to_log("mxi_background.log");
-  return mxi::run_program(argc, argv);
+  return mxi::run_background(argc, argv);
 }

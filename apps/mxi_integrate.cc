@@ -389,12 +389,12 @@ struct Frame {
 
 } // namespace
 
-int run_program(int argc, char **argv);
+int run_integrate(int argc, char **argv);
 
 // Integrate; refine against the centres that integration measured; integrate
 // again with the refined models. Composed of whole runs of this program rather
 // than of a function, because the integration is still one body in
-// run_program: the models are written to --output-expt between the two, and
+// run_integrate: the models are written to --output-expt between the two, and
 // the second run reads them as any later program would.
 int integrate_with_postrefinement(const Arguments &args, const char *program,
                                   const std::set<std::string> &takes_value) {
@@ -452,7 +452,7 @@ int integrate_with_postrefinement(const Arguments &args, const char *program,
     for (std::string &w : words)
       argv.push_back(w.data());
     argv.push_back(nullptr);
-    return run_program(static_cast<int>(words.size()), argv.data());
+    return run_integrate(static_cast<int>(words.size()), argv.data());
   };
 
   std::printf("Integrating with the models as given, then refining against the "
@@ -539,7 +539,7 @@ int integrate_sweeps(const Arguments &args, const char *program,
     for (std::string &w : words)
       argv.push_back(w.data());
     argv.push_back(nullptr);
-    return run_program(static_cast<int>(words.size()), argv.data());
+    return run_integrate(static_cast<int>(words.size()), argv.data());
   };
   const auto profiles_of = [](const std::string &path, std::size_t sweep) {
     const std::size_t slash = path.find_last_of('/');
@@ -756,7 +756,7 @@ int integrate_several(const Arguments &args, const char *program,
     for (std::string &w : words)
       argv.push_back(w.data());
     argv.push_back(nullptr);
-    return run_program(static_cast<int>(words.size()), argv.data());
+    return run_integrate(static_cast<int>(words.size()), argv.data());
   };
 
   try {
@@ -943,7 +943,7 @@ int integrate_several(const Arguments &args, const char *program,
   }
 }
 
-int run_program(int argc, char **argv) {
+int run_integrate(int argc, char **argv) {
   const std::set<std::string> known = {
       "-o",
       "--verbose",
@@ -3279,10 +3279,11 @@ int run_program(int argc, char **argv) {
 
 } // namespace mxi
 
-int main(int argc, char **argv) {
+// The program's entry, run by mxi (integrate) -- apps/mxi.cc.
+int mxi_integrate_main(int argc, char **argv) {
   // Mirrored to mxi_integrate.log in the working directory, as DIALS writes
   // dials.<program>.log; not for a run that only asks for help.
   if (!mxi::only_asks_for_help(argc, argv))
     mxi::mirror_to_log("mxi_integrate.log");
-  return mxi::run_program(argc, argv);
+  return mxi::run_integrate(argc, argv);
 }

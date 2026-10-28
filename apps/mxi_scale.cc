@@ -96,7 +96,7 @@ void usage() {
 
 } // namespace
 
-int run_program(int argc, char **argv) {
+int run_scale(int argc, char **argv) {
   const std::set<std::string> known = {
       "--anomalous",       "--absorption-level",
       "--l-max",           "--d-min-auto",
@@ -849,10 +849,11 @@ int run_program(int argc, char **argv) {
 
 } // namespace mxi
 
-int main(int argc, char **argv) {
+// The program's entry, run by mxi (scale) -- apps/mxi.cc.
+int mxi_scale_main(int argc, char **argv) {
   // Mirrored to mxi_scale.log in the working directory, as DIALS writes
   // dials.scale.log; not for a run that only asks for help.
   if (!mxi::only_asks_for_help(argc, argv))
     mxi::mirror_to_log("mxi_scale.log");
-  return mxi::run_program(argc, argv);
+  return mxi::run_scale(argc, argv);
 }

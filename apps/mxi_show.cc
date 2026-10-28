@@ -210,7 +210,7 @@ void show_summary(const json::Value &summary) {
 
 } // namespace
 
-int run_program(int argc, char **argv) {
+int run_show(int argc, char **argv) {
   const std::set<std::string> known = {"--help"};
   const std::set<std::string> takes_value = {};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
@@ -248,4 +248,5 @@ int run_program(int argc, char **argv) {
 
 } // namespace mxi
 
-int main(int argc, char **argv) { return mxi::run_program(argc, argv); }
+// The program's entry, run by mxi (show) -- apps/mxi.cc.
+int mxi_show_main(int argc, char **argv) { return mxi::run_show(argc, argv); }

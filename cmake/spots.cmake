@@ -398,7 +398,7 @@ target_link_libraries(mxi_spots PRIVATE mxi_warnings)
 # know.
 
 
-add_executable(mxi_find apps/mxi_find.cc)
+add_library(mxi_find OBJECT apps/mxi_find.cc)
 target_compile_definitions(mxi_find PRIVATE
                            MXI_VERSION="${PROJECT_VERSION}")
 target_link_libraries(mxi_find
@@ -456,27 +456,26 @@ if(MXI_METAL)
                                ${mxi_gpu_definitions})
 endif()
 
-install(TARGETS mxi_find RUNTIME DESTINATION bin)
 
 # The programs that read images, built with the others whether the tests are
 # or not: they had been inside the tests' block, from when it guarded HDF5,
 # so that -DMXI_TESTS=OFF built neither mxi_import nor mxi_integrate (found
 # building a release's source archive, 26 October).
-add_executable(mxi_integrate ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_integrate.cc)
+add_library(mxi_integrate OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_integrate.cc)
 target_link_libraries(mxi_integrate
                       PRIVATE mxi mxi_image_series mxi_decompress
                               mxi_warnings)
 target_include_directories(mxi_integrate PRIVATE src apps)
 
 # An experiment list from an NXmx master, as dials.import writes it.
-add_executable(mxi_import ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_import.cc
+add_library(mxi_import OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_import.cc
                           ${CMAKE_CURRENT_SOURCE_DIR}/src/nxmx_import.cc)
 target_link_libraries(mxi_import PRIVATE mxi mxi_warnings ${HDF5_C_LIBRARIES})
 target_include_directories(mxi_import PRIVATE src apps)
 target_include_directories(mxi_import SYSTEM PRIVATE ${HDF5_C_INCLUDE_DIRS})
 
 # The largest count on a valid pixel, and whether it fits in 16 bits.
-add_executable(mxi_max ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_max.cc)
+add_library(mxi_max OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_max.cc)
 target_link_libraries(mxi_max
                       PRIVATE mxi mxi_image_series mxi_decompress
                               mxi_warnings)
@@ -484,7 +483,7 @@ target_include_directories(mxi_max PRIVATE src apps)
 
 # How fast the images can be read and decompressed, apart from the
 # programs: H5Dread_chunk against pread. Not used by the pipeline.
-add_executable(mxi_readtest ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_readtest.cc)
+add_library(mxi_readtest OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_readtest.cc)
 target_link_libraries(mxi_readtest
                       PRIVATE mxi mxi_image_series mxi_decompress
                               mxi_warnings)
@@ -510,10 +509,12 @@ if(MXI_TESTS)
     # Every program mirrors its output to mxi_<program>.log where it runs;
     # checked through real binaries, one of them the spot finder, whose main is
     # its own, so it lives inside this guard with it.
+    # The programs by their links to mxi (CMakeLists.txt): each is a
+    # subcommand of the one binary now.
     add_test(NAME log_mirror
              COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/tests/log_mirror.sh
-                     $<TARGET_FILE:mxi_background> $<TARGET_FILE:mxi_index>
-                     $<TARGET_FILE:mxi_find>)
+                     ${CMAKE_BINARY_DIR}/mxi_background ${CMAKE_BINARY_DIR}/mxi_index
+                     ${CMAKE_BINARY_DIR}/mxi_find)
 
 
 

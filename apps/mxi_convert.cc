@@ -57,7 +57,8 @@ bool ends_with(const std::string &s, const std::string &tail) {
 
 } // namespace
 
-int main(int argc, char **argv) {
+// The program's entry, run by mxi (convert) -- apps/mxi.cc.
+int mxi_convert_main(int argc, char **argv) {
   using namespace mxi;
   if (!only_asks_for_help(argc, argv))
     mirror_to_log("mxi_convert.log");

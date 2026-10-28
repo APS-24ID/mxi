@@ -186,7 +186,8 @@ mxi::json::Value split_sweeps(const mxi::json::Value &doc, std::size_t n) {
   return json::Value(std::move(out));
 }
 
-int main(int argc, char **argv) {
+// The program's entry, run by mxi (import) -- apps/mxi.cc.
+int mxi_import_main(int argc, char **argv) {
   using namespace mxi;
   // Mirrored to mxi_import.log in the working directory, as every mxi program
   // and DIALS's own do; not for a run that only asks for help.

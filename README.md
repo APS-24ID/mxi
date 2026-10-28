@@ -50,7 +50,7 @@ built, ready to run. Download the archive for your machine:
 | `mxi-<version>-macos-arm64.tar.gz` | macOS 13 or later on Apple silicon, with Metal |
 
 Unpack it and put its `bin` on the `PATH` -- nothing else needs installing:
-HDF5 and the rest are built in.
+HDF5 and the rest are built in, their licences in the archive's `licenses/`.
 
 ```sh
 tar -xzf mxi-<version>-linux-x86_64.tar.gz

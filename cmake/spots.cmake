@@ -409,7 +409,14 @@ target_link_libraries(mxi_find
 # The kernels go into the executable rather than a library of their own, so that
 # adding more .cu files is a one-line change here.
 if(MXI_CUDA)
-    target_sources(mxi_find PRIVATE src/dext_cuda.cu src/cuda_device.cu)
+    # The CUDA layer the GPU code shares, as mxi_metal is Metal's: a library
+    # of its own, linked by mxi_find and mxi_integrate alike. Compiled into
+    # both, it was defined twice once they were one binary, mxi (1.1).
+    add_library(mxi_cuda_device STATIC src/cuda_device.cu)
+    target_include_directories(mxi_cuda_device PUBLIC src)
+    target_compile_options(mxi_cuda_device PRIVATE ${mxi_cuda_options})
+    target_sources(mxi_find PRIVATE src/dext_cuda.cu)
+    target_link_libraries(mxi_find PRIVATE mxi_cuda_device)
     target_compile_definitions(mxi_find PRIVATE
                                MXI_CUDA MXI_GPU
                                ${mxi_gpu_definitions})

@@ -27,7 +27,7 @@ nothing is published.
 | `mxi-1.0.7-source.tar.gz` | the complete source: the repository and its submodules, gemmi and bitshuffle, at the commits the tag pins. GitHub's own source archives leave the submodules out, and without them nothing builds; this is also the source for a conda-forge recipe |
 | `mxi-1.0.7-linux-x86_64.tar.gz` | every program, built on Ubuntu 22.04, for the CPU: it runs anywhere, no CUDA driver needed |
 | `mxi-1.0.7-linux-x86_64-cuda.tar.gz` | every program, built on Ubuntu 22.04 with CUDA for Volta to Hopper (V100 to H100 and GH200) |
-| `mxi-1.0.7-macos-arm64.tar.gz` | every program, for Apple silicon, with Metal |
+| `mxi-1.0.7-macos-arm64.tar.gz` | every program, for Apple silicon, with Metal: macOS 13 or later, its static libraries too (an overlay triplet, `cmake/triplets`); any API newer than 13 used without a check fails the build, so that the binaries cannot fail on an older macOS |
 | `mxeq-1.0.7-py3-none-any.whl` | the referee, `pip install` it |
 
 Each binary archive is `bin/` -- the programs, `mxi_view` and its module

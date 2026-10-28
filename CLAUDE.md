@@ -64,6 +64,11 @@ which replaced the matplotlib mask editor; the progress bar.
 and with CUDA, macOS with Metal, self-contained, tested before publishing;
 docs/release.md); mxi_view's markers for the image shown, bounded by each
 spot's box; the cell over the scan by rotation angle; -DMXI_TESTS=OFF building.
+28 October, released as 1.1.0: one program, mxi, every step a command of it
+(apps/mxi.cc dispatches; each command its own source, apps/mxi_<name>.cc, an
+object library; the old names links in the build directory only, for the
+tests; files record steps as before); every document in the new form, its
+tests checking it; the releases with FFTW and every licence, 5 MB.
 For a new session to
 pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in

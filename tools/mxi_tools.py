@@ -25,6 +25,20 @@ import numpy as np
 # --- mxi's programs ----------------------------------------------------------
 
 
+def mxi_command(name: str) -> list[str]:
+    """How to run one of mxi's commands: mxi beside this module, or on the
+    PATH, with the command -- [".../mxi", "untrusted"] -- every step a command
+    of one program since 1.1, an installed release having nothing else; else
+    the command's own program, mxi_untrusted, as a build before 1.1 had."""
+    here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mxi")
+    if os.path.isfile(here) and os.access(here, os.X_OK):
+        return [here, name]
+    found = shutil.which("mxi")
+    if found:
+        return [found, name]
+    return [program("mxi_" + name)]
+
+
 def program(name: str) -> str:
     """An mxi program beside this module, or on the PATH."""
     here = os.path.join(os.path.dirname(os.path.abspath(__file__)), name)
@@ -468,9 +482,9 @@ def untrusted_to_shape(region: dict):
 
 
 def save_untrusted(path: str, by_imageset: dict, output: str = "masked.rflx") -> str:
-    """Each image set's regions written by mxi_untrusted into a new file,
+    """Each image set's regions written by mxi untrusted into a new file,
     `output`, the input left as it was; and kept in mxi_mask.json, to apply
-    again with no window. Returns mxi_untrusted's report."""
+    again with no window. Returns mxi untrusted's report."""
     mask = {"imagesets": {str(k): v for k, v in by_imageset.items()}}
     with open("mxi_mask.json", "w") as f:
         json.dump(mask, f, indent=1)
@@ -480,7 +494,7 @@ def save_untrusted(path: str, by_imageset: dict, output: str = "masked.rflx") ->
     try:
         run = subprocess.run(
             [
-                program("mxi_untrusted"),
+                *mxi_command("untrusted"),
                 os.path.abspath(path),
                 "--set",
                 name,

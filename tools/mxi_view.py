@@ -2,9 +2,9 @@
 """mxi_view: the images of an experiment list, with what mxi found on them, in
 napari -- and the detector's untrusted regions drawn and saved.
 
-    mxi_view imported.rflx            # the images, a sweep at a time
-    mxi_view strong.rflx              # with the strong spots
-    mxi_view integrated.rflx          # with the spots and the predictions
+    mxi view imported.rflx            # the images, a sweep at a time
+    mxi view strong.rflx              # with the strong spots
+    mxi view integrated.rflx          # with the spots and the predictions
 
 The images are a stack, a slider through them, each shown as the sum of the
 number set in the panel (one to begin with) from it, so that a shadow shows
@@ -13,8 +13,8 @@ each on its own images. Untrusted regions -- a backstop, its arm, a shadow --
 are a shapes layer to draw on: rectangles, ellipses (a circle where round)
 and polygons, napari's own editing and undo. Save writes the experiment list
 with every sweep's regions to masked.rflx (-o to choose), the input left as it
-was, through mxi_untrusted, and keeps them in mxi_mask.json:
-`mxi_untrusted other.rflx --set mxi_mask.json` applies them again with no
+was, through mxi untrusted, and keeps them in mxi_mask.json:
+`mxi untrusted other.rflx --set mxi_mask.json` applies them again with no
 window. Spot finding and integration leave the regions out.
 
 Needs napari (pip install "napari[all]"), with numpy, h5py and hdf5plugin.
@@ -66,7 +66,7 @@ class View:
         self.history = {}
         self.state = []
         self.restoring = False
-        self.viewer = napari.Viewer(title=f"mxi_view {os.path.basename(path)}")
+        self.viewer = napari.Viewer(title=f"mxi view {os.path.basename(path)}")
         self.markers = {}
         self.viewer.dims.events.current_step.connect(lambda _e: self.update_markers())
         self.panel()
@@ -322,7 +322,7 @@ class View:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
-        prog="mxi_view",
+        prog="mxi view",
         description="The images of an experiment list, with the spots and "
         "predictions mxi found on them, in napari; and the detector's untrusted "
         "regions drawn and saved to masked.rflx through mxi_untrusted.",
@@ -339,14 +339,14 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--sweep", type=int, default=0, help="the sweep shown first (0)"
     )
-    parser.add_argument("--version", action="version", version=f"mxi_view {VERSION}")
+    parser.add_argument("--version", action="version", version=f"mxi view {VERSION}")
     args = parser.parse_args(argv)
     try:
         import napari  # noqa: F401
     except ImportError:
         print(
-            'mxi_view needs napari: pip install "napari[all]" (with numpy, h5py, '
-            "hdf5plugin). mxi_untrusted sets regions with no window.",
+            'mxi view needs napari: pip install "napari[all]" (with numpy, h5py, '
+            "hdf5plugin). mxi untrusted sets regions with no window.",
             file=sys.stderr,
         )
         return 2

@@ -63,18 +63,18 @@ int run_residuals(int argc, char **argv) {
   Timing timing(args.has("--timing"));
   double mark = Timing::now();
   if (args.help) {
-    std::printf("usage: mxi_residuals EXPT REFL [--bins N] [--clip PX]\n"
+    std::printf("usage: mxi residuals EXPT REFL [--bins N] [--clip PX]\n"
                 "                     [--modules FASTW,FASTGAP,SLOWW,SLOWGAP] "
                 "[--timing]\n");
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi_residuals: %s\n", args.error.c_str());
+    std::fprintf(stderr, "mxi residuals: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.size() != 2) {
     std::fprintf(stderr,
-                 "mxi_residuals: expected an .expt and a .refl, got %zu file "
+                 "mxi residuals: expected an .expt and a .refl, got %zu file "
                  "arguments\n",
                  args.positional.size());
     return 2;
@@ -96,7 +96,7 @@ int run_residuals(int argc, char **argv) {
     mark = Timing::now();
     if (!t.has("xyzcal.px")) {
       std::fprintf(stderr,
-                   "mxi_residuals: no xyzcal.px; run mxi_refine first\n");
+                   "mxi residuals: no xyzcal.px; run mxi refine first\n");
       return 1;
     }
     const Column &obs = t.at("xyzobs.px.value");
@@ -149,7 +149,7 @@ int run_residuals(int argc, char **argv) {
       points.push_back(q);
     }
     if (points.size() < 50) {
-      std::fprintf(stderr, "mxi_residuals: only %zu usable reflections\n",
+      std::fprintf(stderr, "mxi residuals: only %zu usable reflections\n",
                    points.size());
       return 1;
     }
@@ -288,7 +288,7 @@ int run_residuals(int argc, char **argv) {
     timing.report(stdout);
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_residuals: %s\n", e.what());
+    std::fprintf(stderr, "mxi residuals: %s\n", e.what());
     return 1;
   }
 }

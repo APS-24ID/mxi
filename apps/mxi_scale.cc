@@ -28,7 +28,7 @@ namespace {
 
 void usage() {
   std::printf(
-      "usage: mxi_scale [options] INTEGRATED_EXPT INTEGRATED_REFL\n"
+      "usage: mxi scale [options] INTEGRATED_EXPT INTEGRATED_REFL\n"
       "  --space-group NAME  the space group, \"I 2 3\" or \"197\"; default "
       "the\n"
       "                    crystal's own\n"
@@ -128,19 +128,19 @@ int run_scale(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi_scale: %s\n", args.error.c_str());
+    std::fprintf(stderr, "mxi scale: %s\n", args.error.c_str());
     return 2;
   }
   const std::string level = args.value("--absorption-level", "low");
   if (level != "low" && level != "medium" && level != "high") {
     std::fprintf(stderr,
-                 "mxi_scale: --absorption-level is low, medium or high, not "
+                 "mxi scale: --absorption-level is low, medium or high, not "
                  "'%s'\n",
                  level.c_str());
     return 2;
   }
   if (args.has("--absorption-level") && args.has("--no-absorption")) {
-    std::fprintf(stderr, "mxi_scale: --absorption-level and --no-absorption "
+    std::fprintf(stderr, "mxi scale: --absorption-level and --no-absorption "
                          "contradict each other\n");
     return 2;
   }
@@ -149,27 +149,27 @@ int run_scale(int argc, char **argv) {
     if (!(l >= 0.0 && l <= 12.0 && l == std::floor(l))) {
       std::fprintf(
           stderr,
-          "mxi_scale: --l-max is a whole number from 0 to 12, not '%s'\n",
+          "mxi scale: --l-max is a whole number from 0 to 12, not '%s'\n",
           args.value("--l-max", "").c_str());
       return 2;
     }
     if (args.has("--no-absorption")) {
       std::fprintf(
           stderr,
-          "mxi_scale: --l-max and --no-absorption contradict each other\n");
+          "mxi scale: --l-max and --no-absorption contradict each other\n");
       return 2;
     }
   }
   if (args.has("--d-min") && args.has("--d-min-auto")) {
     std::fprintf(
         stderr,
-        "mxi_scale: --d-min and --d-min-auto are two answers to one question; "
+        "mxi scale: --d-min and --d-min-auto are two answers to one question; "
         "give one\n");
     return 2;
   }
   if (args.positional.size() != 2) {
     std::fprintf(stderr,
-                 "mxi_scale: expected an .expt and a .refl, got %zu files\n",
+                 "mxi scale: expected an .expt and a .refl, got %zu files\n",
                  args.positional.size());
     usage();
     return 2;
@@ -841,7 +841,7 @@ int run_scale(int argc, char **argv) {
     phase("writing");
     timing.report(stdout);
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi_scale: %s\n", error.what());
+    std::fprintf(stderr, "mxi scale: %s\n", error.what());
     return 1;
   }
   return 0;

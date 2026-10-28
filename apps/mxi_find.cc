@@ -225,7 +225,7 @@ void usage(const char *program, std::FILE *to = stderr) {
       "       %s MASTER.nxs [options]\n"
       "\n"
       "Strong spots on every image of every sweep: the input an experiment\n"
-      "list, as mxi_import writes it (or a DIALS .expt), naming where each\n"
+      "list, as mxi import writes it (or a DIALS .expt), naming where each\n"
       "sweep's images are; or an NXmx master file directly.\n"
       "\n"
       "  -x MASTER.nxs      the images, where the experiment list's are moved\n"
@@ -246,7 +246,7 @@ void usage(const char *program, std::FILE *to = stderr) {
       "                     the 16-bit one, every other count as it is, "
       "stopping "
       "at\n"
-      "                     one of 0xFFFD or more. mxi_max says whether a "
+      "                     one of 0xFFFD or more. mxi max says whether a "
       "series\n"
       "                     fits. The same spots as the 32-bit threshold\n"
       "  --no-shoeboxes     leave out the pixel data, which is most of the\n"
@@ -315,7 +315,7 @@ bool parse_options(int argc, char **argv, Options *options) {
   // more than the shared parser's.
   for (int i = 1; i < argc; ++i)
     if (std::string(argv[i]) == "--version") {
-      report_version("mxi_find");
+      report_version("mxi find");
       std::exit(0);
     }
   // As every program: the shared parser (args.hh), -j and --threads alike.
@@ -357,7 +357,7 @@ bool parse_options(int argc, char **argv, Options *options) {
     std::exit(0);
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi_find: %s\n", args.error.c_str());
+    std::fprintf(stderr, "mxi find: %s\n", args.error.c_str());
     return false;
   }
   options->threads = static_cast<int>(
@@ -667,7 +667,7 @@ void reconcile(const mxi::ExperimentImages &experiments,
         " (fast x slow); " +
         (swapped ? "the one is the other turned round -- the file's own "
                    "detector size has its x and y swapped, the data the "
-                   "right shape. mxi_import takes the data's now: import "
+                   "right shape. mxi import takes the data's now: import "
                    "again"
                  : std::string("these are not the same images")));
   }
@@ -985,7 +985,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
                     " has a count of " + std::to_string(offending) +
                     ", too large for 16 bits: --gpu-force cannot take this "
                     "data "
-                    "(mxi_max says which series fit)");
+                    "(mxi max says which series fit)");
               thresholded = into;
               depth = 16;
             }
@@ -1294,7 +1294,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
   // images without spots. Said once, with why.
   if (read.load() == 0 && failed.load() > 0) {
     std::fprintf(stderr,
-                 "mxi_find: none of the %llu images could be read, so nothing "
+                 "mxi find: none of the %llu images could be read, so nothing "
                  "is written. The first error: %s\n",
                  static_cast<unsigned long long>(dispatched.size()),
                  first_error.c_str());

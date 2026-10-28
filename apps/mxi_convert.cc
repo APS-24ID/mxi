@@ -26,7 +26,7 @@
 namespace {
 
 const char *kUsage =
-    "usage: mxi_convert [options] FILE...\n"
+    "usage: mxi convert [options] FILE...\n"
     "  Between .rflx -- mxi's own files, one HDF5 file holding the experiment\n"
     "  list, the reflections or both (docs/rflx.md) -- and the DIALS pair.\n"
     "  Given a .rflx, writes its .expt and .refl, whichever it holds; given "
@@ -80,7 +80,7 @@ int mxi_convert_main(int argc, char **argv) {
   }
   if (!args.ok || args.positional.empty()) {
     if (!args.ok)
-      std::fprintf(stderr, "mxi_convert: %s\n", args.error.c_str());
+      std::fprintf(stderr, "mxi convert: %s\n", args.error.c_str());
     std::fprintf(stderr, "%s", kUsage);
     return 2;
   }
@@ -96,7 +96,7 @@ int mxi_convert_main(int argc, char **argv) {
       // From a .rflx.
       if (hdf5.size() > 1 || !other.empty()) {
         std::fprintf(stderr,
-                     "mxi_convert: one .rflx at a time, and nothing with it\n");
+                     "mxi convert: one .rflx at a time, and nothing with it\n");
         return 2;
       }
       const std::string &in = hdf5.front();
@@ -110,7 +110,7 @@ int mxi_convert_main(int argc, char **argv) {
                     name.c_str());
       if (!experiments && !reflections) {
         std::fprintf(stderr,
-                     "mxi_convert: %s holds neither experiments nor "
+                     "mxi convert: %s holds neither experiments nor "
                      "reflections\n",
                      in.c_str());
         return 1;
@@ -185,13 +185,13 @@ int mxi_convert_main(int argc, char **argv) {
       const bool looks_refl = ends_with(p, ".refl");
       if (looks_expt || (!looks_refl && !experiments)) {
         if (experiments) {
-          std::fprintf(stderr, "mxi_convert: two experiment lists given\n");
+          std::fprintf(stderr, "mxi convert: two experiment lists given\n");
           return 2;
         }
         experiments = json::parse_file(p);
       } else {
         if (reflections) {
-          std::fprintf(stderr, "mxi_convert: two reflection tables given\n");
+          std::fprintf(stderr, "mxi convert: two reflection tables given\n");
           return 2;
         }
         reflections = read_reflections(p);
@@ -209,7 +209,7 @@ int mxi_convert_main(int argc, char **argv) {
                             : "");
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_convert: %s\n", e.what());
+    std::fprintf(stderr, "mxi convert: %s\n", e.what());
     return 1;
   }
 }

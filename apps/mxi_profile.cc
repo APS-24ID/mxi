@@ -62,11 +62,11 @@ int run_profile(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi_profile: %s\n", args.error.c_str());
+    std::fprintf(stderr, "mxi profile: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.size() != 2) {
-    std::fprintf(stderr, "mxi_profile: expected an .expt and a .refl\n");
+    std::fprintf(stderr, "mxi profile: expected an .expt and a .refl\n");
     usage(argv[0]);
     return 2;
   }
@@ -77,14 +77,14 @@ int run_profile(int argc, char **argv) {
     timing.add("reading", Timing::now() - mark);
     mark = Timing::now();
     if (experiments.size() == 0) {
-      std::fprintf(stderr, "mxi_profile: no experiments\n");
+      std::fprintf(stderr, "mxi profile: no experiments\n");
       return 1;
     }
 
     const std::vector<Shoebox> boxes = decode_shoeboxes(reflections);
     if (boxes.empty()) {
       std::fprintf(stderr,
-                   "mxi_profile: %s has no shoeboxes, and the profile model is "
+                   "mxi profile: %s has no shoeboxes, and the profile model is "
                    "estimated from the pixels. Use a table that still has "
                    "them; dials.find_spots writes them and this package keeps "
                    "them.\n",
@@ -93,7 +93,7 @@ int run_profile(int argc, char **argv) {
     }
     if (!reflections.has("s1")) {
       std::fprintf(stderr,
-                   "mxi_profile: %s has no s1 column, so there is nothing to "
+                   "mxi profile: %s has no s1 column, so there is nothing to "
                    "measure the spread of each spot about\n",
                    args.positional[1].c_str());
       return 1;
@@ -223,7 +223,7 @@ int run_profile(int argc, char **argv) {
     timing.report(stdout);
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_profile: %s\n", e.what());
+    std::fprintf(stderr, "mxi profile: %s\n", e.what());
     return 1;
   }
 }

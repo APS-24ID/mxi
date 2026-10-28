@@ -82,13 +82,13 @@ bool looks_like_json(const std::string &path) {
 }
 
 const char *kUsage =
-    "usage: mxi_max EXPT|MASTER [-j N]\n"
+    "usage: mxi max EXPT|MASTER [-j N]\n"
     "  The largest count on any valid pixel of the images -- those an "
     "experiment\n"
     "  list names, or a master given itself -- and whether it fits in 16 "
     "bits:\n"
     "  below 0xFFFD, the values above being the 16-bit markers. If it does,\n"
-    "  mxi_find --gpu --gpu-force can threshold 32-bit frames on a GPU that "
+    "  mxi find --gpu --gpu-force can threshold 32-bit frames on a GPU that "
     "takes\n"
     "  16 bits only. Exits 0 if it fits, 1 if not.\n"
     "  -j, --threads N   N threads (every core)\n";
@@ -111,7 +111,7 @@ int mxi_max_main(int argc, char **argv) {
   }
   if (!args.ok || args.positional.size() != 1) {
     if (!args.ok)
-      std::fprintf(stderr, "mxi_max: %s\n", args.error.c_str());
+      std::fprintf(stderr, "mxi max: %s\n", args.error.c_str());
     std::fprintf(stderr, "%s", kUsage);
     return 2;
   }
@@ -219,7 +219,7 @@ int mxi_max_main(int argc, char **argv) {
     const double wall = now() - t0;
 
     const bool fits = best < kSixteenBitLimit;
-    std::printf("mxi_max: %s, %llu frames of %u-bit pixels read in %.2f s on "
+    std::printf("mxi max: %s, %llu frames of %u-bit pixels read in %.2f s on "
                 "%zu thread%s\n",
                 master.c_str(),
                 static_cast<unsigned long long>(read_frames.load()), bit_depth,
@@ -236,9 +236,9 @@ int mxi_max_main(int argc, char **argv) {
                 static_cast<unsigned long long>(join_total.load()),
                 static_cast<unsigned long long>(over_total.load()));
     if (bit_depth == 16)
-      std::printf("  16-bit already: mxi_find --gpu takes it as it is\n");
+      std::printf("  16-bit already: mxi find --gpu takes it as it is\n");
     else if (fits)
-      std::printf("  fits in 16 bits: mxi_find --gpu --gpu-force can take it "
+      std::printf("  fits in 16 bits: mxi find --gpu --gpu-force can take it "
                   "on a GPU of 16 "
                   "bits only\n");
     else
@@ -247,7 +247,7 @@ int mxi_max_main(int argc, char **argv) {
                   "CPU\n");
     return fits ? 0 : 1;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_max: %s\n", e.what());
+    std::fprintf(stderr, "mxi max: %s\n", e.what());
     return 2;
   }
 }

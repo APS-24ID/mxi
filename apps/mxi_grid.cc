@@ -73,11 +73,11 @@ int run_grid(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi_grid: %s\n", args.error.c_str());
+    std::fprintf(stderr, "mxi grid: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.size() != 2) {
-    std::fprintf(stderr, "mxi_grid: expected an .expt and a .refl\n");
+    std::fprintf(stderr, "mxi grid: expected an .expt and a .refl\n");
     usage(argv[0]);
     return 2;
   }
@@ -89,12 +89,12 @@ int run_grid(int argc, char **argv) {
     mark = Timing::now();
     const std::vector<Shoebox> boxes = decode_shoeboxes(reflections);
     if (boxes.empty()) {
-      std::fprintf(stderr, "mxi_grid: %s has no shoeboxes\n",
+      std::fprintf(stderr, "mxi grid: %s has no shoeboxes\n",
                    args.positional[1].c_str());
       return 1;
     }
     if (!reflections.has("s1") || !reflections.has("xyzcal.mm")) {
-      std::fprintf(stderr, "mxi_grid: needs the s1 and xyzcal.mm columns\n");
+      std::fprintf(stderr, "mxi grid: needs the s1 and xyzcal.mm columns\n");
       return 1;
     }
 
@@ -120,7 +120,7 @@ int run_grid(int argc, char **argv) {
       chosen.push_back(i);
     }
     if (chosen.size() < 10) {
-      std::fprintf(stderr, "mxi_grid: only %zu usable spots\n", chosen.size());
+      std::fprintf(stderr, "mxi grid: only %zu usable spots\n", chosen.size());
       return 1;
     }
 
@@ -162,7 +162,7 @@ int run_grid(int argc, char **argv) {
     const std::string path = args.value("--out", "grids.txt");
     std::FILE *out = std::fopen(path.c_str(), "w");
     if (out == nullptr) {
-      std::fprintf(stderr, "mxi_grid: cannot write %s\n", path.c_str());
+      std::fprintf(stderr, "mxi grid: cannot write %s\n", path.c_str());
       return 1;
     }
     std::fprintf(out, "# side %d half_width %g sigma_b %.9f sigma_m %.9f\n",
@@ -237,7 +237,7 @@ int run_grid(int argc, char **argv) {
     if (!map_path.empty()) {
       std::FILE *m = std::fopen(map_path.c_str(), "w");
       if (m == nullptr) {
-        std::fprintf(stderr, "mxi_grid: cannot write %s\n", map_path.c_str());
+        std::fprintf(stderr, "mxi grid: cannot write %s\n", map_path.c_str());
         return 1;
       }
       const Panel &p0 = e.detector[0];
@@ -275,7 +275,7 @@ int run_grid(int argc, char **argv) {
     timing.report(stdout);
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi_grid: %s\n", e.what());
+    std::fprintf(stderr, "mxi grid: %s\n", e.what());
     return 1;
   }
 }

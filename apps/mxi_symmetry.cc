@@ -100,7 +100,7 @@ std::string as_hkl(const Rotation &g) {
 
 void usage() {
   std::printf(
-      "usage: mxi_symmetry [options] INTEGRATED_EXPT INTEGRATED_REFL\n"
+      "usage: mxi symmetry [options] INTEGRATED_EXPT INTEGRATED_REFL\n"
       "  --no-cosym        several crystals pooled as they are, not first\n"
       "                    brought to one setting by cosym\n"
       "  --threads N       N threads for scoring and naming the subgroups; "
@@ -135,13 +135,13 @@ int run_symmetry(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi_symmetry: %s\n", args.error.c_str());
+    std::fprintf(stderr, "mxi symmetry: %s\n", args.error.c_str());
     return 2;
   }
   set_parallel_threads(static_cast<std::size_t>(args.number("--threads", 0.0)));
   if (args.positional.size() != 2) {
     std::fprintf(stderr,
-                 "mxi_symmetry: expected an .expt and a .refl, got %zu files\n",
+                 "mxi symmetry: expected an .expt and a .refl, got %zu files\n",
                  args.positional.size());
     usage();
     return 2;
@@ -544,7 +544,7 @@ int run_symmetry(int argc, char **argv) {
     phase("writing");
     timing.report(stdout);
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi_symmetry: %s\n", error.what());
+    std::fprintf(stderr, "mxi symmetry: %s\n", error.what());
     return 1;
   }
   return 0;

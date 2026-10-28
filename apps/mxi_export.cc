@@ -32,7 +32,7 @@ constexpr std::int64_t kBadForScaling = (1 << 23) | (1 << 24) | (1 << 25);
 
 void usage() {
   std::printf(
-      "usage: mxi_export [options] FILE.rflx | EXPT REFL\n"
+      "usage: mxi export [options] FILE.rflx | EXPT REFL\n"
       "  An unmerged MTZ, as dials.export writes one: a row an observation, a\n"
       "  batch header an image, one sweep or several (docs/export.md). A "
       "scaled\n"
@@ -226,7 +226,7 @@ int run_export(int argc, char **argv) {
   }
   if (!args.ok || args.positional.size() != 2) {
     if (!args.ok)
-      std::fprintf(stderr, "mxi_export: %s\n", args.error.c_str());
+      std::fprintf(stderr, "mxi export: %s\n", args.error.c_str());
     usage();
     return 2;
   }
@@ -413,13 +413,13 @@ int run_export(int argc, char **argv) {
       throw std::runtime_error("no reflections left to export");
 
     gemmi::Mtz mtz(true);
-    mtz.title = "From mxi_export";
+    mtz.title = "From mxi export";
     {
       char when[64];
       const std::time_t now = std::time(nullptr);
       std::strftime(when, sizeof when, "%Y-%m-%d at %H:%M:%S UTC",
                     std::gmtime(&now));
-      mtz.history.push_back(std::string("From mxi_export, run on ") + when);
+      mtz.history.push_back(std::string("From mxi export, run on ") + when);
     }
     mtz.spacegroup = group;
     for (double w : wavelengths) {
@@ -565,7 +565,7 @@ int run_export(int argc, char **argv) {
     std::printf("\n");
     return 0;
   } catch (const std::exception &ex) {
-    std::fprintf(stderr, "mxi_export: %s\n", ex.what());
+    std::fprintf(stderr, "mxi export: %s\n", ex.what());
     return 1;
   }
 }

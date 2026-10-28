@@ -305,7 +305,7 @@ void usage(const char *program) {
       "                    leave in a refined model\n"
       "  --postrefine-points N   control points for its scan-varying pass;\n"
       "                    default one per 10 degrees, at least 5, as\n"
-      "                    mxi_refine --scan-varying\n"
+      "                    mxi refine --scan-varying\n"
       "  --sigma-b B --sigma-m M   profile model. Estimated from INDEXED_REFL\n"
       "                    if given -- indexed or refined reflections, not a\n"
       "                    spot finder's -- else taken from EXPT's profile "
@@ -410,7 +410,7 @@ int integrate_with_postrefinement(const Arguments &args, const char *program,
     const double n = args.number("--postrefine-points", 0.0);
     if (!(n >= 2.0)) {
       std::fprintf(stderr,
-                   "mxi_integrate: --postrefine-points needs at least 2\n");
+                   "mxi integrate: --postrefine-points needs at least 2\n");
       return 2;
     }
     points = static_cast<std::size_t>(n);
@@ -475,7 +475,7 @@ int integrate_with_postrefinement(const Arguments &args, const char *program,
     const RefineResult &sv = result.refinement.varying_pass;
     if (st.n_used == 0) {
       std::fprintf(stderr,
-                   "mxi_integrate: post-refinement fitted nothing, so there "
+                   "mxi integrate: post-refinement fitted nothing, so there "
                    "is nothing to integrate again with\n");
       std::remove(first_refl.c_str());
       std::remove(first_expt.c_str());
@@ -495,7 +495,7 @@ int integrate_with_postrefinement(const Arguments &args, const char *program,
     write_experiments(post_expt, experiments);
     std::printf("Post-refined models written for the second integration\n\n");
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi_integrate: post-refinement: %s\n", error.what());
+    std::fprintf(stderr, "mxi integrate: post-refinement: %s\n", error.what());
     std::remove(first_refl.c_str());
     std::remove(first_expt.c_str());
     std::remove(post_expt.c_str());
@@ -576,7 +576,7 @@ int integrate_sweeps(const Arguments &args, const char *program,
       indexed = read_reflections(args.positional[1]);
       if (!indexed.has("id")) {
         std::fprintf(stderr,
-                     "mxi_integrate: %s has no id column, so which of the %zu "
+                     "mxi integrate: %s has no id column, so which of the %zu "
                      "experiments each reflection belongs to is not known\n",
                      args.positional[1].c_str(), n);
         return 1;
@@ -716,7 +716,7 @@ int integrate_sweeps(const Arguments &args, const char *program,
         joined.nrows, n, rflx::describe(outputs).c_str());
     return 0;
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi_integrate: %s\n", error.what());
+    std::fprintf(stderr, "mxi integrate: %s\n", error.what());
     tidy();
     return 1;
   }
@@ -765,7 +765,7 @@ int integrate_several(const Arguments &args, const char *program,
       indexed = read_reflections(args.positional[1]);
       if (!indexed.has("id")) {
         std::fprintf(stderr,
-                     "mxi_integrate: %s has no id column, so which of the %zu "
+                     "mxi integrate: %s has no id column, so which of the %zu "
                      "sweeps each reflection belongs to is not known\n",
                      args.positional[1].c_str(), n);
         return 1;
@@ -937,7 +937,7 @@ int integrate_several(const Arguments &args, const char *program,
         joined.nrows, n, rflx::describe(outputs).c_str());
     return 0;
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi_integrate: %s\n", error.what());
+    std::fprintf(stderr, "mxi integrate: %s\n", error.what());
     tidy();
     return 1;
   }
@@ -1017,12 +1017,12 @@ int run_integrate(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi_integrate: %s\n", args.error.c_str());
+    std::fprintf(stderr, "mxi integrate: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.empty() || args.positional.size() > 2) {
     std::fprintf(stderr,
-                 "mxi_integrate: expected an .expt and optionally a .refl of "
+                 "mxi integrate: expected an .expt and optionally a .refl of "
                  "indexed reflections\n");
     usage(argv[0]);
     return 2;
@@ -1061,7 +1061,7 @@ int run_integrate(int argc, char **argv) {
           for (const json::Value &x : document["experiment"].as_array())
             if (!x["crystal"].is_number()) {
               std::fprintf(stderr,
-                           "mxi_integrate: a run an experiment cannot take a "
+                           "mxi integrate: a run an experiment cannot take a "
                            "crystal-less one: without --each-alone or "
                            "--postrefine, a run a sweep carries it\n");
               return 1;
@@ -1078,7 +1078,7 @@ int run_integrate(int argc, char **argv) {
   // settings nobody chose.
   for (const char *needs : {"--postrefine-points"}) {
     if (args.has(needs)) {
-      std::fprintf(stderr, "mxi_integrate: %s is for --postrefine\n", needs);
+      std::fprintf(stderr, "mxi integrate: %s is for --postrefine\n", needs);
       return 2;
     }
   }
@@ -1103,8 +1103,8 @@ int run_integrate(int argc, char **argv) {
     };
     if (experiments.size() == 0) {
       std::fprintf(stderr, whole.size() == 0
-                               ? "mxi_integrate: no experiments\n"
-                               : "mxi_integrate: no lattices: index first\n");
+                               ? "mxi integrate: no experiments\n"
+                               : "mxi integrate: no lattices: index first\n");
       return 1;
     }
     const Experiment &e = experiments[0];
@@ -1139,7 +1139,7 @@ int run_integrate(int argc, char **argv) {
         args.value("--sigma-m-estimator", "basic");
     if (sigma_m_estimator != "basic" && sigma_m_estimator != "extended") {
       std::fprintf(stderr,
-                   "mxi_integrate: --sigma-m-estimator is basic or extended\n");
+                   "mxi integrate: --sigma-m-estimator is basic or extended\n");
       return 2;
     }
     const bool sigma_m_weighted = sigma_m_estimator == "extended";
@@ -1165,7 +1165,7 @@ int run_integrate(int argc, char **argv) {
             strong_boxes = decode_shoeboxes(*strong);
             if (strong_boxes.empty()) {
               std::fprintf(stderr,
-                           "mxi_integrate: %s has no shoeboxes, so the profile "
+                           "mxi integrate: %s has no shoeboxes, so the profile "
                            "model cannot be estimated from it\n",
                            strong_path.c_str());
               return 1;
@@ -1177,7 +1177,7 @@ int run_integrate(int argc, char **argv) {
             if (!strong->has("s1") || !strong->has("xyzcal.mm")) {
               std::fprintf(
                   stderr,
-                  "mxi_integrate: %s has no predictions for its spots, so the "
+                  "mxi integrate: %s has no predictions for its spots, so the "
                   "profile model cannot be estimated from it. Give the "
                   "refined or indexed reflections (refined.refl), not the "
                   "spot finder's, or set --sigma-b and --sigma-m\n",
@@ -1244,7 +1244,7 @@ int run_integrate(int argc, char **argv) {
         }
         if (!(lb > 0.0) || !(lm > 0.0)) {
           std::fprintf(stderr,
-                       "mxi_integrate: no profile model. Give a .refl of "
+                       "mxi integrate: no profile model. Give a .refl of "
                        "strong spots with shoeboxes to estimate it from, or "
                        "--sigma-b and --sigma-m, or an .expt that carries a "
                        "profile block.\n");
@@ -1298,14 +1298,14 @@ int run_integrate(int argc, char **argv) {
       image_source = "the .expt's imageset template";
       if (image_path.empty()) {
         std::fprintf(stderr,
-                     "mxi_integrate: %s has no imageset template, so there is "
+                     "mxi integrate: %s has no imageset template, so there is "
                      "nothing to read images from; give --images\n",
                      args.positional[0].c_str());
         return 1;
       }
       if (image_path.find('#') != std::string::npos) {
         std::fprintf(stderr,
-                     "mxi_integrate: the imageset template is %s, which names "
+                     "mxi integrate: the imageset template is %s, which names "
                      "a numbered series rather than one file; give --images\n",
                      image_path.c_str());
         return 1;
@@ -1326,7 +1326,7 @@ int run_integrate(int argc, char **argv) {
     mxi::series::Info info;
     if (!images || !images->try_open(&info)) {
       std::fprintf(stderr,
-                   "mxi_integrate: cannot open %s. If the data have moved "
+                   "mxi integrate: cannot open %s. If the data have moved "
                    "since the .expt was written, give --images\n",
                    image_path.c_str());
       return 1;
@@ -2928,7 +2928,7 @@ int run_integrate(int argc, char **argv) {
           if (!profile_path.empty()) {
             std::FILE *f = std::fopen(profile_path.c_str(), "w");
             if (f == nullptr) {
-              std::fprintf(stderr, "mxi_integrate: cannot write %s\n",
+              std::fprintf(stderr, "mxi integrate: cannot write %s\n",
                            profile_path.c_str());
             } else {
               // Plain text, one profile a block, because the thing that reads
@@ -2975,7 +2975,7 @@ int run_integrate(int argc, char **argv) {
         }
         if (references_used == 0) {
           std::fprintf(stderr,
-                       "mxi_integrate: nothing to learn profiles from, so no "
+                       "mxi integrate: nothing to learn profiles from, so no "
                        "profile fitting: lower --reference-signal or check the "
                        "summation\n");
           // Nothing learned, so nothing fitted: what one pass held goes out
@@ -3010,7 +3010,7 @@ int run_integrate(int argc, char **argv) {
     if (frames_missing > 0) {
       std::fprintf(
           stderr,
-          "mxi_integrate: %zu reads found no frame: an unallocated chunk is a "
+          "mxi integrate: %zu reads found no frame: an unallocated chunk is a "
           "frame the writer never received, and a shoebox spanning one is "
           "missing a slice\n",
           frames_missing);
@@ -3272,7 +3272,7 @@ int run_integrate(int argc, char **argv) {
     }
     return 0;
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi_integrate: %s\n", error.what());
+    std::fprintf(stderr, "mxi integrate: %s\n", error.what());
     return 1;
   }
 }

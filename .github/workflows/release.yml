@@ -1,19 +1,28 @@
-# A release, made when a tag v* is pushed: the complete source, Linux on the
-# CPU and with CUDA, macOS with Metal, and mxeq's wheel, each built and its tests run
-# before anything is published; then a GitHub release with them, its text
-# RELEASE_NOTES.md's section for the version (scripts/release_notes.py). A tag
-# with -rc, -alpha or -beta makes a pre-release: push v1.0.7-rc1 first, to see
-# the whole of it work. docs/release.md.
+# A release, made by hand for a tag already pushed -- not on every tag, each
+# run costing Actions minutes (macOS's most) -- from the Actions page or:
+#
+#   gh workflow run release.yml -f tag=v1.0.7
+#
+# The complete source, Linux on the CPU and with CUDA, macOS with Metal, and
+# mxeq's wheel, each built from the tag and its tests run before anything is
+# published; then a GitHub release with them, its text RELEASE_NOTES.md's
+# section for the version (scripts/release_notes.py). A tag with -rc, -alpha
+# or -beta makes a pre-release. docs/release.md.
 name: release
 
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The tag to release, pushed already: v1.0.7, v1.0.7-rc1"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 env:
+  TAG: ${{ inputs.tag }}
   # Apple's metal-cpp headers, which the Metal build needs. Not tried from the
   # sandbox this was written in: if the download fails, the current zip's name
   # is on https://developer.apple.com/metal/cpp/
@@ -27,10 +36,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag }}
           submodules: recursive
           fetch-depth: 0
       - name: The complete source, submodules and all
-        run: scripts/source_archive.sh "${GITHUB_REF_NAME}"
+        run: scripts/source_archive.sh "$TAG"
       - uses: actions/upload-artifact@v4
         with:
           name: source
@@ -52,6 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag }}
           submodules: recursive
       - name: Ninja
         run: sudo apt-get install -y -q ninja-build
@@ -88,7 +99,7 @@ jobs:
           # suite makes them so as well, tests/conftest.py).
           cd python && MXI_FIND="$GITHUB_WORKSPACE/build/mxi_find" MXI_BUILD="$GITHUB_WORKSPACE/build" PYTHONPATH=src:tests python3 -m pytest -q tests
       - name: Package
-        run: scripts/package_release.sh build "${GITHUB_REF_NAME}" "${{ matrix.platform }}"
+        run: scripts/package_release.sh build "$TAG" "${{ matrix.platform }}"
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}
@@ -99,6 +110,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag }}
           submodules: recursive
       - name: The Metal compiler, and metal-cpp
         run: |
@@ -128,7 +140,7 @@ jobs:
           # suite makes them so as well, tests/conftest.py).
           cd python && MXI_FIND="$GITHUB_WORKSPACE/build/mxi_find" MXI_BUILD="$GITHUB_WORKSPACE/build" PYTHONPATH=src:tests python3 -m pytest -q tests
       - name: Package
-        run: scripts/package_release.sh build "${GITHUB_REF_NAME}" macos-arm64
+        run: scripts/package_release.sh build "$TAG" macos-arm64
       - uses: actions/upload-artifact@v4
         with:
           name: macos-arm64
@@ -138,6 +150,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
       - name: mxeq's wheel
         run: |
           python3 -m pip install -q build
@@ -152,6 +166,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/download-artifact@v4
         with:
           path: assets
@@ -160,7 +176,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="${GITHUB_REF_NAME}"
+          tag="$TAG"
           python3 scripts/release_notes.py "$tag" > notes.md
           case "$tag" in *-rc*|*-alpha*|*-beta*) pre=--prerelease ;; *) pre= ;; esac
-          gh release create "$tag" --title "mxi ${tag#v}" --notes-file notes.md $pre assets/*
+          gh release create "$tag" --verify-tag --title "mxi ${tag#v}" --notes-file notes.md $pre assets/*

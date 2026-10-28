@@ -162,7 +162,8 @@ std::size_t members_count(const std::vector<int> &labels, int label) {
   return n;
 }
 
-int main(int argc, char **argv) {
+// The program's entry, run by mxi (correlation) -- apps/mxi.cc.
+int mxi_correlation_main(int argc, char **argv) {
   using namespace mxi;
   if (!only_asks_for_help(argc, argv))
     mirror_to_log("mxi_correlation.log");

@@ -52,6 +52,10 @@ def _programs():
     for f in [ROOT / "CMakeLists.txt", *(ROOT / "cmake").glob("*.cmake")]:
         text = f.read_text()
         names |= set(re.findall(r"add_executable\(\s*(mxi_[a-z]+)", text))
+        # The programs that are subcommands of mxi now: the list mxi links.
+        listed = re.search(r"set\(MXI_PROGRAMS\s+([^)]*)\)", text)
+        if listed:
+            names |= set(listed.group(1).split())
         # And a script copied beside the programs as one: mxi_mask, in Python.
         names |= set(re.findall(r"configure_file\([^)]*?/(mxi_[a-z]+)[\s)]", text))
     return names

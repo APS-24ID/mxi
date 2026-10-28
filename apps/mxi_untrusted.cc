@@ -47,7 +47,8 @@ std::string base_name(const std::string &path) {
 
 } // namespace
 
-int main(int argc, char **argv) {
+// The program's entry, run by mxi (untrusted) -- apps/mxi.cc.
+int mxi_untrusted_main(int argc, char **argv) {
   using namespace mxi;
   if (!only_asks_for_help(argc, argv))
     mirror_to_log("mxi_untrusted.log");

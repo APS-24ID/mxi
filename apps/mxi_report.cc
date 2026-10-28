@@ -947,7 +947,7 @@ div.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
 
 } // namespace
 
-int run_program(int argc, char **argv) {
+int run_report(int argc, char **argv) {
   const std::set<std::string> known = {"-o", "--help"};
   const std::set<std::string> takes_value = {"-o"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
@@ -1076,4 +1076,7 @@ int run_program(int argc, char **argv) {
 
 } // namespace mxi
 
-int main(int argc, char **argv) { return mxi::run_program(argc, argv); }
+// The program's entry, run by mxi (report) -- apps/mxi.cc.
+int mxi_report_main(int argc, char **argv) {
+  return mxi::run_report(argc, argv);
+}

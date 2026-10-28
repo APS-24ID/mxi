@@ -95,7 +95,8 @@ const char *kUsage =
 
 } // namespace
 
-int main(int argc, char **argv) {
+// The program's entry, run by mxi (max) -- apps/mxi.cc.
+int mxi_max_main(int argc, char **argv) {
   using namespace mxi;
   // Mirrored to mxi_max.log in the working directory, as every mxi program and
   // DIALS's own do; not for a run that only asks for help.

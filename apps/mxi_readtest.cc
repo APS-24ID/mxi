@@ -152,7 +152,8 @@ const char *kUsage =
 
 } // namespace
 
-int main(int argc, char **argv) {
+// The program's entry, run by mxi (readtest) -- apps/mxi.cc.
+int mxi_readtest_main(int argc, char **argv) {
   using namespace mxi;
   const std::set<std::string> known = {
       "--direct-chunk", "--pread",         "-j",       "--threads",

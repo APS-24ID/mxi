@@ -217,7 +217,7 @@ int report_lattices(const ExperimentList &sweep, Table &reflections,
 
 } // namespace
 
-int run_program(int argc, char **argv);
+int run_index(int argc, char **argv);
 
 // --no-joint: each sweep indexed on its own, as dials.index joint=false -- a
 // basis search, refinement and lattices of its own -- then the lists and tables
@@ -266,7 +266,7 @@ int index_apart(const Arguments &args,
     for (std::string &w : words)
       argv.push_back(w.data());
     argv.push_back(nullptr);
-    return run_program(static_cast<int>(words.size()), argv.data());
+    return run_index(static_cast<int>(words.size()), argv.data());
   };
   std::printf("Indexing %zu sweeps apart (--no-joint), each its own crystal\n",
               n);
@@ -356,7 +356,7 @@ int index_apart(const Arguments &args,
   return failed == n ? 1 : 0;
 }
 
-int run_program(int argc, char **argv) {
+int run_index(int argc, char **argv) {
   const std::set<std::string> known = {"--d-min",
                                        "--max-cell",
                                        "--grid",
@@ -776,10 +776,11 @@ int run_program(int argc, char **argv) {
 
 } // namespace mxi
 
-int main(int argc, char **argv) {
+// The program's entry, run by mxi (index) -- apps/mxi.cc.
+int mxi_index_main(int argc, char **argv) {
   // Mirrored to mxi_index.log in the working directory, as DIALS writes
   // dials.<program>.log; not for a run that only asks for help.
   if (!mxi::only_asks_for_help(argc, argv))
     mxi::mirror_to_log("mxi_index.log");
-  return mxi::run_program(argc, argv);
+  return mxi::run_index(argc, argv);
 }

@@ -1397,7 +1397,8 @@ int write_one(const Options &options, const mxi::spots::Labeller &labeller,
 
 } // namespace
 
-int main(int argc, char **argv) {
+// The program's entry, run by mxi (find) -- apps/mxi.cc.
+int mxi_find_main(int argc, char **argv) {
   // Mirrored to mxi_find.log in the working directory, as DIALS writes
   // dials.find_spots.log; not for a run that only asks for help.
   if (!mxi::only_asks_for_help(argc, argv))

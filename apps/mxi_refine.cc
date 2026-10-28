@@ -176,7 +176,7 @@ void print_residuals(const mxi::Table &t,
 // The default weight of --crystal-restraint.
 constexpr double kCrystalRestraint = 1e6;
 
-int run_program(int argc, char **argv);
+int run_refine(int argc, char **argv);
 
 // Each independent group refined in a run of its own, on files of its own, as
 // mxi_index --no-joint and mxi_integrate's sweeps are; then the lists joined
@@ -205,7 +205,7 @@ int refine_apart(const Arguments &args,
     for (std::string &w : words)
       argv.push_back(w.data());
     argv.push_back(nullptr);
-    return run_program(static_cast<int>(words.size()), argv.data());
+    return run_refine(static_cast<int>(words.size()), argv.data());
   };
   std::printf("Refining %zu experiments sweep by sweep, %zu runs, each "
               "sweep's beam and detector its own (--joint for one refinement "
@@ -320,7 +320,7 @@ int refine_apart(const Arguments &args,
   return 0;
 }
 
-int run_program(int argc, char **argv) {
+int run_refine(int argc, char **argv) {
   const double t_start = now_wall();
   double t_read = 0.0;
   double t_write = 0.0;
@@ -769,10 +769,11 @@ int run_program(int argc, char **argv) {
 
 } // namespace mxi
 
-int main(int argc, char **argv) {
+// The program's entry, run by mxi (refine) -- apps/mxi.cc.
+int mxi_refine_main(int argc, char **argv) {
   // Mirrored to mxi_refine.log in the working directory, as DIALS writes
   // dials.<program>.log; not for a run that only asks for help.
   if (!mxi::only_asks_for_help(argc, argv))
     mxi::mirror_to_log("mxi_refine.log");
-  return mxi::run_program(argc, argv);
+  return mxi::run_refine(argc, argv);
 }

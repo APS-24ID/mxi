@@ -212,7 +212,7 @@ double median(std::vector<double> v) {
 
 } // namespace
 
-int run_program(int argc, char **argv) {
+int run_export(int argc, char **argv) {
   const std::set<std::string> known = {
       "-o",      "--output",       "--partiality-threshold", "--min-isigi",
       "--d-min", "--crystal-name", "--project-name"};
@@ -572,8 +572,9 @@ int run_program(int argc, char **argv) {
 
 } // namespace mxi
 
-int main(int argc, char **argv) {
+// The program's entry, run by mxi (export) -- apps/mxi.cc.
+int mxi_export_main(int argc, char **argv) {
   if (!mxi::only_asks_for_help(argc, argv))
     mxi::mirror_to_log("mxi_export.log");
-  return mxi::run_program(argc, argv);
+  return mxi::run_export(argc, argv);
 }

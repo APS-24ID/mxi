@@ -13,7 +13,10 @@ git push origin v1.0.7
 ```
 
 Push a candidate first -- `v1.0.7-rc1` -- to see the whole of it work: a tag
-with `-rc`, `-alpha` or `-beta` makes a pre-release, its notes 1.0.7's.
+with `-rc`, `-alpha` or `-beta` makes a pre-release. Its notes are 1.0.7's
+section where there is one yet, and otherwise the "Unreleased" section, said
+to be a candidate's. The release itself must have its section: without one
+nothing is published.
 
 ## What it makes
 

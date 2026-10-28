@@ -47,14 +47,22 @@ One program, not 24 each with its own HDF5: the archive is a few megabytes, wher
 
 ## Licences
 
-mxi is BSD-3-Clause, and the release builds stay so: FFTW, which is GPL, is
-opt-in (`-DMXI_FFTW=ON`), the workflow says `-DMXI_FFTW=OFF`, and
-`scripts/package_release.sh` refuses a program containing it. The code linked
-into the programs comes with its notices, in each archive's `licenses/`:
-gemmi (MPL-2.0, its source in the source archive), bitshuffle (MIT) and the
-LZ4 within it (BSD-2), from the submodules; HDF5, libaec and zlib, from
-vcpkg's copyright files; and NVIDIA's CUDA runtime in the CUDA build. A notice
-missing fails the package -- a new library linked in needs its own added.
+mxi's source is BSD-3-Clause. The release builds include FFTW, for indexing's
+transform: a vcpkg feature, `fftw` (`vcpkg.json`), asked for with
+`-DVCPKG_MANIFEST_FEATURES=fftw -DMXI_FFTW=ON`. FFTW is GPL, version 2 or
+later, so the program as released is distributed under the GPL's terms as a
+whole -- a modest commitment, every part's source being open. A build without
+FFTW (the default, `-DMXI_FFTW=OFF`) uses the built-in transform and is BSD
+with the notices below.
+
+The code linked into the program comes with its notices, in each archive's
+`licenses/`: gemmi (MPL-2.0, its source in the source archive), bitshuffle
+(MIT) and the LZ4 within it (BSD-2), from the submodules; HDF5, libaec, zlib
+and FFTW, from vcpkg's copyright files; NVIDIA's CUDA runtime in the CUDA
+build; and a README saying which is which, and what FFTW makes of the whole.
+`scripts/package_release.sh` fails if a notice is missing, or if the program
+contains FFTW the build does not record -- a new library linked in needs its
+own added.
 
 ## macOS
 

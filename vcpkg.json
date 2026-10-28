@@ -5,5 +5,18 @@
   "dependencies": [
     "hdf5",
     "zlib"
-  ]
+  ],
+  "features": {
+    "fftw": {
+      "description": "FFTW for indexing's transform, with its threads -- GPL: a build with it is distributed under the GPL's terms",
+      "dependencies": [
+        {
+          "name": "fftw3",
+          "features": [
+            "threads"
+          ]
+        }
+      ]
+    }
+  }
 }

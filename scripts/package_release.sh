@@ -44,13 +44,36 @@ The programs are linked statically with NVIDIA's CUDA runtime library
 License Agreement: https://docs.nvidia.com/cuda/eula/
 NOTE
 fi
+# FFTW, where the build has it (MXI_FFTW): its GPL, from vcpkg's copyright
+# file -- or a system's, building by hand -- and the README saying what that
+# makes of the binary.
+fftw=no
+if grep -q '^MXI_FFTW:BOOL=ON' "$build/CMakeCache.txt" 2>/dev/null; then
+    fftw=yes
+    found=$(find "$installed" -path "*/share/fftw3/copyright" 2>/dev/null | head -1)
+    [ -n "$found" ] || found=$(ls /usr/share/doc/libfftw3-dev/copyright 2>/dev/null | head -1)
+    if [ -z "$found" ]; then
+        echo "the build has FFTW but no licence for it was found" >&2
+        exit 1
+    fi
+    cp "$found" "$lic/fftw.txt"
+fi
 cat > "$lic/README" <<'NOTE'
-mxi is BSD-3-Clause (mxi.txt). The programs also contain, linked in: gemmi
+mxi is BSD-3-Clause (mxi.txt). The program also contains, linked in: gemmi
 (MPL-2.0; its source is in the release's mxi-<version>-source.tar.gz),
 bitshuffle (MIT) and the LZ4 within it (BSD-2), HDF5, libaec and zlib, each
-under the licence here; and, in the CUDA build, NVIDIA's CUDA runtime. FFTW,
-which is GPL, is not used: the built-in transform is.
+under the licence here; and, in the CUDA build, NVIDIA's CUDA runtime.
 NOTE
+if [ "$fftw" = yes ]; then
+    cat >> "$lic/README" <<'NOTE'
+
+It also contains FFTW (fftw.txt), for indexing's transform, which is under the
+GNU General Public License, version 2 or later. The program as distributed
+here is therefore under the GPL's terms as a whole; mxi's own source remains
+BSD-3-Clause, and every part's source is open: mxi's and its submodules' in
+the release's source archive, FFTW's at https://www.fftw.org.
+NOTE
+fi
 # Self-contained: no HDF5, zlib or vcpkg library to be found at run time. On
 # Linux libcuda (the driver) is the system's, as it must be.
 bad=0
@@ -69,13 +92,11 @@ for p in "$name"/bin/mxi "$name"/bin/mxi_*; do
 done
 [ "$bad" = 0 ] || { echo "not self-contained" >&2; exit 1; }
 
-# No FFTW, which is GPL: the release builds are BSD with the notices above.
-for p in "$name"/bin/mxi; do
-    if [ -x "$p" ] && grep -a -q -i 'fftw_plan' "$p"; then
-        echo "$p contains FFTW, which is GPL: build without -DMXI_FFTW=ON" >&2
-        exit 1
-    fi
-done
+# FFTW in the program exactly when the build says so, so that its licence
+# goes with it whenever it is there.
+if grep -a -q 'fftw_plan' "$name/bin/mxi"; then
+    [ "$fftw" = yes ] || { echo "bin/mxi contains FFTW the build does not record" >&2; exit 1; }
+fi
 # One program, mxi, every other its subcommand.
 [ -x "$name/bin/mxi" ] || { echo "no bin/mxi" >&2; exit 1; }
 count=$("$name/bin/mxi" help | grep -c '^  [a-z]')

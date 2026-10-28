@@ -159,3 +159,18 @@ def test_a_steps_log_is_the_programs_own_and_both_are_kept_on_failure(tmp_path):
     assert [r[0] for r in rows] == ["import", "find"]  # stopped at the failure
     logs = sorted(f.name for f in where.glob("*.log"))
     assert logs == ["find.log", "mxi_find.log", "mxi_import.log"]
+
+
+def test_a_step_runs_as_an_mxi_command_or_an_old_builds_program(tmp_path):
+    # 1.1 on: mxi find, mxi installed alone; a revision before 1.1, built to
+    # compare against: its own mxi_find.
+    from mxeq import regress
+
+    new = tmp_path / "new"
+    new.mkdir()
+    (new / "mxi").write_text("")
+    assert regress.command(new, "mxi_find") == [str(new / "mxi"), "find"]
+    old = tmp_path / "old"
+    old.mkdir()
+    (old / "mxi_find").write_text("")
+    assert regress.command(old, "mxi_find") == [str(old / "mxi_find")]

@@ -383,3 +383,25 @@ def test_undo_clear_and_same_as_last_are_undone_a_step_at_a_time(tmp_path, monke
         assert "Ctrl+Z" in str(view.viewer.layers["untrusted"].keymap)  # Cmd-Z on a Mac
     finally:
         view.viewer.close()
+
+
+def test_an_installed_layout_runs_mxis_commands(tmp_path, monkeypatch):
+    # Since 1.1 an installed bin has mxi, mxi_view and mxi_tools.py, nothing
+    # else: the tools run mxi untrusted, not a program mxi_untrusted, which
+    # is in a build directory alone (as a link).
+    import shutil
+
+    strong, master = planted(tmp_path)
+    installed = tmp_path / "bin"
+    installed.mkdir()
+    shutil.copy(os.path.realpath(os.path.join(BUILD, "mxi")), installed / "mxi")
+    shutil.copy(TOOLS, installed / "mxi_tools.py")
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    t = load("mxi_tools_installed", str(installed / "mxi_tools.py"))
+    assert t.mxi_command("untrusted") == [str(installed / "mxi"), "untrusted"]
+    monkeypatch.chdir(tmp_path)
+    t.save_untrusted(
+        str(strong), {0: [{"panel": 0, "rectangle": [10.0, 10.0, 50.0, 40.0]}]}
+    )
+    written = rflx.experiments_dict(str(tmp_path / "masked.rflx"))["imageset"][0]
+    assert written["untrusted"] == [{"panel": 0, "rectangle": [10.0, 10.0, 50.0, 40.0]}]

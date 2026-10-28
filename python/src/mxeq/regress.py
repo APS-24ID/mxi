@@ -200,11 +200,11 @@ def warm_up(bin_dir: Path) -> None:
 
     with tempfile.TemporaryDirectory() as scratch:
         for _, program, _, _ in STEPS:
-            exe = bin_dir / program
-            if exe.exists():
+            words = command(bin_dir, program)
+            if Path(words[0]).exists():
                 try:
                     subprocess.run(
-                        [str(exe), "--help"],
+                        [*words, "--help"],
                         cwd=scratch,
                         stdin=subprocess.DEVNULL,
                         stdout=subprocess.DEVNULL,
@@ -215,13 +215,24 @@ def warm_up(bin_dir: Path) -> None:
                     pass
 
 
+def command(bin_dir: Path, program: str) -> list[str]:
+    """How to run a step's program from bin_dir: mxi find, where there is one
+    mxi (1.1 on, an installed release having nothing else); the program's own
+    file, mxi_find, where there is not -- a build of a revision before 1.1,
+    which a regression run may compare against."""
+    mxi = bin_dir / "mxi"
+    own = bin_dir / program
+    if mxi.is_file() and not own.exists():
+        return [str(mxi), program.removeprefix("mxi_")]
+    return [str(own)]
+
+
 def run_dataset(name: str, spec: dict, bin_dir: Path, where: Path) -> list[tuple]:
     where.mkdir(parents=True, exist_ok=True)
     options = spec.get("options", {})
     rows = []
     for step, program, given, written in STEPS:
-        exe = bin_dir / program
-        words = [str(exe)]
+        words = command(bin_dir, program)
         words += (
             [str(Path(i).expanduser()) for i in spec["images"]]
             if given is None

@@ -4,6 +4,15 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
+## Unreleased -- since 1.0.7
+
+**Fixed**
+- The release archives carry the licences of the code linked into the programs
+  -- gemmi, bitshuffle and its LZ4, HDF5, libaec, zlib, and NVIDIA's CUDA
+  runtime in the CUDA build -- in `licenses/`, as those licences ask of binary
+  copies. The release builds say `-DMXI_FFTW=OFF`, and packaging refuses a
+  program containing FFTW, which is GPL.
+
 ## 1.0.7 -- 28 October 2026
 
 **New**

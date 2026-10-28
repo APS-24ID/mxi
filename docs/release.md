@@ -45,6 +45,17 @@ napari, as always (`docs/mask.md`).
 
 The archive is some 50 MB: each program carries its own HDF5.
 
+## Licences
+
+mxi is BSD-3-Clause, and the release builds stay so: FFTW, which is GPL, is
+opt-in (`-DMXI_FFTW=ON`), the workflow says `-DMXI_FFTW=OFF`, and
+`scripts/package_release.sh` refuses a program containing it. The code linked
+into the programs comes with its notices, in each archive's `licenses/`:
+gemmi (MPL-2.0, its source in the source archive), bitshuffle (MIT) and the
+LZ4 within it (BSD-2), from the submodules; HDF5, libaec and zlib, from
+vcpkg's copyright files; and NVIDIA's CUDA runtime in the CUDA build. A notice
+missing fails the package -- a new library linked in needs its own added.
+
 ## macOS
 
 The binaries are not signed, so macOS blocks them once downloaded. Clear the

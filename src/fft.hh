@@ -21,19 +21,13 @@ namespace mxi {
 // Smallest power of two not less than n.
 std::size_t next_power_of_two(std::size_t n);
 
+//: The transform used by the pipeline. FFTW when the build asked for it,
+//: otherwise the built-in below.
 // In-place transform of an n x n x n grid stored with the last index fastest.
 // `sign` is -1 for the forward transform and +1 for the inverse; no scaling is
 // applied in either direction, because every use here looks at the modulus of
-// the result and a constant factor never matters.
-//: Threads for the transform, when FFTW was built with threading and the
-//: build found it: 0 for one per core, 1 for none. Ignored by the built-in.
-//:
-//: A knob for the same reason the Jacobian has one: a threading change that
-//: cannot be switched off cannot be measured against its absence.
-extern std::size_t g_fft_threads;
-
-//: The transform used by the pipeline. FFTW when the build asked for it,
-//: otherwise the built-in below.
+// the result and a constant factor never matters. Threaded where FFTW is,
+// as many threads as the command's (-j/--threads, parallel.hh).
 void fft3d(std::vector<std::complex<double>> &grid, std::size_t n, int sign);
 
 //: The built-in radix-2, always compiled whichever transform is in use.

@@ -20,7 +20,7 @@ namespace mxi {
 //: macOS. Only ever rises, so the phase after which it jumps is the one that
 //: asked for the memory (Graeme: symmetry 22 GB, scaling 26, on 36000 images).
 inline double peak_memory_mb() {
-  struct rusage u {};
+  struct rusage u{};
   if (getrusage(RUSAGE_SELF, &u) != 0)
     return 0.0;
 #ifdef __APPLE__

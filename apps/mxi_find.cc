@@ -50,6 +50,7 @@
 #include "expt.hh"
 #include "histogram.hh"
 #include "log_mirror.hh"
+#include "parallel.hh"
 #include "processing.hh"
 #include "progress.hh"
 #include "queue.hh"
@@ -227,6 +228,9 @@ void usage(const char *program, std::FILE *to = stderr) {
   std::fprintf(
       to,
       "usage: %s IMPORTED.rflx [options]\n"
+      "  -j, --threads N   threads for everything this does in parallel; 0, "
+      "every\n"
+      "                    core this job may use (0)\n"
       "       %s MASTER.nxs [options]\n"
       "\n"
       "Strong spots on every image of every sweep: the input an experiment\n"
@@ -237,7 +241,6 @@ void usage(const char *program, std::FILE *to = stderr) {
       "  -o file            where to write: a .rflx, with the experiment list\n"
       "                     if one was given (strong.rflx), or a .refl, the\n"
       "                     reflection table alone\n"
-      "  -j threads         frames read and thresholded at once (every core)\n"
       "  --timing           where the time goes: each stage's time summed "
       "across\n"
       "                     the threads, against the time they had\n"
@@ -369,8 +372,9 @@ bool parse_options(int argc, char **argv, Options *options) {
     std::fprintf(stderr, "mxi find: %s\n", args.error.c_str());
     return false;
   }
-  options->threads = static_cast<int>(
-      args.number("-j", args.number("--threads", options->threads)));
+  // -j/--threads, as every command takes it (args.cc), or every core this
+  // job may use (parallel.hh): read once the parser has set it.
+  options->threads = static_cast<int>(mxi::parallel_threads());
   options->timeout_seconds =
       static_cast<int>(args.number("-t", options->timeout_seconds));
   options->progress_from = static_cast<std::size_t>(args.number(
@@ -425,13 +429,6 @@ bool parse_options(int argc, char **argv, Options *options) {
       return false;
     }
   }
-  if (options->threads < 0) {
-    usage(argv[0]);
-    return false;
-  }
-  if (options->threads == 0)
-    options->threads =
-        static_cast<int>(std::max(1u, std::thread::hardware_concurrency()));
   options->master_given = !options->master.empty();
   if (!options->experiments.empty()) {
     mxi::ExperimentImages info;

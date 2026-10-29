@@ -31,7 +31,10 @@ const char *kPlotly = "https://cdn.plot.ly/plotly-2.27.0.min.js";
 
 void usage(const char *program) {
   std::printf(
-      "usage: %s FILE.rflx [-o REPORT.html]\n\n"
+      "usage: %s FILE.rflx [-o REPORT.html]\n"
+      "  -j, --threads N   threads for everything this does in parallel; 0, "
+      "every\n"
+      "                    core this job may use (0)\n\n"
       "An HTML report of the processing FILE records (docs/output.md): each\n"
       "step's figures and tables, and plots of them -- spots per image,\n"
       "refinement's RMSDs and the cell over the scan, integration and the\n"
@@ -951,6 +954,13 @@ int run_report(int argc, char **argv) {
   const std::set<std::string> known = {"-o", "--help"};
   const std::set<std::string> takes_value = {"-o"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
+  // A refused option said, not passed over: this had not looked, so that an
+  // option it did not know was ignored whenever the files came first.
+  if (!args.ok) {
+    std::fprintf(stderr, "mxi report: %s\n", args.error.c_str());
+    usage(argv[0]);
+    return 2;
+  }
   if (args.has("--help") || args.positional.size() != 1) {
     usage(argv[0]);
     return args.has("--help") ? 0 : 2;

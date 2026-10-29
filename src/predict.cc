@@ -1,4 +1,5 @@
 #include "predict.hh"
+#include "parallel.hh"
 
 #include <algorithm>
 #include <atomic>
@@ -497,11 +498,9 @@ std::vector<Prediction> predict(const Experiment &e,
   // prediction list that reorders itself would make every comparison between
   // two runs meaningless.
   std::size_t threads = options.threads;
-  if (threads == 0) {
-    threads = std::thread::hardware_concurrency();
-    if (threads == 0)
-      threads = 1;
-  }
+  if (threads == 0)
+    threads =
+        parallel_threads(); // -j/--threads, or every core this job may use
   const int first_h = -bounds[0];
   const std::size_t rows = static_cast<std::size_t>(2 * bounds[0] + 1);
   std::vector<std::vector<Prediction>> by_h(rows);

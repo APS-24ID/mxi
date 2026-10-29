@@ -3,6 +3,9 @@
 // experiment refused twice, uncommon columns left out and named; and a data
 // set taken out with its sweep, and put back.
 
+#if defined(__linux__)
+#include <sched.h>
+#endif
 #include <algorithm>
 #include <cstdint>
 #include <string>
@@ -13,6 +16,7 @@
 #include "../src/expt.hh"
 #include "../src/index.hh"
 #include "../src/json.hh"
+#include "../src/parallel.hh"
 #include "../src/postrefine.hh"
 #include "../src/refl.hh"
 #include "../src/untrusted.hh"
@@ -348,4 +352,29 @@ TEST(the_crystal_over_its_scan_is_sampled_by_angle_over_all_of_it) {
   const std::vector<ScanSample> g = crystal_over_scan(f, scan, 10.0);
   check::equal(static_cast<long long>(g.size()), 37, "every ten degrees");
   check::close(g[18].angle, 180.0, 1e-9, "the middle at 180");
+}
+
+// One count of threads for every command (APS-24ID/mxi#1): every core this
+// process may run on by default -- its affinity on Linux, which a batch
+// system, taskset or a cpuset sets -- or what -j/--threads says.
+TEST(the_threads_are_the_cores_this_process_may_use_or_what_j_says) {
+#if defined(__linux__)
+  cpu_set_t set;
+  CPU_ZERO(&set);
+  check::is_true(sched_getaffinity(0, sizeof set, &set) == 0, "affinity read");
+  check::equal(static_cast<long long>(available_cores()),
+               static_cast<long long>(CPU_COUNT(&set)),
+               "the cores this process may use, not the machine's");
+#endif
+  set_parallel_threads(0);
+  check::equal(static_cast<long long>(parallel_threads()),
+               static_cast<long long>(available_cores()), "0: all of them");
+  set_parallel_threads(3);
+  check::equal(static_cast<long long>(parallel_threads()), 3LL, "-j 3: three");
+  const char *argv[] = {"prog", "--threads", "2", "file"};
+  const Arguments a =
+      parse_arguments(4, const_cast<char **>(argv), {}, {}); // knows neither
+  check::is_true(a.ok && a.positional.size() == 1, "taken by any command");
+  check::equal(static_cast<long long>(parallel_threads()), 2LL, "and set");
+  set_parallel_threads(0);
 }

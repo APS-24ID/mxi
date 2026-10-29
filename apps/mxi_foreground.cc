@@ -33,6 +33,9 @@ namespace {
 void usage(const char *program) {
   std::printf(
       "usage: %s [options] EXPT [REFL]\n"
+      "  -j, --threads N   threads for everything this does in parallel; 0, "
+      "every\n"
+      "                    core this job may use (0)\n"
       "\n"
       "Predict reflections and mark the n-sigma region of each in its mask,\n"
       "for dials.image_viewer. Pixel values are left at zero.\n"

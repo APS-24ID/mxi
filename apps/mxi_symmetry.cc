@@ -101,9 +101,11 @@ std::string as_hkl(const Rotation &g) {
 void usage() {
   std::printf(
       "usage: mxi symmetry [options] INTEGRATED_EXPT INTEGRATED_REFL\n"
+      "  -j, --threads N   threads for everything this does in parallel; 0, "
+      "every\n"
+      "                    core this job may use (0)\n"
       "  --no-cosym        several crystals pooled as they are, not first\n"
       "                    brought to one setting by cosym\n"
-      "  --threads N       N threads for scoring and naming the subgroups; "
       "every\n"
       "                    core by default, the answer the same on any number\n"
       "  --max-delta D     the lattice's symmetry to D degrees of obliquity "
@@ -138,7 +140,7 @@ int run_symmetry(int argc, char **argv) {
     std::fprintf(stderr, "mxi symmetry: %s\n", args.error.c_str());
     return 2;
   }
-  set_parallel_threads(static_cast<std::size_t>(args.number("--threads", 0.0)));
+  // -j/--threads: set by the parser, as for every command (args.cc).
   if (args.positional.size() != 2) {
     std::fprintf(stderr,
                  "mxi symmetry: expected an .expt and a .refl, got %zu files\n",

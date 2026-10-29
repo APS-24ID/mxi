@@ -472,8 +472,9 @@ implemented yet.
 With analytical derivatives in use the transform is the largest phase of
 indexing, 42.5 per cent of a 1.069 second run. Two things are left in it.
 
-**FFTW's own threading**, which `--fft-threads` now turns on where FFTW was
-built with it. Debian ships `libfftw3_omp` and Homebrew `libfftw3_threads`;
+**FFTW's own threading**, on where FFTW was built with it, as many threads as
+the command's `-j` (once `--fft-threads`, before every command took one count
+of threads, APS-24ID/mxi#1). Debian ships `libfftw3_omp` and Homebrew `libfftw3_threads`;
 either will do and the build reports which it found, or says it found neither
 and runs on one thread.
 
@@ -862,8 +863,8 @@ the analytical path by a much larger factor anyway.
 
 On sixteen cores, a scan-varying refinement of ten rotations:
 
-    --jacobian-threads 1     the jacobian  17.714 s
-    --jacobian-threads 16    the jacobian  13.722 s
+    --jacobian-threads 1     the jacobian  17.714 s   (now -j 1)
+    --jacobian-threads 16    the jacobian  13.722 s   (now -j 16)
 
 The inner loop is one reflection per thread with nothing shared, so 1.29x is
 not a threading problem. It is what surrounds the loop:
@@ -893,22 +894,23 @@ On a sixteen-core machine, with the Jacobian threaded and the sparsity used:
 
 The Jacobian is five per cent there and forty per cent on a single core, which
 is not a statement about the Jacobian: it is threaded and the normal equations
-were not. `--normal-threads` threads them.
+were not. They are threaded now too, by the command's `-j` (once
+`--normal-threads`).
 
-It is a reduction, so this one is not free. Each thread accumulates into its
-own `n` by `n` matrix -- 231 kB apiece at a hundred and seventy parameters,
-which is why the thread count is capped by what the partials cost -- and the
-partials are summed at the end. **A threaded run and a serial one do not agree
-bit for bit**, because floating point addition is not associative and the terms
-are summed in a different order. They agree to about 1.6e-12 relative, seven
-orders below the convergence tolerance, and the test pins 1e-10.
+It is a reduction, so care is needed. The observations are cut into blocks
+fixed by the data -- two thousand observations a block, and the blocks' partial
+`n` by `n` matrices under about 16 MB in all (231 kB apiece at a hundred and
+seventy parameters) -- never by the thread count; each block accumulates into
+its own partial, and the partials are added in block order. **Any number of
+threads, one included, gives the same answer bit for bit**, and the test asks
+exactly that of one, three and four.
 
-Two threaded runs at the same setting do agree exactly: the chunk boundaries
-come from the thread count, not from how the threads happen to be scheduled. A
-parallel reduction that answered differently run to run would make every
-comparison downstream meaningless, so that is tested as well.
-
-`--normal-threads 1` keeps the serial sum where the last bits matter.
+It was not always so: the blocks had been cut by the thread count, so that a
+threaded run and a serial one agreed only to about 1.6e-12 relative, and
+`--normal-threads 1` had been the way to keep the serial sum. With one count
+of threads for every command (`-j`, APS-24ID/mxi#1) an answer depending on it
+would have been a property of the job's allocation; fixing the blocks by the
+data removed both the dependence and the option.
 
 ### Refinement on its own is dominated by file I/O
 

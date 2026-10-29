@@ -30,6 +30,9 @@ namespace {
 void usage(const char *program) {
   std::printf(
       "usage: %s [options] EXPT REFL\n"
+      "  -j, --threads N   threads for everything this does in parallel; 0, "
+      "every\n"
+      "                    core this job may use (0)\n"
       "\n"
       "  --out FILE        table of model against observation (forward.txt)\n"
       "  --sigma-b B --sigma-m M   use these instead of estimating\n"

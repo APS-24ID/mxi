@@ -78,6 +78,15 @@ xattr -dr com.apple.quarantine mxi-1.1.1-macos-arm64
 Signing and notarising would need an Apple Developer ID and its credentials
 as the repository's secrets.
 
+## When a build fails
+
+Every build runs to its end whatever another does, so that one run reports on
+all of them; nothing is published unless all pass. The CUDA toolkit's install
+is tried up to five times, NVIDIA's repository having once served an index its
+mirrors could not yet supply. A build that failed for something passing is
+made again by running the workflow by hand for the same tag, its release
+deleted first if one was made (above).
+
 ## What the builds test, and what they cannot
 
 Each build runs ctest and the Python suite, the tests that need no external

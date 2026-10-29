@@ -3,7 +3,8 @@
 #
 #   gh workflow run release.yml -f tag=v1.0.7
 #
-# The complete source, Linux on the CPU and with CUDA, macOS with Metal, and
+# The complete source, Linux x86_64 and ARM64 on the CPU and with CUDA, macOS
+# with Metal, and
 # mxeq's wheel, each built from the tag and its tests run before anything is
 # published; then a GitHub release with them, its text RELEASE_NOTES.md's
 # section for the version (scripts/release_notes.py). A tag with -rc, -alpha
@@ -29,8 +30,6 @@ env:
   # sandbox this was written in: if the download fails, the current zip's name
   # is on https://developer.apple.com/metal/cpp/
   METAL_CPP_URL: https://developer.apple.com/metal/cpp/files/metal-cpp_macOS15_iOS18.zip
-  # Volta to Hopper: V100, T4, A100, the 30x0s, L4 and the 40x0s, H100/GH200.
-  CUDA_ARCHITECTURES: "70;75;80;86;89;90"
 
 jobs:
   source:
@@ -51,16 +50,40 @@ jobs:
   linux:
     # The oldest supported Ubuntu, so that the binaries run on most current
     # distributions (glibc is the one library they take from the system).
-    # Two builds: the CPU's, which runs anywhere, no CUDA driver needed; and
-    # CUDA's, for machines with an NVIDIA GPU.
-    runs-on: ubuntu-22.04
+    # Four builds, each on its own architecture's runner: x86_64 and ARM64,
+    # each for the CPU -- which runs anywhere, no CUDA driver needed; on ARM64
+    # a Raspberry Pi 4 or 5 with a 64-bit OS, Graviton, Ampere, Grace -- and
+    # with CUDA, for an NVIDIA GPU: on x86_64 Volta to Hopper, on ARM64 the
+    # server toolkit (sbsa) for Hopper, the GH200, with its PTX for what comes
+    # after. Not Jetson, whose toolkit is another.
+    runs-on: ${{ matrix.runner }}
+    # vcpkg uses the system's CMake and Ninja: on ARM Linux it has none of its
+    # own to fetch, and the runners have both.
+    env:
+      VCPKG_FORCE_SYSTEM_BINARIES: "1"
     strategy:
       matrix:
         include:
           - platform: linux-x86_64
+            runner: ubuntu-22.04
+            triplet: x64-linux-release
             cuda: "OFF"
           - platform: linux-x86_64-cuda
+            runner: ubuntu-22.04
+            triplet: x64-linux-release
             cuda: "ON"
+            cuda_repo: x86_64
+            cuda_architectures: "70;75;80;86;89;90"
+          - platform: linux-arm64
+            runner: ubuntu-22.04-arm
+            triplet: arm64-linux-release
+            cuda: "OFF"
+          - platform: linux-arm64-cuda
+            runner: ubuntu-22.04-arm
+            triplet: arm64-linux-release
+            cuda: "ON"
+            cuda_repo: sbsa
+            cuda_architectures: "90"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,7 +94,7 @@ jobs:
       - name: The CUDA toolkit (compiling needs no GPU)
         if: matrix.cuda == 'ON'
         run: |
-          wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+          wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/${{ matrix.cuda_repo }}/cuda-keyring_1.1-1_all.deb
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt-get update -q
           sudo apt-get install -y -q cuda-toolkit-12-6
@@ -88,10 +111,10 @@ jobs:
         run: >
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake"
-          -DVCPKG_TARGET_TRIPLET=x64-linux-release
+          -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}
           -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc"
           -DVCPKG_MANIFEST_FEATURES=fftw -DMXI_FFTW=ON
-          -DMXI_CUDA=${{ matrix.cuda }} -DCMAKE_CUDA_ARCHITECTURES="$CUDA_ARCHITECTURES"
+          -DMXI_CUDA=${{ matrix.cuda }} -DCMAKE_CUDA_ARCHITECTURES="${{ matrix.cuda_architectures || '90' }}"
       - name: Build
         run: cmake --build build
       - name: "Test: the CPU paths, the runner having no GPU"

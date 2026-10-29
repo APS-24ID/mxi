@@ -72,6 +72,11 @@ configure check against any source in two), released as 1.1.1: one program, mxi,
 object library; the old names links in the build directory only, for the
 tests; files record steps as before); every document in the new form, its
 tests checking it; the releases with FFTW and every licence, 5 MB.
+29 October, released as 1.1.2 after three candidates: the Linux releases
+built in manylinux_2_28 (glibc 2.28, for RHEL 8 and 9; packaging refuses
+newer), x86_64 and ARM64, CPU and CUDA 12.8 (from NVIDIA's redistributable
+archives, scripts/install_cuda.py -- its RHEL 8 repository would not serve);
+every source including <algorithm> where it uses it (tests/test_includes.py).
 For a new session to
 pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in

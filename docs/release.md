@@ -81,9 +81,11 @@ as the repository's secrets.
 ## When a build fails
 
 Every build runs to its end whatever another does, so that one run reports on
-all of them; nothing is published unless all pass. The CUDA toolkit's install
-is tried up to five times, NVIDIA's repository having once served an index its
-mirrors could not yet supply. A build that failed for something passing is
+all of them; nothing is published unless all pass. The CUDA toolkit comes from
+NVIDIA's redistributable archives (`scripts/install_cuda.py`) -- the compiler,
+the runtime and the headers it draws on, each checked against the SHA-256 its
+manifest gives, each download tried five times -- not from NVIDIA's RHEL 8
+repository, whose index once named files it did not have, for hours. A build that failed for something passing is
 made again by running the workflow by hand for the same tag, its release
 deleted first if one was made (above).
 

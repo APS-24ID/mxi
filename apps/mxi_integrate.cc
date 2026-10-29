@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "../src/expt.hh"
+#include "../src/parallel.hh"
 #include "../src/progress.hh"
 #include "../src/refl.hh"
 #include "../src/untrusted.hh"
@@ -289,6 +290,9 @@ private:
 void usage(const char *program) {
   std::printf(
       "usage: %s [options] EXPT [INDEXED_REFL]\n"
+      "  -j, --threads N   threads for everything this does in parallel; 0, "
+      "every\n"
+      "                    core this job may use (0)\n"
       "\n"
       "  -o FILE           where to write: one .rflx (integrated.rflx) of the\n"
       "                    reflections, the models and the profile model "
@@ -341,7 +345,6 @@ void usage(const char *program) {
       "and\n"
       "                    trimmed, with how many pixels: under investigation\n"
       "  --save-shoeboxes  keep the pixels and the mask in the output\n"
-      "  --threads N       threads fetching and decompressing frames; 0 is "
       "one\n"
       "                    per core, 1 is none (0)\n"
       "  --window N        frames read per chunk (64); boxes stay open across\n"
@@ -1344,13 +1347,9 @@ int run_integrate(int argc, char **argv) {
                   pixels.size());
     }
 
-    std::size_t workers =
-        static_cast<std::size_t>(args.number("--threads", 0.0));
-    if (workers == 0) {
-      workers = std::thread::hardware_concurrency();
-      if (workers == 0)
-        workers = 1;
-    }
+    // -j/--threads, as every command takes it, or every core this job may
+    // use (parallel.hh): for the frames, the prediction and the fits alike.
+    const std::size_t workers = mxi::parallel_threads();
 
     PredictOptions predict_options;
     predict_options.d_min = args.number("--d-min", 0.0);

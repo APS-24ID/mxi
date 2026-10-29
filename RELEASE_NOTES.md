@@ -6,6 +6,26 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 ## Unreleased -- since 1.1.2
 
+**Changes commands**
+- Every command takes `-j N` or `--threads N`, the same option with the same
+  meaning: the threads for everything the command does in parallel, 0 (the
+  default) every core the job may use. Four options for one part's threads are
+  gone, `-j` covering them: `--fft-threads` and `--jacobian-threads` of
+  indexing, `--jacobian-threads` and `--normal-threads` of refinement
+  (APS-24ID/mxi#1).
+
+**Fixed**
+- "Every core" means every core the job may use: on Linux the process's CPU
+  affinity, which a batch system's allocation, `taskset` or a cpuset sets, not
+  the machine's count, which on a shared node had every job take every core.
+- Refinement's result no longer depends on the number of threads: its normal
+  equations are summed in blocks fixed by the data, in block order, the same
+  bit for bit on one thread or many. They had differed in the last bits, which
+  is why `--normal-threads` existed.
+- `mxi correlation`, `mxi show` and `mxi report` say when an option is
+  refused; they had ignored an option they did not know whenever the files
+  came first.
+
 **Changed**
 - `mxi find` shows its progress through a series, as `mxi integrate` does: a
   bar on a terminal, a line each tenth of the way otherwise, from 100 images

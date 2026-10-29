@@ -1,5 +1,7 @@
 #include "args.hh"
 
+#include "parallel.hh"
+
 #include <cstdio>
 
 #include <cstdlib>
@@ -40,15 +42,28 @@ Arguments parse_arguments(int argc, char **argv,
     return true;
   };
   for (int i = 1; i < argc; ++i) {
-    // -j and --threads one option: whichever a program knows, the other
-    // spelling taken for it, so the count of threads is asked the same way of
-    // every program.
+    // -j N and --threads N, one option, taken by every command alike: the
+    // threads for everything the command does in parallel, 0 (the default)
+    // being every core this job may use (parallel.hh). Commands had asked it
+    // differently, or of one part only -- --fft-threads, --jacobian-threads,
+    // --normal-threads -- so that a job could not simply be held to a share of
+    // a node (APS-24ID/mxi#1).
     std::string arg = argv[i];
-    if (arg == "-j" && !known.count("-j") && known.count("--threads"))
-      arg = "--threads";
-    else if (arg == "--threads" && !known.count("--threads") &&
-             known.count("-j"))
-      arg = "-j";
+    if (arg == "-j" || arg == "--threads") {
+      if (i + 1 >= argc || !whole_number(argv[i + 1])) {
+        out.ok = false;
+        out.error = "option '" + arg +
+                    "' needs a number of threads, 0 for "
+                    "every core this job may use";
+        return out;
+      }
+      const std::string value = argv[++i];
+      out.options["-j"] = value;
+      out.options["--threads"] = value;
+      out.repeated[arg].push_back(value);
+      set_parallel_threads(static_cast<std::size_t>(std::stoul(value)));
+      continue;
+    }
     if (arg == "-h" || arg == "--help") {
       // Both ways of asking: args.help, and has("--help") as seven programs
       // asked it -- which this never set, so their --help was an error.

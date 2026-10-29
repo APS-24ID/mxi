@@ -22,6 +22,9 @@ namespace {
 
 const char *const kUsage =
     "usage: mxi untrusted FILE.rflx [--set MASK.json | --clear] [-o OUT.rflx]\n"
+    "  -j, --threads N   threads for everything this does in parallel; 0, "
+    "every\n"
+    "                    core this job may use (0)\n"
     "\n"
     "Each image set's untrusted regions -- circles, rectangles and polygons\n"
     "on the detector that spot finding and integration leave out, as they do\n"

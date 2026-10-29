@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "fft.hh"
+#include "parallel.hh"
 
 namespace mxi {
 
@@ -55,13 +56,10 @@ void fft3d(std::vector<std::complex<double>> &grid, std::size_t n, int sign) {
     // slowly beats one that does not work.
     static const bool threaded = fftw_init_threads() != 0;
     if (threaded) {
-      std::size_t wanted = g_fft_threads;
-      if (wanted == 0) {
-        wanted = std::thread::hardware_concurrency();
-        if (wanted == 0)
-          wanted = 1;
-      }
-      fftw_plan_with_nthreads(static_cast<int>(wanted));
+      // As many as every parallel part of the command (-j/--threads,
+      // parallel.hh): there had been a count for the transform alone,
+      // --fft-threads (APS-24ID/mxi#1).
+      fftw_plan_with_nthreads(static_cast<int>(parallel_threads()));
     }
 #endif
     // FFTW_ESTIMATE rather than FFTW_MEASURE: measuring writes to the array

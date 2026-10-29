@@ -41,6 +41,7 @@
 #include "decompress.hh"
 #include "expt.hh"
 #include "image_series.hh"
+#include "parallel.hh"
 
 namespace {
 
@@ -137,6 +138,9 @@ std::uint64_t fnv1a(const std::uint8_t *p, std::size_t n) {
 
 const char *kUsage =
     "usage: mxi readtest EXPT (--direct-chunk | --pread) [options]\n"
+    "  -j, --threads N   threads for everything this does in parallel; 0, "
+    "every\n"
+    "                    core this job may use (0)\n"
     "  Reads and decompresses every frame of the images EXPT names, on N\n"
     "  threads, and reports how fast -- to measure reading apart from the\n"
     "  programs that use it.\n"
@@ -144,7 +148,6 @@ const char *kUsage =
     "                    H5Dread_chunk under the reader's lock\n"
     "  --pread           every chunk's place found first, then each frame\n"
     "                    read with pread, outside any lock\n"
-    "  -j, --threads N   N threads (every core)\n"
     "  --frames N        the first N frames only\n"
     "  --no-decompress   fetch only; the checksum then over the compressed "
     "bytes\n"
@@ -180,10 +183,9 @@ int mxi_readtest_main(int argc, char **argv) {
       master = read_experiments(args.positional[0]).image_template;
     if (master.empty() || master.find('#') != std::string::npos)
       throw std::runtime_error("no single NXmx master to read; give --images");
-    std::size_t threads = static_cast<std::size_t>(
-        args.number("--threads", args.number("-j", 0.0)));
-    if (threads == 0)
-      threads = std::max(1u, std::thread::hardware_concurrency());
+    // -j/--threads, as every command takes it (args.cc), or every core this
+    // job may use (parallel.hh).
+    const std::size_t threads = mxi::parallel_threads();
 
     // The geometry and compression, from the first frame through the reader
     // the programs use -- so that --pread decompresses as they would.

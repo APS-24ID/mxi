@@ -21,6 +21,9 @@ namespace {
 
 const char *kUsage =
     "usage: mxi import MASTER [MASTER ...] [options]\n"
+    "  -j, --threads N   threads for everything this does in parallel; 0, "
+    "every\n"
+    "                    core this job may use (0)\n"
     "  An experiment list -- beam, detector, goniometer, scan, image set -- "
     "from\n"
     "  NXmx HDF5 master files, as dials.import writes it: one experiment a\n"

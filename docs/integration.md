@@ -76,7 +76,7 @@ first integration byte for byte.
 | the profile model | `--sigma-b`, `--sigma-m`, `--n-sigma` (3), `--box-scale` (1.9), `--gain` (1) |
 | reference profiles | `--scan-blocks` (one per 10 degrees), `--regions` (3), `--reference-signal` (10), `--grid-points` (6; 4 before, `docs/outstanding.md` item 2), `--subdivisions` (5) |
 | profile fitting | `--least-measured` (0.6), `--summation-only`, `--two-pass`, `-g`/`--gpu` (single precision on the device, `docs/gpu.md`), `--gpu-emulate` |
-| speed and memory | `--threads` (0, one per core), `--window` (64), `--max-boxes` (6000 a thread, at least 20000) |
+| speed and memory | `-j`/`--threads` (0, every core this job may use, as every command), `--window` (64), `--max-boxes` (6000 a thread, at least 20000) |
 | output | `-o`, `--save-shoeboxes`, `--save-profiles`, `--save-background-parameters`, `--timing` |
 
 Choosing a few of them:

@@ -29,6 +29,9 @@ namespace {
 void usage() {
   std::printf(
       "usage: mxi scale [options] INTEGRATED_EXPT INTEGRATED_REFL\n"
+      "  -j, --threads N   threads for everything this does in parallel; 0, "
+      "every\n"
+      "                    core this job may use (0)\n"
       "  --space-group NAME  the space group, \"I 2 3\" or \"197\"; default "
       "the\n"
       "                    crystal's own\n"
@@ -88,7 +91,6 @@ void usage() {
       "  -o PATH           where to write: one .rflx (scaled.rflx), or with a\n"
       "                    .refl the DIALS pair, the .refl that\n"
       "  --output-expt PATH   the DIALS pair's experiment list (scaled.expt)\n"
-      "  --threads N       threads to use (0: the machine's); the answer is "
       "the\n"
       "                    same for any number\n"
       "  --timing          where the time goes\n");
@@ -175,7 +177,7 @@ int run_scale(int argc, char **argv) {
     return 2;
   }
   Timing timing(args.has("--timing"));
-  set_parallel_threads(static_cast<std::size_t>(args.number("--threads", 0.0)));
+  // -j/--threads: set by the parser, as for every command (args.cc).
   try {
     double mark = Timing::now();
     const auto phase = [&](const char *name) {

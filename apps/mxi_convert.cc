@@ -27,6 +27,9 @@ namespace {
 
 const char *kUsage =
     "usage: mxi convert [options] FILE...\n"
+    "  -j, --threads N   threads for everything this does in parallel; 0, "
+    "every\n"
+    "                    core this job may use (0)\n"
     "  Between .rflx -- mxi's own files, one HDF5 file holding the experiment\n"
     "  list, the reflections or both (docs/rflx.md) -- and the DIALS pair.\n"
     "  Given a .rflx, writes its .expt and .refl, whichever it holds; given "

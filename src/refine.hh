@@ -306,31 +306,18 @@ void add_observed_columns(const ExperimentList &experiments,
 void add_reciprocal_columns(const ExperimentList &experiments,
                             Table &reflections);
 
-//: Seconds spent building the Jacobian and accumulating the normal equations,
-//: summed over every refinement since the process started. For deciding what
-//: to move to a device: the two have entirely different shapes, one being a
-//: pass over reflections and the other a reduction into a small matrix.
-//: Threads used to build the ANALYTICAL Jacobian: 0 for hardware_concurrency,
-//: 1 for none. It does nothing on the finite-difference path, which is the
-//: default and which builds its columns one residual evaluation at a time.
 //: Seconds in each part of refinement, summed since the process started.
-//: Globals for the same reason the Jacobian's are: refine() is on a public
-//: header and its signature is not worth changing to answer a question about
-//: where the time goes.
+//: Globals because refine() is on a public header and its signature is not
+//: worth changing to answer a question about where the time goes.
 extern double g_observations_seconds; //: building the target rows
 extern double g_solve_seconds;        //: the damped solve and the step
 extern double g_outlier_seconds;      //: rejecting outliers between cycles
 extern double g_residual_seconds;     //: residuals outside the Jacobian
 
-extern std::size_t g_jacobian_threads;
-
-//: Threads for the normal equations: 0 for one per core, 1 for none.
-//:
-//: Unlike the Jacobian, this one is a reduction, and a reduction split across
-//: threads sums its terms in a different order. Two runs at the same setting
-//: agree bit for bit; a threaded run and a serial one agree to about 1e-13
-//: relative and not exactly. Set it to 1 where that matters.
-extern std::size_t g_normal_threads;
+//: Seconds spent building the Jacobian and accumulating the normal equations,
+//: likewise. For deciding what to move to a device: the two have entirely
+//: different shapes, one being a pass over reflections and the other a
+//: reduction into a small matrix.
 extern double g_jacobian_seconds;
 extern double g_normal_seconds;
 

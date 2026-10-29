@@ -46,7 +46,8 @@ mxi find MASTER.nxs [options]
   -x MASTER.nxs      the images, where the experiment list's have moved
   -o file            a .rflx (strong.rflx, with the experiment list), or a
                      DIALS .refl, the table alone
-  -j, --threads N    frames read and thresholded at once (every core)
+  -j, --threads N   threads for everything this does in parallel; 0, every
+                    core this job may use (0)
   -g, --gpu          the threshold on the GPU
   --gpu-force        32-bit frames narrowed to 16 bits for a 16-bit GPU path
   --no-shoeboxes     leave out the pixel data, which is most of the file

@@ -24,7 +24,10 @@ namespace {
 
 void usage(const char *program) {
   std::printf(
-      "usage: %s FILE [REFL]\n\n"
+      "usage: %s FILE [REFL]\n"
+      "  -j, --threads N   threads for everything this does in parallel; 0, "
+      "every\n"
+      "                    core this job may use (0)\n\n"
       "The state of processing FILE holds: a .rflx, or an .expt with its "
       ".refl if given.\n"
       "  the models: each sweep's images and geometry, each crystal's cell "
@@ -215,6 +218,13 @@ int run_show(int argc, char **argv) {
   const std::set<std::string> known = {"--help"};
   const std::set<std::string> takes_value = {};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
+  // A refused option said, not passed over: this had not looked, so that an
+  // option it did not know was ignored whenever the files came first.
+  if (!args.ok) {
+    std::fprintf(stderr, "mxi show: %s\n", args.error.c_str());
+    usage(argv[0]);
+    return 2;
+  }
   if (args.has("--help") || args.positional.empty() ||
       args.positional.size() > 2) {
     usage(argv[0]);

@@ -64,6 +64,9 @@ int run_residuals(int argc, char **argv) {
   double mark = Timing::now();
   if (args.help) {
     std::printf("usage: mxi residuals EXPT REFL [--bins N] [--clip PX]\n"
+                "  -j, --threads N   threads for everything this does in "
+                "parallel; 0, every\n"
+                "                    core this job may use (0)\n"
                 "                     [--modules FASTW,FASTGAP,SLOWW,SLOWGAP] "
                 "[--timing]\n");
     return 0;

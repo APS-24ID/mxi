@@ -32,6 +32,7 @@
 #include "expt.hh"
 #include "image_series.hh"
 #include "log_mirror.hh"
+#include "parallel.hh"
 #include "rflx.hh"
 
 namespace {
@@ -83,6 +84,9 @@ bool looks_like_json(const std::string &path) {
 
 const char *kUsage =
     "usage: mxi max EXPT|MASTER [-j N]\n"
+    "  -j, --threads N   threads for everything this does in parallel; 0, "
+    "every\n"
+    "                    core this job may use (0)\n"
     "  The largest count on any valid pixel of the images -- those an "
     "experiment\n"
     "  list names, or a master given itself -- and whether it fits in 16 "
@@ -90,8 +94,7 @@ const char *kUsage =
     "  below 0xFFFD, the values above being the 16-bit markers. If it does,\n"
     "  mxi find --gpu --gpu-force can threshold 32-bit frames on a GPU that "
     "takes\n"
-    "  16 bits only. Exits 0 if it fits, 1 if not.\n"
-    "  -j, --threads N   N threads (every core)\n";
+    "  16 bits only. Exits 0 if it fits, 1 if not.\n";
 
 } // namespace
 
@@ -143,10 +146,9 @@ int mxi_max_main(int argc, char **argv) {
         std::printf("%s names %zu image files; the first sweep's, %s\n",
                     args.positional[0].c_str(), files.size(), master.c_str());
     }
-    std::size_t threads = static_cast<std::size_t>(
-        args.number("--threads", args.number("-j", 0.0)));
-    if (threads == 0)
-      threads = std::max(1u, std::thread::hardware_concurrency());
+    // -j/--threads, as every command takes it (args.cc), or every core this
+    // job may use (parallel.hh).
+    const std::size_t threads = mxi::parallel_threads();
 
     std::unique_ptr<mxi::series::Series> s = mxi::series::nxmx(master);
     mxi::series::Info info;

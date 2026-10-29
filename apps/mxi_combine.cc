@@ -25,6 +25,9 @@ namespace {
 
 const char *const kUsage =
     "usage: mxi combine A.rflx B.rflx [...] [-o combined.rflx]\n"
+    "  -j, --threads N   threads for everything this does in parallel; 0, "
+    "every\n"
+    "                    core this job may use (0)\n"
     "\n"
     "Several runs' files joined into one: every experiment and its models, "
     "and\n"

@@ -97,6 +97,11 @@ void list(std::FILE *out) {
       if (c.diagnostic == diagnostic)
         std::fprintf(out, "  %-12s %s\n", c.name, c.what);
   }
+  std::fprintf(out,
+               "\nEvery command takes -j N or --threads N: the threads for "
+               "everything it\ndoes in parallel; 0, the default, every core "
+               "this job may use (on Linux,\nits CPU affinity: a batch "
+               "system's allocation, taskset).\n");
   std::fprintf(out, "\nmxi COMMAND --help for each; mxi --version.\n");
 }
 

@@ -540,7 +540,8 @@ program's own scaled.refl and this program agree exactly: 1.25 A by CC half and
 
 ## Threads
 
-`--threads N` (the machine's by default). The fits' target and normal
+`-j N` or `--threads N`, as every command (every core this job may use by
+default). The fits' target and normal
 equations, outlier rejection, the error model's deviations, the scales'
 uncertainties and the absorption harmonics run in parallel; the merging
 statistics, whose random half-splits depend on order, do not. The work is cut

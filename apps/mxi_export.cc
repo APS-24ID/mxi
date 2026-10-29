@@ -33,6 +33,9 @@ constexpr std::int64_t kBadForScaling = (1 << 23) | (1 << 24) | (1 << 25);
 void usage() {
   std::printf(
       "usage: mxi export [options] FILE.rflx | EXPT REFL\n"
+      "  -j, --threads N   threads for everything this does in parallel; 0, "
+      "every\n"
+      "                    core this job may use (0)\n"
       "  An unmerged MTZ, as dials.export writes one: a row an observation, a\n"
       "  batch header an image, one sweep or several (docs/export.md). A "
       "scaled\n"

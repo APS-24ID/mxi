@@ -11,7 +11,13 @@
 
 namespace mxi {
 
-//: How many threads parallel work uses; 0 sets the machine's.
+//: The cores this process may run on: its CPU affinity on Linux (a batch
+//: system's allocation, taskset, a cpuset), else the machine's.
+std::size_t available_cores();
+
+//: How many threads every parallel part of a command uses -- set by -j N or
+//: --threads N, which every command takes (args.cc); 0, the default, every
+//: core this process may run on.
 void set_parallel_threads(std::size_t threads);
 std::size_t parallel_threads();
 

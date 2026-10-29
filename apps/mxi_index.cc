@@ -34,11 +34,10 @@ namespace {
 void usage() {
   std::printf(
       "usage: mxi index IMPORTED.expt STRONG.refl [options]\n"
+      "  -j, --threads N   threads for everything this does in parallel; 0, "
+      "every\n"
+      "                    core this job may use (0)\n"
       "  --d-min D        resolution limit (default: from the data)\n"
-      "  --fft-threads N  threads for the transform, when FFTW was built with\n"
-      "                   threading; 0 is one per core (0)\n"
-      "  --jacobian-threads N  threads for the analytical Jacobian; 0 is one\n"
-      "                   per core (0)\n"
       "  --max-cell A     longest cell edge (default: from spot spacing)\n"
       "  --known-cell a,b,c,alpha,beta,gamma  the cell the crystal is known "
       "to\n"
@@ -375,8 +374,6 @@ int run_index(int argc, char **argv) {
                                        "--macrocycles",
                                        "--all-reflections",
                                        "--timing",
-                                       "--jacobian-threads",
-                                       "--fft-threads",
                                        "--shared-crystal",
                                        "--max-lattices",
                                        "--min-lattice-spots",
@@ -397,8 +394,6 @@ int run_index(int argc, char **argv) {
                                              "--output-expt",
                                              "--output-refl",
                                              "--macrocycles",
-                                             "--jacobian-threads",
-                                             "--fft-threads",
                                              "--max-lattices",
                                              "--min-lattice-spots",
                                              "--ambiguous",
@@ -414,11 +409,6 @@ int run_index(int argc, char **argv) {
     if (list["experiment"].as_array().size() > 1)
       return index_apart(args, takes_value);
   }
-  // 0 means one per core, 1 means none. Exposed because a threading change
-  // that cannot be switched off cannot be measured against its absence.
-  g_fft_threads = static_cast<std::size_t>(args.number("--fft-threads", 0.0));
-  g_jacobian_threads =
-      static_cast<std::size_t>(args.number("--jacobian-threads", 0.0));
   if (args.help) {
     usage();
     return 0;

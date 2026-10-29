@@ -12,6 +12,7 @@
 #include "../src/derivatives.hh"
 #include "../src/expt.hh"
 #include "../src/json.hh"
+#include "../src/parallel.hh"
 #include "../src/predict.hh"
 #include "../src/refine.hh"
 #include "../src/refl.hh"
@@ -656,7 +657,7 @@ TEST(the_threaded_jacobian_is_identical_to_the_serial_one) {
   const Table t = observations_from(truth, 2.0);
 
   const auto refined_with = [&](std::size_t threads) {
-    g_jacobian_threads = threads;
+    set_parallel_threads(threads); // -j, as every command takes it
     ExperimentList list;
     Experiment moved = truth;
     moved.detector.panels[0].origin += Vec3{0.4, -0.3, 1.2};
@@ -678,7 +679,7 @@ TEST(the_threaded_jacobian_is_identical_to_the_serial_one) {
 
   const std::vector<double> serial = refined_with(1);
   const std::vector<double> threaded = refined_with(4);
-  g_jacobian_threads = 0; // back to the default for every test after this
+  set_parallel_threads(0); // back to the default for every test after this
 
   check::is_true(t.nrows > 1000, "enough reflections to be worth threading");
   for (std::size_t i = 0; i < serial.size(); ++i) {
@@ -724,28 +725,21 @@ TEST(the_normal_equations_use_the_sparsity_and_change_nothing) {
   check::close(cell.c, truth.crystal->cell().c, 0.05, "cell c recovered");
 }
 
-TEST(threading_the_normal_equations_costs_only_the_last_bits) {
-  // The Jacobian threads exactly: each thread writes its own reflections'
-  // entries and nothing is shared, so serial and threaded agree bit for bit
-  // and the test for that demands exactly that.
-  //
-  // The normal equations are a reduction. Split across threads they are summed
-  // in a different order, and floating point addition is not associative, so
-  // bit-for-bit is not available and asking for it would only mean never
-  // threading them. What is available is a bound, and this pins it: the two
-  // agree to within 1e-10 relative, which is seven orders below the
-  // convergence tolerance. Measured at 1.6e-12 on real data.
-  //
-  // Two threaded runs at the same setting DO agree exactly, because the chunk
-  // boundaries come from the thread count and not from how the threads are
-  // scheduled. That is checked here too: a parallel reduction that gave a
-  // different answer run to run would make every comparison downstream
-  // meaningless.
+TEST(the_normal_equations_are_the_same_on_any_number_of_threads) {
+  // Bit for bit, serial, three threads or four: the normal equations are
+  // summed in blocks fixed by the data, never by the threads, each block's
+  // partial added in block order (normal_block_count). Cut by the thread
+  // count, as they were, a threaded sum differed from a serial one in its
+  // last bits -- floating-point addition not being associative -- and
+  // --normal-threads 1 had been the way round it; with one -j for every
+  // command (APS-24ID/mxi#1), the answer may no longer depend on it. The
+  // Jacobian threads exactly already: each thread writes its own
+  // reflections' entries, and nothing is shared.
   const Experiment truth = base_experiment();
   const Table t = observations_from(truth, 2.0);
 
   const auto refined_with = [&](std::size_t threads) {
-    g_normal_threads = threads;
+    set_parallel_threads(threads);
     ExperimentList list;
     Experiment moved = truth;
     moved.detector.panels[0].origin += Vec3{0.3, -0.2, 0.8};
@@ -768,16 +762,15 @@ TEST(threading_the_normal_equations_costs_only_the_last_bits) {
 
   const std::vector<double> serial = refined_with(1);
   const std::vector<double> threaded = refined_with(4);
-  const std::vector<double> again = refined_with(4);
-  g_normal_threads = 0;
+  const std::vector<double> three = refined_with(3);
+  set_parallel_threads(0);
 
   check::is_true(!serial.empty(), "something was refined");
+  check::is_true(t.nrows >= 4000, "enough reflections for several blocks");
   for (std::size_t i = 0; i < serial.size(); ++i) {
-    check::is_true(threaded[i] == again[i],
-                   "two threaded runs agree exactly with each other");
-    const double scale = std::fmax(std::abs(serial[i]), 1e-12);
-    check::is_true(std::abs(serial[i] - threaded[i]) < 1e-10 * scale,
-                   "threaded agrees with serial to the last few bits");
+    check::is_true(serial[i] == threaded[i],
+                   "four threads agree exactly with one");
+    check::is_true(serial[i] == three[i], "and three with one");
   }
 }
 
@@ -804,9 +797,7 @@ TEST(a_scan_varying_refinement_does_not_slow_down_with_control_points) {
     options.analytic = true;
     options.outlier_sigma = 0.0;
     options.scan_points = points;
-    g_normal_threads = 1; // a global, not an option
     refine(list, t, options);
-    g_normal_threads = 0; // put it back, or every later test runs serial
     return list;
   };
 

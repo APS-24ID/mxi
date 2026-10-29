@@ -144,8 +144,11 @@ unless `-o` names another: a `.rflx`, mxi's own format -- HDF5 holding the
 experiment list, the reflections and the processing's summary
 ([`docs/rflx.md`](docs/rflx.md)). Every program also writes what it prints to
 `mxi_<program>.log` and takes `--help` and `--version`; the main sequence's
-programs take `--timing`, where the time went, and use every core;
-`-j N` or `--threads N` sets fewer, where a program has the choice.
+programs take `--timing`, where the time went. Every command takes `-j N` or
+`--threads N`, the threads for everything it does in parallel: by default every
+core the job may use -- on Linux its CPU affinity, so that a batch system's
+allocation or `taskset` is respected -- and on a shared node `-j` holds a job
+to its share.
 `mxi find --gpu` and `mxi integrate --gpu` use a GPU where the build has one.
 
 **Several sweeps of one crystal:** name every master to `mxi import`; each

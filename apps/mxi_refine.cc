@@ -31,8 +31,10 @@ namespace {
 void usage() {
   std::printf(
       "usage: mxi refine INDEXED.expt INDEXED.refl [options]\n"
+      "  -j, --threads N   threads for everything this does in parallel; 0, "
+      "every\n"
+      "                    core this job may use (0)\n"
       "  --no-crystal      hold the crystal fixed\n"
-      "  --jacobian-threads N  threads for the Jacobian; 0 is one per core "
       "(0)\n"
       "  --no-detector     hold the detector fixed\n"
       "  --no-beam         hold the beam direction fixed (refined by default;\n"
@@ -68,8 +70,6 @@ void usage() {
       "  --numerical       finite differences, not the analytical derivatives\n"
       "                    (the default), for testing\n"
       "  --timing          where the time went, by phase\n"
-      "  --normal-threads N  threads for the normal equations; 0 is one per\n"
-      "                   core (0). A reduction, so a threaded run differs "
       "from\n"
       "                   a serial one in the last bits; 1 to avoid that\n"
       "  --detector-in-scan-varying  keep refining the detector during the\n"
@@ -347,28 +347,19 @@ int run_refine(int argc, char **argv) {
                                        "--numerical",
                                        "--min-volume",
                                        "--detector-in-scan-varying",
-                                       "--jacobian-threads",
                                        "--timing",
-                                       "--normal-threads",
                                        "--joint",
                                        "--interval",
                                        "--crystal-restraint"};
   const std::set<std::string> takes_value = {
-      "--macrocycles", "--outlier-sigma",    "-o",
-      "--output-expt", "--output-refl",      "--z-weight",
-      "--min-volume",  "--jacobian-threads", "--normal-threads",
-      "--interval",    "--crystal-restraint"};
+      "--macrocycles", "--outlier-sigma", "-o",
+      "--output-expt", "--output-refl",   "--z-weight",
+      "--min-volume",  "--interval",      "--crystal-restraint"};
   Arguments args =
       parse_arguments(argc, argv, known, takes_value, {"--scan-varying"});
   // One .rflx stands for the experiment list and the reflections
   // (docs/rflx.md).
   args.positional = rflx::as_pair(args.positional);
-  // 0 means one per core, 1 means none. Exposed because a threading change
-  // that cannot be switched off cannot be measured against its absence.
-  g_normal_threads =
-      static_cast<std::size_t>(args.number("--normal-threads", 0.0));
-  g_jacobian_threads =
-      static_cast<std::size_t>(args.number("--jacobian-threads", 0.0));
   if (args.help) {
     usage();
     return 0;

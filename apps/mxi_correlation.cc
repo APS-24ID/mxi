@@ -31,6 +31,9 @@ namespace {
 
 const char *kUsage =
     "usage: mxi correlation SCALED.rflx [options]\n"
+    "  -j, --threads N   threads for everything this does in parallel; 0, "
+    "every\n"
+    "                    core this job may use (0)\n"
     "       mxi correlation SCALED.expt SCALED.refl [options]\n"
     "\n"
     "The correlation of every pair of data sets -- each lattice of a scaled\n"
@@ -179,6 +182,13 @@ int mxi_correlation_main(int argc, char **argv) {
   takes_value.erase("-h");
   takes_value.erase("--help");
   Arguments args = parse_arguments(argc, argv, known, takes_value);
+  // A refused option said, not passed over: this had not looked, so that an
+  // option it did not know was ignored whenever the files came first.
+  if (!args.ok) {
+    std::fprintf(stderr, "mxi correlation: %s\n", args.error.c_str());
+    std::fputs(kUsage, stderr);
+    return 2;
+  }
   if (args.has("--help") || args.has("-h") || args.positional.empty()) {
     std::fputs(kUsage, args.has("--help") || args.has("-h") ? stdout : stderr);
     return args.positional.empty() && !args.has("--help") && !args.has("-h")

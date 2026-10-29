@@ -1,5 +1,9 @@
 #include "parallel.hh"
 
+#if defined(__linux__)
+#include <sched.h>
+#endif
+
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
@@ -12,12 +16,27 @@
 
 namespace mxi {
 
-namespace {
-
-std::size_t hardware() {
+// The cores this process may run on: its CPU affinity on Linux -- which a
+// batch system (Slurm), taskset and a cgroup's cpuset all set -- not the
+// machine's count, which on a shared node had every job take every core and
+// all of them oversubscribed (APS-24ID/mxi#1). Elsewhere, the machine's.
+std::size_t available_cores() {
+#if defined(__linux__)
+  cpu_set_t set;
+  CPU_ZERO(&set);
+  if (sched_getaffinity(0, sizeof set, &set) == 0) {
+    const int n = CPU_COUNT(&set);
+    if (n > 0)
+      return static_cast<std::size_t>(n);
+  }
+#endif
   const unsigned n = std::thread::hardware_concurrency();
   return n > 0 ? n : 1;
 }
+
+namespace {
+
+std::size_t hardware() { return available_cores(); }
 
 std::atomic<std::size_t> g_threads{0};
 

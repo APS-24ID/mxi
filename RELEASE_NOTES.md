@@ -4,6 +4,13 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
+## Unreleased -- since 1.1.1
+
+**New**
+- Releases for ARM64 Linux as well: on the CPU, for a Raspberry Pi 4 or 5 with
+  a 64-bit OS and ARM servers, and with CUDA for the GH200 (Hopper, from
+  NVIDIA's ARM-server toolkit).
+
 ## 1.1.1 -- 28 October 2026
 
 1.1.0 was tagged but never published: its CUDA build failed to link. 1.1.1 is

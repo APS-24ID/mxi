@@ -40,8 +40,8 @@ CBF by [cbf2nxmx](https://github.com/graeme-winter/cbf2nxmx).
 
 ## Installing
 
-Each release on this repository's GitHub **Releases** page has the programs
-built, ready to run. Download the archive for your machine:
+Each release on this repository's GitHub **Releases** page has `mxi` built,
+ready to run. Download the archive for your machine:
 
 | archive | for |
 |---|---|
@@ -60,7 +60,7 @@ export PATH="$PWD/mxi-<version>-linux-x86_64/bin:$PATH"   # and in ~/.bashrc
 mxi find --version
 ```
 
-On macOS the programs are not signed, so macOS blocks them once downloaded:
+On macOS the program is not signed, so macOS blocks it once downloaded:
 clear the quarantine flag once, after unpacking.
 
 ```sh
@@ -106,8 +106,8 @@ cmake --install build --prefix ~/.local     # then ~/.local/bin on the PATH
 ```
 
 `mxi view`, the image viewer and mask editor, is Python on napari, which is
-optional: it needs `pip install "napari[all]" h5py hdf5plugin`, and finds the
-programs it calls, and its module `mxi_tools.py`, beside itself. Nothing else
+optional: it needs `pip install "napari[all]" h5py hdf5plugin`, and finds
+`mxi`, and its module `mxi_tools.py`, beside itself. Nothing else
 in mxi needs napari. It is mxi's, not mxeq's -- `pip install` of
 mxeq does not bring it, as mxeq, the referee, depends on nothing of mxi's.
 
@@ -117,7 +117,7 @@ Build options:
 | --- | --- |
 | `-DMXI_CUDA=ON` | spot finding and profile fitting on an NVIDIA GPU; `-DCMAKE_CUDA_ARCHITECTURES="80;90"` for cards other than this machine's |
 | `-DMXI_METAL=ON -DMETAL_CPP_DIR=DIR` | the same on Apple silicon; `DIR` holds `Metal/Metal.hpp`, Apple's metal-cpp from <https://developer.apple.com/metal/cpp/>. One device backend at a time. |
-| `-DMXI_FFTW=ON` | indexing's transform by FFTW, about three times the built-in's speed; GPL, so opt-in. `-DFFTW3_LIBRARY=... -DFFTW3_INCLUDE_DIR=...` where it is not found. |
+| `-DMXI_FFTW=ON` | indexing's transform by FFTW, about three times the built-in's speed; GPL, so opt-in; the releases include it, and are distributed under the GPL's terms. `-DFFTW3_LIBRARY=... -DFFTW3_INCLUDE_DIR=...` where it is not found. |
 | `-DMXI_AVX2=OFF` | a binary for x86 CPUs without AVX2 |
 | `-DMXI_SSE41=OFF` | for x86 CPUs without SSE4.1 (before 2009) |
 | `-DMXI_SANITIZE=ON` | AddressSanitizer and UndefinedBehaviorSanitizer, for the tests |

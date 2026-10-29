@@ -54,9 +54,9 @@ processed side by side; process `masked.rflx` from spot finding on.
 
 napari is an optional dependency: `pip install "napari[all]" h5py
 hdf5plugin`. Nothing else in mxi needs it, and `mxi view` says what to install
-where it is missing. It is built and installed with the other programs
-(`cmake --install`, the README), and finds `mxi convert`, `mxi untrusted` and
-its module, `mxi_tools.py`, beside itself. Over a remote desktop it needs one
+where it is missing. It is built and installed with `mxi`
+(`cmake --install`, the README), and finds `mxi` -- which it runs as `mxi
+untrusted` to save -- and its module, `mxi_tools.py`, beside itself. Over a remote desktop it needs one
 that carries OpenGL, as NoMachine does.
 
 ## Where they are kept, and applying them again

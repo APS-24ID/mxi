@@ -4,11 +4,12 @@
 
 MX data reduction for NXmx rotation data, from the images to scaled, unmerged
 intensities: spot finding, indexing, refinement, integration, symmetry and
-scaling, for one sweep or many, one crystal or many -- with `mxi_correlation`
-to find which crystals belong together, and `mxi_combine` and `mxi_split` to
+scaling, for one sweep or many, one crystal or many -- with `mxi correlation`
+to find which crystals belong together, and `mxi combine` and `mxi split` to
 join and part runs. It reads and writes DIALS' formats, so any stage can be
-swapped for DIALS' own. Version 1.0.5; `RELEASE_NOTES.md` says what each
-release changed. `docs/review.md` is the guide for someone meeting the code
+swapped for DIALS' own. One program, `mxi`, every step a command of it (since
+1.1: `mxi find`, where the notes below, written before, say `mxi_find`).
+Version 1.1.1; `RELEASE_NOTES.md` says what each release changed. `docs/review.md` is the guide for someone meeting the code
 for the first time; `docs/algorithms.md` lists the methods.
 
 Two pieces share this repository and are not one program:
@@ -64,7 +65,9 @@ which replaced the matplotlib mask editor; the progress bar.
 and with CUDA, macOS with Metal, self-contained, tested before publishing;
 docs/release.md); mxi_view's markers for the image shown, bounded by each
 spot's box; the cell over the scan by rotation angle; -DMXI_TESTS=OFF building.
-28 October, released as 1.1.0: one program, mxi, every step a command of it
+28 October, tagged 1.1.0 but not published (its CUDA build did not link:
+src/cuda_device.cu in two commands; now the library mxi_cuda_device, and a
+configure check against any source in two), released as 1.1.1: one program, mxi, every step a command of it
 (apps/mxi.cc dispatches; each command its own source, apps/mxi_<name>.cc, an
 object library; the old names links in the build directory only, for the
 tests; files record steps as before); every document in the new form, its
@@ -80,8 +83,8 @@ with git filter-repo to the name every program already had; the old history is
 kept apart. The chain is complete for one sweep, for several of one crystal
 indexed together (`docs/multi-sweep.md`), and for several crystals in one beam
 (`docs/multi-lattice.md`), and needs nothing of DIALS:
-`mxi_import`, `mxi_find`, `mxi_index`, `mxi_refine`, `mxi_integrate`,
-`mxi_symmetry`, `mxi_scale`, each interchangeable with DIALS at its boundary,
+`mxi import`, `mxi find`, `mxi index`, `mxi refine`, `mxi integrate`,
+`mxi symmetry`, `mxi scale`, each interchangeable with DIALS at its boundary,
 every core by default.
 
 **mxi_export** (6 October, `docs/export.md`): an unmerged MTZ as dials.export

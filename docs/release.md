@@ -8,18 +8,18 @@ and its tests pass. Actions minutes are free for a public repository.
 # The version in its five places (CMakeLists.txt, vcpkg.json, python/
 # pyproject.toml, python/src/mxeq/__init__.py, docs/spots.md's example), and
 # RELEASE_NOTES.md's section for it, then:
-git tag -a v1.0.7 -m "mxi 1.0.7"
-git push origin v1.0.7
+git tag -a v1.1.1 -m "mxi 1.1.1"
+git push origin v1.1.1
 ```
 
 It can be run by hand too, for a tag pushed already -- to make a release again
 after a failure, say -- from the Actions page (release, Run workflow) or
-`gh workflow run release.yml -f tag=v1.0.7`. A tag whose release exists must
-have it deleted first (`gh release delete v1.0.7`): GitHub keeps one release a
+`gh workflow run release.yml -f tag=v1.1.1`. A tag whose release exists must
+have it deleted first (`gh release delete v1.1.1`): GitHub keeps one release a
 tag.
 
-Push a candidate first -- `v1.0.7-rc1` -- to see the whole of it work: a tag
-with `-rc`, `-alpha` or `-beta` makes a pre-release. Its notes are 1.0.7's
+Push a candidate first -- `v1.1.1-rc1` -- to see the whole of it work: a tag
+with `-rc`, `-alpha` or `-beta` makes a pre-release. Its notes are 1.1.1's
 section where there is one yet, and otherwise the "Unreleased" section, said
 to be a candidate's. The release itself must have its section: without one
 nothing is published.
@@ -28,11 +28,11 @@ nothing is published.
 
 | asset | what |
 |---|---|
-| `mxi-1.0.7-source.tar.gz` | the complete source: the repository and its submodules, gemmi and bitshuffle, at the commits the tag pins. GitHub's own source archives leave the submodules out, and without them nothing builds; this is also the source for a conda-forge recipe |
-| `mxi-1.0.7-linux-x86_64.tar.gz` | `mxi`, built on Ubuntu 22.04, for the CPU: it runs anywhere, no CUDA driver needed |
-| `mxi-1.0.7-linux-x86_64-cuda.tar.gz` | `mxi`, built on Ubuntu 22.04 with CUDA for Volta to Hopper (V100 to H100 and GH200) |
-| `mxi-1.0.7-macos-arm64.tar.gz` | `mxi`, for Apple silicon, with Metal: macOS 13 or later, its static libraries too (an overlay triplet, `cmake/triplets`); any API newer than 13 used without a check fails the build, so that the binaries cannot fail on an older macOS |
-| `mxeq-1.0.7-py3-none-any.whl` | the referee, `pip install` it |
+| `mxi-1.1.1-source.tar.gz` | the complete source: the repository and its submodules, gemmi and bitshuffle, at the commits the tag pins. GitHub's own source archives leave the submodules out, and without them nothing builds; this is also the source for a conda-forge recipe |
+| `mxi-1.1.1-linux-x86_64.tar.gz` | `mxi`, built on Ubuntu 22.04, for the CPU: it runs anywhere, no CUDA driver needed |
+| `mxi-1.1.1-linux-x86_64-cuda.tar.gz` | `mxi`, built on Ubuntu 22.04 with CUDA for Volta to Hopper (V100 to H100 and GH200) |
+| `mxi-1.1.1-macos-arm64.tar.gz` | `mxi`, for Apple silicon, with Metal: macOS 13 or later, its static libraries too (an overlay triplet, `cmake/triplets`); any API newer than 13 used without a check fails the build, so that the binaries cannot fail on an older macOS |
+| `mxeq-1.1.1-py3-none-any.whl` | the referee, `pip install` it |
 
 Each binary archive is `bin/` -- `mxi`, every step a command of it, with `mxi
 view`'s Python and its module `mxi_tools.py` beside it -- with the licence,
@@ -70,7 +70,7 @@ The binaries are not signed, so macOS blocks them once downloaded. Clear the
 quarantine flag once, after unpacking -- the release notes say so:
 
 ```sh
-xattr -dr com.apple.quarantine mxi-1.0.7-macos-arm64
+xattr -dr com.apple.quarantine mxi-1.1.1-macos-arm64
 ```
 
 Signing and notarising would need an Apple Developer ID and its credentials
@@ -91,9 +91,9 @@ on https://developer.apple.com/metal/cpp/.
 ## The scripts, by hand
 
 ```sh
-scripts/source_archive.sh v1.0.7         # mxi-1.0.7-source.tar.gz
-scripts/release_notes.py v1.0.7 > notes.md
-scripts/package_release.sh build v1.0.7 linux-x86_64
+scripts/source_archive.sh v1.1.1         # mxi-1.1.1-source.tar.gz
+scripts/release_notes.py v1.1.1 > notes.md
+scripts/package_release.sh build v1.1.1 linux-x86_64
 ```
 
 A static build like the release's, here, needs vcpkg:

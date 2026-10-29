@@ -135,6 +135,13 @@ same assumption the restriction makes, so the frames read and the z they are
 given cannot disagree. `python/tests/test_spotfinder_scan_range.py` builds both
 layouts.
 
+From 100 images (`--progress-from N` to change it), `mxi find` shows its
+progress through the series as `mxi integrate` does: a bar on a terminal, as wide
+as the terminal allows, written to the terminal alone so that the log does not
+keep it, and a line each tenth of the way where the output is not a terminal.
+Frames are counted as their chunk finishes; reading a stream, whose length is
+not known, it shows none.
+
 ## Three dimensions, not one frame at a time
 
 A reflection is swept through the Ewald sphere over a degree or two and lands on

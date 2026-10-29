@@ -4,6 +4,14 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
+## Unreleased -- since 1.1.2
+
+**Changed**
+- `mxi find` shows its progress through a series, as `mxi integrate` does: a
+  bar on a terminal, a line each tenth of the way otherwise, from 100 images
+  (`--progress-from N`). On a slow machine -- a Raspberry Pi -- a long series
+  had run in silence.
+
 ## 1.1.2 -- 29 October 2026
 
 **Fixed**

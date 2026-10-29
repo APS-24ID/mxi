@@ -51,6 +51,7 @@
 #include "histogram.hh"
 #include "log_mirror.hh"
 #include "processing.hh"
+#include "progress.hh"
 #include "queue.hh"
 #include "rflx.hh"
 #include "spots.hh"
@@ -175,6 +176,10 @@ using Clock = std::chrono::steady_clock;
 struct Options {
   int threads = 0; // every core, as the other programs; -j for fewer
   int timeout_seconds = 60;
+  // A progress bar from this many images, as integration's (progress.hh):
+  // the frames are the slow part, and on a slow machine -- a Raspberry Pi --
+  // a long series had run in silence (Graeme, 29 October).
+  std::size_t progress_from = 100;
   int poll_milliseconds = 200;
   std::string master;                 // the NXmx HDF5 master file
   bool master_given = false;          // named on the command line
@@ -267,6 +272,8 @@ void usage(const char *program, std::FILE *to = stderr) {
       "                     experiment list when one is given, and 0 "
       "otherwise\n"
       "  --chunk N          frames held between groupings (a few per thread)\n"
+      "  --progress-from N  a progress bar from N images (100); a line each\n"
+      "                    tenth where the output is not a terminal\n"
       "  -t timeout         seconds to wait for the file to appear (default "
       "60)\n"
       "  -p poll-ms         interval between checks while waiting (default "
@@ -338,6 +345,7 @@ bool parse_options(int argc, char **argv, Options *options) {
                                        "--max-separation",
                                        "--z-offset",
                                        "--chunk",
+                                       "--progress-from",
                                        "-h",
                                        "--help"};
   const std::set<std::string> takes_value = {"-j",
@@ -350,7 +358,8 @@ bool parse_options(int argc, char **argv, Options *options) {
                                              "--max-spot-size",
                                              "--max-separation",
                                              "--z-offset",
-                                             "--chunk"};
+                                             "--chunk",
+                                             "--progress-from"};
   mxi::Arguments args = mxi::parse_arguments(argc, argv, known, takes_value);
   if (args.help) {
     usage(argv[0], stdout);
@@ -364,6 +373,8 @@ bool parse_options(int argc, char **argv, Options *options) {
       args.number("-j", args.number("--threads", options->threads)));
   options->timeout_seconds =
       static_cast<int>(args.number("-t", options->timeout_seconds));
+  options->progress_from = static_cast<std::size_t>(args.number(
+      "--progress-from", static_cast<double>(options->progress_from)));
   options->poll_milliseconds =
       static_cast<int>(args.number("-p", options->poll_milliseconds));
   if (args.has("-x"))
@@ -1051,6 +1062,15 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
   std::uint64_t out_of_order = 0;
   bool stop = false;
 
+  // Progress through the series, where its length is known (a file, not a
+  // stream): frames counted as their chunk finishes.
+  const std::uint64_t frames_total = restricted > 0 ? restricted : info.images;
+  std::uint64_t frames_done = 0;
+  std::optional<mxi::Progress> progress;
+  if (frames_total > 0 && frames_total >= options.progress_from)
+    progress.emplace("finding spots", static_cast<double>(frames_total),
+                     "images");
+
   const auto run = [&](std::size_t frames) {
     chunk.expect(frames);
     for (std::size_t i = 0; i < frames; i++) {
@@ -1064,6 +1084,9 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
                   waiting.begin() + static_cast<std::ptrdiff_t>(frames));
 
     const std::vector<Found> collected = chunk.collect();
+    frames_done += frames;
+    if (progress)
+      progress->update(static_cast<double>(frames_done));
     if (chunk.abandoned()) {
       std::fprintf(stderr,
                    "every thread has gone, so the rest of the series cannot be "
@@ -1136,6 +1159,8 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
       sleep_for(options.poll_milliseconds);
   }
 
+  if (progress)
+    progress->finish();
   queue.close();
   for (std::thread &worker : workers)
     worker.join();

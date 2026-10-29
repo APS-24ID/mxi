@@ -92,6 +92,27 @@ for p in "$name"/bin/mxi "$name"/bin/mxi_*; do
 done
 [ "$bad" = 0 ] || { echo "not self-contained" >&2; exit 1; }
 
+# On Linux, the newest glibc the program asks for: no newer than the oldest
+# system it is for. Built against a newer glibc, a binary takes its symbols'
+# newer versions -- Ubuntu 22.04's asked for 2.35, and RHEL 9 and its clones,
+# with 2.34, would not run it (reported of 1.1.1). The releases are built in
+# manylinux_2_28 (glibc 2.28: RHEL 8 and 9, Ubuntu 20.04 on, Debian 11 on).
+if [ "$(uname)" = Linux ]; then
+    limit=${MXI_GLIBC_MAX:-2.28}
+    newest=$(objdump -T "$name/bin/mxi" | grep -oE 'GLIBC_[0-9]+\.[0-9]+' |
+        sed 's/GLIBC_//' | sort -t. -k1,1n -k2,2n -u | tail -1)
+    if [ "$(printf '%s\n%s\n' "$newest" "$limit" | sort -t. -k1,1n -k2,2n | tail -1)" != "$limit" ]; then
+        echo "bin/mxi asks for glibc $newest, newer than $limit:" >&2
+        objdump -T "$name/bin/mxi" | grep -E "GLIBC_[0-9.]+" |
+            awk -v l="$limit" '{v=$(NF-1); gsub(/[()]/, "", v); sub(/GLIBC_/, "", v);
+                split(v, a, "."); split(l, b, ".");
+                if (a[1] > b[1] || (a[1] == b[1] && a[2] > b[2])) print "  " $NF " (" v ")"}' |
+            sort -u | head -12 >&2
+        exit 1
+    fi
+    echo "glibc: $newest at most (limit $limit)"
+fi
+
 # FFTW in the program exactly when the build says so, so that its licence
 # goes with it whenever it is there.
 if grep -a -q 'fftw_plan' "$name/bin/mxi"; then

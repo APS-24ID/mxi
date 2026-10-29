@@ -1,5 +1,6 @@
 // Shoeboxes built from the profile model, for looking at against the images.
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 

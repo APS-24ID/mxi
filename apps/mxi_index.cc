@@ -5,6 +5,7 @@
 // Writes indexed.expt and indexed.refl, so the result can be compared against
 // DIALS' own with `mxeq check indexed`.
 
+#include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>

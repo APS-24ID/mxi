@@ -45,10 +45,10 @@ ready to run. Download the archive for your machine:
 
 | archive | for |
 |---|---|
-| `mxi-<version>-linux-x86_64.tar.gz` | Linux on x86_64, on the CPU: any current distribution, RHEL among them, no GPU or driver needed |
-| `mxi-<version>-linux-x86_64-cuda.tar.gz` | the same, with an NVIDIA GPU from Volta (V100) on: needs the NVIDIA driver for CUDA 12 (525 or later) |
-| `mxi-<version>-linux-arm64.tar.gz` | Linux on ARM64, on the CPU: a Raspberry Pi 4 or 5 with a 64-bit OS, ARM servers (Graviton, Ampere, Grace) |
-| `mxi-<version>-linux-arm64-cuda.tar.gz` | the same, with an NVIDIA GPU on an ARM server: the GH200, Hopper; needs the NVIDIA driver for CUDA 12. Not Jetson |
+| `mxi-<version>-linux-x86_64.tar.gz` | Linux on x86_64, on the CPU: glibc 2.28 or later -- RHEL 8 and 9 and their clones, Ubuntu 20.04 on, Debian 11 on -- no GPU or driver needed |
+| `mxi-<version>-linux-x86_64-cuda.tar.gz` | the same, with an NVIDIA GPU from Volta (V100) to Blackwell: needs the NVIDIA driver for CUDA 12 (525 or later) |
+| `mxi-<version>-linux-arm64.tar.gz` | Linux on ARM64, on the CPU, glibc 2.28 or later: a Raspberry Pi 4 or 5 with a 64-bit OS, ARM servers (Graviton, Ampere, Grace) |
+| `mxi-<version>-linux-arm64-cuda.tar.gz` | the same, with an NVIDIA GPU on an ARM server: the GH200 and GB200, Hopper and Blackwell; needs the NVIDIA driver for CUDA 12. Not Jetson |
 | `mxi-<version>-macos-arm64.tar.gz` | macOS 13 or later on Apple silicon, with Metal |
 
 Unpack it and put its `bin` on the `PATH` -- nothing else needs installing:

@@ -1,6 +1,7 @@
 // .rflx, dxtbx-h5's layout (docs/rflx.md): the tree, the tables and the file,
 // each to its own and back, as the HANDOVER's conformance checklist asks.
 
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
 #include <iterator>

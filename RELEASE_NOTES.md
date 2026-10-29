@@ -4,7 +4,7 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
-## Unreleased -- since 1.1.1
+## 1.1.2 -- 29 October 2026
 
 **Fixed**
 - The Linux releases run on RHEL 9 and its clones (Rocky, Alma): they are
@@ -21,6 +21,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   a 64-bit OS and ARM servers, and with CUDA for the GH200 and GB200 (from
   NVIDIA's ARM-server toolkit). The CUDA builds use CUDA 12.8, adding
   Blackwell.
+
+**Changed**
+- The CUDA builds take the toolkit from NVIDIA's redistributable archives,
+  each checked against its SHA-256, rather than NVIDIA's RHEL 8 package
+  repository, whose index named files it could not supply and stopped the
+  first two candidates of this release.
 
 ## 1.1.1 -- 28 October 2026
 

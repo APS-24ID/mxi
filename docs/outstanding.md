@@ -10,6 +10,15 @@ history on 20 October: four closed, nine rewritten to what is now true.
 
 ## Integration
 
+* **81.** **release -- the workflow's actions on Node.js 24.** GitHub warns that
+  actions/checkout@v4 and actions/upload-artifact@v4 (and download-artifact@v4)
+  target Node.js 20, which is deprecated, and are being run on Node.js 24
+  (github.blog changelog, 2025-09-19). Move them to the major versions that
+  target Node.js 24 -- checkout@v5 does; check the artifact actions' current
+  versions at the time -- and try it with a candidate tag, every job using
+  them. The Linux jobs run in manylinux_2_28, whose glibc 2.28 Node.js 24
+  still supports. Not urgent: the warning is all, the runs pass. Seen of
+  v1.1.2, 29 October.
 * **80.** **output -- refinement's summary when sweeps are refined apart.** Each
   sweep's run (refine_apart) writes its own summary, but the joined file's
   mxi refine step keeps only "apart" and "groups": none of the per-sweep cells,

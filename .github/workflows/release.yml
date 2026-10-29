@@ -56,8 +56,8 @@ jobs:
     # anything newer than 2.28. Four builds, each on its architecture's runner:
     # x86_64 and ARM64, for the CPU -- runs anywhere, no driver needed; on
     # ARM64 a Raspberry Pi 4 or 5 with a 64-bit OS, Graviton, Ampere, Grace --
-    # and with CUDA 12.8: x86_64 Volta to Blackwell, ARM64 the server toolkit
-    # (sbsa) for Hopper and Blackwell, the GH200 and GB200, each carrying its
+    # and with CUDA 12.8 -- from NVIDIA's redistributable archives -- x86_64
+    # Volta to Blackwell, ARM64 the server builds (sbsa) for Hopper and Blackwell, the GH200 and GB200, each carrying its
     # PTX. Not Jetson, whose toolkit is another.
     runs-on: ${{ matrix.runner }}
     container: quay.io/pypa/manylinux_2_28_${{ matrix.arch }}
@@ -82,7 +82,7 @@ jobs:
             arch: x86_64
             triplet: x64-linux-release
             cuda: "ON"
-            cuda_repo: rhel8/x86_64
+            cuda_platform: linux-x86_64
             cuda_architectures: "70;75;80;86;89;90;100;120"
           - platform: linux-arm64
             runner: ubuntu-24.04-arm
@@ -94,7 +94,7 @@ jobs:
             arch: aarch64
             triplet: arm64-linux-release
             cuda: "ON"
-            cuda_repo: rhel8/sbsa
+            cuda_platform: linux-sbsa
             cuda_architectures: "90;100"
     steps:
       - uses: actions/checkout@v4
@@ -108,27 +108,16 @@ jobs:
           echo "$py" >> "$GITHUB_PATH"
           dnf install -y -q zip unzip tar perl-IPC-Cmd
           gcc --version | head -1
+      # From NVIDIA's redistributable archives, each checked against its
+      # SHA-256 (scripts/install_cuda.py), not the RHEL 8 package repository,
+      # whose index named files it did not have -- for hours, through every
+      # retry (v1.1.2-rc1 and rc2).
       - name: The CUDA toolkit (compiling needs no GPU)
         if: matrix.cuda == 'ON'
-        # Tried again, the cached metadata cleared between, up to five times:
-        # NVIDIA's repository once served an index whose files could not be
-        # fetched -- "all mirrors were already tried" -- a mirror mid-update,
-        # and the release failed for it (v1.1.2-rc1).
         run: |
-          dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/${{ matrix.cuda_repo }}/cuda-rhel8.repo
-          for attempt in 1 2 3 4 5; do
-            if dnf install -y -q cuda-toolkit-12-8; then
-              break
-            fi
-            if [ "$attempt" = 5 ]; then
-              echo "the CUDA toolkit could not be installed in five attempts" >&2
-              exit 1
-            fi
-            echo "attempt $attempt failed; trying again in $((attempt * 30)) s" >&2
-            dnf clean metadata
-            sleep $((attempt * 30))
-          done
+          python scripts/install_cuda.py 12.8.1 ${{ matrix.cuda_platform }} /usr/local/cuda
           echo /usr/local/cuda/bin >> "$GITHUB_PATH"
+          echo "CUDACXX=/usr/local/cuda/bin/nvcc" >> "$GITHUB_ENV"
       # A static HDF5, zlib and FFTW, from vcpkg's manifest (vcpkg.json),
       # release builds only (the -release triplets), so that the program
       # needs nothing but the C library: libstdc++ and libgcc linked in too.

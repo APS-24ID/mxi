@@ -1,5 +1,6 @@
 // Reference profiles and profile fitting.
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 

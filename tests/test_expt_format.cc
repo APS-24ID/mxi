@@ -16,6 +16,7 @@
 // lesson this repository has now learned four times, and the reason these
 // assertions are about characters rather than values.
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>

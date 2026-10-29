@@ -29,10 +29,10 @@ nothing is published.
 | asset | what |
 |---|---|
 | `mxi-1.1.1-source.tar.gz` | the complete source: the repository and its submodules, gemmi and bitshuffle, at the commits the tag pins. GitHub's own source archives leave the submodules out, and without them nothing builds; this is also the source for a conda-forge recipe |
-| `mxi-1.1.1-linux-x86_64.tar.gz` | `mxi`, built on Ubuntu 22.04, for the CPU: it runs anywhere, no CUDA driver needed |
-| `mxi-1.1.1-linux-x86_64-cuda.tar.gz` | `mxi`, built on Ubuntu 22.04 with CUDA for Volta to Hopper (V100 to H100 and GH200) |
-| `mxi-1.1.1-linux-arm64.tar.gz` | `mxi` for ARM64 Linux, built on GitHub's ARM runner with Ubuntu 22.04, for the CPU: a Raspberry Pi 4 or 5 with a 64-bit OS, ARM servers |
-| `mxi-1.1.1-linux-arm64-cuda.tar.gz` | the same with CUDA, NVIDIA's toolkit for ARM servers (sbsa), for Hopper -- the GH200 -- with its PTX for later GPUs; not Jetson, whose toolkit is another |
+| `mxi-1.1.1-linux-x86_64.tar.gz` | `mxi`, built in manylinux_2_28 (AlmaLinux 8, glibc 2.28), for the CPU: it runs wherever glibc is 2.28 or later -- RHEL 8 and 9 and their clones, Ubuntu 20.04 on, Debian 11 on -- no CUDA driver needed |
+| `mxi-1.1.1-linux-x86_64-cuda.tar.gz` | `mxi`, built the same way with CUDA 12.8 for Volta to Blackwell (V100 to B200, the RTX 50s) |
+| `mxi-1.1.1-linux-arm64.tar.gz` | `mxi` for ARM64 Linux, built in manylinux_2_28 on GitHub's ARM runner, for the CPU: a Raspberry Pi 4 or 5 with a 64-bit OS, ARM servers |
+| `mxi-1.1.1-linux-arm64-cuda.tar.gz` | the same with CUDA 12.8, NVIDIA's toolkit for ARM servers (sbsa), for Hopper and Blackwell -- the GH200 and GB200 -- with their PTX for later GPUs; not Jetson, whose toolkit is another |
 | `mxi-1.1.1-macos-arm64.tar.gz` | `mxi`, for Apple silicon, with Metal: macOS 13 or later, its static libraries too (an overlay triplet, `cmake/triplets`); any API newer than 13 used without a check fails the build, so that the binaries cannot fail on an older macOS |
 | `mxeq-1.1.1-py3-none-any.whl` | the referee, `pip install` it |
 
@@ -40,8 +40,8 @@ Each binary archive is `bin/` -- `mxi`, every step a command of it, with `mxi
 view`'s Python and its module `mxi_tools.py` beside it -- with the licence,
 the README and the release notes. Unpack it and put its `bin` on the PATH. The
 program needs nothing installed: HDF5 and zlib are linked in, from vcpkg
-(`vcpkg.json`), and on Linux the C++ runtime too, so that it runs on
-distributions older than the build's, RHEL among them; the CUDA driver is the
+(`vcpkg.json`), and on Linux the C++ runtime too; built in manylinux_2_28, it needs glibc 2.28
+or later, which packaging checks; the CUDA driver is the
 system's. `scripts/package_release.sh` refuses to package a build that would
 need anything else. `mxi view` needs napari, as always (`docs/mask.md`).
 

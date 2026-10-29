@@ -3,6 +3,7 @@
 // experiment refused twice, uncommon columns left out and named; and a data
 // set taken out with its sweep, and put back.
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>

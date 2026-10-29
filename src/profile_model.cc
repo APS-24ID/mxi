@@ -2,6 +2,7 @@
 
 #include "parallel.hh"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <map>

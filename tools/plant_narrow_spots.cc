@@ -3,6 +3,7 @@
 // phi between k and k+1 -- the physics that matters when a spot is thinner
 // than an image.
 #include "integrate.hh"
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <random>

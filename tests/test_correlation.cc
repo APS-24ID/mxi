@@ -2,6 +2,7 @@
 // weighted_cchalf, its effective sample size, the count weights, and two
 // planted groups of data sets told apart.
 
+#include <algorithm>
 #include <cmath>
 #include <random>
 #include <set>

@@ -48,61 +48,71 @@ jobs:
           path: mxi-*-source.tar.gz
 
   linux:
-    # The oldest supported Ubuntu, so that the binaries run on most current
-    # distributions (glibc is the one library they take from the system).
-    # Four builds, each on its own architecture's runner: x86_64 and ARM64,
-    # each for the CPU -- which runs anywhere, no CUDA driver needed; on ARM64
-    # a Raspberry Pi 4 or 5 with a 64-bit OS, Graviton, Ampere, Grace -- and
-    # with CUDA, for an NVIDIA GPU: on x86_64 Volta to Hopper, on ARM64 the
-    # server toolkit (sbsa) for Hopper, the GH200, with its PTX for what comes
-    # after. Not Jetson, whose toolkit is another.
+    # Built in manylinux_2_28 -- AlmaLinux 8, glibc 2.28, with a recent GCC
+    # toolset -- so that the program runs wherever glibc is 2.28 or later: RHEL
+    # 8 and 9 and their clones, Ubuntu 20.04 on, Debian 11 on, Raspberry Pi OS.
+    # Built on Ubuntu 22.04 it had asked for glibc 2.35, and RHEL 9's 2.34
+    # would not run it (reported of 1.1.1); scripts/package_release.sh refuses
+    # anything newer than 2.28. Four builds, each on its architecture's runner:
+    # x86_64 and ARM64, for the CPU -- runs anywhere, no driver needed; on
+    # ARM64 a Raspberry Pi 4 or 5 with a 64-bit OS, Graviton, Ampere, Grace --
+    # and with CUDA 12.8: x86_64 Volta to Blackwell, ARM64 the server toolkit
+    # (sbsa) for Hopper and Blackwell, the GH200 and GB200, each carrying its
+    # PTX. Not Jetson, whose toolkit is another.
     runs-on: ${{ matrix.runner }}
+    container: quay.io/pypa/manylinux_2_28_${{ matrix.arch }}
     # vcpkg uses the system's CMake and Ninja: on ARM Linux it has none of its
-    # own to fetch, and the runners have both.
+    # own to fetch.
     env:
       VCPKG_FORCE_SYSTEM_BINARIES: "1"
     strategy:
       matrix:
         include:
           - platform: linux-x86_64
-            runner: ubuntu-22.04
+            runner: ubuntu-latest
+            arch: x86_64
             triplet: x64-linux-release
             cuda: "OFF"
           - platform: linux-x86_64-cuda
-            runner: ubuntu-22.04
+            runner: ubuntu-latest
+            arch: x86_64
             triplet: x64-linux-release
             cuda: "ON"
-            cuda_repo: x86_64
-            cuda_architectures: "70;75;80;86;89;90"
+            cuda_repo: rhel8/x86_64
+            cuda_architectures: "70;75;80;86;89;90;100;120"
           - platform: linux-arm64
-            runner: ubuntu-22.04-arm
+            runner: ubuntu-24.04-arm
+            arch: aarch64
             triplet: arm64-linux-release
             cuda: "OFF"
           - platform: linux-arm64-cuda
-            runner: ubuntu-22.04-arm
+            runner: ubuntu-24.04-arm
+            arch: aarch64
             triplet: arm64-linux-release
             cuda: "ON"
-            cuda_repo: sbsa
-            cuda_architectures: "90"
+            cuda_repo: rhel8/sbsa
+            cuda_architectures: "90;100"
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || github.ref }}
           submodules: recursive
-      - name: Ninja
-        run: sudo apt-get install -y -q ninja-build
+      - name: Tools -- the image's Python, its CMake and Ninja; vcpkg's needs
+        run: |
+          py=/opt/python/cp312-cp312/bin
+          "$py/python" -m pip install -q cmake ninja
+          echo "$py" >> "$GITHUB_PATH"
+          dnf install -y -q zip unzip tar perl-IPC-Cmd
+          gcc --version | head -1
       - name: The CUDA toolkit (compiling needs no GPU)
         if: matrix.cuda == 'ON'
         run: |
-          wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/${{ matrix.cuda_repo }}/cuda-keyring_1.1-1_all.deb
-          sudo dpkg -i cuda-keyring_1.1-1_all.deb
-          sudo apt-get update -q
-          sudo apt-get install -y -q cuda-toolkit-12-6
+          dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/${{ matrix.cuda_repo }}/cuda-rhel8.repo
+          dnf install -y -q cuda-toolkit-12-8
           echo /usr/local/cuda/bin >> "$GITHUB_PATH"
-      # A static HDF5 and zlib, from vcpkg's manifest (vcpkg.json), release
-      # builds only (the -release triplets), so that the programs need nothing
-      # but the C library: libstdc++ and libgcc linked in too, for older
-      # distributions -- RHEL among them -- than the build's.
+      # A static HDF5, zlib and FFTW, from vcpkg's manifest (vcpkg.json),
+      # release builds only (the -release triplets), so that the program
+      # needs nothing but the C library: libstdc++ and libgcc linked in too.
       - name: vcpkg, for a static HDF5
         run: |
           git clone --depth 1 https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
@@ -120,10 +130,10 @@ jobs:
       - name: "Test: the CPU paths, the runner having no GPU"
         run: |
           ctest --test-dir build --output-on-failure -E 'gpu|device'
-          python3 -m pip install -q pytest numpy scipy msgpack gemmi h5py hdf5plugin matplotlib
+          python -m pip install -q pytest numpy scipy msgpack gemmi h5py hdf5plugin matplotlib
           # Absolute: tests run the programs from temporary directories (the
           # suite makes them so as well, tests/conftest.py).
-          cd python && MXI_FIND="$GITHUB_WORKSPACE/build/mxi_find" MXI_BUILD="$GITHUB_WORKSPACE/build" PYTHONPATH=src:tests python3 -m pytest -q tests
+          cd python && MXI_FIND="$GITHUB_WORKSPACE/build/mxi_find" MXI_BUILD="$GITHUB_WORKSPACE/build" PYTHONPATH=src:tests python -m pytest -q tests
       - name: Package
         run: scripts/package_release.sh build "$TAG" "${{ matrix.platform }}"
       - uses: actions/upload-artifact@v4

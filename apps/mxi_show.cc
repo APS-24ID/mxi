@@ -3,6 +3,7 @@
 // program left in it, in the order they ran -- as dials.show shows models, and
 // more.
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <map>

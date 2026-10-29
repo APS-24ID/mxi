@@ -1,5 +1,6 @@
 #include "forward.hh"
 
+#include <algorithm>
 #include <cmath>
 
 namespace mxi {

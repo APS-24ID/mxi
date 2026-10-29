@@ -6,10 +6,21 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 ## Unreleased -- since 1.1.1
 
+**Fixed**
+- The Linux releases run on RHEL 9 and its clones (Rocky, Alma): they are
+  built in manylinux_2_28, needing glibc 2.28 or later, where 1.1.1's, built
+  on Ubuntu 22.04, needed 2.35 and RHEL 9 has 2.34. Packaging now refuses a
+  binary needing anything newer.
+- mxi builds from source on RHEL 9: eleven sources used `std::sort`,
+  `std::unique` and the like without including `<algorithm>`, which newer
+  compilers' headers happen to bring in and RHEL 9's GCC 11 does not. A test
+  checks every source for the headers it uses.
+
 **New**
 - Releases for ARM64 Linux as well: on the CPU, for a Raspberry Pi 4 or 5 with
-  a 64-bit OS and ARM servers, and with CUDA for the GH200 (Hopper, from
-  NVIDIA's ARM-server toolkit).
+  a 64-bit OS and ARM servers, and with CUDA for the GH200 and GB200 (from
+  NVIDIA's ARM-server toolkit). The CUDA builds use CUDA 12.8, adding
+  Blackwell.
 
 ## 1.1.1 -- 28 October 2026
 

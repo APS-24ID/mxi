@@ -7,8 +7,8 @@
 # DATA holds the 36 .nxs files (CIX*, PIX*, X*) from
 # https://zenodo.org/records/23423865; WHERE (cows-pigs-people) is made, with
 # cows/ and all/ in it, and output/ holding each step's printout as
-# <part>-<step>.txt. Stops at the first step that fails. The mxi programs on
-# PATH are the ones run; mxi find --version is printed first, to say which.
+# <part>-<step>.txt. Stops at the first step that fails. The mxi on
+# PATH is the one run; mxi find --version is printed first, to say which.
 
 set -eu
 

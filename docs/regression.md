@@ -59,7 +59,10 @@ takes quick and full, `--quick` the quick ones, `--slow` all three (the
 `--datasets` the named ones whatever their tier. A tier not one of the three is
 an error.
 
-A step's log is the program's own, `mxi_<program>.log`: the runner keeps its
+Each step runs as `mxi <command>` where the binaries are 1.1's or later, one
+`mxi`, and as its own program, `mxi_<command>`, in a build of a revision before
+1.1, which a run may compare against: either kind of build, by `--commit` or
+`--bin`. A step's log is the command's own, `mxi_<command>.log`: the runner keeps its
 capture of the output only when a step fails, for what the system said that the
 program could not (a kill for memory), and as the report's log, which writes
 none of its own.

@@ -4,7 +4,22 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
-## 1.1.0 -- 28 October 2026
+## 1.1.1 -- 28 October 2026
+
+1.1.0 was tagged but never published: its CUDA build failed to link. 1.1.1 is
+1.1.0 with that fixed, and the first release of everything listed under 1.1.0
+below -- one program, `mxi`, every step a command of it, and the releases
+with FFTW and every licence.
+
+**Fixed**
+- The CUDA build links: the CUDA layer the GPU code shares
+  (`src/cuda_device.cu`) had been compiled into both `mxi find` and `mxi
+  integrate`, and so defined twice once they were one program. It is a
+  library of its own now, as Metal's was, and the build refuses at configure
+  any source compiled into two commands.
+- The documents brought up to date with the single program throughout.
+
+## 1.1.0 -- not published (tagged 28 October 2026)
 
 **Changes commands**
 - **One program, `mxi`, every step a command of it:** `mxi import`, `mxi find`,

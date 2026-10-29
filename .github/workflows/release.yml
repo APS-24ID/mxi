@@ -66,6 +66,10 @@ jobs:
     env:
       VCPKG_FORCE_SYSTEM_BINARIES: "1"
     strategy:
+      # Every build to its end, whatever another does: by default a failure
+      # cancels the rest, and one download's failure had left the other three
+      # untried (v1.1.2-rc1). Nothing is published unless all pass.
+      fail-fast: false
       matrix:
         include:
           - platform: linux-x86_64
@@ -106,9 +110,24 @@ jobs:
           gcc --version | head -1
       - name: The CUDA toolkit (compiling needs no GPU)
         if: matrix.cuda == 'ON'
+        # Tried again, the cached metadata cleared between, up to five times:
+        # NVIDIA's repository once served an index whose files could not be
+        # fetched -- "all mirrors were already tried" -- a mirror mid-update,
+        # and the release failed for it (v1.1.2-rc1).
         run: |
           dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/${{ matrix.cuda_repo }}/cuda-rhel8.repo
-          dnf install -y -q cuda-toolkit-12-8
+          for attempt in 1 2 3 4 5; do
+            if dnf install -y -q cuda-toolkit-12-8; then
+              break
+            fi
+            if [ "$attempt" = 5 ]; then
+              echo "the CUDA toolkit could not be installed in five attempts" >&2
+              exit 1
+            fi
+            echo "attempt $attempt failed; trying again in $((attempt * 30)) s" >&2
+            dnf clean metadata
+            sleep $((attempt * 30))
+          done
           echo /usr/local/cuda/bin >> "$GITHUB_PATH"
       # A static HDF5, zlib and FFTW, from vcpkg's manifest (vcpkg.json),
       # release builds only (the -release triplets), so that the program

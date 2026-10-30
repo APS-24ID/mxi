@@ -151,6 +151,14 @@ allocation or `taskset` is respected -- and on a shared node `-j` holds a job
 to its share.
 `mxi find --gpu` and `mxi integrate --gpu` use a GPU where the build has one.
 
+**Checking a lattice (optional):** `mxi verify indexed.rflx` -- or any later
+step's file -- says how much of what each lattice predicts was observed, by
+resolution shell: every reflection predicted to the indexed spots' limit,
+against the strong spots, judged as indexing judges them. Indexing counts the
+spots a lattice explains; this counts what it should explain and does not, so
+that a wrong cell or a second crystal shows ([`docs/multi-lattice.md`](docs/multi-lattice.md)).
+It changes nothing, and is not part of the sequence.
+
 **Several sweeps of one crystal:** name every master to `mxi import`; each
 program takes them all, the sweeps indexed in one basis, each its own crystal
 and scale model ([`docs/multi-sweep.md`](docs/multi-sweep.md)).

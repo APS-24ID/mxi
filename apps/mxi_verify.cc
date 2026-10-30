@@ -22,6 +22,7 @@
 #include "experiment_images.hh"
 #include "expt.hh"
 #include "image_series.hh"
+#include "log_mirror.hh"
 #include "refl.hh"
 #include "rflx.hh"
 #include "untrusted.hh"
@@ -98,6 +99,9 @@ std::vector<std::uint8_t> mask_of(const std::string &path, std::size_t index,
 // The program's entry, run by mxi (verify) -- apps/mxi.cc.
 int mxi_verify_main(int argc, char **argv) {
   using namespace mxi;
+  // Its table kept beside the data, as every analysis's is.
+  if (!only_asks_for_help(argc, argv))
+    mirror_to_log("mxi_verify.log");
   const std::set<std::string> known = {"--d-min",   "--shells", "--tolerance",
                                        "--no-mask", "--help",   "-h"};
   const std::set<std::string> takes_value = {"--d-min", "--shells",

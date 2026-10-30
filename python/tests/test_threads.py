@@ -24,7 +24,7 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_every_command_is_found():
-    assert len(COMMANDS) == 23 and "find" in COMMANDS and "refine" in COMMANDS
+    assert len(COMMANDS) == 24 and "find" in COMMANDS and "refine" in COMMANDS
 
 
 @pytest.mark.parametrize("command", COMMANDS)

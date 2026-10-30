@@ -391,3 +391,43 @@ default; each reflection's background excludes others' foregrounds instead.
 Graeme's answers to the plan's questions are the decisions above, and his
 two-crystal data is here, and DIALS's processing of it -- indexing,
 integration, cosym and scaling -- judged against throughout above.
+
+## How much of a lattice was seen: mxi verify
+
+Indexing reports the share of spots a lattice explains. That can look healthy
+while the lattice is wrong: a cell doubled on every axis still indexes every
+spot, as does a lattice that has absorbed a second crystal's. The converse
+question catches them -- of the reflections the lattice predicts, how many
+were seen?
+
+```sh
+mxi verify indexed.rflx
+```
+
+For each lattice, every reflection it predicts over its scan, to the
+resolution its indexed spots reach (the d that 99.5 per cent of them reach, so
+that a few misindexed spots far out do not carry it; `--d-min` to choose),
+against the spots indexed to it, in shells of equal reciprocal volume
+(`--shells`, 10). A line a shell, and one for all: the reflections predicted,
+those unobservable, those of the rest observed, and the fraction observed --
+of the predictions that could have been seen. (Its figures on real data are
+to come: none has yet been run through it.)
+
+A prediction is seen where a spot of the same indices lies within 5 degrees of
+rotation of it (`--tolerance`): a reflection crosses the sphere once a turn,
+entering and leaving, and the image tells which crossing. Predictions whose
+centre falls on a masked pixel -- the detector's own mask, module gaps, the
+regions marked untrusted -- cannot be seen, are counted apart, and are left
+out of the fraction; the images are read for the mask (one frame), and
+without them, or with `--no-mask`, it says so.
+
+What to expect. Weak reflections are not found as spots, so the fraction falls
+with resolution even for a right lattice, and the outer shells say more about
+the data than the lattice. It is the low-resolution shells, where every
+reflection should be strong, that judge a lattice: well short of 100 per cent
+there, the lattice predicts reflections that are not there. A supercell shows
+it plainly -- an eighth for a cell doubled on every axis -- and so does the
+wrong one of two crystals. It reads any file with lattices: indexed, refined,
+integrated (whose rows are predictions, the flags saying which were seen) or
+scaled.
+

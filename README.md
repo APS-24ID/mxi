@@ -195,6 +195,7 @@ The options most often wanted:
 | `mxi view` | the images in napari, with the spots and predictions found on them, and the detector's untrusted regions drawn and saved ([`docs/mask.md`](docs/mask.md)) |
 | `mxi untrusted` | list, set from a mask file, or clear the untrusted regions, with no window |
 | `mxi max` | the largest count on a valid pixel, and whether the images fit in 16 bits (for `mxi find --gpu-force`) |
+| `mxi verify` | how much of what each lattice predicts was seen: every reflection predicted to the indexed spots' resolution, against the spots indexed, by shell |
 | `mxi profile` | the profile model estimated from strong spots, and how much of each spot it holds |
 | `mxi residuals` | refinement's residuals by resolution, detector module, or anything else |
 | `mxi foreground` | shoeboxes marking the integration region, for dials.image_viewer |

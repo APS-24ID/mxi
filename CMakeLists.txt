@@ -120,6 +120,7 @@ add_library(mxi
   src/correlation.cc
   src/spot_table.cc
   src/untrusted.cc
+  src/verify.cc
   src/experiment_images.cc
   src/hdf5_handle.cc
   src/combine.cc
@@ -253,6 +254,10 @@ configure_file(tools/mxi_tools.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_tools.py
 add_library(mxi_untrusted OBJECT apps/mxi_untrusted.cc)
 target_link_libraries(mxi_untrusted PRIVATE mxi)
 target_compile_options(mxi_untrusted PRIVATE -Wall -Wextra)
+# How much of what each lattice predicts was seen (src/verify.hh).
+add_library(mxi_verify OBJECT apps/mxi_verify.cc)
+target_link_libraries(mxi_verify PRIVATE mxi)
+target_compile_options(mxi_verify PRIVATE -Wall -Wextra)
 
 add_library(mxi_grid OBJECT apps/mxi_grid.cc)
 target_link_libraries(mxi_grid PRIVATE mxi)
@@ -422,7 +427,7 @@ set(MXI_PROGRAMS
   mxi_background mxi_combine mxi_convert mxi_correlation mxi_export mxi_find
   mxi_foreground mxi_forward mxi_grid mxi_import mxi_index mxi_integrate
   mxi_max mxi_profile mxi_readtest mxi_refine mxi_report mxi_residuals
-  mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted)
+  mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted mxi_verify)
 # No source in two commands: they are one binary, and a source compiled into
 # two is defined twice -- src/cuda_device.cu was, in mxi_find and
 # mxi_integrate, and the CUDA release build failed to link (1.1.0). Shared code

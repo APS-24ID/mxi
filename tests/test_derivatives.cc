@@ -20,6 +20,7 @@
 #include "../src/predict.hh"
 #include "../src/refine.hh"
 #include "../src/refl.hh"
+#include "../src/verify.hh"
 #include "check.hh"
 #include "real_data.hh"
 
@@ -655,6 +656,129 @@ TEST(two_lattices_on_one_sweep_each_have_their_own_sample_offset) {
   check::close((list[1].goniometer.sample_offset - further * -0.025).norm(),
                0.0, 0.002, "the second's 25 um, at its own");
   check::is_true(r.rmsd_x < 0.01 && r.rmsd_y < 0.01, "the residual gone");
+}
+
+} // namespace mxi
+
+namespace mxi {
+
+namespace {
+
+// Flags marking every row of a table indexed, as indexing writes them.
+void flag_indexed(Table &t) {
+  Column &flags = t.int_column("flags", "std::size_t", 1);
+  for (std::size_t r = 0; r < t.nrows; ++r)
+    flags.ints[r] = flag::kIndexed;
+}
+
+} // namespace
+
+// mxi verify: how much of what a lattice predicts was seen (src/verify.hh).
+TEST(every_prediction_seen_is_every_one) {
+  const Experiment e = real_experiment();
+  Table t = table_from(e, 3.5);
+  flag_indexed(t);
+  VerifyOptions o;
+  o.d_min = 3.5;
+  const VerifyResult r = verify_lattice(e, 0, t, o);
+  check::is_true(r.all.predicted > 1000, "enough predicted");
+  check::equal(static_cast<long long>(r.all.observed),
+               static_cast<long long>(r.all.predicted), "every one seen");
+  check::is_true(!r.d_min_from_spots && r.d_min == 3.5, "the limit given");
+  for (const VerifyShell &s : r.shells)
+    check::is_true(s.predicted == 0 || s.fraction() == 1.0, "every shell full");
+
+  // The indexed spots' own limit: no further than the spots go.
+  const VerifyResult own = verify_lattice(e, 0, t, VerifyOptions{});
+  check::is_true(own.d_min_from_spots && own.d_min >= 3.5 && own.d_min < 3.6,
+                 "the limit 99.5 per cent of the spots reach");
+}
+
+TEST(half_the_reflections_seen_is_half) {
+  const Experiment e = real_experiment();
+  Table half = table_from(e, 3.5);
+  flag_indexed(half);
+  // Every other row only predicted, not seen: no longer a spot.
+  Column flags = half.at("flags");
+  for (std::size_t r = 1; r < half.nrows; r += 2)
+    flags.ints[r] = flag::kPredicted;
+  half.set("flags", flags);
+  VerifyOptions o;
+  o.d_min = 3.5;
+  const VerifyResult r = verify_lattice(e, 0, half, o);
+  check::is_true(std::fabs(r.all.fraction() - 0.5) < 0.02, "about half");
+}
+
+TEST(predictions_on_masked_pixels_cannot_be_seen_and_do_not_count) {
+  const Experiment e = real_experiment();
+  Table t = table_from(e, 3.5);
+  flag_indexed(t);
+  const std::size_t w =
+      static_cast<std::size_t>(e.detector.panels[0].image_size[0]);
+  const std::size_t h =
+      static_cast<std::size_t>(e.detector.panels[0].image_size[1]);
+  std::vector<std::uint8_t> mask(w * h, 0);
+  for (std::size_t y = 0; y < h; ++y)
+    for (std::size_t x = 0; x < w / 2; ++x)
+      mask[y * w + x] = 1; // the left half
+  VerifyOptions o;
+  o.d_min = 3.5;
+  const VerifyResult r = verify_lattice(e, 0, t, o, &mask, w);
+  check::is_true(r.masked, "a mask given");
+  check::is_true(r.all.unobservable > r.all.predicted / 4 &&
+                     r.all.unobservable < 3 * r.all.predicted / 4,
+                 "about half on the masked half");
+  check::equal(r.all.fraction(), 1.0, "the rest all seen");
+}
+
+TEST(a_supercell_explains_every_spot_and_an_eighth_of_what_it_predicts) {
+  // The case for verifying: a cell doubled on every axis indexes every spot
+  // -- each (h, k, l) is (2h, 2k, 2l) in it -- so the fraction of spots
+  // indexed says nothing is wrong. It predicts eight times as many
+  // reflections, and seven in eight are never seen.
+  const Experiment e = real_experiment();
+  Table t = table_from(e, 3.5);
+  flag_indexed(t);
+  Column hkl = t.at("miller_index");
+  for (std::size_t i = 0; i < t.nrows * 3; ++i)
+    hkl.ints[i] *= 2;
+  t.set("miller_index", hkl);
+  Experiment super = e;
+  super.crystal->A = e.crystal->A * 0.5;
+  VerifyOptions o;
+  o.d_min = 3.5;
+  const VerifyResult r = verify_lattice(super, 0, t, o);
+  check::is_true(std::fabs(r.all.fraction() - 0.125) < 0.01,
+                 "an eighth seen, not all");
+  const VerifyResult right = verify_lattice(e, 0, table_from(e, 3.5), o);
+  check::equal(right.all.fraction(), 1.0, "the true cell, all");
+}
+
+TEST(a_spot_counts_only_near_its_prediction_and_only_if_observed) {
+  const Experiment e = real_experiment();
+  Table t = table_from(e, 3.5);
+  flag_indexed(t);
+  VerifyOptions o;
+  o.d_min = 3.5;
+  // Every spot moved 20 degrees in rotation: the right indices, the wrong
+  // crossing.
+  Table moved = t;
+  Column xyz = moved.at("xyzobs.px.value");
+  const double images = 20.0 / std::fabs(e.scan.osc_width);
+  for (std::size_t r = 0; r < moved.nrows; ++r)
+    xyz.reals[r * 3 + 2] += images;
+  moved.set("xyzobs.px.value", xyz);
+  check::is_true(verify_lattice(e, 0, moved, o).all.fraction() < 0.05,
+                 "far from its prediction: not seen");
+  // Flagged neither indexed nor strong: not a spot.
+  Table unflagged = t;
+  Column flags = unflagged.at("flags");
+  for (std::size_t r = 0; r < unflagged.nrows; ++r)
+    flags.ints[r] = flag::kPredicted;
+  unflagged.set("flags", flags);
+  check::equal(
+      static_cast<long long>(verify_lattice(e, 0, unflagged, o).indexed), 0LL,
+      "predictions are not spots");
 }
 
 } // namespace mxi

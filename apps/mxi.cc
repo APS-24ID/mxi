@@ -43,6 +43,7 @@ MXI_PROGRAM(forward)
 MXI_PROGRAM(grid)
 MXI_PROGRAM(residuals)
 MXI_PROGRAM(readtest)
+MXI_PROGRAM(verify)
 #undef MXI_PROGRAM
 
 namespace {
@@ -74,6 +75,8 @@ const Command kCommands[] = {
     {"show", mxi_show_main, "what a file holds", false},
     {"report", mxi_report_main, "an HTML report of the processing", false},
     {"max", mxi_max_main, "a maximum projection of the images", false},
+    {"verify", mxi_verify_main,
+     "how much of what each lattice predicts was seen", true},
     {"profile", mxi_profile_main, "the profile model, estimated", true},
     {"foreground", mxi_foreground_main,
      "each reflection's foreground, for dials.image_viewer", true},

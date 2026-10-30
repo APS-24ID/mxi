@@ -14,6 +14,15 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   indexing, `--jacobian-threads` and `--normal-threads` of refinement
   (APS-24ID/mxi#1).
 
+**New**
+- `mxi verify`: how much of what each lattice predicts was seen -- every
+  reflection predicted to the resolution the indexed spots reach, against the
+  spots indexed, by resolution shell, predictions on masked pixels counted
+  apart. Indexing counts the spots a lattice explains; this counts what it
+  should explain and does not, which a supercell or a second crystal leaves
+  high in the first and low here. After indexing or any later step
+  (docs/multi-lattice.md).
+
 **Fixed**
 - "Every core" means every core the job may use: on Linux the process's CPU
   affinity, which a batch system's allocation, `taskset` or a cpuset sets, not

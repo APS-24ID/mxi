@@ -412,6 +412,10 @@ for all: the reflections predicted, those unobservable, those of the rest
 observed, the fraction observed, and how many of those were indexed to the
 lattice.
 
+It is a diagnostic, run when wanted: it reads the file, writes nothing but its
+log, `mxi_verify.log`, and no step needs it. It is not part of indexing, where predicting every
+reflection of every candidate would slow the search for no need.
+
 **Observed** is judged as indexing judges a spot, not by what indexing
 assigned. Every strong spot of the lattice's sweep -- indexed or not, to any
 lattice -- is given fractional indices by the lattice's matrix, and a
@@ -438,11 +442,14 @@ off the detector are not predicted at all.
 
 What to expect. Weak reflections are not found as spots, so the fraction falls
 with resolution even for a right lattice, and the outer shells say more about
-the data than the lattice. It is the low-resolution shells, where every
-reflection should be strong, that judge a lattice: well short of 100 per cent
-there, the lattice predicts reflections that are not there. A supercell shows
-it plainly -- an eighth for a cell doubled on every axis -- and so does the
-wrong one of two crystals. It reads any file with lattices: indexed, refined,
+the data than the lattice. On Graeme's data, a set diffracting weakly to its
+limit fell steeply with resolution, every shortfall a weak reflection, not a
+missing one; a strongly diffracting crystal kept about 84 per cent observed in
+its outer shell. It is the low-resolution shells, where every reflection
+should be strong, that judge a lattice: well short of 100 per cent there, the
+lattice predicts reflections that are not there. A supercell shows it plainly
+-- an eighth for a cell doubled on every axis -- and so does the wrong one of
+two crystals. It reads any file with lattices: indexed, refined,
 integrated (whose rows are predictions, the flags saying which were seen) or
 scaled.
 

@@ -125,6 +125,8 @@ def test_a_lattice_reported_with_the_images_mask(tmp_path):
     assert "unobservable" in out and "\n  all " in out
     assert "not taken into account" not in out, "the images' mask was read"
     assert "Experiment 0" not in out, "the crystal-less sweep is not a lattice"
+    log = (tmp_path / "mxi_verify.log").read_text()
+    assert "Experiment 1:" in log, "its table kept in its log"
     no_mask = subprocess.run(
         [MXI, "verify", str(expt), str(table), "--d-min", "3", "--no-mask"],
         capture_output=True,

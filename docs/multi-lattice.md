@@ -406,20 +406,35 @@ mxi verify indexed.rflx
 
 For each lattice, every reflection it predicts over its scan, to the
 resolution its indexed spots reach (the d that 99.5 per cent of them reach, so
-that a few misindexed spots far out do not carry it; `--d-min` to choose),
-against the spots indexed to it, in shells of equal reciprocal volume
-(`--shells`, 10). A line a shell, and one for all: the reflections predicted,
-those unobservable, those of the rest observed, and the fraction observed --
-of the predictions that could have been seen. (Its figures on real data are
-to come: none has yet been run through it.)
+that a few misindexed spots far out do not carry it; `--d-min` to choose), in
+shells of equal reciprocal volume (`--shells`, 10). A line a shell, and one
+for all: the reflections predicted, those unobservable, those of the rest
+observed, the fraction observed, and how many of those were indexed to the
+lattice.
 
-A prediction is seen where a spot of the same indices lies within 5 degrees of
-rotation of it (`--tolerance`): a reflection crosses the sphere once a turn,
-entering and leaving, and the image tells which crossing. Predictions whose
-centre falls on a masked pixel -- the detector's own mask, module gaps, the
-regions marked untrusted -- cannot be seen, are counted apart, and are left
-out of the fraction; the images are read for the mask (one frame), and
-without them, or with `--no-mask`, it says so.
+**Observed** is judged as indexing judges a spot, not by what indexing
+assigned. Every strong spot of the lattice's sweep -- indexed or not, to any
+lattice -- is given fractional indices by the lattice's matrix, and a
+prediction is observed where a spot's lie within 0.3 of its own on all three
+(`--tolerance`, mxi index's), the spot taken by the nearest in rotation of its
+reflection's crossings. Judged at first by indexing's assignment, a spot in
+place but not indexed -- outside the tolerance before refinement, as many
+are at high resolution -- counted as missing, and on Graeme's data the outer
+shells fell for it, to 13 per cent. The column **indexed** keeps that measure:
+observed and indexed to the lattice with those indices. The two apart say how
+much of a shortfall is indexing's assignment rather than absence.
+
+**Chance.** A stray spot -- ice, another crystal, noise -- has fractional
+indices within 0.3 of a whole number on all three axes 0.6^3, a fifth, of the
+time, so it can make a reflection observed that is not: the same strays
+indexing takes. The test's 20-degree misplaced spots observed 6 per cent of
+predictions this way. A smaller `--tolerance` tightens it.
+
+Predictions whose centre falls on a masked pixel -- the detector's own mask,
+module gaps, the regions marked untrusted -- cannot be seen, are counted
+apart, and are left out of the fraction; the images are read for the mask
+(one frame), and without them, or with `--no-mask`, it says so. Predictions
+off the detector are not predicted at all.
 
 What to expect. Weak reflections are not found as spots, so the fraction falls
 with resolution even for a right lattice, and the outer shells say more about

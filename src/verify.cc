@@ -21,45 +21,82 @@ double d_of(const Mat3 &A, int h, int k, int l) {
 
 } // namespace
 
-VerifyResult verify_lattice(const Experiment &e, std::size_t id,
+VerifyResult verify_lattice(const ExperimentList &experiments, std::size_t id,
                             const Table &table, const VerifyOptions &options,
                             const std::vector<std::uint8_t> *mask,
                             std::size_t mask_width) {
+  const Experiment &e = experiments[id];
   if (!e.crystal)
     throw std::runtime_error("experiment " + std::to_string(id) +
                              " has no crystal");
   const Mat3 A = e.crystal->A;
+  bool invertible = false;
+  const Mat3 A_inverse = A.inverse(&invertible);
+  if (!invertible)
+    throw std::runtime_error("experiment " + std::to_string(id) +
+                             ": its crystal's matrix is singular");
   VerifyResult result;
   result.masked = mask != nullptr;
 
-  // The lattice's indexed spots, by their indices: where in the scan each was.
+  // The sweep's strong spots: any experiment of the same sweep, indexed or
+  // not; rows with no experiment (DIALS's -1) where there is one sweep only.
   const Column &ids = table.at("id");
-  const Column &hkl = table.at("miller_index");
   const Column &xyz = table.at("xyzobs.px.value");
+  const Column *hkl =
+      table.has("miller_index") ? &table.at("miller_index") : nullptr;
   const Column *flags = table.has("flags") ? &table.at("flags") : nullptr;
-  std::map<std::tuple<int, int, int>, std::vector<double>> seen;
+  const Column *panels = table.has("panel") ? &table.at("panel") : nullptr;
+  const std::size_t sweep = experiments.sweep(id);
+  bool one_sweep = true;
+  for (std::size_t i = 0; i < experiments.size(); ++i)
+    one_sweep = one_sweep && experiments.sweep(i) == sweep;
+
+  struct Spot {
+    int h, k, l;
+    double z;
+    bool indexed_here; // indexed to this lattice, with these indices
+  };
+  std::vector<Spot> spots;
   std::vector<double> inverse_d;
   for (std::size_t r = 0; r < table.nrows; ++r) {
-    if (ids.ints[r] != static_cast<std::int64_t>(id))
-      continue;
-    const int h = static_cast<int>(hkl.ints[r * 3]);
-    const int k = static_cast<int>(hkl.ints[r * 3 + 1]);
-    const int l = static_cast<int>(hkl.ints[r * 3 + 2]);
-    if (h == 0 && k == 0 && l == 0)
+    const std::int64_t rid = ids.ints[r];
+    const bool in_sweep =
+        rid >= 0 ? static_cast<std::size_t>(rid) < experiments.size() &&
+                       experiments.sweep(static_cast<std::size_t>(rid)) == sweep
+                 : one_sweep;
+    if (!in_sweep)
       continue;
     if (flags && (flags->ints[r] & (flag::kIndexed | flag::kStrong)) == 0)
       continue;
-    const double z = xyz.reals[r * 3 + 2];
-    if (!std::isfinite(z) ||
-        (xyz.reals[r * 3] == 0.0 && xyz.reals[r * 3 + 1] == 0.0))
+    const double x = xyz.reals[r * 3], y = xyz.reals[r * 3 + 1],
+                 z = xyz.reals[r * 3 + 2];
+    if (!std::isfinite(z) || (x == 0.0 && y == 0.0))
       continue;
-    seen[{h, k, l}].push_back(z);
-    const double d = d_of(A, h, k, l);
-    if (d > 0.0)
-      inverse_d.push_back(1.0 / d);
+    ++result.spots;
+    const std::size_t panel =
+        panels ? static_cast<std::size_t>(panels->ints[r]) : 0;
+    const Vec3 f = A_inverse * reciprocal_lattice_point(e, panel, x, y, z);
+    const int h = static_cast<int>(std::lround(f.x));
+    const int k = static_cast<int>(std::lround(f.y));
+    const int l = static_cast<int>(std::lround(f.z));
+    if ((h == 0 && k == 0 && l == 0) ||
+        std::max({std::fabs(f.x - h), std::fabs(f.y - k),
+                  std::fabs(f.z - l)}) >= options.tolerance)
+      continue;
+    bool here = false;
+    if (rid == static_cast<std::int64_t>(id) && hkl) {
+      here = hkl->ints[r * 3] == h && hkl->ints[r * 3 + 1] == k &&
+             hkl->ints[r * 3 + 2] == l;
+      if (here) {
+        ++result.indexed;
+        const double d = d_of(A, h, k, l);
+        if (d > 0.0)
+          inverse_d.push_back(1.0 / d);
+      }
+    }
+    spots.push_back({h, k, l, z, here});
   }
-  result.indexed = inverse_d.size();
-  if (inverse_d.empty())
+  if (inverse_d.empty() && options.d_min <= 0.0)
     return result;
 
   // The limit: given, or the one 99.5 per cent of the indexed spots reach.
@@ -97,12 +134,27 @@ VerifyResult verify_lattice(const Experiment &e, std::size_t id,
   result.all.d_max = result.shells.front().d_max;
   result.all.d_min = result.d_min;
 
-  // Within the tolerance in rotation, in images.
-  const double width = std::fabs(e.scan.osc_width);
-  const double tolerance =
-      width > 0.0 ? options.tolerance_degrees / width : 1.0e300;
+  // Each spot to the nearest in rotation of its reflection's crossings.
+  std::map<std::tuple<int, int, int>, std::vector<std::size_t>> crossings;
+  for (std::size_t i = 0; i < predicted.size(); ++i)
+    crossings[{predicted[i].h, predicted[i].k, predicted[i].l}].push_back(i);
+  std::vector<char> seen(predicted.size(), 0);
+  std::vector<char> seen_indexed(predicted.size(), 0);
+  for (const Spot &s : spots) {
+    const auto it = crossings.find({s.h, s.k, s.l});
+    if (it == crossings.end())
+      continue; // beyond the limit, or no crossing in the scan
+    std::size_t best = it->second.front();
+    for (std::size_t i : it->second)
+      if (std::fabs(predicted[i].z - s.z) < std::fabs(predicted[best].z - s.z))
+        best = i;
+    seen[best] = 1;
+    if (s.indexed_here)
+      seen_indexed[best] = 1;
+  }
 
-  for (const Prediction &p : predicted) {
+  for (std::size_t i = 0; i < predicted.size(); ++i) {
+    const Prediction &p = predicted[i];
     const double d = d_of(A, p.h, p.k, p.l);
     if (!(d >= result.d_min))
       continue;
@@ -127,15 +179,14 @@ VerifyResult verify_lattice(const Experiment &e, std::size_t id,
         continue;
       }
     }
-    const auto it = seen.find({p.h, p.k, p.l});
-    if (it == seen.end())
-      continue;
-    for (double z : it->second)
-      if (std::fabs(z - p.z) <= tolerance) {
-        ++shell.observed;
-        ++result.all.observed;
-        break;
-      }
+    if (seen[i]) {
+      ++shell.observed;
+      ++result.all.observed;
+    }
+    if (seen_indexed[i]) {
+      ++shell.indexed;
+      ++result.all.indexed;
+    }
   }
   return result;
 }

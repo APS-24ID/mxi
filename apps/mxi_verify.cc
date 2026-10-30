@@ -2,7 +2,10 @@
 // reflection the lattice predicts over its scan, to the resolution its indexed
 // spots reach, against the spots indexed to it, in shells of resolution --
 // where indexing counts the spots a lattice explains, this counts what it
-// should and does not (src/verify.hh). After indexing, or any step after it:
+// should and does not (src/verify.hh). A prediction is observed where a strong
+// spot of its sweep, indexed or not, has fractional indices within 0.3 of its
+// own, as indexing judges one; the column "indexed" counts those also indexed
+// to the lattice. After indexing, or any step after it:
 // an integrated file's own rows are predictions, and its flags say which were
 // seen. Predictions on masked pixels -- the detector's mask, the regions marked
 // untrusted -- cannot be seen, and are counted apart where the images can be
@@ -39,8 +42,9 @@ const char *const kUsage =
     "  --d-min D         to D A, not the indexed spots' own limit (the d 99.5\n"
     "                    per cent of them reach)\n"
     "  --shells N        shells of equal reciprocal volume (10)\n"
-    "  --tolerance DEG   a prediction is seen where a spot of its indices is\n"
-    "                    this near in rotation (5)\n"
+    "  --tolerance T     a prediction is observed where a strong spot's\n"
+    "                    fractional indices are within T of its own, as\n"
+    "                    indexing judges one (0.3, mxi index's)\n"
     "  --no-mask         count predictions on masked pixels as observable, "
     "the\n"
     "                    images not read\n";
@@ -118,7 +122,7 @@ int mxi_verify_main(int argc, char **argv) {
   VerifyOptions options;
   options.d_min = args.number("--d-min", 0.0);
   options.shells = static_cast<std::size_t>(args.number("--shells", 10.0));
-  options.tolerance_degrees = args.number("--tolerance", 5.0);
+  options.tolerance = args.number("--tolerance", 0.3);
   try {
     const ExperimentList experiments = read_experiments(args.positional[0]);
     const Table table = read_reflections(args.positional[1]);
@@ -133,11 +137,12 @@ int mxi_verify_main(int argc, char **argv) {
       std::string why;
       if (!args.has("--no-mask"))
         mask = mask_of(args.positional[0], i, &width, &why);
-      const VerifyResult r = verify_lattice(
-          e, i, table, options, mask.empty() ? nullptr : &mask, width);
+      const VerifyResult r =
+          verify_lattice(experiments, i, table, options,
+                         mask.empty() ? nullptr : &mask, width);
       std::printf("\nExperiment %zu: %zu indexed spots", i, r.indexed);
-      if (r.indexed == 0) {
-        std::printf(", nothing to verify\n");
+      if (r.d_min <= 0.0) {
+        std::printf(", so no limit to predict to: give --d-min\n");
         continue;
       }
       std::printf("; predicted to %.2f A (%s)\n", r.d_min,
@@ -145,16 +150,17 @@ int mxi_verify_main(int argc, char **argv) {
       if (!r.masked)
         std::printf("  masked pixels not taken into account: %s\n",
                     args.has("--no-mask") ? "--no-mask" : why.c_str());
-      std::printf("  %-15s %10s %13s %9s %9s\n", "d (A)", "predicted",
-                  "unobservable", "observed", "fraction");
+      std::printf("  %-15s %10s %13s %9s %9s %9s\n", "d (A)", "predicted",
+                  "unobservable", "observed", "fraction", "indexed");
       // A shell with nothing it could see has no fraction, not 0 per cent.
       const auto line = [](const char *label, const VerifyShell &s) {
         std::printf("  %-15s %10zu %13zu %9zu", label, s.predicted,
                     s.unobservable, s.observed);
         if (s.predicted > s.unobservable)
-          std::printf(" %8.1f%%\n", 100.0 * s.fraction());
+          std::printf(" %8.1f%%", 100.0 * s.fraction());
         else
-          std::printf(" %9s\n", "-");
+          std::printf(" %9s", "-");
+        std::printf(" %9zu\n", s.indexed);
       };
       for (const VerifyShell &s : r.shells) {
         char label[32];

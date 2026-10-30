@@ -664,6 +664,13 @@ namespace mxi {
 
 namespace {
 
+// One experiment as a list, as verify_lattice takes them.
+ExperimentList one(const Experiment &e) {
+  ExperimentList list;
+  list.experiments.push_back(e);
+  return list;
+}
+
 // Flags marking every row of a table indexed, as indexing writes them.
 void flag_indexed(Table &t) {
   Column &flags = t.int_column("flags", "std::size_t", 1);
@@ -680,7 +687,7 @@ TEST(every_prediction_seen_is_every_one) {
   flag_indexed(t);
   VerifyOptions o;
   o.d_min = 3.5;
-  const VerifyResult r = verify_lattice(e, 0, t, o);
+  const VerifyResult r = verify_lattice(one(e), 0, t, o);
   check::is_true(r.all.predicted > 1000, "enough predicted");
   check::equal(static_cast<long long>(r.all.observed),
                static_cast<long long>(r.all.predicted), "every one seen");
@@ -689,7 +696,7 @@ TEST(every_prediction_seen_is_every_one) {
     check::is_true(s.predicted == 0 || s.fraction() == 1.0, "every shell full");
 
   // The indexed spots' own limit: no further than the spots go.
-  const VerifyResult own = verify_lattice(e, 0, t, VerifyOptions{});
+  const VerifyResult own = verify_lattice(one(e), 0, t, VerifyOptions{});
   check::is_true(own.d_min_from_spots && own.d_min >= 3.5 && own.d_min < 3.6,
                  "the limit 99.5 per cent of the spots reach");
 }
@@ -705,7 +712,7 @@ TEST(half_the_reflections_seen_is_half) {
   half.set("flags", flags);
   VerifyOptions o;
   o.d_min = 3.5;
-  const VerifyResult r = verify_lattice(e, 0, half, o);
+  const VerifyResult r = verify_lattice(one(e), 0, half, o);
   check::is_true(std::fabs(r.all.fraction() - 0.5) < 0.02, "about half");
 }
 
@@ -723,7 +730,7 @@ TEST(predictions_on_masked_pixels_cannot_be_seen_and_do_not_count) {
       mask[y * w + x] = 1; // the left half
   VerifyOptions o;
   o.d_min = 3.5;
-  const VerifyResult r = verify_lattice(e, 0, t, o, &mask, w);
+  const VerifyResult r = verify_lattice(one(e), 0, t, o, &mask, w);
   check::is_true(r.masked, "a mask given");
   check::is_true(r.all.unobservable > r.all.predicted / 4 &&
                      r.all.unobservable < 3 * r.all.predicted / 4,
@@ -747,11 +754,32 @@ TEST(a_supercell_explains_every_spot_and_an_eighth_of_what_it_predicts) {
   super.crystal->A = e.crystal->A * 0.5;
   VerifyOptions o;
   o.d_min = 3.5;
-  const VerifyResult r = verify_lattice(super, 0, t, o);
+  const VerifyResult r = verify_lattice(one(super), 0, t, o);
   check::is_true(std::fabs(r.all.fraction() - 0.125) < 0.01,
                  "an eighth seen, not all");
-  const VerifyResult right = verify_lattice(e, 0, table_from(e, 3.5), o);
+  const VerifyResult right = verify_lattice(one(e), 0, table_from(e, 3.5), o);
   check::equal(right.all.fraction(), 1.0, "the true cell, all");
+}
+
+TEST(a_spot_in_place_but_not_indexed_is_observed_all_the_same) {
+  // Observed is judged by the spot's own fractional indices, as indexing
+  // judges one, not by indexing's assignment: at first a spot in place but
+  // not indexed -- outside the tolerance, before refinement, at high
+  // resolution -- was missing, and the outer shells of Graeme's data fell
+  // for it. Here every spot is strong, unindexed, where it was predicted.
+  const Experiment e = real_experiment();
+  Table t = table_from(e, 3.5);
+  Column hkl = t.at("miller_index");
+  std::fill(hkl.ints.begin(), hkl.ints.end(), 0);
+  t.set("miller_index", hkl);
+  Column &flags = t.int_column("flags", "std::size_t", 1);
+  for (std::size_t r = 0; r < t.nrows; ++r)
+    flags.ints[r] = flag::kStrong;
+  VerifyOptions o;
+  o.d_min = 3.5;
+  const VerifyResult r = verify_lattice(one(e), 0, t, o);
+  check::equal(r.all.fraction(), 1.0, "all observed");
+  check::equal(static_cast<long long>(r.all.indexed), 0LL, "none indexed");
 }
 
 TEST(a_spot_counts_only_near_its_prediction_and_only_if_observed) {
@@ -768,8 +796,18 @@ TEST(a_spot_counts_only_near_its_prediction_and_only_if_observed) {
   for (std::size_t r = 0; r < moved.nrows; ++r)
     xyz.reals[r * 3 + 2] += images;
   moved.set("xyzobs.px.value", xyz);
-  check::is_true(verify_lattice(e, 0, moved, o).all.fraction() < 0.05,
-                 "far from its prediction: not seen");
+  // A spot in the wrong place lands anywhere in reciprocal space, within 0.3
+  // of some reflection's indices on all three by chance at most 0.6^3 = 0.216
+  // of the time -- as indexing, with the same tolerance, takes strays -- and
+  // that reflection need not be one predicted in the scan: 0.061 here. So
+  // moved spots observe a share by chance below that.
+  const VerifyResult far = verify_lattice(one(e), 0, moved, o);
+  check::is_true(far.all.fraction() < 0.216,
+                 "far from its prediction: seen only by chance");
+  // As the reflection indexed only where 20 degrees hardly moves it: next to
+  // the rotation axis.
+  check::is_true(far.all.indexed * 100 < far.all.predicted,
+                 "and as the reflection indexed almost never");
   // Flagged neither indexed nor strong: not a spot.
   Table unflagged = t;
   Column flags = unflagged.at("flags");
@@ -777,8 +815,8 @@ TEST(a_spot_counts_only_near_its_prediction_and_only_if_observed) {
     flags.ints[r] = flag::kPredicted;
   unflagged.set("flags", flags);
   check::equal(
-      static_cast<long long>(verify_lattice(e, 0, unflagged, o).indexed), 0LL,
-      "predictions are not spots");
+      static_cast<long long>(verify_lattice(one(e), 0, unflagged, o).indexed),
+      0LL, "predictions are not spots");
 }
 
 } // namespace mxi

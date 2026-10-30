@@ -16,11 +16,13 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 **New**
 - `mxi verify`: how much of what each lattice predicts was seen -- every
-  reflection predicted to the resolution the indexed spots reach, against the
-  spots indexed, by resolution shell, predictions on masked pixels counted
-  apart. Indexing counts the spots a lattice explains; this counts what it
-  should explain and does not, which a supercell or a second crystal leaves
-  high in the first and low here. After indexing or any later step
+  reflection predicted to the resolution the indexed spots reach, a prediction
+  observed where a strong spot of its sweep has fractional indices within 0.3
+  of its own, as indexing judges one, and how many were also indexed to the
+  lattice; by resolution shell, predictions on masked pixels counted apart.
+  Indexing counts the spots a lattice explains; this counts what it should
+  explain and does not, which a supercell or a second crystal leaves high in
+  the first and low here. After indexing or any later step
   (docs/multi-lattice.md).
 
 **Fixed**

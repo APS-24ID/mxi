@@ -6,7 +6,7 @@
 # otherwise drift -- "which build is this?" is the first question asked in an
 # incident, and a quietly wrong answer is worse than none.
 
-enable_language(C)  # bitshuffle and lz4
+# C, for bitshuffle and lz4, is the project's from the start (CMakeLists.txt).
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg.json" mxi_manifest)
 string(REGEX MATCH "\"version-string\"[ \t]*:[ \t]*\"([^\"]+)\""

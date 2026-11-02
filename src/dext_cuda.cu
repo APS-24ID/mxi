@@ -316,10 +316,8 @@ __global__ void stage2(const T *image_in, const T *mask_in, SignalPixel *out,
                        unsigned *counter, unsigned capacity, int height,
                        int width) {
   using W = accumulator_t<T>;
-  using R = real_t<T>;
 
   const int knl = 5;
-  const R sigma_s = R(3.0);
   const int i = threadIdx.y + blockDim.y * blockIdx.y;
   const int j = threadIdx.x + blockDim.x * blockIdx.x;
   const int n = threadIdx.x + blockDim.x * threadIdx.y;

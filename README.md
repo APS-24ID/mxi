@@ -118,7 +118,7 @@ Build options:
 
 | option | |
 | --- | --- |
-| `-DMXI_CUDA=ON` | spot finding and profile fitting on an NVIDIA GPU; `-DCMAKE_CUDA_ARCHITECTURES="80;90"` for cards other than this machine's |
+| `-DMXI_CUDA=ON` | spot finding and profile fitting on an NVIDIA GPU; `-DCMAKE_CUDA_ARCHITECTURES="80;90"` for cards other than this machine's. Needs CUDA 11.6 or later with GCC 11 or later -- CUDA 12, as the releases are built, from NVIDIA's repository; Ubuntu 22.04's own nvidia-cuda-toolkit, CUDA 11.5, cannot compile GCC 11's standard library, and the configure says so |
 | `-DMXI_METAL=ON -DMETAL_CPP_DIR=DIR` | the same on Apple silicon; `DIR` holds `Metal/Metal.hpp`, Apple's metal-cpp from <https://developer.apple.com/metal/cpp/>. One device backend at a time. |
 | `-DMXI_FFTW=ON` | indexing's transform by FFTW, about three times the built-in's speed; GPL, so opt-in; the releases include it, and are distributed under the GPL's terms. `-DFFTW3_LIBRARY=... -DFFTW3_INCLUDE_DIR=...` where it is not found. |
 | `-DMXI_AVX2=OFF` | a binary for x86 CPUs without AVX2 |

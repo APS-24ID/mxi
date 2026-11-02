@@ -3,7 +3,11 @@ cmake_minimum_required(VERSION 3.20)
 # against each other: vcpkg reads its manifest before CMake runs, so nothing
 # else would catch them drifting. "Which build is this?" is the first question
 # asked in an incident and a quietly wrong answer is worse than none.
-project(mxi VERSION 1.1.2 LANGUAGES CXX)
+# C as well as C++, from the start: bitshuffle and LZ4 are C, and CMake
+# before 3.24 or so finds HDF5 by compiling a C test, which fails -- "Unknown
+# extension .c ... try_compile() works only for enabled languages" -- where C
+# is enabled only later (cmake/spots.cmake), as on Ubuntu 22.04's CMake 3.22.
+project(mxi VERSION 1.1.2 LANGUAGES C CXX)
 
 # Installed programs keep the paths to the libraries they were linked against
 # outside the system's own -- HDF5 from conda or Homebrew -- or they would not

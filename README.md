@@ -82,9 +82,10 @@ leave out. How releases are made: `docs/release.md`.
 
 ## Building
 
-Requires CMake 3.20 or later, a C++20 compiler, and HDF5's C library; and two
-submodules, gemmi (space groups) and bitshuffle (the images' compression). The
-configure stops if any is missing.
+Requires CMake 3.20 or later (tried with 3.22, Ubuntu 22.04's, and 4.4), a
+C++20 compiler with its C compiler, and HDF5's C library; and two submodules,
+gemmi (space groups) and bitshuffle (the images' compression). The configure
+stops if any is missing.
 
 ```sh
 # Debian and Ubuntu

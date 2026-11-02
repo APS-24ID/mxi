@@ -73,6 +73,25 @@ if(MXI_CUDA)
                 "-DMXI_CUDA=OFF.")
     endif()
     enable_language(CUDA)
+    # CUDA before 11.6 cannot compile GCC 11's standard library: its <functional>
+    # fails inside nvcc with "parameter packs not expanded with '...'" in
+    # std_function.h -- Ubuntu 22.04's own nvidia-cuda-toolkit, CUDA 11.5, with
+    # its GCC 11 (Graeme, 30 October). Said here rather than deep in a system
+    # header. Not where a host compiler is given, the usual way round it.
+    if(CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.6 AND
+       NOT CMAKE_CUDA_HOST_COMPILER AND
+       CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
+       CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
+        message(FATAL_ERROR
+                "CUDA ${CMAKE_CUDA_COMPILER_VERSION} cannot compile GCC "
+                "${CMAKE_CXX_COMPILER_VERSION}'s standard library (CUDA "
+                "before 11.6 fails on its <functional>). Install CUDA 12 "
+                "from NVIDIA's repository -- on Ubuntu, not the distribution's "
+                "nvidia-cuda-toolkit: "
+                "https://developer.nvidia.com/cuda-downloads -- or give an "
+                "older host compiler, -DCMAKE_CUDA_HOST_COMPILER=g++-10, or "
+                "configure with -DMXI_CUDA=OFF.")
+    endif()
     set(CMAKE_CUDA_STANDARD 17)
     set(CMAKE_CUDA_STANDARD_REQUIRED ON)
     # Left to the user, since the right answer is whichever cards this will run

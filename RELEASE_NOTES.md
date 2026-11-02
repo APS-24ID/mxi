@@ -33,6 +33,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   equations are summed in blocks fixed by the data, in block order, the same
   bit for bit on one thread or many. They had differed in the last bits, which
   is why `--normal-threads` existed.
+- A CUDA build with a toolkit too old for its host compiler stops at
+  configure, saying why and what to do, rather than failing inside GCC's
+  headers: CUDA before 11.6 cannot compile GCC 11's `<functional>` ("parameter
+  packs not expanded"), as with Ubuntu 22.04's own CUDA 11.5. Install CUDA 12
+  from NVIDIA, or give an older host compiler. And an unused variable in the
+  CUDA spot finder, which nvcc warned of, is gone.
 - mxi configures with older CMake, Ubuntu 22.04's 3.22 among them: C is
   enabled from the start, where CMake before about 3.24 finds HDF5 by
   compiling a C test and C had been enabled only after it ("Unknown extension

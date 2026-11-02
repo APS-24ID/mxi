@@ -33,6 +33,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   equations are summed in blocks fixed by the data, in block order, the same
   bit for bit on one thread or many. They had differed in the last bits, which
   is why `--normal-threads` existed.
+- mxi configures with older CMake, Ubuntu 22.04's 3.22 among them: C is
+  enabled from the start, where CMake before about 3.24 finds HDF5 by
+  compiling a C test and C had been enabled only after it ("Unknown extension
+  .c ... try_compile() works only for enabled languages").
 - `mxi correlation`, `mxi show` and `mxi report` say when an option is
   refused; they had ignored an option they did not know whenever the files
   came first.

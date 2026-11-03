@@ -92,7 +92,9 @@ deleted first if one was made (above).
 ## What the builds test, and what they cannot
 
 Each build runs ctest and the Python suite, the tests that need no external
-data, before its archive is kept. Hosted runners have no GPU to rely on, so
+data, before its archive is kept, in a Python of our choosing, 3.12: the
+Linux containers' own, and on macOS one set up for the purpose, the runner's
+having once moved to a version (3.15) for which h5py and gemmi had no wheels. Hosted runners have no GPU to rely on, so
 the device tests (ctest's `dext_gpu`) are left out: the CUDA and Metal builds
 are released tested on their CPU paths, their device paths tested on real
 machines as before; the CPU build is tested whole.

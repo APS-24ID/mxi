@@ -405,3 +405,35 @@ def test_an_installed_layout_runs_mxis_commands(tmp_path, monkeypatch):
     )
     written = rflx.experiments_dict(str(tmp_path / "masked.rflx"))["imageset"][0]
     assert written["untrusted"] == [{"panel": 0, "rectangle": [10.0, 10.0, 50.0, 40.0]}]
+
+
+def test_mxi_view_runs_from_the_path_as_plain_mxi(tmp_path):
+    # mxi finds the viewer beside itself: where it is, the system says --
+    # /proc/self/exe, _NSGetExecutablePath -- not argv[0], which for plain
+    # "mxi" from the PATH has no directory; on macOS that had sent it to
+    # "./mxi_view" ("cannot run ./mxi_view", Graeme, 3 November). From
+    # another directory, and through a link to it elsewhere on the PATH.
+    import shutil
+
+    installed = tmp_path / "bin"
+    installed.mkdir()
+    shutil.copy(os.path.realpath(os.path.join(BUILD, "mxi")), installed / "mxi")
+    shutil.copy(VIEW, installed / "mxi_view")
+    shutil.copy(TOOLS, installed / "mxi_tools.py")
+    os.chmod(installed / "mxi_view", 0o755)
+    links = tmp_path / "links"
+    links.mkdir()
+    os.symlink(installed / "mxi", links / "mxi")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    for first in (installed, links):
+        env = dict(os.environ, PATH=f"{first}{os.pathsep}{os.environ['PATH']}")
+        run = subprocess.run(
+            ["mxi", "view", "--version"],
+            capture_output=True,
+            text=True,
+            cwd=elsewhere,
+            env=env,
+        )
+        assert run.returncode == 0, (first.name, run.stderr)
+        assert run.stdout.startswith("mxi view "), run.stdout

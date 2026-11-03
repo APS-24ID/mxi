@@ -13,11 +13,20 @@
 // Called by another name -- mxi_find, a link to this in the build directory,
 // for the tests -- the name is the subcommand.
 
+#include <algorithm>
+#include <cerrno>
+#include <climits>
+#include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <unistd.h>
 #include <vector>
+
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
 
 #define MXI_PROGRAM(name) int mxi_##name##_main(int argc, char **argv);
 MXI_PROGRAM(import)
@@ -108,15 +117,53 @@ void list(std::FILE *out) {
   std::fprintf(out, "\nmxi COMMAND --help for each; mxi --version.\n");
 }
 
+// Where this program is, symbolic links resolved: the system's answer --
+// /proc/self/exe on Linux, _NSGetExecutablePath on macOS -- else argv[0], as a
+// path where it has a slash and looked for on the PATH where it has none, as
+// the shell found it. Taken from argv[0] alone, as at first, plain "mxi" run
+// from the PATH looked in "." on macOS, which has no /proc, and mxi view
+// could not find the viewer ("cannot run ./mxi_view", Graeme, 3 November).
+std::string executable_path(const char *argv0) {
+#if defined(__linux__)
+  char buffer[PATH_MAX];
+  const ssize_t n = ::readlink("/proc/self/exe", buffer, sizeof buffer - 1);
+  if (n > 0) {
+    buffer[n] = 0;
+    return buffer;
+  }
+#elif defined(__APPLE__)
+  char buffer[PATH_MAX];
+  std::uint32_t size = sizeof buffer;
+  if (_NSGetExecutablePath(buffer, &size) == 0) {
+    char real[PATH_MAX];
+    if (::realpath(buffer, real))
+      return real;
+    return buffer;
+  }
+#endif
+  std::string found = argv0;
+  if (found.find('/') == std::string::npos) {
+    const char *path = std::getenv("PATH");
+    std::string dirs = path ? path : "";
+    std::size_t at = 0;
+    while (at <= dirs.size()) {
+      const std::size_t end = std::min(dirs.find(':', at), dirs.size());
+      const std::string dir = end > at ? dirs.substr(at, end - at) : ".";
+      const std::string candidate = dir + "/" + argv0;
+      if (::access(candidate.c_str(), X_OK) == 0) {
+        found = candidate;
+        break;
+      }
+      at = end + 1;
+    }
+  }
+  char real[PATH_MAX];
+  return ::realpath(found.c_str(), real) ? std::string(real) : found;
+}
+
 // mxi view: the viewer is Python, beside this binary as mxi_view.
 int view(int argc, char **argv, const char *self) {
-  std::string here = self;
-  char resolved[4096];
-  const ssize_t n = ::readlink("/proc/self/exe", resolved, sizeof resolved - 1);
-  if (n > 0) {
-    resolved[n] = 0;
-    here = resolved;
-  }
+  const std::string here = executable_path(self);
   const std::size_t slash = here.rfind('/');
   const std::string script =
       (slash == std::string::npos ? std::string(".") : here.substr(0, slash)) +
@@ -127,7 +174,8 @@ int view(int argc, char **argv, const char *self) {
     args.push_back(argv[i]);
   args.push_back(nullptr);
   ::execv(script.c_str(), args.data());
-  std::fprintf(stderr, "mxi view: cannot run %s\n", script.c_str());
+  std::fprintf(stderr, "mxi view: cannot run %s: %s\n", script.c_str(),
+               std::strerror(errno));
   return 2;
 }
 

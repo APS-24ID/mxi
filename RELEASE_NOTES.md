@@ -33,6 +33,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   equations are summed in blocks fixed by the data, in block order, the same
   bit for bit on one thread or many. They had differed in the last bits, which
   is why `--normal-threads` existed.
+- `mxi view` runs on macOS when `mxi` is run from the `PATH`: since 1.1 it
+  said "cannot run ./mxi_view", having looked for the viewer in the current
+  directory. mxi now asks the system where it is, links resolved, on every
+  platform.
 - A CUDA build with a toolkit too old for its host compiler stops at
   configure, saying why and what to do, rather than failing inside GCC's
   headers: CUDA before 11.6 cannot compile GCC 11's `<functional>` ("parameter

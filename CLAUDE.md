@@ -77,6 +77,13 @@ built in manylinux_2_28 (glibc 2.28, for RHEL 8 and 9; packaging refuses
 newer), x86_64 and ARM64, CPU and CUDA 12.8 (from NVIDIA's redistributable
 archives, scripts/install_cuda.py -- its RHEL 8 repository would not serve);
 every source including <algorithm> where it uses it (tests/test_includes.py).
+3 November, released as 1.1.3 after three candidates: -j N / --threads N
+for every command, every core the job may use by default (CPU affinity),
+results the same on any number of threads (APS-24ID/mxi#1); mxi verify; mxi
+find's progress; mxi view on macOS from the PATH; CMake 3.22; CUDA too old
+for its compiler said at configure. The candidates found a test counting
+progress lines that depended on the cores, and macOS's runner Python moving
+to 3.15 (the tests now in 3.12, set up for them).
 For a new session to
 pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in

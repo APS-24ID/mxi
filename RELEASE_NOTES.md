@@ -4,7 +4,7 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
-## Unreleased -- since 1.1.2
+## 1.1.3 -- 3 November 2026
 
 **Changes commands**
 - Every command takes `-j N` or `--threads N`, the same option with the same

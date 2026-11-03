@@ -35,14 +35,14 @@ jobs:
   source:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
           submodules: recursive
           fetch-depth: 0
       - name: The complete source, submodules and all
         run: scripts/source_archive.sh "$TAG"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: source
           path: mxi-*-source.tar.gz
@@ -97,7 +97,7 @@ jobs:
             cuda_platform: linux-sbsa
             cuda_architectures: "90;100"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
           submodules: recursive
@@ -144,7 +144,7 @@ jobs:
           cd python && MXI_FIND="$GITHUB_WORKSPACE/build/mxi_find" MXI_BUILD="$GITHUB_WORKSPACE/build" PYTHONPATH=src:tests python -m pytest -q tests
       - name: Package
         run: scripts/package_release.sh build "$TAG" "${{ matrix.platform }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.platform }}
           path: mxi-*-${{ matrix.platform }}.tar.gz
@@ -152,7 +152,7 @@ jobs:
   macos:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
           submodules: recursive
@@ -193,7 +193,7 @@ jobs:
           cd python && MXI_FIND="$GITHUB_WORKSPACE/build/mxi_find" MXI_BUILD="$GITHUB_WORKSPACE/build" PYTHONPATH=src:tests python3 -m pytest -q tests
       - name: Package
         run: scripts/package_release.sh build "$TAG" macos-arm64
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: macos-arm64
           path: mxi-*-macos-arm64.tar.gz
@@ -201,14 +201,14 @@ jobs:
   wheel:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
       - name: mxeq's wheel
         run: |
           python3 -m pip install -q build
           python3 -m build --wheel --outdir dist python
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wheel
           path: dist/*.whl
@@ -217,10 +217,10 @@ jobs:
     needs: [source, linux, macos, wheel]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: assets
           merge-multiple: true

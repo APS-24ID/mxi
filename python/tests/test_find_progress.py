@@ -36,7 +36,15 @@ def test_a_long_series_reports_its_progress(tmp_path):
     ]
     json.dump(doc, open(tmp_path / "l.expt", "w"))
     runs = {}
-    for name, extra in (("with", []), ("without", ["--progress-from", "1000"])):
+    # One thread and four: progress is counted as each chunk of frames
+    # finishes, and a chunk is 4 x threads + 4 frames, so the tenths reached
+    # depend on the threads -- every tenth on one, fewer on four. Expecting all
+    # nine, this passed on one core and failed on GitHub's four (1.1.3-rc1).
+    for name, extra in (
+        ("one", ["-j", "1"]),
+        ("four", ["-j", "4"]),
+        ("without", ["--progress-from", "1000"]),
+    ):
         run = subprocess.run(
             [
                 FIND,
@@ -51,12 +59,17 @@ def test_a_long_series_reports_its_progress(tmp_path):
         )
         assert run.returncode == 0, run.stderr
         runs[name] = run.stdout
-    lines = [l for l in runs["with"].splitlines() if "%:" in l]
-    assert len(lines) == 9 and "of 120 images" in lines[0]  # 10% .. 90%
+    for name in ("one", "four"):
+        lines = [l for l in runs[name].splitlines() if "%:" in l]
+        percent = [int(l.split("%")[0]) for l in lines]
+        assert lines and all("of 120 images" in l for l in lines), name
+        assert percent == sorted(set(percent)) and all(p < 100 for p in percent), name
+    one = [l for l in runs["one"].splitlines() if "%:" in l]
+    assert len(one) == 9, "on one thread, chunks of 8 frames: every tenth"
     assert not any("%:" in l for l in runs["without"].splitlines())
-    a, b = rflx.load_table(str(tmp_path / "with.rflx")), rflx.load_table(
-        str(tmp_path / "without.rflx")
-    )
-    assert a.nrows == b.nrows and np.array_equal(
-        np.asarray(a["xyzobs.px.value"]), np.asarray(b["xyzobs.px.value"])
-    )
+    a = rflx.load_table(str(tmp_path / "one.rflx"))
+    for other in ("four", "without"):
+        b = rflx.load_table(str(tmp_path / f"{other}.rflx"))
+        assert a.nrows == b.nrows and np.array_equal(
+            np.asarray(a["xyzobs.px.value"]), np.asarray(b["xyzobs.px.value"])
+        ), other

@@ -49,7 +49,9 @@ Browse button to choose others; for Import, the images' master files), its
 main options -- a tick box for a flag, a field for a value, a list where the
 choices are few -- its output where the command takes `-o`, its threads (`-j`;
 empty or 0, every core the job may use), and a line for any further options,
-as `mxi COMMAND --help` lists them. The command they make is shown beneath as
+as `mxi COMMAND --help` lists them. Each field's option and what it does are
+a tooltip, shown when the pointer rests on it -- `--d-min: nothing beyond
+this d` -- not lines beside the fields. The command they make is shown beneath as
 it is built, to copy or to learn from, and Run runs exactly that. A value that
 cannot be right -- a resolution that is not a number -- is said in red, and
 Run waits for it. Each step keeps its entries while the window is open.

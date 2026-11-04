@@ -174,3 +174,29 @@ def test_the_inputs_browse_button_is_shown(window):
     ]
     assert len(buttons) == 1 and buttons[0].winfo_ismapped()
     assert buttons[0].winfo_width() > 20
+
+
+def test_a_fields_explanation_is_a_tooltip_not_a_line_beside_it(window):
+    from mxi_ui.tooltip import DELAY_MS
+
+    choose(window, "scale")
+    beside = [
+        w for w in window.fields.grid_slaves() if int(w.grid_info()["column"]) == 2
+    ]
+    assert not beside, "no explanations beside the fields"
+    tooltip = next(t for t in window.tooltips if t.text.startswith("--d-min:"))
+    assert tooltip.text == "--d-min: nothing beyond this d"
+    tooltip.widget.event_generate("<Enter>")
+    end = time.time() + (DELAY_MS + 2000) / 1000
+    while time.time() < end and not tooltip.showing():
+        window.root.update()
+        time.sleep(0.02)
+    assert tooltip.showing(), "shown once the pointer rests"
+    tooltip.widget.event_generate("<Leave>")
+    window.root.update()
+    assert not tooltip.showing(), "gone when it leaves"
+    texts = [t.text for t in window.tooltips]
+    assert any(t.startswith("-j:") for t in texts) and any(
+        t.startswith("-o:") for t in texts
+    )
+    assert any(t.startswith("--anomalous:") for t in texts), "a tick box's too"

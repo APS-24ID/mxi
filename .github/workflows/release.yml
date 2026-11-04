@@ -5,7 +5,7 @@
 #
 # The complete source, Linux x86_64 and ARM64 on the CPU and with CUDA, macOS
 # with Metal, and
-# mxeq's wheel, each built from the tag and its tests run before anything is
+# the Python tools' wheel, mxi-python, each built from the tag and its tests run before anything is
 # published; then a GitHub release with them, its text RELEASE_NOTES.md's
 # section for the version (scripts/release_notes.py). A tag with -rc, -alpha
 # or -beta makes a pre-release. docs/release.md.
@@ -211,7 +211,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
-      - name: mxeq's wheel
+      - name: The Python tools' wheel, mxi-python
         run: |
           python3 -m pip install -q build
           python3 -m build --wheel --outdir dist python

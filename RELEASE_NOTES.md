@@ -4,6 +4,15 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
+## Unreleased -- since 1.1.3
+
+**Changed**
+- mxi's Python tools are one wheel, `mxi-python`, where mxeq's was its own:
+  mxeq, the referee, under the same import name and command; `mxi_tools`,
+  which reads mxi's files and images; and the viewer, as `mxi-view` (napari
+  through the `[napari]` extra). matplotlib is now a dependency, for the
+  interface to come.
+
 ## 1.1.3 -- 3 November 2026
 
 **Changes commands**

@@ -250,10 +250,10 @@ target_link_libraries(mxi_split PRIVATE mxi)
 target_compile_options(mxi_split PRIVATE -Wall -Wextra)
 # mxi_view, in Python (napari, optional): copied beside the programs, its
 # version filled in, with the module mxi's Python tools share.
-configure_file(tools/mxi_view.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_view @ONLY
+configure_file(python/src/mxi_view.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_view @ONLY
   FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
   GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-configure_file(tools/mxi_tools.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_tools.py
+configure_file(python/src/mxi_tools.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_tools.py
   COPYONLY)
 add_library(mxi_untrusted OBJECT apps/mxi_untrusted.cc)
 target_link_libraries(mxi_untrusted PRIVATE mxi)

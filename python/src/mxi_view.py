@@ -31,6 +31,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mxi_tools  # noqa: E402
 
 VERSION = "@PROJECT_VERSION@"
+# Stamped in where CMake copies this beside mxi; installed from the wheel,
+# mxi-python, the version is the wheel's.
+if VERSION.startswith("@"):
+    try:
+        from importlib.metadata import version as _version
+
+        VERSION = _version("mxi-python")
+    except Exception:  # noqa: BLE001 -- run from a checkout, not installed
+        VERSION = "unknown"
 
 
 class View:

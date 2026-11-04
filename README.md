@@ -73,8 +73,11 @@ xattr -dr com.apple.quarantine mxi-<version>-macos-arm64
 optional and installed apart: `pip install "napari[all]" h5py hdf5plugin`
 (`docs/mask.md`). Every other program runs without Python.
 
-`mxeq`, the referee, is on the same page as a wheel:
-`pip install mxeq-<version>-py3-none-any.whl`.
+mxi's Python tools are on the same page as one wheel, `mxi-python`:
+`pip install mxi_python-<version>-py3-none-any.whl`. It holds `mxeq`, the
+referee; `mxi_tools`, which reads mxi's files and images; and `mxi-view`, the
+viewer (`pip install "mxi_python-<version>-py3-none-any.whl[napari]"` for it,
+until a viewer of mxi's own replaces it).
 
 To build instead, take `mxi-<version>-source.tar.gz` from the same page: the
 complete source, its submodules included, which GitHub's own source archives
@@ -111,8 +114,9 @@ cmake --install build --prefix ~/.local     # then ~/.local/bin on the PATH
 `mxi view`, the image viewer and mask editor, is Python on napari, which is
 optional: it needs `pip install "napari[all]" h5py hdf5plugin`, and finds
 `mxi`, and its module `mxi_tools.py`, beside itself. Nothing else
-in mxi needs napari. It is mxi's, not mxeq's -- `pip install` of
-mxeq does not bring it, as mxeq, the referee, depends on nothing of mxi's.
+in mxi needs napari. It comes in the wheel `mxi-python` too, as `mxi-view`,
+with mxeq, the referee -- which, sharing the wheel, still imports nothing of
+mxi's: it judges mxi's files, so it must not share mxi's reading of them.
 
 Build options:
 
@@ -250,8 +254,7 @@ Where they differ, and by how much, is in [`docs/review.md`](docs/review.md).
 reads files and imports nothing from `src/`.
 
 ```sh
-pip install -e python                    # mxeq
-pip install -e "python[plots,fixtures]"  # with its plots and test-data makers
+pip install -e python                    # mxi-python: mxeq, mxi_tools, mxi_view
 ```
 
 **Comparing with DIALS** ([`python/README.md`](python/README.md)): `mxeq check` compares two

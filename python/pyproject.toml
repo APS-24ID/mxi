@@ -3,16 +3,20 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mxeq"
+name = "mxi-python"
 version = "1.1.3"
-description = "Equivalence checks between two runs of an MX processing pipeline"
+description = "mxi's Python tools: mxeq, the referee; mxi_tools, reading mxi's files and images; the viewer"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "BSD-3-Clause" }
 authors = [{ name = "Graeme Winter", email = "graeme.winter@gmail.com" }]
-# h5py and hdf5plugin read .rflx, mxi's own files, whose numbers are stored
-# bitshuffle-LZ4 (HDF5 filter 32008); tomli is TOML for `mxeq regress` before
-# Python 3.11.
+# Every Python tool of mxi's, one wheel (formerly mxeq's alone): mxeq, the
+# referee, under its own import name; mxi_tools, reading .rflx and images;
+# mxi_view, the viewer; the user interface to come. h5py and hdf5plugin read
+# .rflx, mxi's own files, whose numbers are stored bitshuffle-LZ4 (HDF5 filter
+# 32008), and the images; matplotlib draws the plots; tomli is TOML for `mxeq
+# regress` before Python 3.11. tkinter, for the interface, comes with Python
+# but some systems package it apart (python3-tk, Homebrew's python-tk).
 dependencies = [
     "numpy>=1.22",
     "scipy>=1.8",
@@ -20,19 +24,28 @@ dependencies = [
     "gemmi>=0.6",
     "h5py>=3.6",
     "hdf5plugin>=4.0",
+    "matplotlib>=3.5",
     "tomli>=2.0; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
-# The checker itself needs neither of these, and must keep working where they
-# are absent: `mxeq.plots` draws what the C++ tools wrote, and `mxeq.fixtures`
-# makes test data. Nothing in the checker may import either subpackage.
+# The napari viewer, mxi-view, until the interface's own viewer replaces it.
+napari = ["napari[all]"]
+# Kept so that installing mxeq's former extras still works; both are now
+# dependencies. The checker itself must keep working without them:
+# `mxeq.plots` draws what the C++ tools wrote, `mxeq.fixtures` makes test
+# data, and nothing in the checker imports either subpackage.
 plots = ["matplotlib>=3.5"]
 fixtures = ["h5py>=3.6"]
 
 [project.scripts]
 mxeq = "mxeq.cli:main"
+mxi-view = "mxi_view:main"
+
+[tool.setuptools]
+py-modules = ["mxi_tools", "mxi_view"]
+package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

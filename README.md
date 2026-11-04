@@ -156,6 +156,21 @@ mxi scale     symmetrized.rflx        # scaled, with merging statistics         
 mxi export    scaled.rflx             # an unmerged MTZ                            -> scaled.mtz
 ```
 
+Or all eight in turn, with the options they share sent to the steps they
+belong to -- `-j` to every step, `--gpu` to spot finding and integration, a
+known cell and space group to indexing and scaling, `--d-min-auto` to
+scaling:
+
+```sh
+mxi process master.nxs --gpu -j 8 --d-min-auto
+mxi process master.nxs --cell 78,78,78,90,90,90 --space-group I213
+mxi process master.nxs --dry-run      # the eight commands, printed, none run
+```
+
+Each step is the command above, run as it would be by hand, with its own
+output and log. A step that fails stops it: which step, its exit code, its
+log, and the command to run it again once put right.
+
 Each step reads the last one's file and writes its own, under the name shown
 unless `-o` names another: a `.rflx`, mxi's own format -- HDF5 holding the
 experiment list, the reflections and the processing's summary
@@ -207,6 +222,7 @@ The options most often wanted:
 | `mxi scale` | `--d-min-auto`, `--d-min D`, `--d-max D`; `--space-group NAME`; `--anomalous`; `--absorption-level low|medium|high`; `--error-model-fit regression|individual`; `--scale-restraint W` each sweep's scale tied to its level (1); `--exclude E:FIRST:LAST` an experiment's images left out, as many as wanted |
 | `mxi correlation` | `--write-clusters`, `--prefix P`; `--html FILE`; `--min-samples N`; `--dimensions N` |
 | `mxi export` | `--partiality-threshold P`; `--min-isigi S`; `--d-min D` |
+| `mxi process` | `--gpu`; `--cell a,b,c,α,β,γ`; `--space-group NAME`; `--d-min-auto`; `--dry-run` the commands printed, none run |
 
 ### The other tools
 

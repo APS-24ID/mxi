@@ -109,9 +109,10 @@ its viewer for a step. On each image the spots and predictions the file
 holds, on exactly the images each spans: spot finding's strong spots;
 indexing's spots, those indexed (green) apart from those not (red); the
 predictions (blue) of refinement and integration. A marker centred on the
-image shown is solid, one spanning it from a neighbour dashed; each is its
-spot's size, from its box, a little larger so that the spot shows inside it,
-and never too small to see zoomed out; each layer can be hidden.
+image shown is solid, one spanning it from a neighbour dashed. Each spot is
+drawn as its box, the pixels it covers, as DIALS's viewer draws them -- never
+too small to see zoomed out -- and a prediction without a box (refinement's)
+as a small circle; each layer can be hidden.
 
 Step through the images with the arrows or the arrow keys, or type one; the
 zoom is kept from image to image. Zoom with + and −, or the keys + and -

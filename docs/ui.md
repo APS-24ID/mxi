@@ -109,13 +109,18 @@ its viewer for a step. On each image the spots and predictions the file
 holds, on exactly the images each spans: spot finding's strong spots;
 indexing's spots, those indexed (green) apart from those not (red); the
 predictions (blue) of refinement and integration. A marker centred on the
-image shown is solid, one spanning it from a neighbour dashed; each layer can
-be hidden.
+image shown is solid, one spanning it from a neighbour dashed; each is its
+spot's size, from its box, a little larger so that the spot shows inside it,
+and never too small to see zoomed out; each layer can be hidden.
 
-Step through the images with the arrows or the arrow keys, or type one. Zoom
-with + and − (or the keys + and -, about the pointer), or a wheel or a
-trackpad's scroll, a level a tenth of a second at most; drag to pan; Fit, 0
-or a double-click for the whole image. Contrast is set from the image, its darkest counts on the slider, with
+Step through the images with the arrows or the arrow keys, or type one; the
+zoom is kept from image to image. Zoom with + and −, or the keys + and -
+about the pointer; or drag up and down with the right button (or Control and
+the left), a level each 30 pixels, about where the drag began; or a wheel or
+a trackpad's scroll (Tk 9's own trackpad event too), a level a tenth of a
+second at most. Drag with the left button to pan; Fit, 0 or a double-click
+for the whole image. The keys are the image's, not the image box's: typing
+an image number does not zoom. Contrast is set from the image, its darkest counts on the slider, with
 three colour maps. Under the cursor: the pixel, its counts and its
 resolution.
 

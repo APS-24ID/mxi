@@ -61,10 +61,20 @@ def centres(v, tag):
 
 
 def expected(v, key):
-    yx, _ = v.layers[0][key].on(v._image() - 1)
+    """Where the markers on the image shown belong, those drawn: any part of
+    one on the canvas, as the viewer draws them, each its spot's size."""
+    from mxi_ui.viewer import MARGIN, MIN_RADIUS
+
+    yx, _own, half = v.layers[0][key].on_sized(v._image() - 1)
     w, h = v._canvas_size()
-    pts = [v.view.to_canvas(x + 0.5, y + 0.5) for y, x in yx]
-    return sorted(p for p in pts if -10 <= p[0] <= w + 10 and -10 <= p[1] <= h + 10)
+    out = []
+    for (y, x), (hx, hy) in zip(yx, half):
+        cx, cy = v.view.to_canvas(x + 0.5, y + 0.5)
+        rx = max(MIN_RADIUS, hx / v.view.scale + MARGIN)
+        ry = max(MIN_RADIUS, hy / v.view.scale + MARGIN)
+        if -rx <= cx <= w + rx and -ry <= cy <= h + ry:
+            out.append((cx, cy))
+    return sorted(out)
 
 
 def test_each_marker_is_on_its_spot_at_any_zoom(strong):
@@ -286,5 +296,108 @@ def test_a_trackpads_burst_of_scrolls_zooms_a_level_a_tenth_of_a_second(strong):
             s = render.next_level(s, inwards=True)
             levels += 1
         assert levels == 2, "two levels, not five"
+    finally:
+        root.destroy()
+
+
+def test_typing_an_image_number_keeps_the_zoom(strong):
+    # 0 was bound to Fit on the whole window: typing image 10 fitted the view.
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        v.top.deiconify()
+        v.zoom(1)
+        v.zoom(1)
+        zoomed = v.view.scale
+        v.spin.focus_force()
+        settle(root)
+        v.spin.event_generate("<KeyPress-1>")
+        v.spin.event_generate("<KeyPress-0>")
+        v.spin.event_generate("<KeyPress-minus>")
+        settle(root)
+        assert v.view.scale == zoomed, "the image box's keys are the box's"
+        v.canvas.focus_force()
+        settle(root)
+        v.canvas.event_generate("<KeyPress-0>")
+        settle(root)
+        assert v.view.scale != zoomed, "on the image, 0 fits"
+    finally:
+        root.destroy()
+
+
+def test_a_marker_is_its_spots_size(strong):
+    from mxi_ui.viewer import MARGIN, MIN_RADIUS
+
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        v.image.set(3)
+        v.show()
+        _yx, _own, half = v.layers[0]["unindexed"].on_sized(2)
+        hx = float(half[0][0])
+        for _ in range(4):
+            settle(root, 2)
+            item = v.canvas.find_withtag("unindexed")[0]
+            x0, _y0, x1, _y1 = v.canvas.coords(item)
+            assert (
+                abs((x1 - x0) / 2 - max(MIN_RADIUS, hx / v.view.scale + MARGIN)) < 1e-6
+            )
+            v.zoom(1)
+        assert (x1 - x0) / 2 > 4 * MIN_RADIUS, "zoomed in, the spot's own size"
+    finally:
+        root.destroy()
+
+
+def test_dragging_with_the_right_button_zooms(strong):
+    from mxi_ui.viewer import DRAG_LEVEL
+
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        for sequence in (
+            "<ButtonPress-2>",
+            "<ButtonPress-3>",
+            "<Control-ButtonPress-1>",
+            "<B2-Motion>",
+            "<B3-Motion>",
+            "<Control-B1-Motion>",
+        ):
+            assert v.canvas.bind(sequence), sequence
+        start = v.view.scale
+        point = v.view.to_detector(200, 300)  # where the drag begins
+
+        class E:
+            def __init__(self, y):
+                self.x, self.y = 200, y
+
+        v._zoom_press(E(300))
+        v._zoom_drag(E(300 - 2 * DRAG_LEVEL - 5))  # up two levels and a bit
+        from mxi_ui import render
+
+        assert v.view.scale == render.next_level(render.next_level(start, True), True)
+        assert all(
+            abs(a - b) < 1e-6 for a, b in zip(v.view.to_canvas(*point), (200, 300))
+        )
+        v._zoom_drag(E(300 + DRAG_LEVEL))  # back down past where it began
+        assert v.view.scale > render.next_level(start, True)
+    finally:
+        root.destroy()
+
+
+def test_a_trackpads_scroll_its_vertical_part(strong):
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        start = v.view.scale
+
+        class E:
+            x, y = 100, 100
+            delta = (3 << 16) | 5  # dx 3, dy 5, packed as Tk 9 packs them
+
+        v._touchpad(E)
+        assert v.view.scale < start, "dy up: in"
+        v._last_wheel = -1e9
+
+        class Down(E):
+            delta = (0 << 16) | (0x10000 - 4)  # dy -4
+
+        v._touchpad(Down)
+        assert v.view.scale == start
     finally:
         root.destroy()

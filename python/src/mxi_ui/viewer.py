@@ -113,6 +113,7 @@ class Viewer:
         self._reduced = None
         self._last_wheel = -1e9
         self._zooming = None
+        self._auto_fit = True
         self._controls()
         self.canvas = tk.Canvas(self.top, background="#808080", highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
@@ -190,7 +191,7 @@ class Viewer:
 
     def _bindings(self):
         c = self.canvas
-        c.bind("<Configure>", lambda _e: self.draw())
+        c.bind("<Configure>", lambda _e: self._resized())
         c.bind("<ButtonPress-1>", self._press)
         c.bind("<B1-Motion>", self._move)
         # Zoom by dragging up or down with the right button -- Button-2 on a
@@ -259,6 +260,7 @@ class Viewer:
             box.pack(side=tk.LEFT, padx=(0, 12))
         h, w = images.frame_shape
         self.view = render.View((w, h), self._canvas_size())
+        self._auto_fit = True
         self.image.set(self.first)
         self.show(fit_contrast=True)
 
@@ -293,7 +295,18 @@ class Viewer:
     def fit(self):
         if self.view is not None:
             self.view.fit(self._canvas_size())
+            self._auto_fit = True
             self.draw()
+
+    def _resized(self):
+        """The canvas's size changed -- first of all when the window is first
+        drawn, before which it measures a pixel: refitted, until the view is
+        zoomed or panned, after which it is kept. Fitted once at a pixel's
+        size and never again, as at first, the window had opened grey, Fit
+        needed to see the image (Graeme)."""
+        if self.view is not None and self._auto_fit:
+            self.view.fit(self._canvas_size())
+        self.draw()
 
     def draw(self):
         if self.frame is None or self.view is None:
@@ -394,6 +407,7 @@ class Viewer:
         if self._drag is None or self.view is None:
             return
         self.view.pan(e.x - self._drag[0], e.y - self._drag[1])
+        self._auto_fit = False
         self._drag = (e.x, e.y)
         self.draw()
 
@@ -411,6 +425,7 @@ class Viewer:
         if at is None:
             w, h = self._canvas_size()
             at = (w / 2, h / 2)
+        self._auto_fit = False
         self.view.zoom(
             1.25 if direction > 0 else 0.8,
             at[0],

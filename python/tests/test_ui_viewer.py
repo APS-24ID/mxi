@@ -46,9 +46,9 @@ def open_viewer(path):
     root.withdraw()
     v = Viewer(root, str(path))
     v.top.geometry("800x700")
-    settle(root)
-    v.fit()
-    settle(root)
+    # No Fit: opened as a person opens it, fitted by the viewer itself --
+    # pressing Fit here had hidden that it was not (Graeme's grey window).
+    settle(root, 20)
     return root, v
 
 
@@ -399,5 +399,42 @@ def test_a_trackpads_scroll_its_vertical_part(strong):
 
         v._touchpad(Down)
         assert v.view.scale == start
+    finally:
+        root.destroy()
+
+
+def test_the_image_is_fitted_when_the_window_opens(strong):
+    # No Fit pressed: fitted once at the canvas's first size, a pixel, and
+    # never again, the window had opened grey.
+    from mxi_ui import render
+    from mxi_ui.viewer import Viewer
+
+    root = tkinter.Tk()
+    root.withdraw()
+    v = Viewer(root, str(strong / "strong.rflx"))
+    try:
+        v.top.geometry("800x700")
+        settle(root, 20)
+        w, h = v._canvas_size()
+        fitted = render.View((v.view.width, v.view.height), (w, h)).scale
+        assert w > 100 and v.view.scale == fitted
+        x0, y0, x1, y1 = v.canvas.bbox("image")
+        assert x1 - x0 > w / 3 and y1 - y0 > h / 3, "the image fills the window"
+        v.image.set(3)  # image 1 has no spots: the planted series' begin on 3
+        v.show()
+        settle(root)
+        assert v.canvas.find_withtag("unindexed"), "its spots on it"
+        v.zoom(1)
+        zoomed = v.view.scale
+        v.top.geometry("700x650")
+        settle(root, 20)
+        assert v.view.scale == zoomed, "zoomed, a resize keeps the view"
+        v.fit()
+        v.top.geometry("900x800")
+        settle(root, 20)
+        assert (
+            v.view.scale
+            == render.View((v.view.width, v.view.height), v._canvas_size()).scale
+        )
     finally:
         root.destroy()

@@ -292,8 +292,12 @@ class Markers:
         # Each spot's half-width and half-height, from its box, for markers
         # drawn the spot's size (mxi ui's viewer): zero where there is none.
         self.half = np.zeros((len(index), 2))
+        # And its box itself, x0, x1, y0, y1 in pixel edges, for markers drawn
+        # as the box (mxi ui's viewer): None where the table has none.
+        self.box = None
         if len(index) and "bbox" in table:
             box = np.asarray(table["bbox"])[index]
+            self.box = box[:, :4].astype(float)
             self.half = np.column_stack(
                 [(box[:, 1] - box[:, 0]) / 2.0, (box[:, 3] - box[:, 2]) / 2.0]
             ).astype(float)
@@ -314,6 +318,15 @@ class Markers:
         frame + window - 1: their (y, x), and whether each is centred there."""
         yx, centred, _half = self.on_sized(frame, window)
         return yx, centred
+
+    def on_boxed(self, frame: int, window: int = 1):
+        """As on(), with each marker's box, (x0, x1, y0, y1) in pixel edges,
+        or None for them all where the table has no boxes."""
+        last = frame + max(1, int(window)) - 1
+        shown = (self.lo <= last) & (self.hi >= frame)
+        centre = self.centre[shown]
+        boxes = self.box[shown] if self.box is not None else None
+        return self.yx[shown], (centre >= frame) & (centre <= last), boxes
 
     def on_sized(self, frame: int, window: int = 1):
         """As on(), with each marker's half-width and half-height, (hx, hy)

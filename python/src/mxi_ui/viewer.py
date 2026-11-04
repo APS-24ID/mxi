@@ -23,7 +23,6 @@ from mxi_ui import render
 from mxi_ui.tooltip import Tooltip
 
 MIN_RADIUS = 5  # canvas pixels: the least a marker is, however small its spot
-MARGIN = 3  # canvas pixels between a spot's box and its marker, to see the spot
 DRAG_LEVEL = 30  # canvas pixels dragged a zoom level, with the right button
 WHEEL_INTERVAL = 0.1  # seconds: at most a zoom level each, from a scroll
 LAYERS = (
@@ -33,6 +32,14 @@ LAYERS = (
     ("predicted", "Predictions", "xyzcal.px", "#1565c0"),
 )
 COLUMNS = ["id", "xyzobs.px.value", "xyzcal.px", "bbox", "miller_index"]
+
+
+def _at_least(lo, hi, least):
+    """lo to hi widened about its middle to `least` where it is narrower."""
+    if hi - lo >= least:
+        return lo, hi
+    middle = (lo + hi) / 2
+    return middle - least / 2, middle + least / 2
 
 
 def typing(event):
@@ -332,35 +339,41 @@ class Viewer:
         self._markers()
 
     def _markers(self):
-        """Each marker the size of its spot on screen -- its box's half-width
-        and half-height at the view's scale -- and never less than MIN_RADIUS,
-        so that a spot shows zoomed out: drawn all one size, as at first, a
-        marker said nothing of its spot (Graeme)."""
+        """Each spot as its box -- the pixels it covers, its edges a pixel
+        outside so that the outline frames the spot -- as DIALS's viewer draws
+        them; never less than MIN_RADIUS about the box's middle, so that a
+        spot shows zoomed out. A circle where there is no box (refinement's
+        predictions). Circles their spot's size, as just before, had stood for
+        boxes the file has (Graeme)."""
         layers = self.layers.get(self.sweep.get(), {})
         frame = self._image() - 1
         width, height = self._canvas_size()
-        scale = self.view.scale
         for key, _label, _column, colour in LAYERS:
             markers = layers.get(key)
             if markers is None or not self.showing[key].get():
                 continue
-            yx, centred, half = markers.on_sized(frame)
-            for (y, x), own, (hx, hy) in zip(yx, centred, half):
-                # Markers are napari's, half a pixel less than mxi's
-                cx, cy = self.view.to_canvas(x + 0.5, y + 0.5)
-                rx = max(MIN_RADIUS, hx / scale + MARGIN)
-                ry = max(MIN_RADIUS, hy / scale + MARGIN)
-                if -rx <= cx <= width + rx and -ry <= cy <= height + ry:
-                    self.canvas.create_oval(
-                        cx - rx,
-                        cy - ry,
-                        cx + rx,
-                        cy + ry,
-                        outline=colour,
-                        width=2 if own else 1,
-                        dash=() if own else (2, 2),
-                        tags=key,
-                    )
+            yx, centred, boxes = markers.on_boxed(frame)
+            for i, ((y, x), own) in enumerate(zip(yx, centred)):
+                style = dict(
+                    outline=colour,
+                    width=2 if own else 1,
+                    dash=() if own else (2, 2),
+                    tags=key,
+                )
+                if boxes is not None:
+                    bx0, bx1, by0, by1 = boxes[i]
+                    x0, y0 = self.view.to_canvas(bx0, by0)
+                    x1, y1 = self.view.to_canvas(bx1, by1)
+                    x0, x1 = _at_least(x0 - 1, x1 + 1, 2 * MIN_RADIUS)
+                    y0, y1 = _at_least(y0 - 1, y1 + 1, 2 * MIN_RADIUS)
+                    if x1 >= 0 and x0 <= width and y1 >= 0 and y0 <= height:
+                        self.canvas.create_rectangle(x0, y0, x1, y1, **style)
+                else:
+                    # Markers are napari's, half a pixel less than mxi's
+                    cx, cy = self.view.to_canvas(x + 0.5, y + 0.5)
+                    r = MIN_RADIUS
+                    if -r <= cx <= width + r and -r <= cy <= height + r:
+                        self.canvas.create_oval(cx - r, cy - r, cx + r, cy + r, **style)
 
     # --- the mouse ----------------------------------------------------------
 

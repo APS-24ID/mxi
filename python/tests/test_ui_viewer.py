@@ -52,32 +52,33 @@ def open_viewer(path):
     return root, v
 
 
-def centres(v, tag):
-    out = []
-    for item in v.canvas.find_withtag(tag):
-        x0, y0, x1, y1 = v.canvas.coords(item)
-        out.append(((x0 + x1) / 2, (y0 + y1) / 2))
-    return sorted(out)
+def drawn_boxes(v, tag):
+    return sorted(
+        tuple(round(c, 6) for c in v.canvas.coords(i))
+        for i in v.canvas.find_withtag(tag)
+    )
 
 
-def expected(v, key):
-    """Where the markers on the image shown belong, those drawn: any part of
-    one on the canvas, as the viewer draws them, each its spot's size."""
-    from mxi_ui.viewer import MARGIN, MIN_RADIUS
+def wanted_boxes(v, key):
+    """Each spot's box on the canvas, as the viewer should draw it: its pixel
+    edges a pixel outside, at least 2 MIN_RADIUS about its middle, any part on
+    the canvas."""
+    from mxi_ui.viewer import MIN_RADIUS, _at_least
 
-    yx, _own, half = v.layers[0][key].on_sized(v._image() - 1)
+    _yx, _own, boxes = v.layers[0][key].on_boxed(v._image() - 1)
     w, h = v._canvas_size()
     out = []
-    for (y, x), (hx, hy) in zip(yx, half):
-        cx, cy = v.view.to_canvas(x + 0.5, y + 0.5)
-        rx = max(MIN_RADIUS, hx / v.view.scale + MARGIN)
-        ry = max(MIN_RADIUS, hy / v.view.scale + MARGIN)
-        if -rx <= cx <= w + rx and -ry <= cy <= h + ry:
-            out.append((cx, cy))
+    for bx0, bx1, by0, by1 in boxes:
+        x0, y0 = v.view.to_canvas(bx0, by0)
+        x1, y1 = v.view.to_canvas(bx1, by1)
+        x0, x1 = _at_least(x0 - 1, x1 + 1, 2 * MIN_RADIUS)
+        y0, y1 = _at_least(y0 - 1, y1 + 1, 2 * MIN_RADIUS)
+        if x1 >= 0 and x0 <= w and y1 >= 0 and y0 <= h:
+            out.append(tuple(round(c, 6) for c in (x0, y0, x1, y1)))
     return sorted(out)
 
 
-def test_each_marker_is_on_its_spot_at_any_zoom(strong):
+def test_each_spot_is_drawn_as_its_box_at_any_zoom(strong):
     root, v = open_viewer(strong / "strong.rflx")
     try:
         v.image.set(3)
@@ -92,24 +93,20 @@ def test_each_marker_is_on_its_spot_at_any_zoom(strong):
                 v.view.pan(37, -21)
             v.draw()
             settle(root, 3)
-            drawn, wanted = centres(v, "unindexed"), expected(v, "unindexed")
-            assert len(drawn) == len(wanted) > 0, action
-            assert all(
-                abs(a - c) < 1e-6 and abs(b - d) < 1e-6
-                for (a, b), (c, d) in zip(drawn, wanted)
-            ), action
-            # And on the spot in the picture: the darkest pixel near a marker.
-            x, y = v.view.to_detector(*drawn[len(drawn) // 2])
-            patch = v.frame[
-                max(0, int(y) - 3) : int(y) + 4, max(0, int(x) - 3) : int(x) + 4
+            drawn, wanted = drawn_boxes(v, "unindexed"), wanted_boxes(v, "unindexed")
+            assert drawn == wanted and drawn, action
+            # And round the spot in the picture: its brightest pixel inside.
+            x0, y0, x1, y1 = drawn[len(drawn) // 2]
+            (dx0, dy0), (dx1, dy1) = v.view.to_detector(x0, y0), v.view.to_detector(
+                x1, y1
+            )
+            inside = v.frame[
+                max(0, int(dy0)) : int(dy1) + 1, max(0, int(dx0)) : int(dx1) + 1
             ]
-            assert (
-                patch.max()
-                == v.frame[
-                    max(0, int(y) - 6) : int(y) + 7, max(0, int(x) - 6) : int(x) + 7
-                ].max()
-                > 0
-            ), action
+            around = v.frame[
+                max(0, int(dy0) - 4) : int(dy1) + 5, max(0, int(dx0) - 4) : int(dx1) + 5
+            ]
+            assert inside.max() == around.max() > 0, action
     finally:
         root.destroy()
 
@@ -324,24 +321,35 @@ def test_typing_an_image_number_keeps_the_zoom(strong):
         root.destroy()
 
 
-def test_a_marker_is_its_spots_size(strong):
-    from mxi_ui.viewer import MARGIN, MIN_RADIUS
+def test_a_box_is_its_spots_size(strong):
+    from mxi_ui.viewer import MIN_RADIUS
 
     root, v = open_viewer(strong / "strong.rflx")
     try:
         v.image.set(3)
         v.show()
-        _yx, _own, half = v.layers[0]["unindexed"].on_sized(2)
-        hx = float(half[0][0])
+        _yx, _own, boxes = v.layers[0]["unindexed"].on_boxed(2)
+        width = float(boxes[0][1] - boxes[0][0])
         for _ in range(4):
             settle(root, 2)
-            item = v.canvas.find_withtag("unindexed")[0]
-            x0, _y0, x1, _y1 = v.canvas.coords(item)
-            assert (
-                abs((x1 - x0) / 2 - max(MIN_RADIUS, hx / v.view.scale + MARGIN)) < 1e-6
-            )
+            x0, _y0, x1, _y1 = v.canvas.coords(v.canvas.find_withtag("unindexed")[0])
+            assert abs((x1 - x0) - max(2 * MIN_RADIUS, width / v.view.scale + 2)) < 1e-6
             v.zoom(1)
-        assert (x1 - x0) / 2 > 4 * MIN_RADIUS, "zoomed in, the spot's own size"
+        assert (x1 - x0) > 8 * MIN_RADIUS, "zoomed in, the spot's own size"
+        assert v.canvas.type(v.canvas.find_withtag("unindexed")[0]) == "rectangle"
+    finally:
+        root.destroy()
+
+
+def test_a_layer_without_boxes_is_drawn_as_circles(strong):
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        v.image.set(3)
+        v.layers[0]["unindexed"].box = None  # as predictions without boxes
+        v.show()
+        settle(root)
+        items = v.canvas.find_withtag("unindexed")
+        assert items and {v.canvas.type(i) for i in items} == {"oval"}
     finally:
         root.destroy()
 

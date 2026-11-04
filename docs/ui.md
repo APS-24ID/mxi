@@ -52,7 +52,9 @@ empty or 0, every core the job may use), and a line for any further options,
 as `mxi COMMAND --help` lists them. Each field's option and what it does are
 a tooltip, shown when the pointer rests on it -- `--d-min: nothing beyond
 this d` -- not lines beside the fields. The command they make is shown beneath as
-it is built, to copy or to learn from, and Run runs exactly that. A value that
+it is built, to copy or to learn from, and Run -- named for the step, "Run
+scale", or Cmd-Return on a Mac and Ctrl-Return elsewhere -- runs exactly that.
+A value that
 cannot be right -- a resolution that is not a number -- is said in red, and
 Run waits for it. Each step keeps its entries while the window is open.
 

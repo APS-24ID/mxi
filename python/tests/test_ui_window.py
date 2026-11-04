@@ -260,3 +260,59 @@ def test_run_is_in_view_on_every_tab_and_a_step_keeps_the_tab(window):
     choose(window, "refine")
     assert window.tabs.select() == str(window.summary.master), "the tab kept"
     assert "mxi refine indexed.rflx" in window.summary.get("1.0", "end")
+
+
+def test_a_steps_summary_and_plots_come_from_its_file(tmp_path, monkeypatch):
+    from ui_records import install
+
+    from mxi_ui.window import MainWindow
+
+    install(monkeypatch, tmp_path)
+    root = tkinter.Tk()
+    root.withdraw()
+    w = MainWindow(root, str(tmp_path))
+    try:
+        choose(w, "scale")
+        text = w.summary.get("1.0", "end")
+        assert "Merging statistics" in text and "High resolution limit" in text
+        assert "Resolution at CC½ 0.3 (Å)" in text
+        assert w.canvas is not None and len(w.figure.axes) >= 4
+        titles = [a.get_title() for a in w.figure.axes]
+        assert "R factors by resolution" in titles
+        (tmp_path / "scaled.rflx").unlink()
+        choose(w, "refine")
+        choose(w, "scale")
+        labels = [
+            c.cget("text")
+            for c in w.plots.winfo_children()
+            if c.winfo_class() == "TLabel"
+        ]
+        assert labels == ["Plots appear once scale has run."] and w.canvas is None
+    finally:
+        root.destroy()
+
+
+def test_the_plots_are_drawn_to_the_tabs_size(tmp_path, monkeypatch):
+    # Sized from its own wish, the figure had been drawn wider than the tab,
+    # its right-hand plots cut off; it is the canvas's size now, which fills
+    # the tab, when the tab is shown and when the window changes size.
+    from ui_records import install
+
+    from mxi_ui.window import MainWindow
+
+    install(monkeypatch, tmp_path)
+    root = tkinter.Tk()
+    w = MainWindow(root, str(tmp_path))
+    try:
+        choose(w, "scale")
+        w.tabs.select(w.plots)
+        for geometry in ("1100x720", "900x600"):
+            root.geometry(geometry)
+            for _ in range(15):
+                root.update()
+            canvas = w.canvas.get_tk_widget()
+            drawn = w.figure.get_size_inches() * w.figure.dpi
+            assert abs(drawn[0] - canvas.winfo_width()) <= 2, geometry
+            assert canvas.winfo_width() <= w.plots.winfo_width(), geometry
+    finally:
+        root.destroy()

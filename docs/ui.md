@@ -70,25 +70,52 @@ The forms show each command's main options, not all of them; every option on
 a form is checked against the command's own `--help` by the tests, so that
 they cannot offer what mxi does not take.
 
+## A step's results
+
+What a step produced is read from its output file -- `strong.rflx` for spot
+finding, `scaled.rflx` for scaling -- whose summary records every step so
+far, each program's figures and tables (`docs/rflx.md`, `docs/output.md`);
+the step's own record is its program's. Nothing is read from the log.
+
+**Summary**: the step, its command, its file and when it ran, its figures --
+those it knows by name first (spots, indexed fraction, cell, RMSDs, Laue
+group, observations, the resolution at CC½ 0.3, the error model, ...), then any
+other the record holds, so that a figure a command adds later is shown
+without a change here -- and its tables: scaling's merging statistics as DIALS
+lays them out, a row a figure and a column overall, low and high; the
+subgroups symmetry weighed; integration's overall figures.
+
+**Plots**, with matplotlib, its toolbar beneath to zoom, pan and save -- those
+mxi report draws from the same records:
+
+| Step | Plots |
+| --- | --- |
+| Find spots | spots per image, a line a sweep; spots by resolution |
+| Index | the RMSDs, cycle by cycle |
+| Refine | the RMSDs, cycle by cycle; each crystal's cell lengths and angles over the scan |
+| Integrate | <I/σ> summed and profile-fitted, profile correlation, background, by resolution |
+| Scale | CC½, <I/σ>, completeness with multiplicity on its own axis, the R factors on a log axis, by resolution |
+
+A resolution axis is spaced evenly in 1/d², ticked in d. Not yet: each
+sweep's own integration figures, where there are several; the clusters of
+`mxi correlation`.
+
 ## Phases
 
 1. **Foundations** (done): the package; the dependency check, its advice for
    each system; the main window -- the steps and tools down the side, done or
-   not from the directory, tabs for images, log, summary and plots, a status
-   line; running a step, streamed, cancellable; `mxi ui`, `mxi-ui` and
-   `python -m mxi_ui`.
+   not from the directory, tabs, a status line; running a step, streamed,
+   cancellable; `mxi ui`, `mxi-ui` and `python -m mxi_ui`.
 2. **The forms** (done): each step's inputs, main options, output, threads and
-   further options, the command built as they are filled in (above).
-3. **The viewer**: on a Tk canvas, each frame reduced to the window by the
+   further options, the command built as they are filled in.
+3. **Results** (done, but for each sweep's integration and the clusters): each
+   step's summary and plots from its file (above).
+4. **The viewer**: on a Tk canvas, each frame reduced to the window by the
    maximum over each block of pixels, so that a spot one pixel wide shows at
    any zoom; sweeps and frames, zoom and pan, contrast and colour maps, the
    pixel, value and resolution under the cursor; spots and predictions on
    exactly the images they occupy; untrusted regions drawn, undone and saved
    through `mxi untrusted`. Then `mxi view` opens it, and the napari viewer
    is retired.
-4. **Results**: each step's summary from its file; several sweeps, several
-   lattices, and clusters scaled one by one; plots with matplotlib as each
-   step's results allow -- spots per image, refinement's RMSDs, I/σ and CC½
-   against resolution, scale factors, the clusters.
 5. **Teaching**: a short explanation of each step, and the guides linked.
 6. **Packaging and documents**, released as 1.2.0.

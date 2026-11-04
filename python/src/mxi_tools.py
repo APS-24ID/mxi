@@ -197,8 +197,11 @@ def h5py_with_filters():
 def read_summary(path: str) -> dict:
     """The processing's summary a .rflx carries -- {"steps": [...]}, each
     program's figures and tables in the order they ran (docs/output.md) --
-    or {"steps": []} where it has none: a pair, or a file before summaries."""
-    import h5py
+    or {"steps": []} where it has none: a pair, or a file before summaries.
+    Its longer arrays are compressed, as the reflections' are -- 3600 images'
+    spots on Graeme's indexed.rflx -- so through h5py_with_filters: opened
+    with h5py alone, as at first, a real file's summary did not read."""
+    h5py = h5py_with_filters()
 
     if not path.endswith(".rflx"):
         return {"steps": []}

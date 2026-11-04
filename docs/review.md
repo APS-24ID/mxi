@@ -125,7 +125,9 @@ find ...` runs `mxi_find_main` -- and each command is still its own source,
 linked into `mxi`. `mxi view` is Python on napari (optional),
 `python/src/mxi_view.py`, copied beside `mxi` by the build with the module it
 shares, `python/src/mxi_tools.py`, and run by it. Both are also in the wheel
-`mxi-python` with mxeq: every Python tool is in `python/src/`. In the build directory each command's old
+`mxi-python` with mxeq: every Python tool is in `python/src/`. `mxi ui`, the
+interface, is the package `python/src/mxi_ui` (`docs/ui.md`), copied beside
+`mxi` with its launcher `mxi-ui`; only its windows import tkinter. In the build directory each command's old
 name, `"mxi_find"`, is a link to `mxi`, which runs the command it is called by:
 the tests run them so; they are not installed. Seven commands are for looking at
 a step rather than doing it, listed apart by `mxi help`: `mxi profile`

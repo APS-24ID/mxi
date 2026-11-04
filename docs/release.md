@@ -34,10 +34,11 @@ nothing is published.
 | `mxi-1.1.1-linux-arm64.tar.gz` | `mxi` for ARM64 Linux, built in manylinux_2_28 on GitHub's ARM runner, for the CPU: a Raspberry Pi 4 or 5 with a 64-bit OS, ARM servers |
 | `mxi-1.1.1-linux-arm64-cuda.tar.gz` | the same with CUDA 12.8, NVIDIA's toolkit for ARM servers (sbsa), for Hopper and Blackwell -- the GH200 and GB200 -- with their PTX for later GPUs; not Jetson, whose toolkit is another |
 | `mxi-1.1.1-macos-arm64.tar.gz` | `mxi`, for Apple silicon, with Metal: macOS 13 or later, its static libraries too (an overlay triplet, `cmake/triplets`); any API newer than 13 used without a check fails the build, so that the binaries cannot fail on an older macOS |
-| `mxi_python-1.1.1-py3-none-any.whl` | mxi's Python tools, `pip install` it: mxeq, the referee; `mxi_tools`; `mxi-view`, the viewer |
+| `mxi_python-1.1.1-py3-none-any.whl` | mxi's Python tools, `pip install` it: mxeq, the referee; `mxi_tools`; `mxi-view`, the viewer; `mxi-ui`, the interface |
 
-Each binary archive is `bin/` -- `mxi`, every step a command of it, with `mxi
-view`'s Python and its module `mxi_tools.py` beside it -- with the licence,
+Each binary archive is `bin/` -- `mxi`, every step a command of it, with the
+Python beside it that `mxi view` and `mxi ui` run: `mxi_view`, `mxi-ui` and its
+package `mxi_ui/`, and their module `mxi_tools.py` -- with the licence,
 the README and the release notes. Unpack it and put its `bin` on the PATH. The
 program needs nothing installed: HDF5 and zlib are linked in, from vcpkg
 (`vcpkg.json`), and on Linux the C++ runtime too; built in manylinux_2_28, it needs glibc 2.28

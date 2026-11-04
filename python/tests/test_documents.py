@@ -47,11 +47,14 @@ PROGRAM = re.compile(r"`(mxi_[a-z]+)`")
 
 
 def _python_modules():
-    """The wheel's own modules, mxi-python's (python/pyproject.toml): named
-    in the documents as Python, not as programs -- mxi_tools, mxi_view."""
+    """The wheel's own modules and packages, mxi-python's: named in the
+    documents as Python, not as programs -- mxi_tools, mxi_view, mxi_ui."""
     text = (ROOT / "python/pyproject.toml").read_text()
     found = re.search(r"py-modules\s*=\s*\[([^\]]*)\]", text)
-    return set(re.findall(r'"([a-z_]+)"', found.group(1))) if found else set()
+    modules = set(re.findall(r'"([a-z_]+)"', found.group(1))) if found else set()
+    # And its packages, which setuptools finds itself: mxi_ui, the interface.
+    packages = {p.parent.name for p in (ROOT / "python/src").glob("mxi_*/__init__.py")}
+    return modules | packages
 
 
 PYTHON_MODULES = _python_modules()

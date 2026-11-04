@@ -10,7 +10,7 @@ its conclusions sometimes overturned later, with an index of those.
 | [`README.md`](../README.md) | reference | building, the chain, the programs, where it stands |
 | [`docs/review.md`](review.md) | guide | for reviewers: what this is, how it differs from DIALS, where things are |
 | [`docs/algorithms.md`](algorithms.md) | reference | each stage's methods, their sources, where they live and how they differ from DIALS |
-| [`docs/ui.md`](ui.md) | phase 3 of 6 | mxi ui, the interface: the workflow's steps run as the commands, the images, the results; what it needs, how it works, its phases |
+| [`docs/ui.md`](ui.md) | guide | mxi ui, the interface: starting it, what it needs, the window, running a step, its summary and plots, the image viewer, how it works, what is not yet done |
 | [`docs/mask.md`](mask.md) | guide | viewing the images, and the detector's untrusted regions: drawing them with mxi view, keeping and applying them with mxi untrusted |
 | [`docs/release.md`](release.md) | guide | making a release: the tag, the builds for Linux with CUDA and macOS with Metal, what they test, the source archive, macOS's quarantine |
 | [`RELEASE_NOTES.md`](../RELEASE_NOTES.md) | reference | what each release changed, newest first |

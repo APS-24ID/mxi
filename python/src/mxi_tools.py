@@ -289,8 +289,14 @@ class Markers:
             index = np.where(rows)[0]
         z = xyz[index, 2]
         own = np.floor(z)
+        # Each spot's half-width and half-height, from its box, for markers
+        # drawn the spot's size (mxi ui's viewer): zero where there is none.
+        self.half = np.zeros((len(index), 2))
         if len(index) and "bbox" in table:
             box = np.asarray(table["bbox"])[index]
+            self.half = np.column_stack(
+                [(box[:, 1] - box[:, 0]) / 2.0, (box[:, 3] - box[:, 2]) / 2.0]
+            ).astype(float)
             # Its own image always among them, whatever the box says.
             self.lo = np.minimum(box[:, 4].astype(float), own)
             self.hi = np.maximum(box[:, 5].astype(float) - 1, own)
@@ -306,10 +312,16 @@ class Markers:
         """The markers on image `frame` (napari's slice: image frame + 1) --
         or, with `window` images summed for each shown, on any of frame to
         frame + window - 1: their (y, x), and whether each is centred there."""
+        yx, centred, _half = self.on_sized(frame, window)
+        return yx, centred
+
+    def on_sized(self, frame: int, window: int = 1):
+        """As on(), with each marker's half-width and half-height, (hx, hy)
+        in pixels, from its box: zero where the table has no boxes."""
         last = frame + max(1, int(window)) - 1
         shown = (self.lo <= last) & (self.hi >= frame)
         centre = self.centre[shown]
-        return self.yx[shown], (centre >= frame) & (centre <= last)
+        return self.yx[shown], (centre >= frame) & (centre <= last), self.half[shown]
 
 
 # --- images ------------------------------------------------------------------

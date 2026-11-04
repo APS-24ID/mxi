@@ -22,7 +22,9 @@ import mxi_tools
 from mxi_ui import render
 from mxi_ui.tooltip import Tooltip
 
-RADIUS = 7  # canvas pixels, a marker's
+MIN_RADIUS = 5  # canvas pixels: the least a marker is, however small its spot
+MARGIN = 3  # canvas pixels between a spot's box and its marker, to see the spot
+DRAG_LEVEL = 30  # canvas pixels dragged a zoom level, with the right button
 WHEEL_INTERVAL = 0.1  # seconds: at most a zoom level each, from a scroll
 LAYERS = (
     # key, label, the table's column, colour
@@ -31,6 +33,18 @@ LAYERS = (
     ("predicted", "Predictions", "xyzcal.px", "#1565c0"),
 )
 COLUMNS = ["id", "xyzobs.px.value", "xyzcal.px", "bbox", "miller_index"]
+
+
+def typing(event):
+    """Whether a key came while typing in a field -- the image box, a list --
+    where it is the field's, not the viewer's."""
+    return event.widget.winfo_class() in (
+        "TSpinbox",
+        "TEntry",
+        "TCombobox",
+        "Entry",
+        "Spinbox",
+    )
 
 
 def masters(document, path):
@@ -98,6 +112,7 @@ class Viewer:
         self._drag = None
         self._reduced = None
         self._last_wheel = -1e9
+        self._zooming = None
         self._controls()
         self.canvas = tk.Canvas(self.top, background="#808080", highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
@@ -164,8 +179,11 @@ class Viewer:
         zoom_out.pack(side=tk.LEFT, padx=(2, 4))
         fit = ttk.Button(bar, text="Fit", width=4, command=self.fit)
         fit.pack(side=tk.LEFT)
-        Tooltip(zoom_in, "Zoom in: + or =, about the pointer; a trackpad's scroll too")
-        Tooltip(zoom_out, "Zoom out: -")
+        Tooltip(
+            zoom_in,
+            "Zoom in: + or =; or drag up with the right button (or Control-drag)",
+        )
+        Tooltip(zoom_out, "Zoom out: -; or drag down with the right button")
         Tooltip(fit, "The whole image: 0, or double-click")
         self.toggles = ttk.Frame(self.top, padding=(8, 0, 8, 4))
         self.toggles.pack(fill=tk.X)
@@ -175,20 +193,40 @@ class Viewer:
         c.bind("<Configure>", lambda _e: self.draw())
         c.bind("<ButtonPress-1>", self._press)
         c.bind("<B1-Motion>", self._move)
+        # Zoom by dragging up or down with the right button -- Button-2 on a
+        # Mac, Button-3 elsewhere -- or Control and the left: no wheel needed,
+        # and a trackpad's two fingers had done nothing (Graeme).
+        for press, motion in (
+            ("<ButtonPress-2>", "<B2-Motion>"),
+            ("<ButtonPress-3>", "<B3-Motion>"),
+            ("<Control-ButtonPress-1>", "<Control-B1-Motion>"),
+        ):
+            c.bind(press, self._zoom_press)
+            c.bind(motion, self._zoom_drag)
         c.bind("<Double-Button-1>", lambda _e: self.fit())
         c.bind("<Motion>", self._hover)
         c.bind("<MouseWheel>", lambda e: self._wheel(e, 1 if e.delta > 0 else -1))
         c.bind("<Button-4>", lambda e: self._wheel(e, 1))  # X11's wheel
         c.bind("<Button-5>", lambda e: self._wheel(e, -1))
-        self.top.bind("<Left>", lambda _e: self.step(-1))
-        self.top.bind("<Right>", lambda _e: self.step(1))
+        # Tk 9's trackpad scroll (Homebrew's Python has it), its own event;
+        # Tk 8.6 knows no such event.
+        try:
+            c.bind("<TouchpadScroll>", self._touchpad)
+        except tk.TclError:
+            pass
+        # The keys, but not while typing in a field: bound to the window, 0
+        # typed into the image box -- image 10, 100 -- had fitted the view.
+        keys = {
+            "<Left>": lambda: self.step(-1),
+            "<Right>": lambda: self.step(1),
+            "<KeyPress-0>": self.fit,
+        }
         for key in ("plus", "equal", "KP_Add"):
-            self.top.bind(f"<KeyPress-{key}>", lambda _e: self.zoom(1, at_pointer=True))
+            keys[f"<KeyPress-{key}>"] = lambda: self.zoom(1, at_pointer=True)
         for key in ("minus", "KP_Subtract"):
-            self.top.bind(
-                f"<KeyPress-{key}>", lambda _e: self.zoom(-1, at_pointer=True)
-            )
-        self.top.bind("<KeyPress-0>", lambda _e: self.fit())
+            keys[f"<KeyPress-{key}>"] = lambda: self.zoom(-1, at_pointer=True)
+        for key, action in keys.items():
+            self.top.bind(key, lambda e, act=action: None if typing(e) else act())
 
     # --- the sweep and image ----------------------------------------------
 
@@ -281,23 +319,30 @@ class Viewer:
         self._markers()
 
     def _markers(self):
+        """Each marker the size of its spot on screen -- its box's half-width
+        and half-height at the view's scale -- and never less than MIN_RADIUS,
+        so that a spot shows zoomed out: drawn all one size, as at first, a
+        marker said nothing of its spot (Graeme)."""
         layers = self.layers.get(self.sweep.get(), {})
         frame = self._image() - 1
         width, height = self._canvas_size()
+        scale = self.view.scale
         for key, _label, _column, colour in LAYERS:
             markers = layers.get(key)
             if markers is None or not self.showing[key].get():
                 continue
-            yx, centred = markers.on(frame)
-            for (y, x), own in zip(yx, centred):
+            yx, centred, half = markers.on_sized(frame)
+            for (y, x), own, (hx, hy) in zip(yx, centred, half):
                 # Markers are napari's, half a pixel less than mxi's
                 cx, cy = self.view.to_canvas(x + 0.5, y + 0.5)
-                if -RADIUS <= cx <= width + RADIUS and -RADIUS <= cy <= height + RADIUS:
+                rx = max(MIN_RADIUS, hx / scale + MARGIN)
+                ry = max(MIN_RADIUS, hy / scale + MARGIN)
+                if -rx <= cx <= width + rx and -ry <= cy <= height + ry:
                     self.canvas.create_oval(
-                        cx - RADIUS,
-                        cy - RADIUS,
-                        cx + RADIUS,
-                        cy + RADIUS,
+                        cx - rx,
+                        cy - ry,
+                        cx + rx,
+                        cy + ry,
                         outline=colour,
                         width=2 if own else 1,
                         dash=() if own else (2, 2),
@@ -308,6 +353,42 @@ class Viewer:
 
     def _press(self, e):
         self._drag = (e.x, e.y)
+        self.canvas.focus_set()  # the keys the image's, not the image box's
+
+    def _zoom_press(self, e):
+        self._zooming = (e.x, e.y, e.y)  # where, and the last y a level taken
+        self.canvas.focus_set()
+        return "break"
+
+    def _zoom_drag(self, e):
+        """Up a level in, down a level out, each DRAG_LEVEL pixels, about
+        where the drag began."""
+        if self._zooming is None:
+            return "break"
+        x, y, last = self._zooming
+        while e.y <= last - DRAG_LEVEL:
+            last -= DRAG_LEVEL
+            self.zoom(1, at=(x, y))
+        while e.y >= last + DRAG_LEVEL:
+            last += DRAG_LEVEL
+            self.zoom(-1, at=(x, y))
+        self._zooming = (x, y, last)
+        return "break"
+
+    def _touchpad(self, e):
+        """Tk 9's trackpad scroll: its vertical part zooms, as a wheel's."""
+        try:
+            _dx, dy = (
+                int(v)
+                for v in self.top.tk.splitlist(
+                    self.top.tk.call("tk::PreciseScrollDeltas", e.delta)
+                )
+            )
+        except (tk.TclError, ValueError):
+            dy = e.delta & 0xFFFF
+            dy = dy - 0x10000 if dy >= 0x8000 else dy
+        if dy:
+            self._wheel(e, 1 if dy > 0 else -1)
 
     def _move(self, e):
         if self._drag is None or self.view is None:

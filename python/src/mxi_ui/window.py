@@ -1,8 +1,9 @@
-"""The main window: the steps down the side; the chosen step's form -- its
-inputs, main options, output, threads and any further options, the command
-they make shown as it is built -- above tabs for its images, log, summary and
-plots; a working directory at the top, a status line at the foot. The viewer
-and the plots fill their tabs in the phases after (docs/ui.md).
+"""The main window: the steps down the side; for the chosen step, tabs --
+Setup, its form (inputs, main options, output, threads, further options),
+then its log, summary, images and plots -- with the command the form makes,
+Copy and Run in a bar beneath them, in view whichever tab is shown; a working
+directory at the top, a status line at the foot. The viewer and the plots
+fill their tabs in the phases after (docs/ui.md).
 """
 
 import os
@@ -119,11 +120,20 @@ class MainWindow:
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
         panes.add(side, weight=0)
 
-        right = ttk.PanedWindow(panes, orient=tk.VERTICAL)
-        self.form = ttk.LabelFrame(right, text="", padding=(10, 6))
-        right.add(self.form, weight=0)
-        self._form_foot()
+        # The step's form a tab, Setup, beside its log, summary, images and
+        # plots, with the whole height; the command it makes, Copy and Run in a
+        # bar beneath, in view whichever tab is shown. Above the tabs, in a
+        # divided pane, the form had been squeezed until its last row -- the
+        # command and Run -- was a sliver (Graeme's screenshot, on a Mac).
+        right = ttk.Frame(panes)
+        self._action_bar(right)
         self.tabs = ttk.Notebook(right)
+        self.tabs.pack(fill=tk.BOTH, expand=True)
+        self.setup = ttk.Frame(self.tabs, padding=(12, 10))
+        self.heading = ttk.Label(self.setup, text="", font="TkHeadingFont")
+        self.heading.pack(anchor=tk.W, pady=(0, 10))
+        self.fields = ttk.Frame(self.setup)
+        self.fields.pack(fill=tk.X)
         self.images = ttk.Frame(self.tabs, padding=12)
         ttk.Label(
             self.images,
@@ -135,32 +145,32 @@ class MainWindow:
         ttk.Label(self.plots, text="Plots come with the workflow's results.").pack(
             anchor=tk.NW
         )
-        self.tabs.add(self.images, text="Images")
+        self.tabs.add(self.setup, text="Setup")
         self.tabs.add(self.log.master, text="Log")
         self.tabs.add(self.summary.master, text="Summary")
+        self.tabs.add(self.images, text="Images")
         self.tabs.add(self.plots, text="Plots")
-        right.add(self.tabs, weight=1)
         panes.add(right, weight=1)
 
-    def _form_foot(self):
-        """The command the form makes, its problems, Copy and Run: built once,
-        below the fields that each step brings."""
-        self.fields = ttk.Frame(self.form)
-        self.fields.pack(fill=tk.X)
-        foot = ttk.Frame(self.form, padding=(0, 8, 0, 0))
-        foot.pack(fill=tk.X)
-        # Run and Copy first, from the right, so that a narrow window narrows
-        # the command, never drops the buttons (as it had the inputs' Browse).
-        self.run_button = ttk.Button(foot, text="Run", command=self.run_selected)
+    def _action_bar(self, parent):
+        """The command the form makes, its problems, Copy and Run, beneath the
+        tabs. Run and Copy packed first, from the right, so that a narrow
+        window narrows the command, never the buttons."""
+        bar = ttk.Frame(parent, padding=(0, 6, 0, 2))
+        bar.pack(side=tk.BOTTOM, fill=tk.X)
+        row = ttk.Frame(bar)
+        row.pack(fill=tk.X)
+        self.run_button = ttk.Button(row, text="Run", command=self.run_selected)
         self.run_button.pack(side=tk.RIGHT, padx=(6, 0))
-        ttk.Button(foot, text="Copy", command=self.copy_command).pack(
+        ttk.Button(row, text="Copy", command=self.copy_command).pack(
             side=tk.RIGHT, padx=(6, 0)
         )
         shown = ttk.Entry(
-            foot, textvariable=self.command, font="TkFixedFont", state="readonly"
+            row, textvariable=self.command, font="TkFixedFont", state="readonly"
         )
         shown.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Label(self.form, textvariable=self.trouble, foreground="#b00020").pack(
+        # Bright enough to read on a dark window (a Mac's dark mode) and a light.
+        ttk.Label(bar, textvariable=self.trouble, foreground="#e53935").pack(
             anchor=tk.W
         )
 
@@ -199,7 +209,7 @@ class MainWindow:
         for child in self.fields.winfo_children():
             child.destroy()
         form = self._form_of(step)
-        self.form.configure(text=f"{step.title}: {step.about}")
+        self.heading.configure(text=f"{step.title}: {step.about}")
         self.run_button.configure(text=f"Run {step.key}")
         row = 0
 

@@ -471,7 +471,11 @@ class MainWindow:
         """The step, its command, and what its file records: its facts and
         tables (results.py), read from the file, not the log."""
         lines = [step.title, "", step.about, "", "  " + as_text(step.command())]
-        path, rec = results.record(self.directory.get(), step.key)
+        try:
+            path, rec = results.record(self.directory.get(), step.key)
+        except Exception as e:  # noqa: BLE001 -- said, whatever it is
+            path, rec = None, None
+            lines += ["", f"{step.output} cannot be read: {e}"]
         if step.output:
             there = os.path.isfile(os.path.join(self.directory.get(), step.output))
             lines += ["", f"{step.output}: " + ("written" if there else "not yet")]
@@ -486,7 +490,10 @@ class MainWindow:
             # Which steps it does record, so that a file written some other
             # way -- converted, say, which carries the steps before it and
             # adds none -- says so.
-            held = [s.get("program", "?") for s in results.steps_of(path)]
+            try:
+                held = [s.get("program", "?") for s in results.steps_of(path)]
+            except Exception:  # noqa: BLE001 -- said above, if it is the same
+                held = []
             lines += [
                 "",
                 f"{step.output} records no step of mxi {step.key}: "

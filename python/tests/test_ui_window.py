@@ -337,3 +337,26 @@ def test_a_file_without_the_steps_record_says_which_it_has(tmp_path, monkeypatch
         assert "mxi_find" in text and "mxi_convert" in text
     finally:
         root.destroy()
+
+
+def test_a_file_that_cannot_be_read_says_why(tmp_path, monkeypatch):
+    from mxi_ui import results
+    from mxi_ui.window import MainWindow
+
+    (tmp_path / "indexed.rflx").write_text("")
+
+    def unreadable(path):
+        raise OSError("Can't synchronously read data (a filter missing)")
+
+    monkeypatch.setattr(results.mxi_tools, "read_summary", unreadable)
+    root = tkinter.Tk()
+    root.withdraw()
+    w = MainWindow(root, str(tmp_path))
+    try:
+        choose(w, "index")
+        assert (
+            "indexed.rflx cannot be read: Can't synchronously read data"
+            in w.summary.get("1.0", "end")
+        )
+    finally:
+        root.destroy()

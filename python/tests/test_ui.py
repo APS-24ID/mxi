@@ -243,3 +243,59 @@ def test_every_option_on_a_form_is_one_the_command_takes(step):
     )
     missing = [flag for flag in offered if not takes(text, flag)]
     assert not missing, f"mxi {step.key} does not take {missing}"
+
+
+@pytest.mark.skipif(not os.path.exists(MXI), reason="mxi is not built")
+def test_a_summary_with_compressed_arrays_reads(tmp_path):
+    # 300 images' spots per image is compressed (bitshuffle-LZ4, as every
+    # array of 256 or more), as Graeme's 3600 were: read with the filters.
+    import json
+
+    import h5py
+
+    from mxi_ui import results
+
+    subprocess.run(
+        [sys.executable, "-m", "mxeq.fixtures.nxmx", str(tmp_path), "300"],
+        check=True,
+        capture_output=True,
+    )
+    from mxeq.fixtures import nxmx
+
+    nxmx.write_expt(str(tmp_path / "one.expt"), 300)
+    doc = json.load(open(tmp_path / "one.expt"))
+    doc["experiment"][0]["imageset"] = 0
+    doc["imageset"] = [
+        {"__id__": "ImageSequence", "template": str(tmp_path / "series.nxs")}
+    ]
+    json.dump(doc, open(tmp_path / "l.expt", "w"))
+    run = subprocess.run(
+        [MXI, "find", str(tmp_path / "l.expt"), "-o", str(tmp_path / "strong.rflx")],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert run.returncode == 0, run.stderr
+    with h5py.File(tmp_path / "strong.rflx") as f:
+        assert (
+            "32008" in f["summary/steps/0/spots_per_image"]._filters
+        ), "compressed, as it must be"
+    # In a fresh process, as mxi ui is: hdf5plugin registers its filters for
+    # the whole process, and this one has them already (from the fixtures),
+    # so read here a missing import would pass unseen -- it had.
+    src = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"
+    )
+    probe = (
+        "from mxi_ui import results\n"
+        f"path, rec = results.record({str(tmp_path)!r}, 'find')\n"
+        "print(rec['program'], len(rec['spots_per_image'][0]))\n"
+    )
+    fresh = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PYTHONPATH": src},
+    )
+    assert fresh.returncode == 0, fresh.stderr[-500:]
+    assert fresh.stdout.split() == ["mxi_find", "300"]

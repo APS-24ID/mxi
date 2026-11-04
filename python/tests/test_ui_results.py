@@ -20,7 +20,7 @@ def test_a_steps_record_is_its_own_programs_from_its_own_file(tmp_path, monkeypa
 def test_facts_known_first_then_any_other_figure():
     facts = dict(results.facts(chain()["index"]))
     assert facts["Indexed fraction"] == "98.2%"
-    assert facts["Cell"] == "78.1  78.1  78.1  90  90  90"
+    assert facts["Cell"] == "78.100  78.100  78.100  90.000  90.000  90.000"
     assert (
         facts["A figure added later"] == "7"
     ), "a figure this does not know is still shown"
@@ -99,3 +99,73 @@ def test_cycles_and_images_are_counted_in_whole_numbers():
     c = chain()
     assert results.plots(c["refine"])[0].integer and results.plots(c["find"])[0].integer
     assert not results.plots(c["scale"])[0].integer
+
+
+def test_large_numbers_whole_and_small_to_four_figures():
+    facts = dict(
+        results.facts({"program": "mxi_index", "volume": 236118.4, "d_min": 1.99395})
+    )
+    assert facts["Volume (Å³)"] == "236118" and facts["Resolution limit (Å)"] == "1.994"
+
+
+def test_every_h5py_is_opened_with_the_filters():
+    # The summary's longer arrays, like the reflections', are compressed:
+    # opened with h5py alone, Graeme's indexed.rflx read no summary (4
+    # November), as its reflections had not (23 October). Every import of
+    # h5py in mxi_tools and mxi_ui is h5py_with_filters', none on its own.
+    import ast
+    import pathlib
+
+    src = pathlib.Path(results.__file__).resolve().parents[1]
+    files = [src / "mxi_tools.py", *sorted((src / "mxi_ui").glob("*.py"))]
+    stray = []
+    for path in files:
+        tree = ast.parse(path.read_text())
+        for function in [
+            n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.Module))
+        ]:
+            body = (
+                function.body
+                if isinstance(function, ast.FunctionDef)
+                else function.body
+            )
+            for node in (
+                body if isinstance(function, ast.Module) else ast.walk(function)
+            ):
+                if isinstance(node, ast.Import) and any(
+                    a.name == "h5py" for a in node.names
+                ):
+                    owner = (
+                        function.name
+                        if isinstance(function, ast.FunctionDef)
+                        else "<module>"
+                    )
+                    if owner != "h5py_with_filters":
+                        stray.append(f"{path.name}:{node.lineno} in {owner}")
+    assert not stray, stray
+
+
+def test_a_table_cell_that_is_a_list_is_compact():
+    rec = {
+        "program": "mxi_index",
+        "candidates": {
+            "columns": ["cell", "volume", "indexed", "chosen"],
+            "cell": [
+                [
+                    67.28432387505138,
+                    67.44543540551338,
+                    67.49954671142541,
+                    109.51,
+                    109.65,
+                    109.22,
+                ]
+            ],
+            "volume": [235918.4],
+            "indexed": [154385],
+            "chosen": [1],
+        },
+    }
+    (table,) = results.tables(rec)
+    assert table.rows == [
+        ["67.28 67.45 67.50 109.51 109.65 109.22", "235918", "154385", "1"]
+    ]

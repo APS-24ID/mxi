@@ -54,11 +54,10 @@ class Table:
 
 
 def steps_of(path):
-    """Every step the file's summary records, in the order they ran."""
-    try:
-        return mxi_tools.read_summary(path).get("steps", [])
-    except OSError:
-        return []
+    """Every step the file's summary records, in the order they ran. A file
+    that cannot be read raises, for the window to say why: caught here and
+    taken for a file with no summary, a missing filter had passed for one."""
+    return mxi_tools.read_summary(path).get("steps", [])
 
 
 def record(directory, key):
@@ -138,13 +137,27 @@ SKIP = {
 }
 
 
-def _text(value):
+def _one(v):
+    """A number as a person reads it: whole where it is large or whole, else
+    four figures -- not 2.361e+05 for a volume."""
+    f = float(v)
+    if abs(f) >= 1000 or (f.is_integer() and abs(f) < 1e15):
+        return f"{f:.0f}"
+    return f"{f:.4g}"
+
+
+def _text(value, key=""):
     if isinstance(value, bool):
         return "yes" if value else "no"
-    if isinstance(value, float):
-        return f"{value:.4g}"
+    if key in ("cell", "two_theta_cell", "two_theta_cell_esd") and isinstance(
+        value, list
+    ):
+        # A cell as mxi show gives it: three decimals, lengths and angles.
+        return "  ".join(f"{float(v):.3f}" for v in value if _number(v) is not None)
+    if isinstance(value, (int, float)) and _number(value) is not None:
+        return _one(value)
     if isinstance(value, list) and all(_number(v) is not None for v in value):
-        return "  ".join(f"{float(v):.4g}" for v in value)
+        return "  ".join(_one(v) for v in value)
     return str(value)
 
 
@@ -162,7 +175,7 @@ def facts(rec):
             elif key == "scan_varying":
                 out.append((label, "yes" if value else "no"))
             else:
-                out.append((label, _text(value)))
+                out.append((label, _text(value, key)))
     for key in sorted(rec):
         if key in LABELS or key in SKIP or is_table(rec[key]):
             continue
@@ -237,10 +250,15 @@ def tables(rec):
 
 
 def _cell(v):
+    if isinstance(v, list) and v and all(_number(x) is not None for x in v):
+        # A table's cell that is itself a list -- each candidate's unit cell --
+        # compact: printed whole, at full precision, it had pushed the other
+        # columns out of sight (Graeme's indexed.rflx).
+        return " ".join(f"{float(x):.2f}" for x in v)
     n = _number(v)
     if n is None:
         return "" if v is None else str(v)
-    return f"{n:.0f}" if float(n).is_integer() and abs(n) >= 1 else f"{n:.4g}"
+    return _one(n)  # as the facts: large or whole numbers whole
 
 
 # --- plots ----------------------------------------------------------------

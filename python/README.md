@@ -1,5 +1,9 @@
 # mxeq
 
+Part of `mxi-python`, the wheel of mxi's Python tools, with `mxi_tools` and
+`mxi_view` (`pip install -e python`). mxeq imports neither: it judges mxi's
+files, so it must not share mxi's reading of them.
+
 Equivalence checks between two runs of an MX processing pipeline, boundary by
 boundary, without cctbx -- and, for integration, tools that find and explain
 where two runs differ.

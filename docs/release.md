@@ -34,7 +34,7 @@ nothing is published.
 | `mxi-1.1.1-linux-arm64.tar.gz` | `mxi` for ARM64 Linux, built in manylinux_2_28 on GitHub's ARM runner, for the CPU: a Raspberry Pi 4 or 5 with a 64-bit OS, ARM servers |
 | `mxi-1.1.1-linux-arm64-cuda.tar.gz` | the same with CUDA 12.8, NVIDIA's toolkit for ARM servers (sbsa), for Hopper and Blackwell -- the GH200 and GB200 -- with their PTX for later GPUs; not Jetson, whose toolkit is another |
 | `mxi-1.1.1-macos-arm64.tar.gz` | `mxi`, for Apple silicon, with Metal: macOS 13 or later, its static libraries too (an overlay triplet, `cmake/triplets`); any API newer than 13 used without a check fails the build, so that the binaries cannot fail on an older macOS |
-| `mxeq-1.1.1-py3-none-any.whl` | the referee, `pip install` it |
+| `mxi_python-1.1.1-py3-none-any.whl` | mxi's Python tools, `pip install` it: mxeq, the referee; `mxi_tools`; `mxi-view`, the viewer |
 
 Each binary archive is `bin/` -- `mxi`, every step a command of it, with `mxi
 view`'s Python and its module `mxi_tools.py` beside it -- with the licence,
@@ -94,7 +94,8 @@ deleted first if one was made (above).
 Each build runs ctest and the Python suite, the tests that need no external
 data, before its archive is kept, in a Python of our choosing, 3.12: the
 Linux containers' own, and on macOS one set up for the purpose, the runner's
-having once moved to a version (3.15) for which h5py and gemmi had no wheels. Hosted runners have no GPU to rely on, so
+having once moved to a version (3.15) for which h5py and gemmi had no wheels.
+Hosted runners have no GPU to rely on, so
 the device tests (ctest's `dext_gpu`) are left out: the CUDA and Metal builds
 are released tested on their CPU paths, their device paths tested on real
 machines as before; the CPU build is tested whole.

@@ -46,6 +46,17 @@ PATH = re.compile(
 PROGRAM = re.compile(r"`(mxi_[a-z]+)`")
 
 
+def _python_modules():
+    """The wheel's own modules, mxi-python's (python/pyproject.toml): named
+    in the documents as Python, not as programs -- mxi_tools, mxi_view."""
+    text = (ROOT / "python/pyproject.toml").read_text()
+    found = re.search(r"py-modules\s*=\s*\[([^\]]*)\]", text)
+    return set(re.findall(r'"([a-z_]+)"', found.group(1))) if found else set()
+
+
+PYTHON_MODULES = _python_modules()
+
+
 def _programs():
     """Every mxi_ program the build defines, read from the build files."""
     names = set()
@@ -98,7 +109,7 @@ def test_every_program_named_is_built(document):
     assert built, "found no mxi_ programs in the build files"
     named = set(PROGRAM.findall((ROOT / document).read_text()))
     # Names of mxi's that are not programs: mxi_physical, the scale model's type.
-    unknown = named - built - {"mxi_physical"}
+    unknown = named - built - {"mxi_physical"} - PYTHON_MODULES
     # Programs retired, which only the histories may name: the release notes,
     # the outstanding list, CLAUDE.md and the integration's history. Anywhere
     # else a mention of one is stale.
@@ -159,5 +170,13 @@ def test_programs_are_named_as_mxi_commands(document):
         return
     if document == "RELEASE_NOTES.md":
         return
-    stale = sorted({m for m in OLD_NAME.findall(text) if m in commands})
+    # A Python module of the wheel's is named as itself: mxi_view the module,
+    # not the old name of mxi view the command.
+    stale = sorted(
+        {
+            m
+            for m in OLD_NAME.findall(text)
+            if m in commands and f"mxi_{m}" not in PYTHON_MODULES
+        }
+    )
     assert not stale, f"{document} still names programs the old way: mxi_{stale}"

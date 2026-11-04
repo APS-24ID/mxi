@@ -122,9 +122,10 @@ Library files are `src/<name>.hh` and `.cc`. There is one program, `mxi`, and
 every step is a command of it (since 1.1): `apps/mxi.cc` dispatches -- `mxi
 find ...` runs `mxi_find_main` -- and each command is still its own source,
 `apps/mxi_<name>.cc`, built as an object library with its own settings and
-linked into `mxi`. `mxi view` is Python on napari (optional), `tools/mxi_view.py`,
-copied beside `mxi` by the build with the module it shares,
-`tools/mxi_tools.py`, and run by it. In the build directory each command's old
+linked into `mxi`. `mxi view` is Python on napari (optional),
+`python/src/mxi_view.py`, copied beside `mxi` by the build with the module it
+shares, `python/src/mxi_tools.py`, and run by it. Both are also in the wheel
+`mxi-python` with mxeq: every Python tool is in `python/src/`. In the build directory each command's old
 name, `"mxi_find"`, is a link to `mxi`, which runs the command it is called by:
 the tests run them so; they are not installed. Seven commands are for looking at
 a step rather than doing it, listed apart by `mxi help`: `mxi profile`

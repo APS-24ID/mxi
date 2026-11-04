@@ -166,12 +166,17 @@ mxi process master.nxs --gpu -j 8 --d-min-auto
 mxi process master.nxs --cell 78,78,78,90,90,90 --space-group I213
 mxi process CIX*.nxs --no-joint --d-min-auto   # several crystals, a sweep each
 mxi process master.nxs --dry-run      # the eight commands, printed, none run
+mxi process strong.rflx -j 8          # picks up after the step that wrote it: index on
+mxi process ../cluster_0.rflx --d-min-auto   # a cluster from mxi correlation: scale, export
 ```
 
-Each step is the command above, run as it would be by hand, with its own
-output and log; data needing more than these options are processed a step at
-a time. A step that fails stops it: which step, its exit code, its
-log, and the command to run it again once put right.
+Given a `.rflx` instead of images, it picks up after the step that wrote the
+file -- its writer, the file's `creator` -- and finishes: a cluster written by
+`mxi correlation --write-clusters` is scaled afresh and exported. Each step is
+the command above, run as it would be by hand, with its own output and log;
+data needing more than these options are processed a step at a time. A step that fails stops it: which step, its exit code, its
+log, and how to go on once it is put right -- the step's own command, or
+`mxi process` on its input for all that remains.
 
 Each step reads the last one's file and writes its own, under the name shown
 unless `-o` names another: a `.rflx`, mxi's own format -- HDF5 holding the

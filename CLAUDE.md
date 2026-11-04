@@ -85,7 +85,9 @@ for its compiler said at configure. The candidates found a test counting
 progress lines that depended on the cores, and macOS's runner Python moving
 to 3.15 (the tests now in 3.12, set up for them).
 Since 1.1.3, for 1.1.4: mxi process, the eight steps in turn (apps/
-mxi_process.cc; each step this program again, by self_path.hh's path). mxi ui, the interface (docs/ui.md; python/src/
+mxi_process.cc; each step this program again, by self_path.hh's path), or
+from a .rflx after the step its creator attribute names -- a cluster from
+mxi correlation scaled afresh: its summary's last step is scaling. mxi ui, the interface (docs/ui.md; python/src/
 mxi_ui) -- the steps as forms building the commands, run streamed; each
 step's summary and plots from its file's records (mxi_tools.read_summary,
 through h5py_with_filters: the summary's arrays are compressed too); a viewer

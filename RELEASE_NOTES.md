@@ -12,9 +12,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   its own output and log. `-j` goes to every step, `--gpu` to spot finding and
   integration, `--cell` and `--space-group` to indexing (the cell as
   `--known-cell`) and the space group to scaling, `--no-joint` to indexing for
-  several crystals, `--d-min-auto` to scaling. A step that fails stops it,
-  saying which, its exit code, its log, and the command to run it again;
-  `--dry-run` prints the eight commands and runs none.
+  several crystals, `--d-min-auto` to scaling. Given one `.rflx` instead, `mxi
+  process FILE.rflx` picks up after the step that wrote it and finishes: a
+  cluster from `mxi correlation --write-clusters` is scaled afresh and
+  exported. A step that fails stops it, saying which, its exit code, its log,
+  and how to go on -- its own command, or `mxi process` on its input;
+  `--dry-run` prints the commands and runs none.
 - `mxi ui`, an interface to mxi, for processing data and for teaching
   (docs/ui.md). The workflow's steps and tools down the side, each marked done
   from the working directory, so that a directory processed before opens as it

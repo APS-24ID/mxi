@@ -94,6 +94,10 @@ void write(const std::string &path, const json::Value *experiments,
 //: and reflections, in the same encoding.
 std::optional<json::Value> read_summary(const std::string &path);
 
+//: The program that wrote the file -- its root attribute "creator", as write()
+//: sets it: "mxi_find", "mxi_correlation" -- or "" where it has none.
+std::string read_creator(const std::string &path);
+
 //: Whether files are written with no filters at all: numbers are bitshuffle-
 //: LZ4 (HDF5 filter 32008) otherwise, which a reader must have -- h5py with
 //: hdf5plugin, DIALS's HDF5. mxi_convert --no-compress, for one that has not.

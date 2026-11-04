@@ -112,9 +112,10 @@ predictions (blue) of refinement and integration. A marker centred on the
 image shown is solid, one spanning it from a neighbour dashed; each layer can
 be hidden.
 
-Step through the images with the arrows or the arrow keys, or type one; zoom
-with the wheel about the cursor, drag to pan, double-click or Fit to see the
-whole. Contrast is set from the image, its darkest counts on the slider, with
+Step through the images with the arrows or the arrow keys, or type one. Zoom
+with + and − (or the keys + and -, about the pointer), or a wheel or a
+trackpad's scroll, a level a tenth of a second at most; drag to pan; Fit, 0
+or a double-click for the whole image. Contrast is set from the image, its darkest counts on the slider, with
 three colour maps. Under the cursor: the pixel, its counts and its
 resolution.
 

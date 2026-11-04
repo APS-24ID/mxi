@@ -11,6 +11,7 @@ the pixel, its counts and its resolution. Tk only, with numpy and h5py.
 """
 
 import os
+import time
 import tkinter as tk
 from tkinter import ttk
 
@@ -22,6 +23,7 @@ from mxi_ui import render
 from mxi_ui.tooltip import Tooltip
 
 RADIUS = 7  # canvas pixels, a marker's
+WHEEL_INTERVAL = 0.1  # seconds: at most a zoom level each, from a scroll
 LAYERS = (
     # key, label, the table's column, colour
     ("indexed", "Indexed spots", "xyzobs.px.value", "#2e7d32"),
@@ -95,6 +97,7 @@ class Viewer:
         self.frame = None
         self._drag = None
         self._reduced = None
+        self._last_wheel = -1e9
         self._controls()
         self.canvas = tk.Canvas(self.top, background="#808080", highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
@@ -153,7 +156,17 @@ class Viewer:
         )
         maps.bind("<<ComboboxSelected>>", lambda _e: self.draw())
         maps.pack(side=tk.LEFT, padx=(4, 12))
-        ttk.Button(bar, text="Fit", width=4, command=self.fit).pack(side=tk.LEFT)
+        # Buttons and keys to zoom, not a wheel alone: there need be no wheel
+        # (Graeme, a trackpad).
+        zoom_in = ttk.Button(bar, text="+", width=3, command=lambda: self.zoom(1))
+        zoom_in.pack(side=tk.LEFT)
+        zoom_out = ttk.Button(bar, text="−", width=3, command=lambda: self.zoom(-1))
+        zoom_out.pack(side=tk.LEFT, padx=(2, 4))
+        fit = ttk.Button(bar, text="Fit", width=4, command=self.fit)
+        fit.pack(side=tk.LEFT)
+        Tooltip(zoom_in, "Zoom in: + or =, about the pointer; a trackpad's scroll too")
+        Tooltip(zoom_out, "Zoom out: -")
+        Tooltip(fit, "The whole image: 0, or double-click")
         self.toggles = ttk.Frame(self.top, padding=(8, 0, 8, 4))
         self.toggles.pack(fill=tk.X)
 
@@ -169,6 +182,13 @@ class Viewer:
         c.bind("<Button-5>", lambda e: self._wheel(e, -1))
         self.top.bind("<Left>", lambda _e: self.step(-1))
         self.top.bind("<Right>", lambda _e: self.step(1))
+        for key in ("plus", "equal", "KP_Add"):
+            self.top.bind(f"<KeyPress-{key}>", lambda _e: self.zoom(1, at_pointer=True))
+        for key in ("minus", "KP_Subtract"):
+            self.top.bind(
+                f"<KeyPress-{key}>", lambda _e: self.zoom(-1, at_pointer=True)
+            )
+        self.top.bind("<KeyPress-0>", lambda _e: self.fit())
 
     # --- the sweep and image ----------------------------------------------
 
@@ -296,16 +316,38 @@ class Viewer:
         self._drag = (e.x, e.y)
         self.draw()
 
-    def _wheel(self, e, direction):
+    def zoom(self, direction, at=None, at_pointer=False):
+        """A level in (direction > 0) or out, about canvas point `at`; at the
+        pointer where asked and it is over the image; else the middle."""
         if self.view is None:
             return
+        if at is None and at_pointer:
+            px = self.canvas.winfo_pointerx() - self.canvas.winfo_rootx()
+            py = self.canvas.winfo_pointery() - self.canvas.winfo_rooty()
+            w, h = self._canvas_size()
+            if 0 <= px < w and 0 <= py < h:
+                at = (px, py)
+        if at is None:
+            w, h = self._canvas_size()
+            at = (w / 2, h / 2)
         self.view.zoom(
             1.25 if direction > 0 else 0.8,
-            e.x,
-            e.y,
+            at[0],
+            at[1],
             largest=4 * max(self.view.width, self.view.height),
         )
         self.draw()
+
+    def _wheel(self, e, direction, now=None):
+        """A wheel's notch, or a trackpad's scroll: one level a tenth of a
+        second at most. A trackpad sends many small scroll events, and at a
+        level each the view had raced through every zoom."""
+        now = time.monotonic() if now is None else now
+        if now - self._last_wheel < WHEEL_INTERVAL:
+            return False
+        self._last_wheel = now
+        self.zoom(direction, at=(e.x, e.y))
+        return True
 
     def _hover(self, e):
         if self.view is None or self.frame is None:

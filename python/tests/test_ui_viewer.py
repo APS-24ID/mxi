@@ -227,3 +227,64 @@ def test_contrast_and_colours_recolour_without_reducing_again(strong, monkeypatc
         assert calls == [1], "a new view reduced afresh"
     finally:
         root.destroy()
+
+
+def test_zoom_without_a_wheel(strong):
+    # Graeme has no wheel: buttons and keys zoom, a level each.
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        v.top.deiconify()
+        settle(root)
+        start = v.view.scale
+        w, h = v._canvas_size()
+        middle = v.view.to_detector(w / 2, h / 2)
+        buttons = {
+            b.cget("text"): b
+            for b in v.top.winfo_children()[0].winfo_children()
+            if b.winfo_class() == "TButton"
+        }
+        buttons["+"].invoke()
+        assert v.view.scale < start
+        assert all(
+            abs(a - b) < 1e-6 for a, b in zip(v.view.to_canvas(*middle), (w / 2, h / 2))
+        ), "about the middle"
+        buttons["−"].invoke()
+        assert v.view.scale == start
+        v.top.focus_force()
+        settle(root)
+        v.top.event_generate("<KeyPress-plus>")
+        v.top.event_generate("<KeyPress-equal>")
+        settle(root)
+        assert v.view.scale < start
+        v.top.event_generate("<KeyPress-0>")
+        settle(root)
+        assert v.view.scale == start, "0 fits"
+    finally:
+        root.destroy()
+
+
+def test_a_trackpads_burst_of_scrolls_zooms_a_level_a_tenth_of_a_second(strong):
+    from mxi_ui.viewer import WHEEL_INTERVAL
+
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        start = v.view.scale
+
+        class E:
+            x, y = 100, 100
+
+        taken = [
+            v._wheel(E, 1, now=t)
+            for t in (10.0, 10.01, 10.02, 10.05, 10.0 + WHEEL_INTERVAL + 0.01)
+        ]
+        assert taken == [True, False, False, False, True]
+        levels = 0
+        s = start
+        from mxi_ui import render
+
+        while s > v.view.scale + 1e-9:
+            s = render.next_level(s, inwards=True)
+            levels += 1
+        assert levels == 2, "two levels, not five"
+    finally:
+        root.destroy()

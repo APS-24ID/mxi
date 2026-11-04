@@ -200,3 +200,44 @@ def test_a_fields_explanation_is_a_tooltip_not_a_line_beside_it(window):
         t.startswith("-o:") for t in texts
     )
     assert any(t.startswith("--anomalous:") for t in texts), "a tick box's too"
+
+
+def test_run_stays_shown_and_named_however_narrow_the_window(window):
+    window.root.deiconify()
+    window.root.minsize(1, 1)
+    choose(window, "scale")
+    for width in (1100, 700, 560):
+        window.root.geometry(f"{width}x600")
+        for _ in range(10):
+            window.root.update()
+        assert window.run_button.winfo_ismapped(), width
+        assert window.run_button.winfo_width() > 30, width
+    assert window.run_button.cget("text") == "Run scale"
+    choose(window, "index")
+    assert window.run_button.cget("text") == "Run index"
+
+
+def test_the_shortcut_runs_the_step(stand_in, tmp_path):
+    from mxi_ui.window import RUN_KEY, MainWindow
+
+    (tmp_path / "imported.rflx").write_text("")
+    root = tkinter.Tk()
+    w = MainWindow(root, str(tmp_path))
+    try:
+        choose(w, "find")
+        root.update()
+        root.focus_force()
+        root.event_generate(f"<{RUN_KEY}-Return>", when="tail")
+        drive(w, lambda: "[exit 0]" in log_text(w))
+        assert "given: find imported.rflx" in log_text(w)
+    finally:
+        w.runner.cancel()
+        root.destroy()
+
+
+def test_the_sidebars_rows_fit_the_font(window):
+    from tkinter import font as tkfont
+
+    linespace = tkfont.nametofont("TkDefaultFont").metrics("linespace")
+    height = int(tkinter.ttk.Style(window.root).lookup("Treeview", "rowheight"))
+    assert height >= linespace

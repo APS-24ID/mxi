@@ -7,8 +7,10 @@ and the plots fill their tabs in the phases after (docs/ui.md).
 
 import os
 import shlex
+import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+from tkinter import font as tkfont
 
 from mxi_ui import state
 from mxi_ui.locate import find_mxi
@@ -19,6 +21,9 @@ from mxi_ui.tooltip import Tooltip
 from mxi_ui.version import VERSION
 
 POLL_MS = 100
+# Run's shortcut: Command-Return on a Mac, Control-Return elsewhere.
+RUN_KEY = "Command" if sys.platform == "darwin" else "Control"
+RUN_KEY_SHOWN = "Cmd" if sys.platform == "darwin" else "Ctrl"
 DONE, PENDING = "done", ""
 
 
@@ -42,6 +47,7 @@ class MainWindow:
         self.refresh()
         root.after(POLL_MS, self._poll)
         root.protocol("WM_DELETE_WINDOW", self.quit)
+        root.bind_all(f"<{RUN_KEY}-Return>", lambda _e: self.run_selected())
 
     # --- building ---------------------------------------------------------
 
@@ -53,7 +59,11 @@ class MainWindow:
         file.add_command(label="Quit", command=self.quit)
         bar.add_cascade(label="File", menu=file)
         run = tk.Menu(bar, tearoff=False)
-        run.add_command(label="Run the selected step", command=self.run_selected)
+        run.add_command(
+            label="Run the selected step",
+            command=self.run_selected,
+            accelerator=f"{RUN_KEY_SHOWN}+Return",
+        )
         run.add_command(label="Cancel", command=self.cancel)
         bar.add_cascade(label="Run", menu=run)
         help_ = tk.Menu(bar, tearoff=False)
@@ -83,12 +93,21 @@ class MainWindow:
         panes = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
         panes.pack(fill=tk.BOTH, expand=True)
         side = ttk.Frame(panes, padding=(6, 0))
+        # Rows as tall as the font needs: fixed, they overlapped where Tk draws
+        # text larger (a Mac; a higher scaling).
+        linespace = tkfont.nametofont("TkDefaultFont").metrics("linespace")
+        ttk.Style(self.root).configure("Treeview", rowheight=linespace + 6)
         self.tree = ttk.Treeview(
             side, columns=("state",), show="tree headings", selectmode="browse"
         )
         self.tree.heading("#0", text="Step")
         self.tree.heading("state", text="")
-        self.tree.column("#0", width=170)
+        # As wide as the longest title in the font drawn, its indent beside.
+        widest = max(
+            tkfont.nametofont("TkDefaultFont").measure(step.title)
+            for step in STEPS + TOOLS
+        )
+        self.tree.column("#0", width=widest + 3 * linespace, minwidth=widest)
         self.tree.column("state", width=60, anchor=tk.CENTER)
         self.tree.insert("", tk.END, iid="steps", text="Processing", open=True)
         for step in STEPS:
@@ -130,15 +149,17 @@ class MainWindow:
         self.fields.pack(fill=tk.X)
         foot = ttk.Frame(self.form, padding=(0, 8, 0, 0))
         foot.pack(fill=tk.X)
+        # Run and Copy first, from the right, so that a narrow window narrows
+        # the command, never drops the buttons (as it had the inputs' Browse).
+        self.run_button = ttk.Button(foot, text="Run", command=self.run_selected)
+        self.run_button.pack(side=tk.RIGHT, padx=(6, 0))
+        ttk.Button(foot, text="Copy", command=self.copy_command).pack(
+            side=tk.RIGHT, padx=(6, 0)
+        )
         shown = ttk.Entry(
             foot, textvariable=self.command, font="TkFixedFont", state="readonly"
         )
         shown.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Button(foot, text="Copy", command=self.copy_command).pack(
-            side=tk.LEFT, padx=(6, 0)
-        )
-        self.run_button = ttk.Button(foot, text="Run", command=self.run_selected)
-        self.run_button.pack(side=tk.LEFT, padx=(6, 0))
         ttk.Label(self.form, textvariable=self.trouble, foreground="#b00020").pack(
             anchor=tk.W
         )
@@ -179,6 +200,7 @@ class MainWindow:
             child.destroy()
         form = self._form_of(step)
         self.form.configure(text=f"{step.title}: {step.about}")
+        self.run_button.configure(text=f"Run {step.key}")
         row = 0
 
         def label(text):

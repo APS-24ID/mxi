@@ -1,17 +1,18 @@
-"""The main window: the steps down the side, their images, log, summary and
-plots in tabs, a working directory at the top, a status line at the foot.
-
-Phase 1 of the interface (docs/ui.md): the shell, and running a step with its
-default command, streamed into the log. The viewer, each step's options and
-the plots fill the tabs in the phases after.
+"""The main window: the steps down the side; the chosen step's form -- its
+inputs, main options, output, threads and any further options, the command
+they make shown as it is built -- above tabs for its images, log, summary and
+plots; a working directory at the top, a status line at the foot. The viewer
+and the plots fill their tabs in the phases after (docs/ui.md).
 """
 
 import os
+import shlex
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from mxi_ui import state
 from mxi_ui.locate import find_mxi
+from mxi_ui.model import build, problems
 from mxi_ui.runner import Runner, as_text
 from mxi_ui.steps import STEPS, TOOLS, by_key
 from mxi_ui.version import VERSION
@@ -28,6 +29,9 @@ class MainWindow:
         self.directory = tk.StringVar(value=os.path.abspath(directory or os.getcwd()))
         self.status = tk.StringVar(value="Ready")
         self.selected = None
+        self.forms = {}  # each step's entries, kept while the window is open
+        self.command = tk.StringVar()
+        self.trouble = tk.StringVar()
         root.title(f"mxi ui {VERSION}")
         root.geometry("1100x720")
         root.minsize(800, 500)
@@ -92,11 +96,13 @@ class MainWindow:
             self.tree.insert("tools", tk.END, iid=step.key, text=step.title)
         self.tree.pack(fill=tk.BOTH, expand=True)
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
-        self.run_button = ttk.Button(side, text="Run", command=self.run_selected)
-        self.run_button.pack(fill=tk.X, pady=6)
         panes.add(side, weight=0)
 
-        self.tabs = ttk.Notebook(panes)
+        right = ttk.PanedWindow(panes, orient=tk.VERTICAL)
+        self.form = ttk.LabelFrame(right, text="", padding=(10, 6))
+        right.add(self.form, weight=0)
+        self._form_foot()
+        self.tabs = ttk.Notebook(right)
         self.images = ttk.Frame(self.tabs, padding=12)
         ttk.Label(
             self.images,
@@ -112,7 +118,184 @@ class MainWindow:
         self.tabs.add(self.log.master, text="Log")
         self.tabs.add(self.summary.master, text="Summary")
         self.tabs.add(self.plots, text="Plots")
-        panes.add(self.tabs, weight=1)
+        right.add(self.tabs, weight=1)
+        panes.add(right, weight=1)
+
+    def _form_foot(self):
+        """The command the form makes, its problems, Copy and Run: built once,
+        below the fields that each step brings."""
+        self.fields = ttk.Frame(self.form)
+        self.fields.pack(fill=tk.X)
+        foot = ttk.Frame(self.form, padding=(0, 8, 0, 0))
+        foot.pack(fill=tk.X)
+        shown = ttk.Entry(
+            foot, textvariable=self.command, font="TkFixedFont", state="readonly"
+        )
+        shown.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Button(foot, text="Copy", command=self.copy_command).pack(
+            side=tk.LEFT, padx=(6, 0)
+        )
+        self.run_button = ttk.Button(foot, text="Run", command=self.run_selected)
+        self.run_button.pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Label(self.form, textvariable=self.trouble, foreground="#b00020").pack(
+            anchor=tk.W
+        )
+
+    def _form_of(self, step):
+        """The step's entries as Tk variables, made the first time it is shown
+        and kept: inputs, each option, output, threads, further options."""
+        if step.key not in self.forms:
+            form = {
+                "inputs": tk.StringVar(value=shlex.join(step.inputs)),
+                "output": tk.StringVar(value=step.output),
+                "threads": tk.StringVar(value=""),
+                "extra": tk.StringVar(value=""),
+                "options": {
+                    o.flag: (
+                        tk.BooleanVar(value=False)
+                        if o.kind == "flag"
+                        else tk.StringVar(value="")
+                    )
+                    for o in step.options
+                },
+            }
+            for var in [
+                form["inputs"],
+                form["output"],
+                form["threads"],
+                form["extra"],
+            ] + list(form["options"].values()):
+                var.trace_add("write", lambda *_: self._update_command())
+            self.forms[step.key] = form
+        return self.forms[step.key]
+
+    def _show_form(self, step):
+        for child in self.fields.winfo_children():
+            child.destroy()
+        form = self._form_of(step)
+        self.form.configure(text=f"{step.title}: {step.about}")
+        row = 0
+
+        def label(text, about=""):
+            nonlocal row
+            ttk.Label(self.fields, text=text).grid(
+                row=row, column=0, sticky=tk.W, padx=(0, 8), pady=2
+            )
+            if about:
+                ttk.Label(self.fields, text=about, foreground="#666666").grid(
+                    row=row, column=2, sticky=tk.W, padx=(8, 0)
+                )
+
+        label("Inputs", "the images' master files" if step.key == "import" else "")
+        box = ttk.Frame(self.fields)
+        box.grid(row=row, column=1, sticky=tk.EW, pady=2)
+        # The button first, from the right: packed after the entry, it was the
+        # one dropped where the column was narrower than the row asks.
+        ttk.Button(
+            box, text="Browse...", command=lambda: self._browse_inputs(step)
+        ).pack(side=tk.RIGHT, padx=(4, 0))
+        ttk.Entry(box, textvariable=form["inputs"], width=48).pack(
+            side=tk.LEFT, fill=tk.X, expand=True
+        )
+        row += 1
+        for option in step.options:
+            label(option.label, option.about)
+            var = form["options"][option.flag]
+            if option.kind == "flag":
+                ttk.Checkbutton(self.fields, variable=var, text=option.flag).grid(
+                    row=row, column=1, sticky=tk.W, pady=2
+                )
+            elif option.kind == "choice":
+                ttk.Combobox(
+                    self.fields,
+                    textvariable=var,
+                    values=("",) + option.choices,
+                    state="readonly",
+                    width=20,
+                ).grid(row=row, column=1, sticky=tk.W, pady=2)
+            else:
+                ttk.Entry(self.fields, textvariable=var, width=24).grid(
+                    row=row, column=1, sticky=tk.W, pady=2
+                )
+            row += 1
+        if step.output_flag:
+            label("Output", f"default {step.output}" if step.output else "")
+            ttk.Entry(self.fields, textvariable=form["output"], width=24).grid(
+                row=row, column=1, sticky=tk.W, pady=2
+            )
+            row += 1
+        label("Threads", "empty or 0: every core this job may use")
+        ttk.Entry(self.fields, textvariable=form["threads"], width=8).grid(
+            row=row, column=1, sticky=tk.W, pady=2
+        )
+        row += 1
+        label("Further options", f"as mxi {step.key} --help lists them")
+        ttk.Entry(self.fields, textvariable=form["extra"], width=48).grid(
+            row=row, column=1, sticky=tk.EW, pady=2
+        )
+        self.fields.columnconfigure(1, weight=1)
+        self._update_command()
+
+    def _browse_inputs(self, step):
+        if step.key == "import":
+            chosen = filedialog.askopenfilenames(
+                initialdir=self.directory.get(),
+                title="The images: each sweep's master file",
+                filetypes=[("NXmx master", "*.nxs *.h5"), ("All files", "*")],
+            )
+        else:
+            chosen = filedialog.askopenfilenames(
+                initialdir=self.directory.get(),
+                title=f"What mxi {step.key} reads",
+                filetypes=[("mxi's files", "*.rflx *.expt *.refl"), ("All files", "*")],
+            )
+        if chosen:
+            here = self.directory.get()
+            names = [
+                os.path.relpath(c, here) if c.startswith(here) else c for c in chosen
+            ]
+            self._form_of(step)["inputs"].set(shlex.join(names))
+
+    def form_argv(self, step=None):
+        """The command the step's form makes, and what is wrong with it."""
+        step = step or self.selected
+        form = self._form_of(step)
+        values = {flag: var.get() for flag, var in form["options"].items()}
+        found = problems(step, values, form["threads"].get())
+        try:
+            inputs = shlex.split(form["inputs"].get())
+        except ValueError as e:
+            return None, [f"Inputs: {e}"]
+        if not inputs:
+            found.append(
+                "Inputs: "
+                + ("choose the images" if step.key == "import" else "none given")
+            )
+        try:
+            argv = build(
+                step,
+                inputs,
+                values,
+                form["output"].get(),
+                form["threads"].get(),
+                form["extra"].get(),
+            )
+        except ValueError as e:
+            return None, found + [f"Further options: {e}"]
+        return argv, found
+
+    def _update_command(self):
+        if self.selected is None:
+            return
+        argv, found = self.form_argv()
+        self.command.set(as_text(argv) if argv else "")
+        self.trouble.set("; ".join(found))
+        if not self.runner.running():
+            self.run_button.configure(state=tk.DISABLED if found else tk.NORMAL)
+
+    def copy_command(self):
+        self.root.clipboard_clear()
+        self.root.clipboard_append(self.command.get())
 
     def _text(self, parent):
         frame = ttk.Frame(parent)
@@ -151,6 +334,7 @@ class MainWindow:
             self.selected = None
             return
         self.selected = by_key(chosen[0])
+        self._show_form(self.selected)
         self._show_summary(self.selected)
 
     def _show_summary(self, step):
@@ -168,18 +352,11 @@ class MainWindow:
     def run_selected(self):
         if self.selected is None:
             return
-        step = self.selected
-        inputs = None
-        if step.key == "import":
-            chosen = filedialog.askopenfilenames(
-                initialdir=self.directory.get(),
-                title="The images: each sweep's master file",
-                filetypes=[("NXmx master", "*.nxs *.h5"), ("All files", "*")],
-            )
-            if not chosen:
-                return
-            inputs = list(chosen)
-        self.run(step.command(inputs), title=step.title)
+        argv, found = self.form_argv()
+        if found or not argv:
+            messagebox.showinfo("mxi ui", "\n".join(found) or "Nothing to run.")
+            return
+        self.run(argv, title=self.selected.title)
 
     def run(self, argv, title=None):
         """Runs a command in the working directory, its output in the log;
@@ -220,6 +397,7 @@ class MainWindow:
             self.status.set("Done" if code == 0 else f"Failed, exit {code}")
             self.cancel_button.configure(state=tk.DISABLED)
             self.run_button.configure(state=tk.NORMAL)
+            self._update_command()
             self.refresh()
             if self.selected is not None:
                 self._show_summary(self.selected)

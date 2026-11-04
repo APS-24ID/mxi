@@ -42,24 +42,41 @@ The package, `python/src/mxi_ui`, keeps tkinter to the window's modules, so
 that the steps, the runner, the directory's state and the dependency check
 import without it, and are tested where there is no display.
 
+## A step's form
+
+Each step's form has its inputs (the previous step's output by default, a
+Browse button to choose others; for Import, the images' master files), its
+main options -- a tick box for a flag, a field for a value, a list where the
+choices are few -- its output where the command takes `-o`, its threads (`-j`;
+empty or 0, every core the job may use), and a line for any further options,
+as `mxi COMMAND --help` lists them. The command they make is shown beneath as
+it is built, to copy or to learn from, and Run runs exactly that. A value that
+cannot be right -- a resolution that is not a number -- is said in red, and
+Run waits for it. Each step keeps its entries while the window is open.
+
+The forms show each command's main options, not all of them; every option on
+a form is checked against the command's own `--help` by the tests, so that
+they cannot offer what mxi does not take.
+
 ## Phases
 
 1. **Foundations** (done): the package; the dependency check, its advice for
    each system; the main window -- the steps and tools down the side, done or
    not from the directory, tabs for images, log, summary and plots, a status
-   line; running a step with its default command, streamed, cancellable;
-   `mxi ui`, `mxi-ui` and `python -m mxi_ui`.
-2. **The viewer**: on a Tk canvas, each frame reduced to the window by the
+   line; running a step, streamed, cancellable; `mxi ui`, `mxi-ui` and
+   `python -m mxi_ui`.
+2. **The forms** (done): each step's inputs, main options, output, threads and
+   further options, the command built as they are filled in (above).
+3. **The viewer**: on a Tk canvas, each frame reduced to the window by the
    maximum over each block of pixels, so that a spot one pixel wide shows at
    any zoom; sweeps and frames, zoom and pan, contrast and colour maps, the
    pixel, value and resolution under the cursor; spots and predictions on
    exactly the images they occupy; untrusted regions drawn, undone and saved
    through `mxi untrusted`. Then `mxi view` opens it, and the napari viewer
    is retired.
-3. **The workflow**: each step's options as a form, `-j` among them; each
-   step's summary from its file; several sweeps, several lattices, and
-   clusters scaled one by one; plots with matplotlib as each step's results
-   allow -- spots per image, refinement's RMSDs, I/σ and CC½ against
-   resolution, scale factors, the clusters.
-4. **Teaching**: a short explanation of each step, and the guides linked.
-5. **Packaging and documents**, released as 1.2.0.
+4. **Results**: each step's summary from its file; several sweeps, several
+   lattices, and clusters scaled one by one; plots with matplotlib as each
+   step's results allow -- spots per image, refinement's RMSDs, I/σ and CC½
+   against resolution, scale factors, the clusters.
+5. **Teaching**: a short explanation of each step, and the guides linked.
+6. **Packaging and documents**, released as 1.2.0.

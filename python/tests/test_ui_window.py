@@ -91,3 +91,86 @@ def test_a_running_command_can_be_cancelled(window):
     window.cancel()
     drive(window, lambda: "[exit" in log_text(window))
     assert window.status.get().startswith("Failed")
+
+
+@pytest.fixture
+def stand_in(tmp_path, monkeypatch):
+    """An mxi that prints what it was given, so that Run's command is seen."""
+    fake = tmp_path / "fake-mxi"
+    fake.write_text(
+        f"#!{sys.executable}\nimport sys\nprint('given:', ' '.join(sys.argv[1:]))\n"
+    )
+    fake.chmod(0o755)
+    monkeypatch.setenv("MXI", str(fake))
+    return fake
+
+
+def choose(w, key):
+    w.tree.selection_set(key)
+    w.root.update()
+
+
+def test_a_form_builds_the_command_as_it_is_filled(window):
+    choose(window, "scale")
+    form = window.forms["scale"]
+    form["options"]["--anomalous"].set(True)
+    form["options"]["--d-min"].set("1.8")
+    form["threads"].set("4")
+    window.root.update()
+    assert (
+        window.command.get()
+        == "mxi scale symmetrized.rflx --anomalous --d-min 1.8 -j 4"
+    )
+    assert str(window.run_button["state"]) == "normal" and window.trouble.get() == ""
+    form["options"]["--d-min"].set("two")
+    window.root.update()
+    assert "Resolution limit" in window.trouble.get()
+    assert str(window.run_button["state"]) == "disabled"
+    window.copy_command()
+    assert window.root.clipboard_get() == window.command.get()
+
+
+def test_a_forms_entries_are_kept_from_step_to_step(window):
+    choose(window, "index")
+    window.forms["index"]["options"]["--max-lattices"].set("2")
+    choose(window, "refine")
+    choose(window, "index")
+    assert window.command.get() == "mxi index strong.rflx --max-lattices 2"
+
+
+def test_run_runs_the_forms_command(stand_in, tmp_path):
+    from mxi_ui.window import MainWindow
+
+    (tmp_path / "imported.rflx").write_text("")
+    root = tkinter.Tk()
+    root.withdraw()
+    w = MainWindow(root, str(tmp_path))
+    try:
+        choose(w, "find")
+        w.forms["find"]["options"]["--min-spot-size"].set("5")
+        w.root.update()
+        w.run_selected()
+        drive(w, lambda: "[exit 0]" in log_text(w))
+        assert "$ mxi find imported.rflx --min-spot-size 5" in log_text(w)
+        assert "given: find imported.rflx --min-spot-size 5" in log_text(w)
+    finally:
+        w.runner.cancel()
+        root.destroy()
+
+
+def test_the_inputs_browse_button_is_shown(window):
+    # Packed after its entry, it had been dropped where the form's column was
+    # narrower than the row asked -- seen in a screenshot, not by a test.
+    window.root.deiconify()
+    window.root.geometry("1100x720")
+    choose(window, "scale")
+    for _ in range(10):
+        window.root.update()
+    buttons = [
+        b
+        for frame in window.fields.winfo_children()
+        for b in frame.winfo_children()
+        if str(b.winfo_class()) == "TButton" and b.cget("text") == "Browse..."
+    ]
+    assert len(buttons) == 1 and buttons[0].winfo_ismapped()
+    assert buttons[0].winfo_width() > 20

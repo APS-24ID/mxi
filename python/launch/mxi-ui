@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+# mxi ui, beside mxi as a release archive lays it out: the package mxi_ui is
+# here too, and mxi runs this for "mxi ui". From the wheel, mxi-python, the
+# command mxi-ui is the same entry, mxi_ui.app:main.
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+
+from mxi_ui.app import main  # noqa: E402
+
+sys.exit(main())

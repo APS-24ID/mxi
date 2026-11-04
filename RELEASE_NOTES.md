@@ -14,10 +14,11 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   output streamed, cancellable; each step's summary and plots, read from its
   file's records, not its log -- spots per image and by resolution, RMSDs by
   cycle, the cell over the scan, <I/sigma>, CC half, completeness and the R
-  factors by resolution, the merging statistics as DIALS lays them out.
-  tkinter and matplotlib, no Qt; where tkinter is missing it says what to
-  install for the system. In the release archives beside mxi, and in the wheel
-  as `mxi-ui`.
+  factors by resolution, the merging statistics as DIALS lays them out; and
+  each step's images in a window of their own, its spots and predictions on
+  them, zoom, pan, contrast, the resolution under the cursor. tkinter and
+  matplotlib, no Qt; where tkinter is missing it says what to install for the
+  system. In the release archives beside mxi, and in the wheel as `mxi-ui`.
 
 **Changed**
 - mxi's Python tools are one wheel, `mxi-python`, where mxeq's was its own:

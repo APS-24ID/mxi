@@ -106,6 +106,7 @@ class MainWindow:
         self.selected = None
         self.forms = {}  # each step's entries, kept while the window is open
         self.tooltips = []
+        self.viewers = []
         self.command = tk.StringVar()
         self.trouble = tk.StringVar()
         root.title(f"mxi ui {VERSION}")
@@ -186,6 +187,16 @@ class MainWindow:
             self.tree.insert("tools", tk.END, iid=step.key, text=step.title)
         self.tree.pack(fill=tk.BOTH, expand=True)
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
+        # The images a window of their own, for the step chosen: its file's
+        # spots and predictions on them (viewer.py), as the DIALS interface
+        # opened its viewer for a step.
+        self.view_button = ttk.Button(
+            side, text="View images", command=self.view_images
+        )
+        self.view_button.pack(fill=tk.X, pady=(6, 0))
+        Tooltip(
+            self.view_button, "The chosen step's images, with its spots and predictions"
+        )
         panes.add(side, weight=0)
 
         # The step's form a tab, Setup, beside its log, summary, images and
@@ -202,11 +213,6 @@ class MainWindow:
         self.heading.pack(anchor=tk.W, pady=(0, 10))
         self.fields = ttk.Frame(self.setup)
         self.fields.pack(fill=tk.X)
-        self.images = ttk.Frame(self.tabs, padding=12)
-        ttk.Label(
-            self.images,
-            text="The viewer is the next phase of mxi ui; until then, mxi view.",
-        ).pack(anchor=tk.NW)
         self.log = self._text(self.tabs)
         self.summary = self._text(self.tabs)
         self.plots = ttk.Frame(self.tabs, padding=6)
@@ -228,7 +234,6 @@ class MainWindow:
         self.tabs.add(self.setup, text="Setup")
         self.tabs.add(self.log.master, text="Log")
         self.tabs.add(self.summary.master, text="Summary")
-        self.tabs.add(self.images, text="Images")
         self.tabs.add(self.plots, text="Plots")
         panes.add(right, weight=1)
 
@@ -422,6 +427,49 @@ class MainWindow:
         self.trouble.set("; ".join(found))
         if not self.runner.running():
             self.run_button.configure(state=tk.DISABLED if found else tk.NORMAL)
+
+    def images_file(self, step=None):
+        """The file to view for a step: its output where written, else what it
+        reads -- after Import, the images alone; None where neither is there."""
+        step = step or self.selected
+        if step is None:
+            return None
+        here = self.directory.get()
+        for name in ([step.output] if step.output.endswith(".rflx") else []) + list(
+            step.inputs
+        ):
+            path = os.path.join(here, name)
+            if name.endswith((".rflx", ".expt")) and os.path.isfile(path):
+                return path
+        return None
+
+    def view_images(self):
+        path = self.images_file()
+        if path is None:
+            messagebox.showinfo(
+                "mxi ui",
+                (
+                    "Nothing to view yet: run Import first."
+                    if self.selected
+                    else "Choose a step."
+                ),
+            )
+            return None
+        from mxi_ui.viewer import Viewer
+
+        try:
+            viewer = Viewer(
+                self.root,
+                path,
+                f"mxi ui: {self.selected.title}, {os.path.basename(path)}",
+            )
+        except Exception as e:  # noqa: BLE001 -- said, whatever it is
+            messagebox.showerror(
+                "mxi ui", f"Cannot show the images of {os.path.basename(path)}:\n{e}"
+            )
+            return None
+        self.viewers.append(viewer)
+        return viewer
 
     def copy_command(self):
         self.root.clipboard_clear()

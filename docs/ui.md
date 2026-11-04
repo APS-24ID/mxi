@@ -100,6 +100,30 @@ A resolution axis is spaced evenly in 1/d², ticked in d. Not yet: each
 sweep's own integration figures, where there are several; the clusters of
 `mxi correlation`.
 
+## The images
+
+**View images**, beneath the steps and tools, opens a window of its own on
+the chosen step's file -- its output where it has run, else what it reads, so
+that after Import there are the images alone -- as the DIALS interface opened
+its viewer for a step. On each image the spots and predictions the file
+holds, on exactly the images each spans: spot finding's strong spots;
+indexing's spots, those indexed (green) apart from those not (red); the
+predictions (blue) of refinement and integration. A marker centred on the
+image shown is solid, one spanning it from a neighbour dashed; each layer can
+be hidden.
+
+Step through the images with the arrows or the arrow keys, or type one; zoom
+with the wheel about the cursor, drag to pan, double-click or Fit to see the
+whole. Contrast is set from the image, its darkest counts on the slider, with
+three colour maps. Under the cursor: the pixel, its counts and its
+resolution.
+
+The frame is reduced to the window by the maximum over each block of pixels,
+so that a spot one pixel wide shows at any zoom; the scale is a whole number
+of pixels either way, so that the picture and its markers agree pixel for
+pixel. On a 16M frame a view takes some 40 ms at the fit and under 10 zoomed
+in; the contrast and colours re-colour what was reduced.
+
 ## Phases
 
 1. **Foundations** (done): the package; the dependency check, its advice for
@@ -110,12 +134,9 @@ sweep's own integration figures, where there are several; the clusters of
    further options, the command built as they are filled in.
 3. **Results** (done, but for each sweep's integration and the clusters): each
    step's summary and plots from its file (above).
-4. **The viewer**: on a Tk canvas, each frame reduced to the window by the
-   maximum over each block of pixels, so that a spot one pixel wide shows at
-   any zoom; sweeps and frames, zoom and pan, contrast and colour maps, the
-   pixel, value and resolution under the cursor; spots and predictions on
-   exactly the images they occupy; untrusted regions drawn, undone and saved
-   through `mxi untrusted`. Then `mxi view` opens it, and the napari viewer
-   is retired.
+4. **The viewer** (begun): a window of its own for a step, its images, spots
+   and predictions (above). Still to come: untrusted regions drawn, undone
+   and saved through `mxi untrusted`; then `mxi view` opens it, and the napari
+   viewer is retired.
 5. **Teaching**: a short explanation of each step, and the guides linked.
 6. **Packaging and documents**, released as 1.2.0.

@@ -66,7 +66,7 @@ def test_it_opens_on_the_first_step_not_done(window):
         and window.tree.set("index", "state") == ""
     )
     tabs = [window.tabs.tab(t, "text") for t in window.tabs.tabs()]
-    assert tabs == ["Setup", "Log", "Summary", "Images", "Plots"]
+    assert tabs == ["Setup", "Log", "Summary", "Plots"]
     assert "mxi index strong.rflx" in window.summary.get("1.0", "end")
 
 

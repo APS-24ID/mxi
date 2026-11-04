@@ -134,7 +134,10 @@ def test_mxi_ui_runs_through_mxi(tmp_path):
         k: v for k, v in os.environ.items() if k not in ("DISPLAY", "WAYLAND_DISPLAY")
     }
     if sys.platform.startswith("linux"):
+        # The first problem here: no display, or, where this Python has no
+        # tkinter (a release build's container), that -- said either way.
+        expected = (deps.problems(need_display=False) or ["no display"])[0][:20]
         run = subprocess.run(
             [MXI, "ui"], capture_output=True, text=True, env=no_display
         )
-        assert run.returncode == 1 and "no display" in run.stderr
+        assert run.returncode == 1 and expected in run.stderr, run.stderr

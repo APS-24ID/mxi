@@ -107,3 +107,87 @@ def test_it_needs_the_images_and_refuses_what_it_does_not_take():
         [MXI, "process", "a.nxs", "--max-lattices", "2"], capture_output=True, text=True
     )
     assert odd.returncode == 2 and "--max-lattices" in odd.stderr
+
+
+@pytest.fixture
+def strong(tmp_path):
+    from test_verify import indexed
+
+    indexed(tmp_path)  # the planted series, its spots found: strong.rflx
+    return tmp_path
+
+
+def dry_in(where, *words):
+    run = subprocess.run(
+        [MXI, "process", *words, "--dry-run"], capture_output=True, text=True, cwd=where
+    )
+    return run.returncode, run.stdout.splitlines(), run.stderr
+
+
+def test_a_file_picks_up_after_the_step_that_wrote_it(strong):
+    code, lines, notes = dry_in(strong, "strong.rflx", "-j", "2")
+    assert code == 0 and lines == [
+        "mxi index strong.rflx -j 2",
+        "mxi refine indexed.rflx -j 2",
+        "mxi integrate refined.rflx -j 2",
+        "mxi symmetry integrated.rflx -j 2",
+        "mxi scale symmetrized.rflx -j 2",
+        "mxi export scaled.rflx -j 2",
+    ]
+    assert "strong.rflx, written by mxi_find: from mxi index on" in notes
+
+
+def test_a_cluster_is_scaled_afresh_and_exported(strong):
+    # A cluster carries the summary it was cut from, scaling's last; its
+    # writer, mxi correlation, says it is to be scaled again.
+    import shutil
+
+    import h5py
+
+    shutil.copy(strong / "strong.rflx", strong / "cluster_0.rflx")
+    with h5py.File(strong / "cluster_0.rflx", "a") as f:
+        f.attrs["creator"] = "mxi_correlation"
+    code, lines, notes = dry_in(
+        strong,
+        "cluster_0.rflx",
+        "--d-min-auto",
+        "--gpu",
+        "--cell",
+        "78,78,78,90,90,90",
+        "--space-group",
+        "I213",
+    )
+    assert code == 0 and lines == [
+        "mxi scale cluster_0.rflx --space-group I213 --d-min-auto",
+        "mxi export scaled.rflx",
+    ]
+    assert "--cell not used" in notes and "--gpu not used" in notes
+    assert "--space-group not used" not in notes, "scaling takes it"
+
+
+def test_without_its_writer_the_summarys_last_step_and_with_neither_refused(strong):
+    import h5py
+
+    with h5py.File(strong / "strong.rflx", "a") as f:
+        del f.attrs["creator"]
+    code, lines, notes = dry_in(strong, "strong.rflx")
+    assert (
+        code == 0 and lines[0] == "mxi index strong.rflx"
+    ), "the summary: mxi_find last"
+    with h5py.File(strong / "strong.rflx", "a") as f:
+        del f["summary"]
+    code, lines, notes = dry_in(strong, "strong.rflx")
+    assert code == 1 and "says neither the step that wrote it" in notes
+
+
+def test_a_failure_picking_up_says_how_to_go_on(strong):
+    run = subprocess.run(
+        [MXI, "process", "strong.rflx", "-j", "2"],
+        capture_output=True,
+        text=True,
+        cwd=strong,
+    )
+    assert run.returncode != 0
+    failed = run.stderr.split("stopped at step ")[1].split(",")[0]  # "2 of 6"
+    assert failed.endswith("of 6")
+    assert "or all that remains:\n  mxi process " in run.stderr and "-j 2" in run.stderr

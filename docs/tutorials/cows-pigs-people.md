@@ -313,6 +313,13 @@ cd 2 && mxi scale ../cluster_2.rflx --d-min-auto && cd ..
 | 2, people | 1.17 | 36.2 | 0.051 | 0.998 |
 | all 36 together | 1.26 | 23.8 | 0.164 | 0.998 |
 
+Or finish each cluster -- scaled afresh and exported -- with `mxi process`,
+which picks up after the step that wrote its file, here mxi correlation:
+
+```sh
+for c in 0 1 2; do mkdir -p $c && (cd $c && mxi process ../cluster_$c.rflx --d-min-auto); done
+```
+
 Each species alone merges far better than the three together; the cows'
 cluster is exactly the cows processed alone.
 

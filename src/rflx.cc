@@ -1128,6 +1128,15 @@ std::optional<json::Value> read_summary(const std::string &path) {
   return read_group(g.get());
 }
 
+std::string read_creator(const std::string &path) {
+  const std::lock_guard<std::mutex> guard(lock());
+  const Quiet quiet;
+  H file(H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
+  if (!file.ok())
+    throw Error("cannot open " + path + " as HDF5");
+  return string_attribute(file.get(), "creator");
+}
+
 std::optional<json::Value> read_experiments(const std::string &path) {
   const std::lock_guard<std::mutex> guard(lock());
   const Quiet quiet;

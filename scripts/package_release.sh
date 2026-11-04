@@ -1,6 +1,7 @@
 #!/bin/sh
-# A release's binaries from a build: mxi, with mxi_view and the module it
-# shares beside it, installed into mxi-VERSION-PLATFORM/bin, with the
+# A release's binaries from a build: mxi, with the Python beside it that mxi
+# view and mxi ui run -- mxi_view, mxi-ui and its package mxi_ui, and their
+# module mxi_tools.py -- installed into mxi-VERSION-PLATFORM/bin, with the
 # licence, the README and the release notes; checked to need nothing but the
 # system's own libraries -- HDF5 linked in, from vcpkg -- and archived.
 #
@@ -79,7 +80,7 @@ fi
 bad=0
 for p in "$name"/bin/mxi "$name"/bin/mxi_*; do
     [ -f "$p" ] && [ -x "$p" ] || continue
-    head -c 4 "$p" | grep -q '#!' && continue   # mxi_view, Python
+    head -c 4 "$p" | grep -q '#!' && continue   # mxi_view, mxi-ui: Python
     if [ "$(uname)" = Darwin ]; then
         libs=$(otool -L "$p" | tail -n +2 | awk '{print $1}' | grep -v -E '^(/usr/lib/|/System/)' || true)
     else

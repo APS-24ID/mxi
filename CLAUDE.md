@@ -84,6 +84,15 @@ find's progress; mxi view on macOS from the PATH; CMake 3.22; CUDA too old
 for its compiler said at configure. The candidates found a test counting
 progress lines that depended on the cores, and macOS's runner Python moving
 to 3.15 (the tests now in 3.12, set up for them).
+Since 1.1.3, for 1.1.4: mxi ui, the interface (docs/ui.md; python/src/
+mxi_ui) -- the steps as forms building the commands, run streamed; each
+step's summary and plots from its file's records (mxi_tools.read_summary,
+through h5py_with_filters: the summary's arrays are compressed too); a viewer
+of its own for each step's images, spots drawn as their boxes, zoom by
+buttons, keys and a right-button drag (Graeme has no wheel). The wheel is
+mxi-python, every Python tool. Not yet: untrusted regions in the viewer, and
+then retiring napari's mxi view. Screenshots under xvfb were how its layout
+faults were found; the tests now check what they showed.
 For a new session to
 pick up
 from. `docs/outstanding.md` is the list of open work; this section is what is in

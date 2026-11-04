@@ -316,3 +316,24 @@ def test_the_plots_are_drawn_to_the_tabs_size(tmp_path, monkeypatch):
             assert canvas.winfo_width() <= w.plots.winfo_width(), geometry
     finally:
         root.destroy()
+
+
+def test_a_file_without_the_steps_record_says_which_it_has(tmp_path, monkeypatch):
+    from ui_records import chain, install
+
+    from mxi_ui.window import MainWindow
+
+    records = chain()
+    del records["index"]["program"]  # as if written some other way
+    records["index"]["program"] = "mxi_convert"
+    install(monkeypatch, tmp_path, records)
+    root = tkinter.Tk()
+    root.withdraw()
+    w = MainWindow(root, str(tmp_path))
+    try:
+        choose(w, "index")
+        text = w.summary.get("1.0", "end")
+        assert "indexed.rflx records no step of mxi index: it records" in text
+        assert "mxi_find" in text and "mxi_convert" in text
+    finally:
+        root.destroy()

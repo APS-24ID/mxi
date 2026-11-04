@@ -483,7 +483,19 @@ class MainWindow:
             for table in results.tables(rec):
                 lines += ["", table.title, ""] + self._table_lines(table)
         elif path and os.path.isfile(path):
-            lines += ["", "Its file records no summary of this step."]
+            # Which steps it does record, so that a file written some other
+            # way -- converted, say, which carries the steps before it and
+            # adds none -- says so.
+            held = [s.get("program", "?") for s in results.steps_of(path)]
+            lines += [
+                "",
+                f"{step.output} records no step of mxi {step.key}: "
+                + (
+                    f"it records {', '.join(held)}."
+                    if held
+                    else "it records no steps at all."
+                ),
+            ]
         self._set(self.summary, "\n".join(lines) + "\n")
         self._show_plots(step, rec)
 

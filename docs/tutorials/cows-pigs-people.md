@@ -253,6 +253,14 @@ mxi symmetry integrated.rflx
 mxi scale symmetrized.rflx --d-min-auto
 ```
 
+The same eight steps, import to export, are one command where nothing needs
+more than its options -- `--no-joint` to indexing, `--d-min-auto` to scaling
+(`mxi process --help`; the README):
+
+```sh
+mxi process ../data/CIX*.nxs ../data/PIX*.nxs ../data/X*.nxs --no-joint --d-min-auto
+```
+
 ```
 One setting for 36 crystals (cosym): the lattice's 24 rotations; principal components 34.8% 14.6% 1.2% 1.2%, 2 kept
 Recommended space group: I 2 3

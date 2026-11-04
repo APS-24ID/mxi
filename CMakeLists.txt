@@ -125,6 +125,7 @@ add_library(mxi
   src/spot_table.cc
   src/untrusted.cc
   src/verify.cc
+  src/self_path.cc
   src/experiment_images.cc
   src/hdf5_handle.cc
   src/combine.cc
@@ -273,6 +274,10 @@ target_compile_options(mxi_untrusted PRIVATE -Wall -Wextra)
 add_library(mxi_verify OBJECT apps/mxi_verify.cc)
 target_link_libraries(mxi_verify PRIVATE mxi)
 target_compile_options(mxi_verify PRIVATE -Wall -Wextra)
+# Every step in turn, as a script of them (apps/mxi_process.cc).
+add_library(mxi_process OBJECT apps/mxi_process.cc)
+target_link_libraries(mxi_process PRIVATE mxi)
+target_compile_options(mxi_process PRIVATE -Wall -Wextra)
 
 add_library(mxi_grid OBJECT apps/mxi_grid.cc)
 target_link_libraries(mxi_grid PRIVATE mxi)
@@ -442,7 +447,7 @@ set(MXI_PROGRAMS
   mxi_background mxi_combine mxi_convert mxi_correlation mxi_export mxi_find
   mxi_foreground mxi_forward mxi_grid mxi_import mxi_index mxi_integrate
   mxi_max mxi_profile mxi_readtest mxi_refine mxi_report mxi_residuals
-  mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted mxi_verify)
+  mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted mxi_verify mxi_process)
 # No source in two commands: they are one binary, and a source compiled into
 # two is defined twice -- src/cuda_device.cu was, in mxi_find and
 # mxi_integrate, and the CUDA release build failed to link (1.1.0). Shared code

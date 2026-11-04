@@ -42,6 +42,7 @@ fixtures = ["h5py>=3.6"]
 [project.scripts]
 mxeq = "mxeq.cli:main"
 mxi-view = "mxi_view:main"
+mxi-ui = "mxi_ui.app:main"
 
 [tool.setuptools]
 py-modules = ["mxi_tools", "mxi_view"]

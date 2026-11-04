@@ -81,6 +81,8 @@ const Command kCommands[] = {
     {"untrusted", mxi_untrusted_main,
      "the detector's untrusted regions, with no window", false},
     {"view", nullptr, "the images, spots and regions, in napari", false},
+    {"ui", nullptr, "the interface: the workflow, its images and its results",
+     false},
     {"show", mxi_show_main, "what a file holds", false},
     {"report", mxi_report_main, "an HTML report of the processing", false},
     {"max", mxi_max_main, "a maximum projection of the images", false},
@@ -161,20 +163,31 @@ std::string executable_path(const char *argv0) {
   return ::realpath(found.c_str(), real) ? std::string(real) : found;
 }
 
-// mxi view: the viewer is Python, beside this binary as mxi_view.
-int view(int argc, char **argv, const char *self) {
+// The commands that are Python, beside this binary: mxi view, mxi_view; mxi
+// ui, the interface, mxi-ui -- both in the wheel mxi-python too.
+const char *python_script(const char *command) {
+  if (std::strcmp(command, "view") == 0)
+    return "mxi_view";
+  if (std::strcmp(command, "ui") == 0)
+    return "mxi-ui";
+  return nullptr;
+}
+
+// Runs the Python command beside this binary, its arguments passed on.
+int python_command(const char *command, int argc, char **argv,
+                   const char *self) {
   const std::string here = executable_path(self);
   const std::size_t slash = here.rfind('/');
   const std::string script =
       (slash == std::string::npos ? std::string(".") : here.substr(0, slash)) +
-      "/mxi_view";
+      "/" + python_script(command);
   std::vector<char *> args;
   args.push_back(const_cast<char *>(script.c_str()));
   for (int i = 1; i < argc; ++i)
     args.push_back(argv[i]);
   args.push_back(nullptr);
   ::execv(script.c_str(), args.data());
-  std::fprintf(stderr, "mxi view: cannot run %s: %s\n", script.c_str(),
+  std::fprintf(stderr, "mxi %s: cannot run %s: %s\n", command, script.c_str(),
                std::strerror(errno));
   return 2;
 }
@@ -203,7 +216,7 @@ int main(int argc, char **argv) {
     if (std::strcmp(argv[1], c.name) != 0)
       continue;
     if (!c.run)
-      return view(argc - 1, argv + 1, argv[0]);
+      return python_command(c.name, argc - 1, argv + 1, argv[0]);
     // argv[0] the command as typed, for its messages: "mxi find".
     std::string typed = std::string("mxi ") + c.name;
     std::vector<char *> args(argv + 1, argv + argc);

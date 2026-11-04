@@ -63,10 +63,18 @@ _helps = {}
 def help_of(program):
     if program not in _helps:
         exe = BUILD / program
-        if not exe.exists():
+        # A command in Python -- mxi ui, whose mxi_ui beside mxi is its
+        # package, not a link -- is asked through mxi itself.
+        if exe.is_dir() and (BUILD / "mxi").exists():
+            argv = [str(BUILD / "mxi"), program.removeprefix("mxi_"), "--help"]
+        elif exe.is_file():
+            argv = [str(exe), "--help"]
+        else:
+            argv = None
+        if argv is None:
             _helps[program] = None
         else:
-            out = subprocess.run([str(exe), "--help"], capture_output=True, text=True)
+            out = subprocess.run(argv, capture_output=True, text=True)
             _helps[program] = out.stdout + out.stderr
     return _helps[program]
 

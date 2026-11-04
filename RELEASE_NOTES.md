@@ -6,6 +6,14 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 ## Unreleased -- since 1.1.3
 
+**New**
+- `mxi ui`, an interface to mxi, begun (docs/ui.md): the workflow's steps and
+  tools down the side, done or not from the working directory; each run as its
+  mxi command, its output streamed, cancellable; tabs for the images, log,
+  summary and plots, which the phases to come fill. tkinter, with matplotlib
+  and h5py, no Qt; where tkinter is missing it says what to install for the
+  system. In the release archives beside mxi, and in the wheel as `mxi-ui`.
+
 **Changed**
 - mxi's Python tools are one wheel, `mxi-python`, where mxeq's was its own:
   mxeq, the referee, under the same import name and command; `mxi_tools`,

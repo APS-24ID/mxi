@@ -206,6 +206,7 @@ The options most often wanted:
 | `mxi combine` | several runs' files joined into one: data sets processed separately, to go through symmetry and scaling together |
 | `mxi split` | a file's data sets apart, each into its own file, or the ones named into one |
 | `mxi view` | the images in napari, with the spots and predictions found on them, and the detector's untrusted regions drawn and saved ([`docs/mask.md`](docs/mask.md)) |
+| `mxi ui` | the interface, in progress: the workflow's steps, each run as its mxi command and its output shown, for processing and for teaching; tkinter and matplotlib, no Qt ([`docs/ui.md`](docs/ui.md)) |
 | `mxi untrusted` | list, set from a mask file, or clear the untrusted regions, with no window |
 | `mxi max` | the largest count on a valid pixel, and whether the images fit in 16 bits (for `mxi find --gpu-force`) |
 | `mxi verify` | how much of what each lattice predicts was seen: every reflection predicted to the indexed spots' resolution, against the spots indexed, by shell |

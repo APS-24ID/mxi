@@ -255,6 +255,17 @@ configure_file(python/src/mxi_view.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_view @ONLY
   GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 configure_file(python/src/mxi_tools.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_tools.py
   COPYONLY)
+# mxi ui, the interface (python/src/mxi_ui, docs/ui.md): the package copied
+# beside mxi, its version stamped as mxi_view's is, and the launcher mxi-ui
+# that "mxi ui" runs.
+file(GLOB mxi_ui_sources CONFIGURE_DEPENDS python/src/mxi_ui/*.py)
+foreach(source ${mxi_ui_sources})
+  get_filename_component(name ${source} NAME)
+  configure_file(${source} ${CMAKE_CURRENT_BINARY_DIR}/mxi_ui/${name} @ONLY)
+endforeach()
+configure_file(python/launch/mxi-ui ${CMAKE_CURRENT_BINARY_DIR}/mxi-ui COPYONLY
+               FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
+               GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 add_library(mxi_untrusted OBJECT apps/mxi_untrusted.cc)
 target_link_libraries(mxi_untrusted PRIVATE mxi)
 target_compile_options(mxi_untrusted PRIVATE -Wall -Wextra)
@@ -472,3 +483,6 @@ endforeach()
 install(TARGETS mxi_program RUNTIME DESTINATION bin)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/mxi_view DESTINATION bin)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mxi_tools.py DESTINATION bin)
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/mxi-ui DESTINATION bin)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mxi_ui DESTINATION bin
+        FILES_MATCHING PATTERN "*.py" PATTERN "__pycache__" EXCLUDE)

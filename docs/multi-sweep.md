@@ -172,6 +172,13 @@ data sets shared one beam, each pulled from where it lies alone (17 October).
 mxi refine then refines each sweep on its own, in a run of its own, the results
 joined in order (`--joint` for one fit of them all).
 
+For routine data of several crystals, the whole sequence is one command,
+`--no-joint` going to indexing and the steps after it running as for one:
+
+```sh
+mxi process CIX*.nxs --no-joint --d-min-auto
+```
+
 ## The order of the experiments
 
 The two ways of indexing number their experiments differently, deliberately.

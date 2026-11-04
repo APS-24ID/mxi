@@ -194,6 +194,20 @@ def h5py_with_filters():
 # --- reflections -------------------------------------------------------------
 
 
+def read_summary(path: str) -> dict:
+    """The processing's summary a .rflx carries -- {"steps": [...]}, each
+    program's figures and tables in the order they ran (docs/output.md) --
+    or {"steps": []} where it has none: a pair, or a file before summaries."""
+    import h5py
+
+    if not path.endswith(".rflx"):
+        return {"steps": []}
+    with h5py.File(path, "r") as f:
+        if "summary" not in f:
+            return {"steps": []}
+        return _decode(h5py, f["summary"])
+
+
 def read_reflections(path: str, columns=None) -> dict:
     """A .rflx's reflection tables, joined in the order mxi writes them
     (shortest name first, then by name), as {column: array}: the columns

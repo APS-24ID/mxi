@@ -13,13 +13,81 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from tkinter import font as tkfont
 
-from mxi_ui import state
+from mxi_ui import results, state
 from mxi_ui.locate import find_mxi
 from mxi_ui.model import build, problems
 from mxi_ui.runner import Runner, as_text
 from mxi_ui.steps import STEPS, TOOLS, by_key
 from mxi_ui.tooltip import Tooltip
 from mxi_ui.version import VERSION
+
+
+def draw(axes, plot):
+    """One of results.plots on matplotlib's axes: a resolution axis spaced in
+    1/d^2 and ticked in d, a log axis for R factors, a second axis on the
+    right where the plot has one."""
+    for series in plot.series:
+        pairs = [
+            (x, y)
+            for x, y in zip(series.x, series.y)
+            if x is not None and y is not None
+        ]
+        if not pairs:
+            continue
+        xs, ys = zip(*pairs)
+        if plot.bars:
+            width = (max(xs) - min(xs)) / max(len(xs), 1) * 0.9 if len(xs) > 1 else 0.01
+            axes.bar(xs, ys, width=width, label=series.name)
+        else:
+            axes.plot(
+                xs,
+                ys,
+                marker="o" if len(xs) <= 30 else None,
+                markersize=3,
+                label=series.name,
+            )
+    if plot.log:
+        axes.set_yscale("log")
+    if plot.integer:
+        from matplotlib.ticker import MaxNLocator
+
+        axes.xaxis.set_major_locator(MaxNLocator(integer=True))
+    axes.set_title(plot.title, fontsize=10)
+    axes.set_xlabel(plot.xlabel)
+    axes.set_ylabel(plot.ylabel)
+    if plot.resolution:
+        xs = [x for s in plot.series + plot.right for x in s.x]
+        positions, labels = results.d_ticks(xs)
+        axes.set_xticks(positions, labels)
+    if plot.right:
+        twin = axes.twinx()
+        for series in plot.right:
+            pairs = [
+                (x, y)
+                for x, y in zip(series.x, series.y)
+                if x is not None and y is not None
+            ]
+            if pairs:
+                xs, ys = zip(*pairs)
+                twin.plot(
+                    xs,
+                    ys,
+                    color="tab:orange",
+                    marker="o",
+                    markersize=3,
+                    label=series.name,
+                )
+        twin.set_ylabel(plot.right_label)
+        twin.set_ylim(bottom=0)
+    if len(plot.series) + len(plot.right) > 1:
+        # One legend for both axes, the right's series among the left's.
+        handles, labels = axes.get_legend_handles_labels()
+        if plot.right:
+            more = twin.get_legend_handles_labels()
+            handles, labels = handles + more[0], labels + more[1]
+        axes.legend(handles, labels, fontsize=8)
+    axes.grid(alpha=0.3)
+
 
 POLL_MS = 100
 # Run's shortcut: Command-Return on a Mac, Control-Return elsewhere.
@@ -141,9 +209,21 @@ class MainWindow:
         ).pack(anchor=tk.NW)
         self.log = self._text(self.tabs)
         self.summary = self._text(self.tabs)
-        self.plots = ttk.Frame(self.tabs, padding=12)
-        ttk.Label(self.plots, text="Plots come with the workflow's results.").pack(
-            anchor=tk.NW
+        self.plots = ttk.Frame(self.tabs, padding=6)
+        self.canvas = None
+        self.toolbar = None
+        # The tab's size governs the plots, not the plots' wish: the canvas
+        # is made to fill it whenever it changes, and matplotlib draws the
+        # figure to the canvas (_fit_plots).
+        self.plots.pack_propagate(False)
+        self.plots.bind("<Configure>", lambda _e: self._fit_plots())
+        # And when it is shown: built while hidden, a tab's frame reads a
+        # pixel wide, and showing it changes nothing to raise <Configure>.
+        self.tabs.bind(
+            "<<NotebookTabChanged>>",
+            lambda _e: (
+                self._fit_plots() if self.tabs.select() == str(self.plots) else None
+            ),
         )
         self.tabs.add(self.setup, text="Setup")
         self.tabs.add(self.log.master, text="Log")
@@ -388,14 +468,99 @@ class MainWindow:
         self._show_summary(self.selected)
 
     def _show_summary(self, step):
+        """The step, its command, and what its file records: its facts and
+        tables (results.py), read from the file, not the log."""
         lines = [step.title, "", step.about, "", "  " + as_text(step.command())]
+        path, rec = results.record(self.directory.get(), step.key)
         if step.output:
-            path = os.path.join(self.directory.get(), step.output)
-            lines += [
-                "",
-                f"{step.output}: " + ("written" if os.path.isfile(path) else "not yet"),
-            ]
+            there = os.path.isfile(os.path.join(self.directory.get(), step.output))
+            lines += ["", f"{step.output}: " + ("written" if there else "not yet")]
+        if rec:
+            lines += ["", f"Run {rec.get('time', '')}".rstrip(), ""]
+            shown = results.facts(rec)
+            width = max((len(label) for label, _ in shown), default=0)
+            lines += [f"  {label:<{width}}  {text}" for label, text in shown]
+            for table in results.tables(rec):
+                lines += ["", table.title, ""] + self._table_lines(table)
+        elif path and os.path.isfile(path):
+            lines += ["", "Its file records no summary of this step."]
         self._set(self.summary, "\n".join(lines) + "\n")
+        self._show_plots(step, rec)
+
+    def _table_lines(self, table):
+        widths = [
+            (
+                max(len(str(c)), *(len(str(r[i])) for r in table.rows))
+                if table.rows
+                else len(str(c))
+            )
+            for i, c in enumerate(table.columns)
+        ]
+
+        def line(cells):
+            return "  " + "  ".join(
+                (str(v).ljust(w) if i == 0 else str(v).rjust(w))
+                for i, (v, w) in enumerate(zip(cells, widths))
+            )
+
+        return [line(table.columns)] + [line(r) for r in table.rows]
+
+    def _show_plots(self, step, rec):
+        """The step's plots, drawn with matplotlib: two to a row, its toolbar
+        to zoom, pan and save."""
+        for child in self.plots.winfo_children():
+            child.destroy()
+        self.canvas = None
+        self.toolbar = None
+        made = results.plots(rec)
+        if not made:
+            text = (
+                f"No plots for {step.title.lower()}."
+                if rec
+                else f"Plots appear once {step.title.lower()} has run."
+            )
+            ttk.Label(self.plots, text=text).pack(anchor=tk.NW, padx=6, pady=6)
+            return
+        from matplotlib.backends.backend_tkagg import (
+            FigureCanvasTkAgg,
+            NavigationToolbar2Tk,
+        )
+        from matplotlib.figure import Figure
+
+        columns = 1 if len(made) == 1 else 2
+        rows = (len(made) + columns - 1) // columns
+        # Any size to begin: _fit_plots draws it to the tab's.
+        figure = Figure(figsize=(8, 5), layout="constrained")
+        for i, plot in enumerate(made):
+            draw(figure.add_subplot(rows, columns, i + 1), plot)
+        self.figure = figure
+        self.canvas = FigureCanvasTkAgg(figure, master=self.plots)
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.plots, pack_toolbar=False)
+        self.toolbar.update()
+        self.toolbar.pack(side=tk.BOTTOM, fill=tk.X)
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        self._fit_plots()
+
+    def _fit_plots(self):
+        """The canvas as large as the Plots tab allows, the toolbar beneath:
+        sized from its own wish, the figure had been drawn wider than the tab
+        and its right-hand plots cut off."""
+        if self.canvas is None:
+            return
+        self.plots.update_idletasks()
+        width = self.plots.winfo_width() - 12
+        height = (
+            self.plots.winfo_height()
+            - 12
+            - (self.toolbar.winfo_reqheight() if self.toolbar is not None else 0)
+        )
+        if width > 50 and height > 50:
+            self.canvas.get_tk_widget().configure(width=width, height=height)
+            # And the figure itself: matplotlib redraws to a resize event,
+            # and where the widget's size did not change there is none.
+            dpi = self.figure.dpi
+            self.figure.set_size_inches(width / dpi, height / dpi, forward=False)
+        self.canvas.draw_idle()
 
     # --- running ----------------------------------------------------------
 

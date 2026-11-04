@@ -141,3 +141,105 @@ def test_mxi_ui_runs_through_mxi(tmp_path):
             [MXI, "ui"], capture_output=True, text=True, env=no_display
         )
         assert run.returncode == 1 and expected in run.stderr, run.stderr
+
+
+from mxi_ui.model import build, problems  # noqa: E402
+from mxi_ui.steps import TOOLS  # noqa: E402
+
+
+def test_a_form_builds_its_command():
+    scale = by_key("scale")
+    argv = build(
+        scale,
+        ["symmetrized.rflx"],
+        {
+            "--anomalous": True,
+            "--d-min": " 1.8 ",
+            "--space-group": "",
+            "--absorption-level": "medium",
+        },
+        output="scaled.rflx",  # the default: not said
+        threads="4",
+        extra="--shells 10",
+    )
+    assert argv == [
+        "mxi",
+        "scale",
+        "symmetrized.rflx",
+        "--anomalous",
+        "--d-min",
+        "1.8",
+        "--absorption-level",
+        "medium",
+        "-j",
+        "4",
+        "--shells",
+        "10",
+    ]
+    assert build(
+        scale, ["a.rflx"], {"--anomalous": False}, output="mine.rflx", threads="0"
+    ) == [
+        "mxi",
+        "scale",
+        "a.rflx",
+        "-o",
+        "mine.rflx",
+    ], "an unticked box, threads 0 and the default output are all left out"
+    verify = by_key("verify")
+    assert build(verify, ["indexed.rflx"], {}, output="anything") == [
+        "mxi",
+        "verify",
+        "indexed.rflx",
+    ]
+
+
+def test_a_forms_wrong_values_are_said():
+    found = problems(
+        by_key("scale"), {"--d-min": "two", "--absorption-level": "huge"}, threads="all"
+    )
+    assert len(found) == 3
+    assert any("Resolution limit" in p for p in found) and any(
+        "low, medium, high" in p for p in found
+    )
+    assert (
+        problems(
+            by_key("index"), {"--d-min": "1.5", "--max-lattices": "2"}, threads="8"
+        )
+        == []
+    )
+
+
+def takes(help_text, flag):
+    """Whether a command's --help offers the flag: as a whole word on one of
+    its option lines, those that begin with a dash."""
+    import re
+
+    word = re.compile(rf"(?<![\w-]){re.escape(flag)}(?![\w-])")
+    return any(
+        line.lstrip().startswith("-") and word.search(line)
+        for line in help_text.splitlines()
+    )
+
+
+def test_takes_tells_an_option_from_one_that_is_not():
+    text = "  -o, --output PATH  where\n  --d-min D  limit\n  --sigma-b B --sigma-m M   profile\n"
+    assert takes(text, "-o") and takes(text, "--d-min") and takes(text, "--sigma-m")
+    assert (
+        not takes(text, "--d")
+        and not takes(text, "--d-max")
+        and not takes(text, "--output-expt")
+    )
+
+
+@pytest.mark.skipif(not os.path.exists(MXI), reason="mxi is not built")
+@pytest.mark.parametrize("step", STEPS + TOOLS, ids=lambda s: s.key)
+def test_every_option_on_a_form_is_one_the_command_takes(step):
+    # The forms cannot drift from mxi: each option offered, and its output
+    # option, is on one of the command's own --help option lines.
+    helped = subprocess.run([MXI, step.key, "--help"], capture_output=True, text=True)
+    text = helped.stdout + helped.stderr
+    offered = [o.flag for o in step.options] + (
+        [step.output_flag] if step.output_flag else []
+    )
+    missing = [flag for flag in offered if not takes(text, flag)]
+    assert not missing, f"mxi {step.key} does not take {missing}"

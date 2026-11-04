@@ -44,6 +44,14 @@ import without it, and are tested where there is no display.
 
 ## A step's form
 
+The window's right side is the chosen step's tabs: Setup, its form, first;
+then its Log, Summary, Images and Plots. The command the form makes, with
+Copy and Run, is in a bar beneath the tabs, in view whichever is shown, so
+that a step can be run while its log or summary is read; running shows the
+Log. Choosing another step keeps the tab, so that going through the steps'
+summaries stays on the summaries.
+
+
 Each step's form has its inputs (the previous step's output by default, a
 Browse button to choose others; for Import, the images' master files), its
 main options -- a tick box for a flag, a field for a value, a list where the

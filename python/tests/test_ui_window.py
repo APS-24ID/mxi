@@ -66,7 +66,7 @@ def test_it_opens_on_the_first_step_not_done(window):
         and window.tree.set("index", "state") == ""
     )
     tabs = [window.tabs.tab(t, "text") for t in window.tabs.tabs()]
-    assert tabs == ["Images", "Log", "Summary", "Plots"]
+    assert tabs == ["Setup", "Log", "Summary", "Images", "Plots"]
     assert "mxi index strong.rflx" in window.summary.get("1.0", "end")
 
 
@@ -241,3 +241,22 @@ def test_the_sidebars_rows_fit_the_font(window):
     linespace = tkfont.nametofont("TkDefaultFont").metrics("linespace")
     height = int(tkinter.ttk.Style(window.root).lookup("Treeview", "rowheight"))
     assert height >= linespace
+
+
+def test_run_is_in_view_on_every_tab_and_a_step_keeps_the_tab(window):
+    window.root.deiconify()
+    window.root.geometry("900x480")
+    choose(window, "index")
+    for tab in window.tabs.tabs():
+        window.tabs.select(tab)
+        for _ in range(5):
+            window.root.update()
+        bottom = window.run_button.winfo_rooty() + window.run_button.winfo_height()
+        assert (
+            window.run_button.winfo_ismapped() and window.run_button.winfo_height() > 15
+        )
+        assert bottom <= window.root.winfo_rooty() + window.root.winfo_height()
+    window.tabs.select(window.summary.master)
+    choose(window, "refine")
+    assert window.tabs.select() == str(window.summary.master), "the tab kept"
+    assert "mxi refine indexed.rflx" in window.summary.get("1.0", "end")

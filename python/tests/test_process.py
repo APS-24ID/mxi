@@ -25,6 +25,7 @@ ALL = [
     "--space-group",
     "I213",
     "--d-min-auto",
+    "--no-joint",
 ]
 
 
@@ -40,7 +41,7 @@ def test_each_option_goes_to_its_steps():
     assert dry("a.nxs", "b.nxs", *ALL) == [
         "mxi import a.nxs b.nxs -j 4",
         "mxi find imported.rflx --gpu -j 4",
-        "mxi index strong.rflx --known-cell 78,78,78,90,90,90 --known-space-group I213 -j 4",
+        "mxi index strong.rflx --known-cell 78,78,78,90,90,90 --known-space-group I213 --no-joint -j 4",
         "mxi refine indexed.rflx -j 4",
         "mxi integrate refined.rflx --gpu -j 4",
         "mxi symmetry integrated.rflx -j 4",

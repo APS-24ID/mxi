@@ -2,6 +2,7 @@
 // a script of the eight commands would run it, each its own mxi command on
 // the file the one before wrote, its own output and log. Options go where
 // they belong: -j to every step, --gpu to spot finding and integration,
+// --no-joint to indexing,
 // --cell and --space-group to indexing (and the group to scaling),
 // --d-min-auto to scaling. A step that fails stops it, said by name, its
 // exit code and its log, with the command to run it again once put right
@@ -39,6 +40,8 @@ const char *const kUsage =
     "  -j N              to every step\n"
     "  --gpu             spot finding and integration on the GPU\n"
     "  --cell a,b,c,alpha,beta,gamma   the known cell: mxi index --known-cell\n"
+    "  --no-joint        several sweeps, each a crystal indexed on its own:\n"
+    "                    mxi index --no-joint\n"
     "  --space-group NAME  the known space group: mxi scale --space-group, "
     "and\n"
     "                    with --cell, mxi index --known-space-group\n"
@@ -92,8 +95,8 @@ int run(const std::string &self, const Step &s) {
 int mxi_process_main(int argc, char **argv) {
   using namespace mxi;
   const std::set<std::string> known = {
-      "--gpu",  "--cell", "--space-group", "--d-min-auto", "--dry-run",
-      "--help", "-h"};
+      "--gpu",     "--cell",     "--space-group", "--d-min-auto",
+      "--dry-run", "--no-joint", "--help",        "-h"};
   const std::set<std::string> takes_value = {"--cell", "--space-group"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (!args.ok) {
@@ -139,6 +142,10 @@ int mxi_process_main(int argc, char **argv) {
       steps.back().args.insert(steps.back().args.end(),
                                {"--known-space-group", group});
   }
+  // Several crystals, a sweep each, indexed apart: as the tutorial's cows,
+  // pigs and people, the steps after running as for one.
+  if (args.has("--no-joint"))
+    steps.back().args.push_back("--no-joint");
   steps.push_back({"refine", {"indexed.rflx"}, "refined.rflx"});
   steps.push_back({"integrate", {"refined.rflx"}, "integrated.rflx"});
   if (gpu)

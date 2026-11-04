@@ -15,6 +15,7 @@ from mxi_ui.locate import find_mxi
 from mxi_ui.model import build, problems
 from mxi_ui.runner import Runner, as_text
 from mxi_ui.steps import STEPS, TOOLS, by_key
+from mxi_ui.tooltip import Tooltip
 from mxi_ui.version import VERSION
 
 POLL_MS = 100
@@ -30,6 +31,7 @@ class MainWindow:
         self.status = tk.StringVar(value="Ready")
         self.selected = None
         self.forms = {}  # each step's entries, kept while the window is open
+        self.tooltips = []
         self.command = tk.StringVar()
         self.trouble = tk.StringVar()
         root.title(f"mxi ui {VERSION}")
@@ -170,23 +172,27 @@ class MainWindow:
         return self.forms[step.key]
 
     def _show_form(self, step):
+        for tooltip in self.tooltips:
+            tooltip.hide()
+        self.tooltips = []
         for child in self.fields.winfo_children():
             child.destroy()
         form = self._form_of(step)
         self.form.configure(text=f"{step.title}: {step.about}")
         row = 0
 
-        def label(text, about=""):
-            nonlocal row
+        def label(text):
             ttk.Label(self.fields, text=text).grid(
                 row=row, column=0, sticky=tk.W, padx=(0, 8), pady=2
             )
-            if about:
-                ttk.Label(self.fields, text=about, foreground="#666666").grid(
-                    row=row, column=2, sticky=tk.W, padx=(8, 0)
-                )
 
-        label("Inputs", "the images' master files" if step.key == "import" else "")
+        def tip(widget, text):
+            # What each field is for, on hover: the explanation lines beside
+            # the fields are gone (Graeme: almost every user would know).
+            self.tooltips.append(Tooltip(widget, text))
+            return widget
+
+        label("Inputs")
         box = ttk.Frame(self.fields)
         box.grid(row=row, column=1, sticky=tk.EW, pady=2)
         # The button first, from the right: packed after the entry, it was the
@@ -194,45 +200,57 @@ class MainWindow:
         ttk.Button(
             box, text="Browse...", command=lambda: self._browse_inputs(step)
         ).pack(side=tk.RIGHT, padx=(4, 0))
-        ttk.Entry(box, textvariable=form["inputs"], width=48).pack(
-            side=tk.LEFT, fill=tk.X, expand=True
+        inputs = ttk.Entry(box, textvariable=form["inputs"], width=48)
+        inputs.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        tip(
+            inputs,
+            (
+                "The images' master files, a sweep each"
+                if step.key == "import"
+                else f"What mxi {step.key} reads: by default {' '.join(step.inputs)}"
+            ),
         )
         row += 1
         for option in step.options:
-            label(option.label, option.about)
+            label(option.label)
             var = form["options"][option.flag]
             if option.kind == "flag":
-                ttk.Checkbutton(self.fields, variable=var, text=option.flag).grid(
-                    row=row, column=1, sticky=tk.W, pady=2
-                )
+                widget = ttk.Checkbutton(self.fields, variable=var)
             elif option.kind == "choice":
-                ttk.Combobox(
+                widget = ttk.Combobox(
                     self.fields,
                     textvariable=var,
                     values=("",) + option.choices,
                     state="readonly",
                     width=20,
-                ).grid(row=row, column=1, sticky=tk.W, pady=2)
-            else:
-                ttk.Entry(self.fields, textvariable=var, width=24).grid(
-                    row=row, column=1, sticky=tk.W, pady=2
                 )
-            row += 1
-        if step.output_flag:
-            label("Output", f"default {step.output}" if step.output else "")
-            ttk.Entry(self.fields, textvariable=form["output"], width=24).grid(
-                row=row, column=1, sticky=tk.W, pady=2
+            else:
+                widget = ttk.Entry(self.fields, textvariable=var, width=24)
+            widget.grid(row=row, column=1, sticky=tk.W, pady=2)
+            tip(
+                widget,
+                f"{option.flag}: {option.about}" if option.about else option.flag,
             )
             row += 1
-        label("Threads", "empty or 0: every core this job may use")
-        ttk.Entry(self.fields, textvariable=form["threads"], width=8).grid(
-            row=row, column=1, sticky=tk.W, pady=2
-        )
+        if step.output_flag:
+            label("Output")
+            output = ttk.Entry(self.fields, textvariable=form["output"], width=24)
+            output.grid(row=row, column=1, sticky=tk.W, pady=2)
+            tip(
+                output,
+                f"{step.output_flag}: where to write"
+                + (f" (by default {step.output})" if step.output else ""),
+            )
+            row += 1
+        label("Threads")
+        threads = ttk.Entry(self.fields, textvariable=form["threads"], width=8)
+        threads.grid(row=row, column=1, sticky=tk.W, pady=2)
+        tip(threads, "-j: threads to use; empty or 0, every core this job may use")
         row += 1
-        label("Further options", f"as mxi {step.key} --help lists them")
-        ttk.Entry(self.fields, textvariable=form["extra"], width=48).grid(
-            row=row, column=1, sticky=tk.EW, pady=2
-        )
+        label("Further options")
+        extra = ttk.Entry(self.fields, textvariable=form["extra"], width=48)
+        extra.grid(row=row, column=1, sticky=tk.EW, pady=2)
+        tip(extra, f"Any other options, as mxi {step.key} --help lists them")
         self.fields.columnconfigure(1, weight=1)
         self._update_command()
 

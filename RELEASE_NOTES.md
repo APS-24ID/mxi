@@ -7,13 +7,14 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.1.3
 
 **New**
-- `mxi process MASTER.nxs...`: the whole sequence, import to export, a step at
-  a time, each the command a script of them would run, with its own output and
-  log. `-j` goes to every step, `--gpu` to spot finding and integration,
-  `--cell` and `--space-group` to indexing (the cell as `--known-cell`) and
-  the space group to scaling, `--d-min-auto` to scaling. A step that fails
-  stops it, saying which, its exit code, its log, and the command to run it
-  again; `--dry-run` prints the eight commands and runs none.
+- `mxi process MASTER.nxs...`, for routine data: the whole sequence, import to
+  export, a step at a time, each the command a script of them would run, with
+  its own output and log. `-j` goes to every step, `--gpu` to spot finding and
+  integration, `--cell` and `--space-group` to indexing (the cell as
+  `--known-cell`) and the space group to scaling, `--no-joint` to indexing for
+  several crystals, `--d-min-auto` to scaling. A step that fails stops it,
+  saying which, its exit code, its log, and the command to run it again;
+  `--dry-run` prints the eight commands and runs none.
 - `mxi ui`, an interface to mxi, for processing data and for teaching
   (docs/ui.md). The workflow's steps and tools down the side, each marked done
   from the working directory, so that a directory processed before opens as it

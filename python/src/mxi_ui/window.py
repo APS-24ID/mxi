@@ -102,10 +102,12 @@ def draw(axes, plot):
             more = twin.get_legend_handles_labels()
             handles, labels = handles + more[0], labels + more[1]
         axes.legend(handles, labels, fontsize=8)
-    axes.grid(alpha=0.3)
+    if plot.kind != "matrix":  # no grid over a matrix's cells
+        axes.grid(alpha=0.3)
 
 
 POLL_MS = 100
+ROW_HEIGHT = 330  # pixels a row of plots, at least: more scroll
 # Run's shortcut: Command-Return on a Mac, Control-Return elsewhere.
 RUN_KEY = "Command" if sys.platform == "darwin" else "Control"
 RUN_KEY_SHOWN = "Cmd" if sys.platform == "darwin" else "Ctrl"
@@ -672,6 +674,7 @@ class MainWindow:
             child.destroy()
         self.canvas = None
         self.toolbar = None
+        self.scroller = None
         made = results.plots(rec)
         if not made:
             text = (
@@ -694,33 +697,57 @@ class MainWindow:
         for i, plot in enumerate(made):
             draw(figure.add_subplot(rows, columns, i + 1), plot)
         self.figure = figure
-        self.canvas = FigureCanvasTkAgg(figure, master=self.plots)
+        self.plot_rows = rows
+        # The figure in a canvas that scrolls: each row of plots its own
+        # height, the tab scrolling where they are more than it holds --
+        # five or six plots squeezed into it had been too small to read.
+        holder = ttk.Frame(self.plots)
+        self.scroller = tk.Canvas(holder, highlightthickness=0, borderwidth=0)
+        bar = ttk.Scrollbar(holder, command=self.scroller.yview)
+        self.scroller.configure(yscrollcommand=bar.set)
+        self.canvas = FigureCanvasTkAgg(figure, master=self.scroller)
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.plots, pack_toolbar=False)
         self.toolbar.update()
         self.toolbar.pack(side=tk.BOTTOM, fill=tk.X)
-        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        holder.pack(fill=tk.BOTH, expand=True)
+        bar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.scroller.pack(fill=tk.BOTH, expand=True)
+        self.scroller.create_window(
+            0, 0, window=self.canvas.get_tk_widget(), anchor=tk.NW
+        )
+        widget = self.canvas.get_tk_widget()
+        for target in (widget, self.scroller):
+            target.bind(
+                "<MouseWheel>", lambda e: self._scroll_plots(-1 if e.delta > 0 else 1)
+            )
+            target.bind("<Button-4>", lambda _e: self._scroll_plots(-1))
+            target.bind("<Button-5>", lambda _e: self._scroll_plots(1))
         self._fit_plots()
 
     def _fit_plots(self):
-        """The canvas as large as the Plots tab allows, the toolbar beneath:
-        sized from its own wish, the figure had been drawn wider than the tab
-        and its right-hand plots cut off."""
+        """The figure the tab's width, each row of plots ROW_HEIGHT high or the
+        tab's height shared, whichever is more; scrolling where it is taller
+        than the tab. Sized from its own wish, the figure had been drawn
+        wider than the tab and its right-hand plots cut off."""
         if self.canvas is None:
             return
         self.plots.update_idletasks()
-        width = self.plots.winfo_width() - 12
-        height = (
-            self.plots.winfo_height()
-            - 12
-            - (self.toolbar.winfo_reqheight() if self.toolbar is not None else 0)
-        )
-        if width > 50 and height > 50:
-            self.canvas.get_tk_widget().configure(width=width, height=height)
-            # And the figure itself: matplotlib redraws to a resize event,
-            # and where the widget's size did not change there is none.
-            dpi = self.figure.dpi
-            self.figure.set_size_inches(width / dpi, height / dpi, forward=False)
+        width = self.scroller.winfo_width()
+        shown = self.scroller.winfo_height()
+        if width < 50 or shown < 50:
+            return
+        height = max(shown, self.plot_rows * ROW_HEIGHT)
+        self.canvas.get_tk_widget().configure(width=width, height=height)
+        # And the figure itself: matplotlib redraws to a resize event, and
+        # where the widget's size did not change there is none.
+        dpi = self.figure.dpi
+        self.figure.set_size_inches(width / dpi, height / dpi, forward=False)
+        self.scroller.configure(scrollregion=(0, 0, width, height))
         self.canvas.draw_idle()
+
+    def _scroll_plots(self, units):
+        if self.canvas is not None:
+            self.scroller.yview_scroll(units, "units")
 
     # --- running ----------------------------------------------------------
 

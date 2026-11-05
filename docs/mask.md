@@ -45,8 +45,8 @@ the experiment list with every sweep's regions to a new file, `masked.rflx`
 (`mxi view -o` to choose another), and keeps them in `mxi_mask.json` -- in the
 directory `mxi view` is run in, or beside the file `mxi ui` shows, where Find
 spots is then set to read it. The input is left as it was, to compare with:
-masked and not, processed side by side; process `masked.rflx` from spot
-finding on. Closing with regions not saved asks first.
+masked and not, process `masked.rflx` from spot finding on -- `mxi process masked.rflx`, with
+its usual options, does so, whatever file was masked. Closing with regions not saved asks first.
 
 `mxi view`'s options: `-o FILE`, where Save writes; `--sum N`, images summed
 to begin with; `--sweep K`, the sweep shown first. It needs what mxi ui

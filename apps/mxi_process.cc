@@ -112,7 +112,12 @@ std::string next_after(const std::string &path, std::string *by) {
       {"mxi_symmetry", "scale"},
       {"mxi_scale", "export"},
       // A cluster: a subset of the crystals, to be scaled afresh.
-      {"mxi_correlation", "scale"}};
+      {"mxi_correlation", "scale"},
+      // Untrusted regions set: spot finding on, whatever file was masked
+      // (docs/mask.md) -- the regions change which pixels finding and
+      // integration may use, so no step before stands (Graeme's masked.rflx,
+      // written by mxi untrusted, had been refused).
+      {"mxi_untrusted", "find"}};
   const auto find = [&](const std::string &program) -> std::string {
     for (const auto &[from, step] : next)
       if (from == program)
@@ -121,19 +126,26 @@ std::string next_after(const std::string &path, std::string *by) {
   };
   const std::string creator = mxi::rflx::read_creator(path);
   if (const std::string step = find(creator); !step.empty()) {
-    *by = creator;
+    *by = creator + ", which wrote it";
     return step;
   }
+  // Else the summary's steps, last first: the latest one known says what
+  // follows -- past a program of no step's own (mxi split, mxi combine).
   if (const auto summary = mxi::rflx::read_summary(path)) {
     const mxi::json::Value &steps = (*summary)["steps"];
-    if (steps.is_array() && !steps.as_array().empty()) {
-      const mxi::json::Value &last = steps.as_array().back()["program"];
-      if (last.is_string())
-        if (const std::string step = find(last.as_string()); !step.empty()) {
-          *by = last.as_string();
+    if (steps.is_array())
+      for (auto it = steps.as_array().rbegin(); it != steps.as_array().rend();
+           ++it) {
+        const mxi::json::Value &program = (*it)["program"];
+        if (!program.is_string())
+          continue;
+        if (const std::string step = find(program.as_string()); !step.empty()) {
+          *by = program.as_string() +
+                ", the last step its summary records with "
+                "one to follow";
           return step;
         }
-    }
+      }
   }
   *by = creator;
   return "";
@@ -268,7 +280,7 @@ int mxi_process_main(int argc, char **argv) {
     steps.front().args.front() = file;
     // To stderr in a dry run, so that its output is the commands alone.
     FILE *note = dry ? stderr : stdout;
-    std::fprintf(note, "mxi process: %s, written by %s: from mxi %s on\n",
+    std::fprintf(note, "mxi process: %s: after %s -- from mxi %s on\n",
                  file.c_str(), by.c_str(), first.c_str());
     for (const std::string &u : unused)
       std::fprintf(note, "mxi process: %s not used: its step is done already\n",

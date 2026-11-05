@@ -134,7 +134,7 @@ def test_a_file_picks_up_after_the_step_that_wrote_it(strong):
         "mxi scale symmetrized.rflx -j 2",
         "mxi export scaled.rflx -j 2",
     ]
-    assert "strong.rflx, written by mxi_find: from mxi index on" in notes
+    assert "strong.rflx: after mxi_find, which wrote it -- from mxi index on" in notes
 
 
 def test_a_cluster_is_scaled_afresh_and_exported(strong):
@@ -214,3 +214,42 @@ def test_a_report_on_a_cut_summary_leaves_out_what_was_left_out(strong):
     )
     assert run.returncode == 0, run.stderr
     assert "spots per image" in (strong / "cut.html").read_text().lower()
+
+
+def masked(where, source):
+    """`source` masked by mxi untrusted, as Graeme masked his: masked.rflx."""
+    (where / "mask.json").write_text('[{"panel": 0, "rectangle": [0, 0, 20, 20]}]')
+    run = subprocess.run(
+        [MXI, "untrusted", source, "--set", "mask.json", "-o", "masked.rflx"],
+        capture_output=True,
+        text=True,
+        cwd=where,
+    )
+    assert run.returncode == 0, run.stderr
+    return where / "masked.rflx"
+
+
+def test_a_masked_file_goes_on_from_spot_finding(strong):
+    # Graeme's: masked.rflx, written by mxi untrusted, had been refused. The
+    # regions change the pixels finding and integration use: from finding
+    # on, even where the file masked had its spots found already.
+    masked(strong, "strong.rflx")
+    code, lines, notes = dry_in(strong, "masked.rflx", "--d-min-auto", "--gpu")
+    assert code == 0 and lines[0] == "mxi find masked.rflx --gpu" and len(lines) == 7
+    assert "after mxi_untrusted, which wrote it -- from mxi find on" in notes
+
+
+def test_past_a_program_with_no_step_the_last_step_known(strong):
+    # A writer, and a last step, of no rule (mxi split, say): the summary
+    # walked back to the last program that has one -- here spot finding.
+    import h5py
+
+    path = masked(strong, "strong.rflx")
+    with h5py.File(path, "a") as f:
+        f.attrs["creator"] = "mxi_split"
+        f["summary/steps/1"].attrs["program"] = "mxi_split"
+    code, lines, notes = dry_in(strong, "masked.rflx")
+    assert (
+        code == 0 and lines[0] == "mxi index masked.rflx"
+    ), "after mxi_find, the last known"
+    assert "after mxi_find, the last step its summary records" in notes

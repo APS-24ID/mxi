@@ -45,6 +45,14 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 - `mxi_tools` finds mxi by the `MXI` environment variable first, as mxi ui
   does.
 
+**Fixed**
+- `mxi process masked.rflx` -- a file `mxi untrusted` wrote -- had been
+  refused, neither its writer nor its summary's last step having a step to
+  follow: it goes on from spot finding, as `docs/mask.md` has it, whatever
+  file was masked. And a file whose writer has no step of its own (`mxi
+  split`, `mxi combine`) goes on after the last step its summary records that
+  has one, where it had looked at its last step only.
+
 ## 1.1.4 -- 4 November 2026
 
 **Changed**

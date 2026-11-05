@@ -132,6 +132,7 @@ class Viewer:
         self.top.protocol("WM_DELETE_WINDOW", self.close)
         self.sweep = tk.IntVar(value=0)
         self.image = tk.IntVar(value=1)
+        self.summing = tk.IntVar(value=1)
         self.ceiling = tk.DoubleVar(value=10.0)
         self.scheme = tk.StringVar(value="grey")
         self.showing = {key: tk.BooleanVar(value=True) for key, *_ in LAYERS}
@@ -181,7 +182,25 @@ class Viewer:
             side=tk.LEFT
         )
         self.of = ttk.Label(bar, text="")
-        self.of.pack(side=tk.LEFT, padx=(4, 12))
+        self.of.pack(side=tk.LEFT, padx=(4, 8))
+        # Images summed from the one shown: a shadow shows against the summed
+        # background, and faint spots, where one image shows neither.
+        ttk.Label(bar, text="Sum").pack(side=tk.LEFT)
+        sum_box = ttk.Spinbox(
+            bar,
+            textvariable=self.summing,
+            from_=1,
+            to=1000,
+            width=4,
+            command=lambda: self.show(fit_contrast=True),
+        )
+        sum_box.pack(side=tk.LEFT, padx=(2, 12))
+        sum_box.bind("<Return>", lambda _e: self.show(fit_contrast=True))
+        Tooltip(
+            sum_box,
+            "Images summed from the one shown: 10 or 50 shows a shadow "
+            "against the background; the spots on any of them marked",
+        )
         ttk.Label(bar, text="Contrast").pack(side=tk.LEFT)
         self.slider = ttk.Scale(
             bar,
@@ -361,6 +380,31 @@ class Viewer:
         self.image.set(min(self.last, max(self.first, self._image() + by)))
         self.show()
 
+    def _which(self):
+        """The image shown, or the images summed: "images 3 to 12"."""
+        n, k = self._image(), self._summed()
+        return f"image {n}" if k == 1 else f"images {n} to {n + k - 1}"
+
+    def _summed(self):
+        """How many images the one shown is summed with, from it: at least
+        one, and none past the sweep's last."""
+        try:
+            k = int(self.summing.get())
+        except (tk.TclError, ValueError):
+            k = 1
+        k = max(
+            1, min(k, self.last - min(self.last, max(self.first, self._image())) + 1)
+        )
+        if k != self._summing_shown():
+            self.summing.set(k)
+        return k
+
+    def _summing_shown(self):
+        try:
+            return int(self.summing.get())
+        except (tk.TclError, ValueError):
+            return 0
+
     def _image(self):
         try:
             return int(self.image.get())
@@ -373,7 +417,11 @@ class Viewer:
         n = min(self.last, max(self.first, self._image()))
         self.image.set(n)
         s = self.sweeps[self.sweep.get()]
-        self.frame = self.images[s["master"]].frame(n - 1)
+        images = self.images[s["master"]]
+        # The sum ends at the sweep's last image (mxi_tools.Images.summed;
+        # its bad and overloaded pixels zero, adding nothing).
+        images.window = self._summed()
+        self.frame = images.summed(n - 1) if images.window > 1 else images.frame(n - 1)
         if fit_contrast:
             top = mxi_tools.display_top(self.frame)
             self.slider.configure(to=max(10.0, 20 * top))
@@ -439,7 +487,7 @@ class Viewer:
             markers = layers.get(key)
             if markers is None or not self.showing[key].get():
                 continue
-            yx, centred, boxes = markers.on_boxed(frame)
+            yx, centred, boxes = markers.on_boxed(frame, self._summed())
             for i, ((y, x), own) in enumerate(zip(yx, centred)):
                 style = dict(
                     outline=colour,
@@ -752,6 +800,6 @@ class Viewer:
             else None
         )
         self.readout.set(
-            f"image {self._image()}   x {x:8.1f}   y {y:8.1f}   counts {counts:8.0f}"
+            f"{self._which()}   x {x:8.1f}   y {y:8.1f}   counts {counts:8.0f}"
             + (f"   d {d:6.2f} Å" if d else "")
         )

@@ -575,3 +575,65 @@ def test_undo_by_its_key(strong):
         assert v.regions.of(v._imageset()) == [], "Ctrl-Z undid it"
     finally:
         root.destroy()
+
+
+def test_images_summed_from_the_one_shown(strong):
+    import numpy as np
+
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        images = v.images[v.sweeps[0]["master"]]
+        singles = [images.frame(i).copy() for i in range(6)]
+        v.image.set(2)
+        v.summing.set(3)
+        v.show(fit_contrast=True)
+        assert np.array_equal(
+            v.frame, singles[1] + singles[2] + singles[3]
+        ), "images 2 to 4"
+        # The sum stops at the sweep's last image, and says so.
+        v.image.set(5)
+        v.summing.set(10)
+        v.show()
+        assert v.summing.get() == 2 and np.array_equal(v.frame, singles[4] + singles[5])
+
+        class E:
+            pass
+
+        E.x, E.y = v.view.to_canvas(100.5, 80.5)
+        v._hover(E)
+        assert v.readout.get().startswith("images 5 to 6")
+    finally:
+        root.destroy()
+
+
+def test_a_sums_spots_are_those_on_any_of_its_images(strong):
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        v.image.set(1)
+        v.summing.set(1)
+        v.show()
+        settle(root, 2)
+        alone = len(v.canvas.find_withtag("unindexed"))
+        assert alone == 0, "image 1 has no spots"
+        v.summing.set(3)
+        v.show(fit_contrast=True)
+        settle(root, 2)
+        _yx, _own, boxes = v.layers[0]["unindexed"].on_boxed(0, 3)
+        drawn = len(v.canvas.find_withtag("unindexed"))
+        assert drawn == len(boxes) > 0, "image 3's spots, in images 1 to 3's sum"
+    finally:
+        root.destroy()
+
+
+def test_the_contrast_refits_to_a_sum(strong):
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        v.image.set(3)
+        v.summing.set(1)
+        v.show(fit_contrast=True)
+        one = v.ceiling.get()
+        v.summing.set(4)
+        v.show(fit_contrast=True)
+        assert v.ceiling.get() > one, "summed counts, a higher top"
+    finally:
+        root.destroy()

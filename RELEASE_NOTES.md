@@ -12,6 +12,9 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   time, the same as the previous sweep's; saved as `mxi view` saves them, into
   `masked.rflx` through `mxi untrusted` and `mxi_mask.json`, and Find spots
   then reads `masked.rflx`. Closing with regions not saved asks first.
+- mxi ui's viewer sums images: from the one shown, as many as are asked for,
+  so that a shadow or faint spots show; the spots on any of them marked, the
+  contrast set afresh.
 - `mxi_tools` finds mxi by the `MXI` environment variable first, as mxi ui
   does.
 

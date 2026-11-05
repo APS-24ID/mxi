@@ -177,7 +177,8 @@ masked by `mxi untrusted` (`masked.rflx`) goes on from spot finding. Each step i
 the command above, run as it would be by hand, with its own output and log;
 data needing more than these options are processed a step at a time. A step that fails stops it: which step, its exit code, its
 log, and how to go on once it is put right -- the step's own command, or
-`mxi process` on its input for all that remains.
+`mxi process` on its input for all that remains. Where it starts, where each option
+goes, and how to go on, with their flows: [`docs/process.md`](docs/process.md).
 
 Each step reads the last one's file and writes its own, under the name shown
 unless `-o` names another: a `.rflx`, mxi's own format -- HDF5 holding the

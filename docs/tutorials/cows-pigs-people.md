@@ -255,7 +255,7 @@ mxi scale symmetrized.rflx --d-min-auto
 
 The same eight steps, import to export, are one command where nothing needs
 more than its options -- `--no-joint` to indexing, `--d-min-auto` to scaling
-(`mxi process --help`; the README):
+(`mxi process --help`; `docs/process.md`):
 
 ```sh
 mxi process ../data/CIX*.nxs ../data/PIX*.nxs ../data/X*.nxs --no-joint --d-min-auto

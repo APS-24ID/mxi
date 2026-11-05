@@ -250,7 +250,7 @@ target_compile_options(mxi_combine PRIVATE -Wall -Wextra)
 add_library(mxi_split OBJECT apps/mxi_split.cc)
 target_link_libraries(mxi_split PRIVATE mxi)
 target_compile_options(mxi_split PRIVATE -Wall -Wextra)
-# mxi_view, in Python (napari, optional): copied beside the programs, its
+# mxi_view, in Python (mxi ui's viewer, Tk): copied beside the programs, its
 # version filled in, with the module mxi's Python tools share.
 configure_file(python/src/mxi_view.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_view @ONLY
   FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ

@@ -1,11 +1,10 @@
 """mxi_view and mxi_tools.py, mxi's Python tools.
 
-The module without napari: untrusted regions to napari's shapes and back, in
-the two pixel conventions; spots as napari points; its reflection reader
-against mxeq's; frames summed against the file read directly. The window,
-where napari and a display are there (xvfb-run in a sandbox): two sweeps of
-the planted series, each spot point on a bright pixel, a rectangle drawn,
-Same as last, Save into masked.rflx.
+mxi_tools: its reflection reader against mxeq's; frames summed against the
+file read directly; markers on exactly the images of their boxes; masters of
+several blocks; mxi found as an installed release lays it out. mxi view,
+mxi ui's viewer since 1.1.5 (its own tests, test_ui_viewer.py), run from the
+PATH. napari's viewer and its tests are gone.
 """
 
 import importlib.machinery
@@ -25,6 +24,7 @@ BUILD = os.path.dirname(os.environ.get("MXI_FIND", "")) or os.environ.get(
 )
 TOOLS = os.path.join(BUILD, "mxi_tools.py")
 VIEW = os.path.join(BUILD, "mxi_view")
+MXI = os.path.join(BUILD, "mxi")
 
 pytestmark = pytest.mark.skipif(
     not (os.path.exists(TOOLS) and os.path.exists(VIEW)),
@@ -45,39 +45,6 @@ def tools():
     if BUILD not in sys.path:
         sys.path.insert(0, BUILD)
     return load("mxi_tools", TOOLS)
-
-
-def test_regions_and_shapes_round_trip_in_both_conventions():
-    t = tools()
-    for region in (
-        {"panel": 0, "rectangle": [100.0, 50.0, 260.0, 170.0]},
-        {"panel": 0, "circle": [330.0, 200.0, 25.0]},
-        {"panel": 0, "polygon": [[20.0, 200.0], [80.0, 240.0], [20.0, 250.0]]},
-    ):
-        kind, vertices = t.untrusted_to_shape(region)
-        assert t.shape_to_untrusted(kind, vertices) == region
-    # napari's pixel i is centred on i, DIALS's spans i to i + 1: a rectangle
-    # on napari's corners -0.5 and 9.5 is DIALS's 0 to 10.
-    r = t.shape_to_untrusted(
-        "rectangle", [[-0.5, -0.5], [-0.5, 9.5], [4.5, 9.5], [4.5, -0.5]]
-    )
-    assert r["rectangle"] == [0.0, 0.0, 10.0, 5.0]
-    # An ellipse not round becomes a polygon; a slice coordinate is dropped.
-    e = t.shape_to_untrusted(
-        "ellipse", [[3, 0, 0], [3, 0, 40], [3, 20, 40], [3, 20, 0]]
-    )
-    assert "polygon" in e and len(e["polygon"]) == 48
-    assert t.shape_to_untrusted("line", [[0, 0], [5, 5]]) is None
-
-
-def test_spots_become_napari_points_half_a_pixel_back():
-    t = tools()
-    table = {
-        "id": np.array([0, 1, 0]),
-        "xyzobs.px.value": np.array([[10.5, 20.5, 3.5], [1, 1, 1], [0.0, 0.0, 0.0]]),
-    }
-    p = t.points_of(table, "xyzobs.px.value", [0])
-    assert p.tolist() == [[3.0, 20.0, 10.0]]  # (z, y, x); the zero row none
 
 
 def planted(tmp_path, sets=1):
@@ -132,74 +99,8 @@ def test_reflections_and_frames_are_read_as_mxeq_and_h5py_read_them(tmp_path):
             n for n in f["/entry/data"] if n == "data" or n.startswith("data_")
         )
         raw = np.sum([f["/entry/data"][names[0]][k] for k in range(3)], axis=0)
-    assert images.shape == (6,) + raw.shape
-    assert np.allclose(images[0], raw)
-    assert images[0:2].shape == (2,) + raw.shape
-
-
-needs_display = pytest.mark.skipif(
-    not os.environ.get("DISPLAY") or importlib.util.find_spec("napari") is None,
-    reason="napari and a display (xvfb-run) are needed for the window",
-)
-
-
-@needs_display
-def test_the_window_shows_the_spots_and_saves_the_regions(tmp_path, monkeypatch):
-    strong, master = planted(tmp_path, sets=2)
-    monkeypatch.chdir(tmp_path)
-    tools()
-    view_module = load("mxi_view_module", VIEW)
-    view = view_module.View(str(strong), "masked.rflx", 1)
-    try:
-        layers = [layer.name for layer in view.viewer.layers]
-        assert {"images", "spots", "untrusted"} <= set(layers)
-        # The markers are the image shown's alone -- a few, not the sweep's --
-        # and each red one, its spot centred there, on its spot's brightest
-        # pixel: the two conventions met (napari's pixel i centred on i,
-        # DIALS's spanning i to i + 1).
-        view.viewer.dims.set_point(0, 1)  # 24 of the 48 span image 1
-        layer = view.viewer.layers["spots"]
-        assert layer.ndim == 2 and 0 < len(layer.data) < view.counts[0]
-        view.viewer.dims.set_point(0, 2)  # all 48 span it, on six images
-        own = layer.data[np.asarray(layer.border_color)[:, 1] < 0.1]
-        assert 0 < len(own) < len(layer.data)  # and the others recorded there
-        frame = view.viewer.layers["images"].data[2]
-        for y, x in own:
-            yi, xi = int(round(y)), int(round(x))
-            w = frame[yi - 4 : yi + 5, xi - 4 : xi + 5]
-            j, i = np.unravel_index(np.argmax(w), w.shape)
-            assert abs(yi - 4 + j - y) <= 1 and abs(xi - 4 + i - x) <= 1
-        view.viewer.dims.set_point(0, 4)
-        assert not np.array_equal(own, view.viewer.layers["spots"].data)  # follows
-        # And in z: on each image, a spot is marked where its pixels have
-        # signal there -- well above the background -- and only there.
-        images = view.viewer.layers["images"].data
-        everywhere = view.markers["spots"].yx
-        for f in range(images.shape[0]):
-            view.viewer.dims.set_point(0, f)
-            marked = {tuple(p) for p in view.viewer.layers["spots"].data.tolist()}
-            frame = images[f]
-            for y, x in everywhere.tolist():
-                yi, xi = int(round(y)), int(round(x))
-                lit = frame[yi - 1 : yi + 2, xi - 1 : xi + 2].max() > 10 * np.median(
-                    frame
-                )
-                assert lit == ((y, x) in marked), (f, y, x, lit)
-        # A rectangle drawn on the first sweep; Same as last on the second.
-        view.viewer.layers["untrusted"].add_rectangles(
-            np.array([[49.5, 99.5], [169.5, 259.5]])
-        )
-        view.show(1)
-        view.same_as_last()
-        view.save()
-        written = rflx.experiments_dict(str(tmp_path / "masked.rflx"))["imageset"]
-        assert written[0]["untrusted"] == [
-            {"panel": 0, "rectangle": [100.0, 50.0, 260.0, 170.0]}
-        ]
-        assert written[1]["untrusted"] == written[0]["untrusted"]
-        assert "untrusted" not in rflx.experiments_dict(str(strong))["imageset"][0]
-    finally:
-        view.viewer.close()
+    assert len(images) == 6 and images.frame_shape == raw.shape
+    assert np.allclose(images.summed(0), raw)
 
 
 def test_the_grey_scale_tops_out_well_above_the_background():
@@ -285,104 +186,7 @@ def test_a_master_with_data_and_its_blocks_counts_each_frame_once(tmp_path):
         f.create_dataset("entry/data/data_000001", data=frames)
         f.create_dataset("entry/data/data", data=frames)
     images = t.Images(str(tmp_path / "m.nxs"))
-    assert images.frames == 3 and images.shape == (3, 4, 5)
-
-
-@needs_display
-def test_an_indexed_files_spots_are_shown_by_their_own_experiment(
-    tmp_path, monkeypatch
-):
-    # An indexed list: the sweep's crystal-less experiment 0, its lattice 1,
-    # every spot the lattice's. Read through mxi_convert the list had been
-    # DIALS's -- lattices only, renumbered from 0 -- and the spots shown were
-    # experiment 0's of the file: none here, the unindexed in Graeme's.
-    from mxeq import refl
-
-    strong, master = planted(tmp_path)
-    table = refl.load(str(strong)) if str(strong).endswith(".refl") else None
-    t = tools()
-    doc = t.read_experiments(str(strong))
-    lattice = dict(
-        doc["experiment"][0],
-        crystal=0,
-        identifier="1c0ffee0-0000-4000-8000-0000000000a1",
-    )
-    doc["experiment"].append(lattice)
-    doc["crystal"] = [
-        {
-            "__id__": "crystal",
-            "real_space_a": [40.0, 0.0, 0.0],
-            "real_space_b": [0.0, 40.0, 0.0],
-            "real_space_c": [0.0, 0.0, 40.0],
-            "space_group_hall_symbol": " P 1",
-        }
-    ]
-    json.dump(doc, open(tmp_path / "indexed.expt", "w"))
-    spots = rflx.load_table(str(strong))
-    spots.columns["id"] = np.ones(spots.nrows, dtype=spots.columns["id"].dtype)
-    spots.identifiers = {1: lattice["identifier"]}
-    refl.write(str(tmp_path / "indexed.refl"), spots)
-    run = subprocess.run(
-        [
-            os.path.join(BUILD, "mxi_convert"),
-            str(tmp_path / "indexed.expt"),
-            str(tmp_path / "indexed.refl"),
-            "-o",
-            str(tmp_path / "indexed.rflx"),
-        ],
-        capture_output=True,
-        text=True,
-        cwd=tmp_path,
-    )
-    assert run.returncode == 0, run.stderr + run.stdout
-    monkeypatch.chdir(tmp_path)
-    view_module = load("mxi_view_module", VIEW)
-    view = view_module.View(str(tmp_path / "indexed.rflx"), "masked.rflx", 1)
-    try:
-        assert view.counts[0] == spots.nrows, view.counts
-    finally:
-        view.viewer.close()
-
-
-@needs_display
-def test_undo_clear_and_same_as_last_are_undone_a_step_at_a_time(tmp_path, monkeypatch):
-    # napari's shapes layer has no undo; mxi_view's records each sweep's
-    # regions before each finished change -- a shape added, removed or
-    # changed, Clear, Same as last -- and Undo puts them back.
-    strong, master = planted(tmp_path, sets=2)
-    monkeypatch.chdir(tmp_path)
-    tools()
-    view = load("mxi_view_module", VIEW).View(str(strong), "masked.rflx", 1)
-    try:
-        layer = view.viewer.layers["untrusted"]
-        layer.add_rectangles(np.array([[49.5, 99.5], [169.5, 259.5]]))
-        layer.add_ellipses(np.array([[10.5, 10.5], [30.5, 30.5]]))
-        assert len(view.current_regions()) == 2
-        view.undo()
-        assert [list(r)[1] for r in view.current_regions()] == ["rectangle"]
-        view.undo()
-        assert view.current_regions() == []
-        view.undo()  # nothing left: no change
-        assert view.current_regions() == []
-        layer = view.viewer.layers["untrusted"]
-        layer.add_rectangles(np.array([[0.0, 0.0], [9.0, 9.0]]))
-        view.clear()
-        assert view.current_regions() == []
-        view.undo()
-        assert len(view.current_regions()) == 1
-        view.show(1)
-        view.same_as_last()
-        assert len(view.current_regions()) == 1
-        view.undo()
-        assert view.current_regions() == []
-        view.same_as_last()
-        view.save()
-        written = rflx.experiments_dict(str(tmp_path / "masked.rflx"))["imageset"]
-        assert written[0]["untrusted"] == written[1]["untrusted"]
-        assert written[1]["untrusted"][0]["rectangle"] == [0.5, 0.5, 9.5, 9.5]
-        assert "Ctrl+Z" in str(view.viewer.layers["untrusted"].keymap)  # Cmd-Z on a Mac
-    finally:
-        view.viewer.close()
+    assert images.frames == 3 and len(images) == 3 and images.frame_shape == (4, 5)
 
 
 def test_an_installed_layout_runs_mxis_commands(tmp_path, monkeypatch):
@@ -437,3 +241,31 @@ def test_mxi_view_runs_from_the_path_as_plain_mxi(tmp_path):
         )
         assert run.returncode == 0, (first.name, run.stderr)
         assert run.stdout.startswith("mxi view "), run.stdout
+
+
+def test_mxi_view_opens_mxi_uis_viewer(tmp_path):
+    # mxi view is mxi ui's viewer since napari's was retired: a file named
+    # that is not there said first, whatever the display; with one, a window
+    # opened and kept open, the options -o, --sum and --sweep taken.
+    run = subprocess.run(
+        [MXI, "view", "nowhere.rflx"], capture_output=True, text=True, cwd=tmp_path
+    )
+    assert run.returncode == 2 and "no such file: nowhere.rflx" in run.stderr
+    helped = subprocess.run([MXI, "view", "--help"], capture_output=True, text=True)
+    assert all(o in helped.stdout for o in ("-o", "--sum", "--sweep"))
+    if not os.environ.get("DISPLAY") or os.environ.get("MXI_NO_WINDOW_TESTS"):
+        pytest.skip("no display for the window (or the release builds')")
+    strong, _master = planted(tmp_path)
+    import time
+
+    p = subprocess.Popen(
+        [MXI, "view", str(strong), "--sum", "3", "-o", "mine.rflx"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=tmp_path,
+    )
+    time.sleep(4)
+    alive = p.poll() is None
+    p.terminate()
+    _out, err = p.communicate(timeout=10)
+    assert alive, err.decode()[-500:]

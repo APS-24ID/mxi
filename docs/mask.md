@@ -8,14 +8,7 @@ of it. On a small molecule refined to R1 0.026, most of the observations beyond
 (`docs/outstanding.md`, item 78; `mxeq truth`). These two programs mark such
 regions **untrusted**, so that spot finding and integration leave them out.
 
-## Drawing them in mxi ui
-
-`mxi ui`'s viewer draws them too, with no napari: **View images** for the
-Import step, then a rectangle, circle or polygon on the images, and **Save**
--- `masked.rflx` and `mxi_mask.json`, as below, and Find spots set to read it
-(`docs/ui.md`, Untrusted regions).
-
-## Viewing and drawing them: mxi view
+## Viewing and drawing them: mxi view, or mxi ui
 
 ```sh
 mxi import ../data/*.nxs
@@ -24,47 +17,43 @@ mxi find masked.rflx
 mxi view strong.rflx          # the strong spots on the images
 ```
 
-`mxi view` shows an experiment list's images in napari, a sweep at a time,
-chosen in the panel on the right. The images are a stack with a slider; each
-is shown as the sum of the number set in the panel from it (one to begin
-with), so that a shadow shows against the background; contrast and colour
-are napari's own. Whatever the file holds is drawn on them: the strong spots
-(`xyzobs.px.value`) as circles, and the predictions (`xyzcal.px`), hidden to
-begin with, as cyan crosses -- each on the images its box spans: the spot
-finder's box, exactly the images its pixels are on, in a strong or indexed
-file; integration's in an integrated one. Red on its centroid's image, a paler
-red on the others. With images summed, a spot is
-marked on any image whose sum includes it. Markers are at least ten screen pixels across
-however far out the view is, so that they show on a large detector seen whole.
+`mxi view` opens mxi ui's image viewer on a file, in a window of its own;
+in `mxi ui` it is **View images**, for the step chosen (`docs/ui.md`, The
+images). A sweep at a time, where there are several; on each image, whatever
+the file holds: the strong spots, indexed apart from unindexed after
+indexing, and the predictions, each drawn as its box on exactly the images
+its box spans. Zoom with + and −, the keys + and -, a right-button drag or a
+scroll; pan by dragging; contrast and colour maps; under the cursor, the
+pixel, its counts and its resolution.
 
-The untrusted regions are a shapes layer, `untrusted`, over every image of the
-sweep -- selected when a sweep opens, its tools in the layer controls. To find a
-shadow, raise **images summed** to 10 or 50; scroll to zoom, hold **Space** to
-pan without leaving the tool. Then draw:
+To find a shadow, raise **Sum** to 10 or 50: that many images summed from the
+one shown, the shadow showing against the summed background; the spots on
+any of them marked. Then, in the bar of untrusted regions, draw:
 
-* **R**, a rectangle, dragged corner to corner;
-* **E**, an ellipse, dragged by its box -- a circle where round, a polygon of 48
-  sides where not;
-* **P**, a polygon, a click at each vertex, **Enter** or **Esc** to close it;
-  **Shift-P** a polygon traced freehand.
+* **Rectangle**, dragged corner to corner;
+* **Circle**, dragged from its centre to its edge;
+* **Polygon**, a click at each vertex, a double-click or **Return** to close
+  it, **Escape** to abandon it.
 
-**S** selects a shape to move or resize it, **D** moves its vertices, **Delete**
-removes it. napari's shapes layer has no undo of its own, so the panel has one:
-**Undo** (or Ctrl-Z, Cmd-Z on a Mac) puts the sweep's regions back as they were
-before the last change -- a shape added, removed or changed, Clear, Same as
-last -- a step at a time, each sweep its own. **Clear** removes the sweep's
-regions; **Same as last** copies those of the sweep shown before, for sweeps
-that share their shadows. **Save** writes the experiment list with every
-sweep's regions to a new file, `masked.rflx` (`-o` to choose), and keeps them in
-`mxi_mask.json`. The input is left as it was, to compare with: masked and not,
-processed side by side; process `masked.rflx` from spot finding on.
+Shift-drag pans while drawing. In **Look**, a click chooses a region, and
+**Delete** removes it. **Undo** (Ctrl-Z, Cmd-Z on a Mac) puts the sweep's
+regions back as they were before the last change, a step at a time, each
+sweep its own; **Clear** removes the sweep's; **Same as previous** copies
+those of the sweep shown before, for sweeps that share their shadows. The
+regions a file holds already are shown, to change or add to. **Save** writes
+the experiment list with every sweep's regions to a new file, `masked.rflx`
+(`mxi view -o` to choose another), and keeps them in `mxi_mask.json` -- in the
+directory `mxi view` is run in, or beside the file `mxi ui` shows, where Find
+spots is then set to read it. The input is left as it was, to compare with:
+masked and not, processed side by side; process `masked.rflx` from spot
+finding on. Closing with regions not saved asks first.
 
-napari is an optional dependency: `pip install "napari[all]" h5py
-hdf5plugin`. Nothing else in mxi needs it, and `mxi view` says what to install
-where it is missing. It is built and installed with `mxi`
-(`cmake --install`, the README), and finds `mxi` -- which it runs as `mxi
-untrusted` to save -- and its module, `mxi_tools.py`, beside itself. Over a remote desktop it needs one
-that carries OpenGL, as NoMachine does.
+`mxi view`'s options: `-o FILE`, where Save writes; `--sum N`, images summed
+to begin with; `--sweep K`, the sweep shown first. It needs what mxi ui
+needs -- Python with tkinter, numpy, h5py and hdf5plugin -- and says what is
+missing. It is built and installed with `mxi`, and finds `mxi` -- which it
+runs as `mxi untrusted` to save -- beside itself. Through 1.1.4 it was napari's
+viewer, retired since.
 
 ## Where they are kept, and applying them again
 

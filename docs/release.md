@@ -44,7 +44,7 @@ program needs nothing installed: HDF5 and zlib are linked in, from vcpkg
 (`vcpkg.json`), and on Linux the C++ runtime too; built in manylinux_2_28, it needs glibc 2.28
 or later, which packaging checks; the CUDA driver is the
 system's. `scripts/package_release.sh` refuses to package a build that would
-need anything else. `mxi view` needs napari, as always (`docs/mask.md`).
+need anything else. `mxi ui` and `mxi view` need Python with tkinter (`docs/ui.md`).
 
 One program, not 24 each with its own HDF5: the archive is a few megabytes, where 24 programs had made it some 50.
 

@@ -6,6 +6,16 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 ## Unreleased -- since 1.1.4
 
+**Changed**
+- `mxi view` is mxi ui's image viewer, in a window of its own, no longer
+  napari's: the same command and options (`-o`, `--sum`, `--sweep`), and Save
+  writing `masked.rflx` and `mxi_mask.json` where it is run, as before. It
+  needs Python with tkinter, numpy, h5py and hdf5plugin, as mxi ui does, and
+  no napari; the wheel's `[napari]` extra is gone. Regions are rectangles,
+  circles and polygons, drawn, chosen and deleted, undone; what napari's
+  shapes layer had besides -- ellipses, freehand polygons, moving a region or
+  its vertices -- is gone: a region is deleted and drawn again.
+
 **New**
 - mxi ui's viewer draws the detector's untrusted regions: rectangles, circles
   and polygons on a sweep's images, chosen and deleted, undone a step at a

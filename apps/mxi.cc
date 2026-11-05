@@ -85,7 +85,7 @@ const Command kCommands[] = {
     {"convert", mxi_convert_main, ".rflx to and from .expt and .refl", false},
     {"untrusted", mxi_untrusted_main,
      "the detector's untrusted regions, with no window", false},
-    {"view", nullptr, "the images, spots and regions, in napari", false},
+    {"view", nullptr, "the images, spots and regions: mxi ui's viewer", false},
     {"ui", nullptr, "the interface: the workflow, its images and its results",
      false},
     {"show", mxi_show_main, "what a file holds", false},

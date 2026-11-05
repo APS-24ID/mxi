@@ -6,9 +6,11 @@ put their own directory on sys.path. Independent of mxeq, the referee, as mxi
 must be: it reads the files itself.
 
 Pixels, two conventions: DIALS's, which mxi's files use, where pixel i spans i
-to i + 1 and a spot's centroid at x lies in pixel floor(x); and napari's,
-where pixel i is centred on i. So napari = DIALS - 0.5, in x, y and z alike --
-image n, frame n - 1, spanning z from n - 1 to n, is napari's slice n - 1.
+to i + 1 and a spot's centroid at x lies in pixel floor(x); and the pixel's
+centre's, where pixel i is centred on i, which Markers' positions are -- so
+centred = DIALS - 0.5, in x, y and z alike: image n, frame n - 1, spanning z
+from n - 1 to n. (napari's, whose viewer mxi view was through 1.1.4; mxi ui's
+viewer adds the half pixel back.)
 """
 
 from __future__ import annotations
@@ -245,21 +247,6 @@ def read_reflections(path: str, columns=None) -> dict:
     return {k: np.concatenate(v) for k, v in out.items()}
 
 
-def points_of(table: dict, column: str, experiments) -> np.ndarray:
-    """The rows of `experiments` as napari points, (z, y, x) in napari's
-    pixels: from a position column in DIALS's, (x, y, z)."""
-    if column not in table or "id" not in table:
-        return np.zeros((0, 3))
-    xyz = np.asarray(table[column], float)
-    rows = np.isin(np.asarray(table["id"]), list(experiments)) & np.all(
-        np.isfinite(xyz), axis=1
-    )
-    xyz = xyz[rows]
-    rows = np.any(xyz != 0, axis=1)  # a position of zero: none
-    xyz = xyz[rows]
-    return np.column_stack([xyz[:, 2], xyz[:, 1], xyz[:, 0]]) - 0.5
-
-
 class Markers:
     """A sweep's spots (or predictions) as markers on the images they are
     recorded on -- not only their centroid's: a spot spans several images, a
@@ -279,7 +266,7 @@ class Markers:
     neighbours too, and against the spot finder's boxes on a 16M sweep only 15
     per cent of spots were marked on just their images -- 119000 images marked
     with no spot, 211000 of a spot's unmarked (Graeme, 26 October).
-    Positions are napari's: DIALS's less half a pixel."""
+    Positions are pixel centres': DIALS's less half a pixel."""
 
     def __init__(self, table: dict, column: str, experiments):
         if column not in table or "id" not in table:
@@ -318,7 +305,7 @@ class Markers:
         return len(self.yx)
 
     def on(self, frame: int, window: int = 1):
-        """The markers on image `frame` (napari's slice: image frame + 1) --
+        """The markers on image `frame` (from 0: image frame + 1) --
         or, with `window` images summed for each shown, on any of frame to
         frame + window - 1: their (y, x), and whether each is centred there."""
         yx, centred, _half = self.on_sized(frame, window)
@@ -348,9 +335,8 @@ class Markers:
 class Images:
     """An NXmx series' frames, read as they are asked for: /entry/data, one
     dataset or several (data_000001, ...), the detector's pixel mask applied
-    and overloaded markers zeroed. Looks like an array to napari -- shape,
-    dtype, ndim and slicing -- and sums `window` frames from each one asked
-    for, so that a shadow shows against the background."""
+    and overloaded markers zeroed; and sums `window` frames from each one
+    asked for, so that a shadow shows against the background."""
 
     def __init__(self, master: str, window: int = 1):
         h5py = h5py_with_filters()
@@ -397,19 +383,6 @@ class Images:
         self.window = max(1, int(window))
         self._cache: dict = {}
 
-    # What napari asks of an array.
-    @property
-    def shape(self):
-        return (self.frames,) + self.frame_shape
-
-    @property
-    def dtype(self):
-        return np.dtype(np.float32)
-
-    @property
-    def ndim(self):
-        return 3
-
     def __len__(self):
         return self.frames
 
@@ -424,8 +397,8 @@ class Images:
         return f
 
     def summed(self, i: int) -> np.ndarray:
-        """Frames i to i + window - 1 summed; a few kept, as napari asks for
-        the same slice again as it draws."""
+        """Frames i to i + window - 1 summed; a few kept, as a viewer asks for
+        the same sum again as it draws."""
         key = (i, self.window)
         if key not in self._cache:
             if len(self._cache) > 8:
@@ -435,21 +408,6 @@ class Images:
                 total += self.frame(k)
             self._cache[key] = total
         return self._cache[key]
-
-    def __getitem__(self, key):
-        if not isinstance(key, tuple):
-            key = (key,)
-        first, rest = key[0], key[1:]
-        if isinstance(first, (int, np.integer)):
-            return self.summed(int(first))[rest] if rest else self.summed(int(first))
-        indices = (
-            range(*first.indices(self.frames)) if isinstance(first, slice) else first
-        )
-        stack = np.stack([self.summed(int(i)) for i in indices])
-        return stack[(slice(None),) + rest] if rest else stack
-
-    def __array__(self, dtype=None):  # only for small series: napari slices
-        return np.asarray(self[:], dtype=dtype)
 
 
 def display_top(frame: np.ndarray) -> float:
@@ -466,66 +424,6 @@ def display_top(frame: np.ndarray) -> float:
 
 
 # --- untrusted regions -------------------------------------------------------
-
-
-def shape_to_untrusted(kind: str, vertices) -> dict | None:
-    """A napari shape -- its type and its vertices, (y, x) in napari's pixels
-    (a shape drawn over a stack may carry the slice first, which is dropped:
-    a region is the whole sweep's) -- as an untrusted region in DIALS's
-    pixels; None for a line or a path, which mark no area."""
-    v = np.asarray(vertices, float)[:, -2:] + 0.5
-    xy = v[:, ::-1]
-    if kind == "rectangle":
-        x0, y0 = xy.min(axis=0)
-        x1, y1 = xy.max(axis=0)
-        return {"panel": 0, "rectangle": [round(float(c), 2) for c in (x0, y0, x1, y1)]}
-    if kind == "ellipse":
-        x0, y0 = xy.min(axis=0)
-        x1, y1 = xy.max(axis=0)
-        cx, cy, rx, ry = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2
-        if abs(rx - ry) <= 0.01 * max(rx, ry, 1e-9):
-            return {
-                "panel": 0,
-                "circle": [round(float(c), 2) for c in (cx, cy, (rx + ry) / 2)],
-            }
-        t = np.linspace(0, 2 * math.pi, 48, endpoint=False)
-        return {
-            "panel": 0,
-            "polygon": [
-                [
-                    round(float(cx + rx * math.cos(a)), 2),
-                    round(float(cy + ry * math.sin(a)), 2),
-                ]
-                for a in t
-            ],
-        }
-    if kind == "polygon" and len(xy) >= 3:
-        return {
-            "panel": 0,
-            "polygon": [[round(float(x), 2), round(float(y), 2)] for x, y in xy],
-        }
-    return None
-
-
-def untrusted_to_shape(region: dict):
-    """An untrusted region as a napari shape: (type, vertices (y, x) in
-    napari's pixels)."""
-    if "circle" in region:
-        x, y, r = region["circle"]
-        return (
-            "ellipse",
-            np.array([[y - r, x - r], [y - r, x + r], [y + r, x + r], [y + r, x - r]])
-            - 0.5,
-        )
-    if "rectangle" in region:
-        x0, y0, x1, y1 = region["rectangle"]
-        return (
-            "rectangle",
-            np.array([[y0, x0], [y0, x1], [y1, x1], [y1, x0]], float) - 0.5,
-        )
-    if "polygon" in region:
-        return "polygon", np.array([[y, x] for x, y in region["polygon"]], float) - 0.5
-    raise ValueError(f"not an untrusted region: {region}")
 
 
 def save_untrusted(

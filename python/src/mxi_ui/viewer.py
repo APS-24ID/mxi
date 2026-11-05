@@ -103,9 +103,23 @@ def layers_for(table, experiments):
 
 
 class Viewer:
-    def __init__(self, parent, path, title=None, on_saved=None):
+    def __init__(
+        self,
+        parent,
+        path,
+        title=None,
+        on_saved=None,
+        output="masked.rflx",
+        where=None,
+        summing=1,
+        sweep=0,
+    ):
         self.path = path
         self.on_saved = on_saved  # told masked.rflx's path when saved
+        # Save's file, and the directory it and mxi_mask.json go in: beside
+        # the file shown (mxi ui), or where mxi view is run.
+        self.output = output
+        self.where = where or os.path.dirname(os.path.abspath(path))
         self.document = mxi_tools.read_experiments(path)
         self.sweeps = masters(self.document, path)
         if not self.sweeps:
@@ -132,7 +146,7 @@ class Viewer:
         self.top.protocol("WM_DELETE_WINDOW", self.close)
         self.sweep = tk.IntVar(value=0)
         self.image = tk.IntVar(value=1)
-        self.summing = tk.IntVar(value=1)
+        self.summing = tk.IntVar(value=max(1, int(summing)))
         self.ceiling = tk.DoubleVar(value=10.0)
         self.scheme = tk.StringVar(value="grey")
         self.showing = {key: tk.BooleanVar(value=True) for key, *_ in LAYERS}
@@ -152,7 +166,7 @@ class Viewer:
             self.top, textvariable=self.readout, padding=(8, 3), font="TkFixedFont"
         ).pack(fill=tk.X)
         self._bindings()
-        self.choose_sweep(0)
+        self.choose_sweep(min(max(0, int(sweep)), len(self.sweeps) - 1))
 
     # --- building ---------------------------------------------------------
 
@@ -241,7 +255,7 @@ class Viewer:
 
     def _regions_bar(self):
         """Untrusted regions: what the left button draws, and what to do
-        with them -- as mxi view's napari panel had it (docs/mask.md)."""
+        with them (docs/mask.md)."""
         bar = ttk.Frame(self.top, padding=(8, 0, 8, 4))
         bar.pack(fill=tk.X)
         # Its count leading the bar, in view however narrow the window: at its
@@ -504,7 +518,7 @@ class Viewer:
                     if x1 >= 0 and x0 <= width and y1 >= 0 and y0 <= height:
                         self.canvas.create_rectangle(x0, y0, x1, y1, **style)
                 else:
-                    # Markers are napari's, half a pixel less than mxi's
+                    # Markers' positions are pixel centres', half a pixel less than mxi's
                     cx, cy = self.view.to_canvas(x + 0.5, y + 0.5)
                     r = MIN_RADIUS
                     if -r <= cx <= width + r and -r <= cy <= height + r:
@@ -691,12 +705,13 @@ class Viewer:
         self.draw()
 
     def save(self):
-        """Every sweep's regions into masked.rflx beside the file shown,
-        through mxi untrusted, and mxi_mask.json; the file shown as it was."""
-        where = os.path.dirname(os.path.abspath(self.path))
+        """Every sweep's regions into the output, masked.rflx, beside the
+        file shown (mxi ui) or where mxi view runs, through mxi untrusted,
+        and mxi_mask.json; the file shown as it was."""
+        where = self.where
         try:
             report = mxi_tools.save_untrusted(
-                self.path, self.regions.by_imageset, "masked.rflx", where
+                self.path, self.regions.by_imageset, self.output, where
             )
         except (RuntimeError, OSError, SystemExit) as e:
             # SystemExit too: mxi_tools says so where mxi cannot be found,
@@ -709,7 +724,11 @@ class Viewer:
         self.regions.changed = False
         last = report.strip().splitlines()[-1] if report.strip() else "saved"
         self.readout.set(f"{last}; and mxi_mask.json")
-        masked = os.path.join(where, "masked.rflx")
+        masked = (
+            self.output
+            if os.path.isabs(self.output)
+            else os.path.join(where, self.output)
+        )
         if self.on_saved is not None:
             self.on_saved(masked)
         self.draw()  # the count no longer "not saved"

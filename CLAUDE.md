@@ -84,8 +84,10 @@ find's progress; mxi view on macOS from the PATH; CMake 3.22; CUDA too old
 for its compiler said at configure. The candidates found a test counting
 progress lines that depended on the cores, and macOS's runner Python moving
 to 3.15 (the tests now in 3.12, set up for them).
-5 November, version 1.1.4 set for its first candidate (the notes still
-"Unreleased" until the release is dated). Since 1.1.3, for 1.1.4: mxi process, the eight steps in turn (apps/
+4 November, released as 1.1.4, its candidate's macOS build stalled (the
+runners, or a window waiting for a display: mxi ui's window tests are now not
+run in the release builds, MXI_NO_WINDOW_TESTS, and each test step has 30
+minutes). Since 1.1.3, for 1.1.4: mxi process, the eight steps in turn (apps/
 mxi_process.cc; each step this program again, by self_path.hh's path), or
 from a .rflx after the step its creator attribute names -- a cluster from
 mxi correlation scaled afresh. A cluster's summary is cut to its crystals

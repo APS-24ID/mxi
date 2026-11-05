@@ -13,6 +13,10 @@ tkinter = pytest.importorskip("tkinter")
 
 
 def _can_open_a_window():
+    # Not in the release builds (MXI_NO_WINDOW_TESTS, .github/workflows/
+    # release.yml): a hosted runner's display may never come.
+    if os.environ.get("MXI_NO_WINDOW_TESTS"):
+        return False
     probe = "import tkinter; tkinter.Tk().destroy()"
     try:
         return (

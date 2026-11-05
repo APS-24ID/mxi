@@ -136,6 +136,13 @@ jobs:
       - name: Build
         run: cmake --build build
       - name: "Test: the CPU paths, the runner having no GPU"
+        # A hang fails in half an hour, not GitHub's six; and mxi ui's window
+        # tests are not run here: on a runner whose display may never come,
+        # a window can wait for ever (v1.1.4-rc1's macOS build stalled).
+        # They run where there is a display (xvfb, a desktop).
+        timeout-minutes: 30
+        env:
+          MXI_NO_WINDOW_TESTS: "1"
         run: |
           ctest --test-dir build --output-on-failure -E 'gpu|device'
           python -m pip install -q pytest numpy scipy msgpack gemmi h5py hdf5plugin matplotlib
@@ -192,6 +199,13 @@ jobs:
         with:
           python-version: "3.12"
       - name: "Test: the CPU paths, a hosted runner's GPU not to be relied on"
+        # A hang fails in half an hour, not GitHub's six; and mxi ui's window
+        # tests are not run here: on a runner whose display may never come,
+        # a window can wait for ever (v1.1.4-rc1's macOS build stalled).
+        # They run where there is a display (xvfb, a desktop).
+        timeout-minutes: 30
+        env:
+          MXI_NO_WINDOW_TESTS: "1"
         run: |
           ctest --test-dir build --output-on-failure -E 'gpu|device'
           python3 -m pip install -q pytest numpy scipy msgpack gemmi h5py hdf5plugin matplotlib

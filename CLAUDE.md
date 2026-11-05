@@ -87,7 +87,7 @@ to 3.15 (the tests now in 3.12, set up for them).
 4 November, released as 1.1.4, its candidate's macOS build stalled (the
 runners, or a window waiting for a display: mxi ui's window tests are now not
 run in the release builds, MXI_NO_WINDOW_TESTS, and each test step has 30
-minutes). Since 1.1.4, for 1.1.5 (version set, 5 November): mxi view became mxi ui's
+minutes). 5 November, released as 1.1.5 after one candidate: mxi view became mxi ui's
 viewer, napari retired; the viewer draws untrusted regions and sums images;
 plots for many sweeps and for correlation (its cosine angles too), scrolling;
 teaching notes; Quit and Close; mxi show's sections (--unit-cell ...); mxi

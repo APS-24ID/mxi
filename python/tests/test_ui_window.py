@@ -387,3 +387,48 @@ def test_correlations_plots_from_its_json(tmp_path):
         )
     finally:
         root.destroy()
+
+
+def test_a_steps_notes_and_their_guides(tmp_path, monkeypatch):
+    import webbrowser
+
+    from mxi_ui.notes import NOTES, link
+    from mxi_ui.window import MainWindow
+
+    opened = []
+    monkeypatch.setattr(webbrowser, "open", lambda url: opened.append(url))
+    root = tkinter.Tk()
+    root.withdraw()
+    w = MainWindow(root, str(tmp_path))
+    try:
+        choose(w, "index")
+        text = w.notes.get("1.0", "end")
+        for heading in (
+            "What it does",
+            "What to look at",
+            "If it goes wrong",
+            "Read more",
+        ):
+            assert heading in text
+        assert NOTES["index"].does in text
+        # Clicking the second guide's link opens it in the browser.
+        w.root.deiconify()
+        w.tabs.select(w.setup)
+        start = w.notes.tag_ranges("link1")[0]
+        w.notes.see(start)
+        for _ in range(10):
+            root.update()
+        x, y, _w, _h = w.notes.bbox(start)
+        # A text's tags know the pointer by its motion: moved there, then clicked.
+        w.notes.event_generate("<Motion>", x=x + 2, y=y + 2)
+        w.notes.event_generate("<Button-1>", x=x + 2, y=y + 2)
+        root.update()
+        assert opened == [link(NOTES["index"].read[1][1])]
+        assert (
+            opened[0]
+            == "https://github.com/APS-24ID/mxi/blob/master/docs/multi-lattice.md"
+        )
+        choose(w, "scale")
+        assert NOTES["scale"].does in w.notes.get("1.0", "end"), "each step its own"
+    finally:
+        root.destroy()

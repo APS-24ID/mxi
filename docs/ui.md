@@ -67,6 +67,16 @@ the line for further options. Every option on a form is checked against the
 command's own `--help` by the tests, so that a form cannot offer what mxi
 does not take.
 
+### Its notes, for learning
+
+Beneath each form, the step's notes: **what it does**, in mxi's terms; **what
+to look at** afterwards, in its Summary, Plots and images; **if it goes
+wrong**, the usual faults and the options that answer them; and **read
+more**, links to the guides that say it in full, opened in the browser (on
+GitHub: the release archives carry no documents). Every option a note names
+is one its command takes -- the tests check each against the command's
+`--help`, as they do the forms' -- and every guide it links is there.
+
 ## A step's results
 
 What a step produced is read from its output file -- `strong.rflx` for spot
@@ -163,7 +173,8 @@ release archives: `steps.py` and `model.py` the steps and their forms'
 options, and the command a form builds; `state.py` the steps a directory has
 done; `runner.py` a command in the background; `results.py` a step's facts,
 tables and plots from its file's summary; `render.py` the viewer's
-reduction, scale and geometry; `deps.py` the check for what is needed;
+reduction, scale and geometry; `regions.py` its untrusted regions; `notes.py`
+each step's notes; `deps.py` the check for what is needed;
 `window.py` and `viewer.py` the windows. Only the windows import tkinter, so
 that everything else imports, and is tested, where there is no display. It
 finds mxi beside itself, as a release archive lays it out, else on the PATH,
@@ -174,4 +185,3 @@ through `mxi_tools`, as `mxi view` does.
 
 - The resolution under the cursor from a multi-panel detector's first panel
   only.
-- A short explanation of each step, and the guides linked, for teaching.

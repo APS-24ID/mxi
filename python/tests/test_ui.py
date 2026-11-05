@@ -320,3 +320,33 @@ def test_the_correlation_tool_reads_the_scaled_file_and_writes_its_json():
     assert "-o" not in build(
         find, find.inputs, {}, output=find.output
     ), "-o's default unsaid"
+
+
+@pytest.mark.skipif(not os.path.exists(MXI), reason="mxi is not built")
+def test_every_note_names_options_its_command_takes_and_guides_that_exist():
+    # As the forms' options: a note cannot teach an option mxi does not take,
+    # nor send the reader to a guide that is not there.
+    import re
+
+    from mxi_ui.notes import NOTES
+    from mxi_ui.steps import STEPS, TOOLS
+
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    assert set(NOTES) == {
+        s.key for s in STEPS + TOOLS
+    }, "every step and tool has its note"
+    for key, note in NOTES.items():
+        helped = subprocess.run([MXI, key, "--help"], capture_output=True, text=True)
+        text = helped.stdout + helped.stderr
+        words = note.does + " " + note.look + " " + note.wrong
+        # Another command's option is written with it: mxi scale --space-group.
+        for other, flag in re.findall(r"mxi ([a-z]+) (--[a-z][a-z-]*)", words):
+            theirs = subprocess.run(
+                [MXI, other, "--help"], capture_output=True, text=True
+            )
+            assert takes(theirs.stdout + theirs.stderr, flag), f"mxi {other} {flag}"
+        words = re.sub(r"mxi [a-z]+ --[a-z][a-z-]*", "", words)
+        for flag in re.findall(r"(?<![\w-])--[a-z][a-z-]*", words):
+            assert takes(text, flag), f"mxi {key} {flag}"
+        for _label, path in note.read:
+            assert os.path.isfile(os.path.join(root, path)), path

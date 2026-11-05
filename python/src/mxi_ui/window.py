@@ -229,6 +229,36 @@ class MainWindow:
         self.heading.pack(anchor=tk.W, pady=(0, 10))
         self.fields = ttk.Frame(self.setup)
         self.fields.pack(fill=tk.X)
+        # The step's notes beneath its form, for learning what it does
+        # (notes.py): what it does, what to look at, what goes wrong, the
+        # guides -- in the space left, scrolling, so that the form keeps its
+        # place however long they are.
+        holder = ttk.Frame(self.setup, padding=(0, 12, 0, 0))
+        holder.pack(fill=tk.BOTH, expand=True)
+        self.notes = tk.Text(
+            holder,
+            wrap=tk.WORD,
+            height=8,
+            relief=tk.FLAT,
+            borderwidth=0,
+            highlightthickness=0,
+            state=tk.DISABLED,
+            cursor="arrow",
+            font="TkDefaultFont",
+            background=self.root.cget("background"),
+        )
+        bar = ttk.Scrollbar(holder, command=self.notes.yview)
+        self.notes.configure(yscrollcommand=bar.set)
+        bar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.notes.pack(fill=tk.BOTH, expand=True)
+        self.notes.tag_configure("heading", font="TkHeadingFont", spacing1=6)
+        self.notes.tag_configure("link", foreground="#1e88e5", underline=True)
+        self.notes.tag_bind(
+            "link", "<Enter>", lambda _e: self.notes.configure(cursor="hand2")
+        )
+        self.notes.tag_bind(
+            "link", "<Leave>", lambda _e: self.notes.configure(cursor="arrow")
+        )
         self.log = self._text(self.tabs)
         self.summary = self._text(self.tabs)
         self.plots = ttk.Frame(self.tabs, padding=6)
@@ -502,6 +532,41 @@ class MainWindow:
         self.root.clipboard_clear()
         self.root.clipboard_append(self.command.get())
 
+    def _show_notes(self, step):
+        """The step's notes into the Setup tab's text, its guides as links
+        that open in the browser."""
+        from mxi_ui import notes
+
+        note = notes.note_for(step.key)
+        t = self.notes
+        t.configure(state=tk.NORMAL)
+        t.delete("1.0", tk.END)
+        if note is not None:
+            for heading, body in (
+                ("What it does", note.does),
+                ("What to look at", note.look),
+                ("If it goes wrong", note.wrong),
+            ):
+                t.insert(tk.END, heading + "\n", "heading")
+                t.insert(tk.END, body + "\n")
+            t.insert(tk.END, "Read more\n", "heading")
+            for k, (label, path) in enumerate(note.read):
+                tag = f"link{k}"
+                t.insert(tk.END, label, ("link", tag))
+                t.tag_bind(
+                    tag,
+                    "<Button-1>",
+                    lambda _e, url=notes.link(path): self.open_link(url),
+                )
+                t.insert(tk.END, "    ")
+        t.configure(state=tk.DISABLED)
+
+    def open_link(self, url):
+        import webbrowser
+
+        webbrowser.open(url)
+        self.status.set(f"Opened {url}")
+
     def _text(self, parent):
         frame = ttk.Frame(parent)
         text = tk.Text(
@@ -540,6 +605,7 @@ class MainWindow:
             return
         self.selected = by_key(chosen[0])
         self._show_form(self.selected)
+        self._show_notes(self.selected)
         self._show_summary(self.selected)
 
     def _show_summary(self, step):

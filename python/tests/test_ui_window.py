@@ -432,3 +432,34 @@ def test_a_steps_notes_and_their_guides(tmp_path, monkeypatch):
         assert NOTES["scale"].does in w.notes.get("1.0", "end"), "each step its own"
     finally:
         root.destroy()
+
+
+def test_plots_more_than_the_tab_holds_scroll(tmp_path):
+    import json
+
+    from ui_records import correlation
+
+    from mxi_ui.window import ROW_HEIGHT, MainWindow
+
+    (tmp_path / "mxi_correlation.json").write_text(json.dumps(correlation()))
+    root = tkinter.Tk()
+    w = MainWindow(root, str(tmp_path))
+    try:
+        root.geometry("1100x720")
+        choose(w, "correlation")
+        w.tabs.select(w.plots)
+        for _ in range(20):
+            root.update()
+        assert len(w.figure.axes) >= 5 and w.plot_rows == 3
+        drawn = w.figure.get_size_inches() * w.figure.dpi
+        assert abs(drawn[1] - 3 * ROW_HEIGHT) <= 2, "three rows, each its height"
+        assert abs(drawn[0] - w.scroller.winfo_width()) <= 2, "the tab's width"
+        assert drawn[1] > w.scroller.winfo_height(), "more than the tab shows"
+        top, _bottom = w.scroller.yview()
+        w._scroll_plots(50)
+        root.update()
+        assert (
+            w.scroller.yview()[0] > top and w.scroller.yview()[1] == 1.0
+        ), "scrolled to the end"
+    finally:
+        root.destroy()

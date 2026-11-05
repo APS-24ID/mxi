@@ -201,7 +201,8 @@ def correlation():
         "dimension": 2,
         "scan_dimensions": [1, 2, 3, 4],
         "scan_functional": [9.0, 3.0, 2.8, 2.7],
-        "coordinates": [0.1] * 12,
+        # Dimension by dimension, as the writer lays them out: x[k * n + i].
+        "coordinates": [1.0, 1.1, -1.0, -1.2, 0.9, 0.0, 0.1, 0.2, 0.0, 0.1, -0.1, 2.0],
         "components": [
             [1.0, 0.1],
             [1.1, 0.2],

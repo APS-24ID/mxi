@@ -219,6 +219,7 @@ def test_correlations_facts_and_plots(tmp_path):
     plots = results.plots(rec)
     assert [p.title for p in plots] == [
         "Correlation, in OPTICS's order",
+        "Cosine angles, in OPTICS's order",
         "Reachability, in OPTICS's order",
         "The data sets, principal components",
         "Functional by dimension",
@@ -228,7 +229,7 @@ def test_correlations_facts_and_plots(tmp_path):
     assert (
         matrix.kind == "matrix" and matrix.matrix[2][3] == doc["r"][order[2]][order[3]]
     )
-    reach = plots[1]
+    reach = plots[2]
     assert reach.bars and [s.name for s in reach.series] == [
         "in no cluster",
         "cluster 0",
@@ -238,7 +239,7 @@ def test_correlations_facts_and_plots(tmp_path):
     assert (
         first.x[0] == 0 and first.y[0] > 1.5
     ), "the unreachable first drawn, above the rest"
-    pcs = plots[2]
+    pcs = plots[3]
     assert (
         pcs.kind == "points" and pcs.xlabel == "PC1 (80%)" and pcs.ylabel == "PC2 (15%)"
     )
@@ -263,3 +264,43 @@ def test_integration_a_sweep_at_a_time():
     cut = {"program": "mxi_integrate", "each_sweep": [dict(sweep, sweep=0)]}
     assert results.each_sweep_plots(cut), "a cluster's: only the sweeps left"
     assert results.plots(two)[0].title == "<I/σ> by resolution, each sweep"
+
+
+def test_the_cosine_angles_as_the_report_computes_them():
+    import math
+
+    from ui_records import correlation
+
+    doc = correlation()
+    n = len(doc["labels"])
+    cos = results.cosine_angles(doc["coordinates"], n)
+    x = [[doc["coordinates"][k * n + i] for k in range(2)] for i in range(n)]
+
+    def angle(i, j):
+        dot = x[i][0] * x[j][0] + x[i][1] * x[j][1]
+        return dot / (math.hypot(*x[i]) * math.hypot(*x[j]))
+
+    assert all(math.isclose(cos[i][j], angle(i, j)) for i in range(n) for j in range(n))
+    assert cos[0][1] > 0.9 and cos[0][2] < -0.9, "a cluster together, the other opposed"
+    assert (
+        results.cosine_angles([], 6) == [] and results.cosine_angles([1.0] * 7, 6) == []
+    )
+    assert results.cosine_angles([0.0] * 12, 6)[0][1] == 0.0, "no length, no angle"
+    plot = [p for p in results.correlation_plots(doc) if p.title.startswith("Cosine")][
+        0
+    ]
+    order = doc["ordering"]
+    assert (
+        plot.matrix[2][3] == cos[order[2]][order[3]] and plot.low < 0
+    ), "ordered; its scale from -1"
+
+
+def test_a_matrix_with_no_value_draws_none_there():
+    from ui_records import correlation
+
+    doc = correlation()
+    doc["r"][0][1] = None
+    plot = results.correlation_plots(doc)[0]
+    i, j = doc["ordering"].index(0), doc["ordering"].index(1)
+    assert plot.matrix[i][j] != plot.matrix[i][j], "NaN, not drawn"
+    assert plot.matrix[i][i] == 1.0, "the diagonal 1"

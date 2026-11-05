@@ -485,6 +485,47 @@ def plots(rec):
     return made
 
 
+def cosine_angles(coordinates, n):
+    """The cosine of the angle between every pair of data sets' cosym
+    coordinates, as mxi correlation's report computes it: the coordinates
+    dimension by dimension, x[k * n + i]; 0 where a vector has no length."""
+    if n == 0 or len(coordinates) < n or len(coordinates) % n:
+        return []
+    dim = len(coordinates) // n
+    x = [[float(coordinates[k * n + i]) for k in range(dim)] for i in range(n)]
+    length = [math.sqrt(sum(v * v for v in row)) for row in x]
+    return [
+        [
+            (
+                sum(a * b for a, b in zip(x[i], x[j])) / (length[i] * length[j])
+                if length[i] > 0 and length[j] > 0
+                else 0.0
+            )
+            for j in range(n)
+        ]
+        for i in range(n)
+    ]
+
+
+def _matrix(title, full, order):
+    """A matrix in the given order, as a plot: NaN where not a number, the
+    scale from its least (or 0) to 1."""
+    matrix = [
+        [full[i][j] if full[i][j] is not None else float("nan") for j in order]
+        for i in order
+    ]
+    values = [v for row in matrix for v in row if v == v]
+    return Plot(
+        title,
+        "Data set, in order",
+        "Data set, in order",
+        [],
+        kind="matrix",
+        matrix=matrix,
+        low=min(0.0, min(values, default=0.0)),
+    )
+
+
 def each_sweep_plots(rec):
     """Integration a sweep at a time, a line each, where there are several --
     or where only they are left (a cluster's cut summary): so that a sweep
@@ -522,20 +563,23 @@ def correlation_plots(rec):
     labels = [int(v) for v in rec.get("labels", [])]
     order = [int(v) for v in rec.get("ordering", [])] or list(range(len(labels)))
     r = rec.get("r") or []
-    if r and len(order) == len(r):
-        matrix = [[_number(r[i][j]) for j in order] for i in order]
-        low = min((v for row in matrix for v in row if v is not None), default=0.0)
-        made.append(
-            Plot(
-                "Correlation, in OPTICS's order",
-                "Data set, in order",
-                "Data set, in order",
-                [],
-                kind="matrix",
-                matrix=matrix,
-                low=min(0.0, low),
+    n = len(r)
+    if r and len(order) == n:
+        # The diagonal 1, as the report draws it; what is not a number, not
+        # drawn (NaN), where matplotlib would refuse a None.
+        full = [
+            [1.0 if i == j else _number(r[i][j]) for j in range(n)] for i in range(n)
+        ]
+        made.append(_matrix("Correlation, in OPTICS's order", full, order))
+        cosine = cosine_angles(rec.get("coordinates") or [], n)
+        if cosine:
+            made.append(
+                _matrix(
+                    "Cosine angles, in OPTICS's order",
+                    cosine,
+                    order,
+                )
             )
-        )
     reach = [_number(v) for v in rec.get("reachability_in_order", [])]
     if reach and len(reach) == len(order) and labels:
         finite = [v for v in reach if v is not None]

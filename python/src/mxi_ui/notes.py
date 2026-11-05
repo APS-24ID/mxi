@@ -153,9 +153,11 @@ NOTES = {
         "intensities are, as dials.correlation_matrix: the correlation of every "
         "pair, cosym's coordinates, and OPTICS to find the clusters. For many "
         "crystals, to find which belong together before merging them.",
-        "The matrix in OPTICS's order: its blocks are the clusters. The "
-        "reachability, low within a cluster and high between. The principal "
-        "components, each cluster a group apart.",
+        "The matrix in OPTICS's order: its blocks are the clusters. The cosine "
+        "angles: the same blocks by the direction of each data set's "
+        "coordinates alone, not their length, so that weak data sets cluster "
+        "as clearly as strong. The reachability, low within a cluster and high "
+        "between. The principal components, each cluster a group apart.",
         "Clusters too fine or too coarse: --min-samples. To scale each cluster "
         "apart: --write-clusters, then mxi process on each cluster's file.",
         (

@@ -456,10 +456,32 @@ def test_plots_more_than_the_tab_holds_scroll(tmp_path):
         assert abs(drawn[0] - w.scroller.winfo_width()) <= 2, "the tab's width"
         assert drawn[1] > w.scroller.winfo_height(), "more than the tab shows"
         top, _bottom = w.scroller.yview()
-        w._scroll_plots(50)
+        # A wheel's (or a Mac's small) scrolls over the figure itself, where
+        # matplotlib's canvas had its own binding: by the pixel, to the end.
+        widget = w.canvas.get_tk_widget()
+        for _ in range(60):
+            widget.event_generate("<MouseWheel>", delta=-3)
         root.update()
         assert (
             w.scroller.yview()[0] > top and w.scroller.yview()[1] == 1.0
         ), "scrolled to the end"
+    finally:
+        root.destroy()
+
+
+def test_scrolling_by_wheel_and_trackpad_in_pixels():
+    from mxi_ui import gestures
+
+    assert (
+        gestures.wheel_pixels(-120) == 40 and gestures.wheel_pixels(240) == -80
+    ), "Windows"
+    assert (
+        gestures.wheel_pixels(-3) == 120 and gestures.wheel_pixels(1) == -40
+    ), "a Mac's"
+    root = tkinter.Tk()
+    root.withdraw()
+    try:
+        packed = (3 << 16) | (0x10000 - 7)  # dx 3, dy -7, as Tk 9 packs them
+        assert gestures.touchpad_delta(root, packed) == (3, -7)
     finally:
         root.destroy()

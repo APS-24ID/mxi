@@ -93,7 +93,7 @@ steps it does record.
 | Index | the RMSDs, cycle by cycle |
 | Refine | the RMSDs, cycle by cycle; each crystal's cell lengths and angles over the scan |
 | Integrate | <I/σ> summed and profile-fitted, profile correlation, background, by resolution |
-| Scale | CC½, <I/σ>, completeness with multiplicity on its own axis, the R factors on a log axis, by resolution |
+| Scale | CC½, <I/σ>, completeness with multiplicity on its own axis, the R factors, by resolution |
 
 A resolution axis is spaced evenly in 1/d², ticked in d.
 

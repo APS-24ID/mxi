@@ -232,6 +232,7 @@ The options most often wanted:
 | `mxi correlation` | `--write-clusters`, `--prefix P`; `--html FILE`; `--min-samples N`; `--dimensions N` |
 | `mxi export` | `--partiality-threshold P`; `--min-isigi S`; `--d-min D` |
 | `mxi process` | `--gpu`; `--cell a,b,c,α,β,γ`; `--space-group NAME`; `--no-joint` several sweeps, each a crystal indexed on its own; `--d-min-auto`; `--dry-run` the commands printed, none run |
+| `mxi show` | `--models`; `--unit-cell` each crystal's cell, a line each; `--reflections`; `--summary`; `--step NAME` one step's record -- any of them, in that order; none, everything |
 
 ### The other tools
 

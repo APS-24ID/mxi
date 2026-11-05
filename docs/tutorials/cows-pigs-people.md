@@ -110,20 +110,27 @@ spots.
 
 ```sh
 mxi index strong.rflx --no-joint
-mxi show indexed.rflx | grep experiment
+mxi show indexed.rflx --unit-cell
 ```
 
 ```
 12 sweeps indexed apart: 12 lattices, 0 sweeps not indexed
-    experiment 1: 67.406 67.457 67.467 A, 109.465 109.438 109.505 deg; P 1
-    experiment 3: 67.317 67.429 67.408 A, 109.560 109.420 109.413 deg; P 1
-    experiment 5: 67.425 67.442 67.404 A, 109.465 109.445 109.505 deg; P 1
-    ...
+```
+
+```
+# experiment sweep a b c alpha beta gamma space_group
+1 0 67.406 67.457 67.467 109.465 109.438 109.505 P 1
+3 1 67.317 67.429 67.408 109.560 109.420 109.413 P 1
+5 2 67.425 67.442 67.404 109.465 109.445 109.505 P 1
+...
 ```
 
 Every crystal's cell close to 67.4 A and 109.5 deg: the primitive cell of
-body-centred cubic insulin, 78 A. (The even-numbered experiments are each
-sweep's own, holding its unindexed spots.)
+body-centred cubic insulin, 78 A. `--unit-cell` gives each crystal's cell a
+line, and nothing else, to read or to take elsewhere; the experiments it
+skips -- 0, 2, 4, ... -- are each sweep's own, holding its unindexed spots,
+with no crystal. (`mxi show` without it shows everything a file holds;
+`--models`, `--reflections`, `--summary` or `--step index` a part.)
 
 If one crystal's cell were an outlier, the known cell would choose every
 crystal's basis, as `unit_cell=` does for dials.index -- given conventional,

@@ -34,7 +34,17 @@ void usage(const char *program) {
       "and space group\n"
       "  the reflections: how many, and what has been done to them\n"
       "  the summary: each program's figures and tables, in the order they "
-      "ran (a .rflx's)\n",
+      "ran (a .rflx's)\n"
+      "Or only what is asked for, in that order -- any of:\n"
+      "  --models          each sweep's images and geometry, each crystal\n"
+      "  --unit-cell       each crystal's cell, a line each, nothing else:\n"
+      "                    experiment, sweep, a b c alpha beta gamma, space "
+      "group\n"
+      "  --reflections     how many, and what has been done to them\n"
+      "  --summary         every step's figures and tables\n"
+      "  --step NAME       one step's -- scale, or mxi_scale -- as many as "
+      "the\n"
+      "                    summary records\n",
       program);
 }
 
@@ -193,8 +203,35 @@ void show_reflections(const Table &t) {
                 c.strong, c.indexed, c.sum, c.prf, c.scaled, c.outlier);
 }
 
-void show_summary(const json::Value &summary) {
-  const std::vector<json::Value> steps = Summary::steps(summary);
+// Each crystal's cell, a line each and nothing else, to read or to cut: the
+// experiment, its sweep, a b c alpha beta gamma, the space group last (its
+// name has spaces). What the tutorial had grepped mxi show for (Graeme).
+void show_cells(const ExperimentList &list) {
+  std::printf("# experiment sweep a b c alpha beta gamma space_group\n");
+  for (std::size_t i = 0; i < list.size(); ++i) {
+    const Experiment &x = list[i];
+    if (!x.crystal)
+      continue;
+    const UnitCell c = x.crystal->cell();
+    std::string group = x.crystal->space_group_hall;
+    try {
+      group = SpaceGroup::from_hall(x.crystal->space_group_hall).name();
+    } catch (const std::exception &) {
+    }
+    std::printf("%zu %zu %.3f %.3f %.3f %.3f %.3f %.3f %s\n", i, list.sweep(i),
+                c.a, c.b, c.c, c.alpha, c.beta, c.gamma, group.c_str());
+  }
+}
+
+void show_summary(const json::Value &summary, const std::string &only = "") {
+  std::vector<json::Value> steps = Summary::steps(summary);
+  if (!only.empty()) {
+    std::vector<json::Value> kept;
+    for (const json::Value &step : steps)
+      if (step["program"].is_string() && step["program"].as_string() == only)
+        kept.push_back(step);
+    steps = kept;
+  }
   std::printf("Processing: %zu step%s\n", steps.size(),
               steps.size() == 1 ? "" : "s");
   for (const json::Value &step : steps) {
@@ -215,8 +252,10 @@ void show_summary(const json::Value &summary) {
 } // namespace
 
 int run_show(int argc, char **argv) {
-  const std::set<std::string> known = {"--help"};
-  const std::set<std::string> takes_value = {};
+  const std::set<std::string> known = {"--help",      "--models",
+                                       "--unit-cell", "--reflections",
+                                       "--summary",   "--step"};
+  const std::set<std::string> takes_value = {"--step"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   // A refused option said, not passed over: this had not looked, so that an
   // option it did not know was ignored whenever the files came first.
@@ -230,25 +269,58 @@ int run_show(int argc, char **argv) {
     usage(argv[0]);
     return args.has("--help") ? 0 : 2;
   }
+  // What to show: what is asked for, in the usual order; everything where
+  // nothing is. --step is the summary, one step's.
+  std::string step = args.value("--step", "");
+  if (!step.empty() && step.rfind("mxi_", 0) != 0)
+    step = "mxi_" + step;
+  const bool cells = args.has("--unit-cell");
+  const bool chosen = args.has("--models") || cells ||
+                      args.has("--reflections") || args.has("--summary") ||
+                      !step.empty();
+  const bool models = !chosen || args.has("--models");
+  const bool reflections = !chosen || args.has("--reflections");
+  const bool summary = !chosen || args.has("--summary") || !step.empty();
   try {
     const std::string &first = args.positional[0];
-    std::printf("%s\n", first.c_str());
+    // The file's name heads what is read, not the cells alone: those go
+    // into a file or another program as they are.
+    if (models || reflections || summary)
+      std::printf("%s\n", first.c_str());
     const ExperimentList list = read_experiments(first);
-    show_models(list);
+    if (models)
+      show_models(list);
+    if (cells)
+      show_cells(list);
     const std::string refl =
         args.positional.size() == 2 ? args.positional[1] : first;
-    if (refl != first || rflx::is_hdf5(first)) {
+    if (reflections && (refl != first || rflx::is_hdf5(first))) {
       try {
         show_reflections(read_reflections(refl));
       } catch (const std::exception &) {
         // An experiment list alone: nothing more to show.
       }
     }
-    if (rflx::is_hdf5(first)) {
-      if (const auto summary = rflx::read_summary(first))
-        show_summary(*summary);
-      else
+    if (summary && rflx::is_hdf5(first)) {
+      const auto held = rflx::read_summary(first);
+      if (!held) {
         std::printf("Processing: no summary in the file\n");
+        if (!step.empty())
+          return 1;
+      } else if (!step.empty()) {
+        bool any = false;
+        for (const json::Value &s : Summary::steps(*held))
+          any = any ||
+                (s["program"].is_string() && s["program"].as_string() == step);
+        if (!any) {
+          std::fprintf(stderr, "mxi show: %s records no step %s\n",
+                       first.c_str(), step.c_str());
+          return 1;
+        }
+        show_summary(*held, step);
+      } else {
+        show_summary(*held);
+      }
     }
     return 0;
   } catch (const std::exception &error) {

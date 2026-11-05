@@ -17,6 +17,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   its vertices -- is gone: a region is deleted and drawn again.
 
 **New**
+- `mxi show` shows only what is asked for: `--models`, `--unit-cell` (each
+  crystal's cell a line and nothing else, for reading or for another program
+  -- the tutorial had grepped for it), `--reflections`, `--summary`, `--step
+  NAME` (one step's record). With none, everything, as before.
 - mxi ui's viewer draws the detector's untrusted regions: rectangles, circles
   and polygons on a sweep's images, chosen and deleted, undone a step at a
   time, the same as the previous sweep's; saved as `mxi view` saves them, into

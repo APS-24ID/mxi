@@ -70,6 +70,12 @@ sweep's own crystal-less one -- and its profile model; the reflections by
 experiment, strong, indexed, summed, fitted, scaled, outliers; every step of
 the summary in order.
 
+Or only what is asked for, in that order: `--models`; `--unit-cell`, each
+crystal's cell a line and nothing else -- experiment, sweep, a b c alpha beta
+gamma, the space group last -- to read or take elsewhere; `--reflections`;
+`--summary`; `--step NAME`, one step's record (`--step scale`, or
+`mxi_scale`), refused where the summary has none.
+
 **Each program:**
 
 * **mxi import** -- the total rotation; the first step, each sweep as imported.

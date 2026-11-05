@@ -41,6 +41,11 @@ class Plot:
     right: list = field(default_factory=list)
     right_label: str = ""
     integer: bool = False  # x in whole numbers: cycles, images
+    # "line" (bars as above), or "matrix" -- `matrix` drawn as an image,
+    # its scale from `low` to 1 -- or "points", the series as points alone.
+    kind: str = "line"
+    matrix: list = field(default_factory=list)
+    low: float = 0.0
 
 
 @dataclass
@@ -63,8 +68,11 @@ def steps_of(path):
 def record(directory, key):
     """(path, record) for a step: its output file in the directory, and its
     own program's record in that file's summary -- record None where the file
-    is missing or records no such step."""
+    is missing or records no such step. mxi correlation's is the JSON it
+    writes (--json), its program said mxi_correlation_json."""
     step = by_key(key)
+    if key == "correlation":
+        return correlation_record(os.path.join(directory, step.output))
     if not step.output or not step.output.endswith(".rflx"):
         return None, None
     path = os.path.join(directory, step.output)
@@ -72,6 +80,24 @@ def record(directory, key):
         return path, None
     mine = [s for s in steps_of(path) if s.get("program") == f"mxi_{key}"]
     return path, (mine[-1] if mine else None)
+
+
+def correlation_record(path):
+    """mxi correlation's --json, as a record: the matrix, each data set's
+    cluster, OPTICS's ordering and reachability, the coordinates' principal
+    components, the dimension functional."""
+    import json
+    import time
+
+    if not os.path.isfile(path):
+        return path, None
+    with open(path) as f:
+        doc = json.load(f)
+    doc["program"] = "mxi_correlation_json"
+    doc["time"] = time.strftime(
+        "%Y-%m-%dT%H:%M:%S", time.localtime(os.path.getmtime(path))
+    )
+    return path, doc
 
 
 def is_table(value):
@@ -174,6 +200,8 @@ def facts(rec):
     order, then any other figure it holds that is not a table or a series."""
     if not rec:
         return []
+    if rec.get("program") == "mxi_correlation_json":
+        return correlation_facts(rec)
     out = []
     for key, label in LABELS.items():
         if key in rec and not is_table(rec[key]):
@@ -195,6 +223,22 @@ def facts(rec):
         ):
             continue
         out.append((key.replace("_", " ").capitalize(), _text(value)))
+    return out
+
+
+def correlation_facts(rec):
+    labels = [int(v) for v in rec.get("labels", [])]
+    clusters = sorted({v for v in labels if v >= 0})
+    out = [("Data sets", str(len(rec.get("experiments", labels))))]
+    out.append(("Clusters", str(len(clusters))))
+    sizes = ", ".join(f"{c}: {labels.count(c)}" for c in clusters)
+    if sizes:
+        out.append(("Their data sets", sizes))
+    out.append(("In no cluster", str(labels.count(-1))))
+    if "dimension" in rec:
+        out.append(("Dimensions", str(rec["dimension"])))
+    if "min_samples" in rec:
+        out.append(("OPTICS min_samples", str(rec["min_samples"])))
     return out
 
 
@@ -374,7 +418,10 @@ def plots(rec):
                         ],
                     )
                 )
+    elif program == "mxi_correlation_json":
+        made.extend(correlation_plots(rec))
     elif program == "mxi_integrate":
+        made.extend(each_sweep_plots(rec))
         t = rec.get("by_resolution")
         if is_table(t):
             for p in (
@@ -435,6 +482,117 @@ def plots(rec):
             )
             if r:
                 made.append(r)
+    return made
+
+
+def each_sweep_plots(rec):
+    """Integration a sweep at a time, a line each, where there are several --
+    or where only they are left (a cluster's cut summary): so that a sweep
+    unlike the others shows."""
+    each = [e for e in rec.get("each_sweep") or [] if isinstance(e, dict)]
+    if not each or (len(each) < 2 and is_table(rec.get("by_resolution"))):
+        return []
+    made = []
+    for key, title, ylabel in (
+        (("isigma_prf", "isigma_sum"), "<I/σ> by resolution, each sweep", "<I/σ>"),
+        (("cc_prf",), "Profile correlation by resolution, each sweep", "CC"),
+    ):
+        series = []
+        for e in each:
+            t = e.get("by_resolution")
+            name = next((k for k in key if column(t, k)), None)
+            if is_table(t) and name:
+                series.append(
+                    Series(
+                        f"sweep {e.get('sweep', len(series))}",
+                        _resolution_x(t),
+                        [_number(v) for v in column(t, name)],
+                    )
+                )
+        if series:
+            made.append(Plot(title, "Resolution (Å)", ylabel, series, resolution=True))
+    return made
+
+
+def correlation_plots(rec):
+    """mxi correlation's, as its HTML report draws them: the matrix in
+    OPTICS's order, the reachability coloured by cluster, the data sets on
+    their first two principal components, the functional by dimension."""
+    made = []
+    labels = [int(v) for v in rec.get("labels", [])]
+    order = [int(v) for v in rec.get("ordering", [])] or list(range(len(labels)))
+    r = rec.get("r") or []
+    if r and len(order) == len(r):
+        matrix = [[_number(r[i][j]) for j in order] for i in order]
+        low = min((v for row in matrix for v in row if v is not None), default=0.0)
+        made.append(
+            Plot(
+                "Correlation, in OPTICS's order",
+                "Data set, in order",
+                "Data set, in order",
+                [],
+                kind="matrix",
+                matrix=matrix,
+                low=min(0.0, low),
+            )
+        )
+    reach = [_number(v) for v in rec.get("reachability_in_order", [])]
+    if reach and len(reach) == len(order) and labels:
+        finite = [v for v in reach if v is not None]
+        top = max(finite) * 1.1 if finite else 1.0
+        series = []
+        for c in sorted(set(labels)):
+            xs = [k for k, i in enumerate(order) if labels[i] == c]
+            ys = [reach[k] if reach[k] is not None else top for k in xs]
+            series.append(Series("in no cluster" if c < 0 else f"cluster {c}", xs, ys))
+        made.append(
+            Plot(
+                "Reachability, in OPTICS's order",
+                "Data set, in order",
+                "Reachability",
+                series,
+                bars=True,
+            )
+        )
+    comps = rec.get("components") or []
+    if comps and labels and all(isinstance(c, list) and len(c) >= 2 for c in comps):
+        ratio = rec.get("explained_variance_ratio") or []
+        axis = [
+            f"PC{k + 1}" + (f" ({100 * ratio[k]:.0f}%)" if k < len(ratio) else "")
+            for k in range(2)
+        ]
+        series = []
+        for c in sorted(set(labels)):
+            pts = [
+                comps[i] for i in range(min(len(comps), len(labels))) if labels[i] == c
+            ]
+            series.append(
+                Series(
+                    "in no cluster" if c < 0 else f"cluster {c}",
+                    [p[0] for p in pts],
+                    [p[1] for p in pts],
+                )
+            )
+        made.append(
+            Plot(
+                "The data sets, principal components",
+                axis[0],
+                axis[1],
+                series,
+                kind="points",
+            )
+        )
+    dims, func = rec.get("scan_dimensions") or [], rec.get("scan_functional") or []
+    if dims and len(dims) == len(func):
+        made.append(
+            Plot(
+                "Functional by dimension",
+                "Dimensions",
+                "Functional",
+                [Series("functional", dims, func)],
+                integer=True,
+            )
+        )
     return made
 
 

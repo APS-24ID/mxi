@@ -34,6 +34,8 @@ class Step:
     output    -- the file it writes by default; done when it exists
     options   -- its main options, as the form's fields (the rest by hand)
     output_flag -- the option naming its output, or "" where it has none
+    output_asked -- the output written only when named (--json): the flag
+                 always given, where -o's default needs none
     tool      -- not a step of the main sequence but a tool beside it
     """
 
@@ -45,6 +47,7 @@ class Step:
     options: tuple = ()
     output_flag: str = "-o"
     tool: bool = False
+    output_asked: bool = False
 
     def command(self, inputs=None, extra=()):
         """The command line: mxi KEY INPUTS... EXTRA..., as a list."""
@@ -90,7 +93,11 @@ def build(step, inputs, values, output="", threads="", extra=""):
                 argv.append(option.flag)
         elif str(value).strip():
             argv += [option.flag, str(value).strip()]
-    if step.output_flag and output.strip() and output.strip() != step.output:
+    if (
+        step.output_flag
+        and output.strip()
+        and (output.strip() != step.output or step.output_asked)
+    ):
         argv += [step.output_flag, output.strip()]
     if threads.strip() and threads.strip() != "0":
         argv += ["-j", threads.strip()]

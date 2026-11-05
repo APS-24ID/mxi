@@ -299,3 +299,24 @@ def test_a_summary_with_compressed_arrays_reads(tmp_path):
     )
     assert fresh.returncode == 0, fresh.stderr[-500:]
     assert fresh.stdout.split() == ["mxi_find", "300"]
+
+
+def test_the_correlation_tool_reads_the_scaled_file_and_writes_its_json():
+    from mxi_ui.steps import by_key
+
+    step = by_key("correlation")
+    assert step.inputs == ("scaled.rflx",) and step.output == "mxi_correlation.json"
+    from mxi_ui.model import build
+
+    # --json writes nothing unless given: always given, as -o need not be.
+    assert build(step, step.inputs, {}, output=step.output) == [
+        "mxi",
+        "correlation",
+        "scaled.rflx",
+        "--json",
+        "mxi_correlation.json",
+    ]
+    find = by_key("find")
+    assert "-o" not in build(
+        find, find.inputs, {}, output=find.output
+    ), "-o's default unsaid"

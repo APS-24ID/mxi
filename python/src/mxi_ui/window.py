@@ -26,6 +26,15 @@ def draw(axes, plot):
     """One of results.plots on matplotlib's axes: a resolution axis spaced in
     1/d^2 and ticked in d, a log axis for R factors, a second axis on the
     right where the plot has one."""
+    if plot.kind == "matrix":
+        image = axes.imshow(
+            plot.matrix,
+            vmin=plot.low,
+            vmax=1.0,
+            cmap="viridis",
+            interpolation="nearest",
+        )
+        axes.figure.colorbar(image, ax=axes, shrink=0.8)
     for series in plot.series:
         pairs = [
             (x, y)
@@ -35,8 +44,15 @@ def draw(axes, plot):
         if not pairs:
             continue
         xs, ys = zip(*pairs)
-        if plot.bars:
-            width = (max(xs) - min(xs)) / max(len(xs), 1) * 0.9 if len(xs) > 1 else 0.01
+        if plot.kind == "points":
+            axes.scatter(xs, ys, s=14, label=series.name)
+        elif plot.bars:
+            if not plot.resolution:
+                width = 0.9  # a bar at each whole position: data sets in order
+            else:
+                width = (
+                    (max(xs) - min(xs)) / max(len(xs), 1) * 0.9 if len(xs) > 1 else 0.01
+                )
             axes.bar(xs, ys, width=width, label=series.name)
         else:
             axes.plot(

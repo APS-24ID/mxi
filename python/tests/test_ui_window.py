@@ -364,3 +364,26 @@ def test_a_file_that_cannot_be_read_says_why(tmp_path, monkeypatch):
         )
     finally:
         root.destroy()
+
+
+def test_correlations_plots_from_its_json(tmp_path):
+    import json
+
+    from ui_records import correlation
+
+    from mxi_ui.window import MainWindow
+
+    (tmp_path / "mxi_correlation.json").write_text(json.dumps(correlation()))
+    root = tkinter.Tk()
+    root.withdraw()
+    w = MainWindow(root, str(tmp_path))
+    try:
+        choose(w, "correlation")
+        assert "Clusters" in w.summary.get("1.0", "end")
+        titles = [a.get_title() for a in w.figure.axes]
+        assert (
+            "Correlation, in OPTICS's order" in titles
+            and "Functional by dimension" in titles
+        )
+    finally:
+        root.destroy()

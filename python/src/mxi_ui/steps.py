@@ -255,8 +255,10 @@ TOOLS = (
         "correlation",
         "Correlation",
         "crystals clustered by how alike their data are",
-        ("symmetrized.rflx",),
-        "",
+        # The scaled file, as its usage and the tutorial have it; and its
+        # figures always as JSON, for the Summary and Plots to read.
+        ("scaled.rflx",),
+        "mxi_correlation.json",
         (
             Option(
                 "--write-clusters",
@@ -267,7 +269,8 @@ TOOLS = (
             Option("--prefix", "Their names", "text", "PREFIX_0.rflx, ... (cluster)"),
             Option("--min-samples", "OPTICS min_samples", "number", "not searched for"),
         ),
-        output_flag="",
+        output_flag="--json",
+        output_asked=True,  # without --json, no JSON: always asked for
         tool=True,
     ),
     Step(

@@ -180,3 +180,41 @@ def install(monkeypatch, directory, records=None):
         mxi_tools, "read_summary", lambda path: {"steps": by_file.get(str(path), [])}
     )
     return records
+
+
+def correlation():
+    """mxi correlation's --json, in the shape it writes (apps/mxi_correlation.cc):
+    six data sets, two clusters and one in neither, invented."""
+    labels = [0, 0, 1, 1, 0, -1]
+    r = [
+        [
+            1.0 if i == j else (0.9 if labels[i] == labels[j] >= 0 else 0.2)
+            for j in range(6)
+        ]
+        for i in range(6)
+    ]
+    return {
+        "experiments": [1, 3, 5, 7, 9, 11],
+        "merged_reflections": [500] * 6,
+        "r": r,
+        "w": [[1.0] * 6 for _ in range(6)],
+        "dimension": 2,
+        "scan_dimensions": [1, 2, 3, 4],
+        "scan_functional": [9.0, 3.0, 2.8, 2.7],
+        "coordinates": [0.1] * 12,
+        "components": [
+            [1.0, 0.1],
+            [1.1, 0.2],
+            [-1.0, 0.0],
+            [-1.2, 0.1],
+            [0.9, -0.1],
+            [0.0, 2.0],
+        ],
+        "explained_variance_ratio": [0.8, 0.15],
+        "functional": 2.8,
+        "labels": labels,
+        "ordering": [0, 1, 4, 2, 3, 5],
+        "reachability_in_order": [float("inf"), 0.1, 0.1, 0.8, 0.1, 1.5],
+        "min_samples": 2,
+        "min_samples_scores": [[2, 0.5]],
+    }

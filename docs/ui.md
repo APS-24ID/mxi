@@ -92,8 +92,9 @@ steps it does record.
 | Find spots | spots per image, a line a sweep; spots by resolution |
 | Index | the RMSDs, cycle by cycle |
 | Refine | the RMSDs, cycle by cycle; each crystal's cell lengths and angles over the scan |
-| Integrate | <I/σ> summed and profile-fitted, profile correlation, background, by resolution |
+| Integrate | <I/σ> summed and profile-fitted, profile correlation, background, by resolution; with several sweeps, <I/σ> and profile correlation a line a sweep |
 | Scale | CC½, <I/σ>, completeness with multiplicity on its own axis, the R factors, by resolution |
+| Correlation | the correlation matrix in OPTICS's order; the reachability, coloured by cluster; the data sets on their first two principal components; the functional by dimension -- from its `mxi_correlation.json`, the tool always asking for it |
 
 A resolution axis is spaced evenly in 1/d², ticked in d.
 
@@ -171,8 +172,6 @@ through `mxi_tools`, as `mxi view` does.
 
 ## Not yet
 
-- Each sweep's own integration figures, where there are several; the
-  clusters of `mxi correlation`, plotted.
 - The resolution under the cursor from a multi-panel detector's first panel
   only.
 - A short explanation of each step, and the guides linked, for teaching.

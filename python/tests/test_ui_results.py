@@ -193,3 +193,73 @@ def test_a_clusters_records_read_as_facts():
         facts["Cluster"] == "1" and facts["Data sets"] == "12" and facts["Of"] == "36"
     )
     assert facts["Cut from"] == "scaled.rflx"
+
+
+def test_correlations_facts_and_plots(tmp_path):
+    import json
+
+    from ui_records import correlation
+
+    doc = correlation()
+    (tmp_path / "mxi_correlation.json").write_text(
+        json.dumps(doc).replace("Infinity", "Infinity")
+    )
+    path, rec = results.record(str(tmp_path), "correlation")
+    assert (
+        path.endswith("mxi_correlation.json")
+        and rec["program"] == "mxi_correlation_json"
+    )
+    facts = dict(results.facts(rec))
+    assert (
+        facts["Data sets"] == "6"
+        and facts["Clusters"] == "2"
+        and facts["In no cluster"] == "1"
+    )
+    assert facts["Their data sets"] == "0: 3, 1: 2"
+    plots = results.plots(rec)
+    assert [p.title for p in plots] == [
+        "Correlation, in OPTICS's order",
+        "Reachability, in OPTICS's order",
+        "The data sets, principal components",
+        "Functional by dimension",
+    ]
+    matrix = plots[0]
+    order = doc["ordering"]
+    assert (
+        matrix.kind == "matrix" and matrix.matrix[2][3] == doc["r"][order[2]][order[3]]
+    )
+    reach = plots[1]
+    assert reach.bars and [s.name for s in reach.series] == [
+        "in no cluster",
+        "cluster 0",
+        "cluster 1",
+    ]
+    first = next(s for s in reach.series if s.name == "cluster 0")
+    assert (
+        first.x[0] == 0 and first.y[0] > 1.5
+    ), "the unreachable first drawn, above the rest"
+    pcs = plots[2]
+    assert (
+        pcs.kind == "points" and pcs.xlabel == "PC1 (80%)" and pcs.ylabel == "PC2 (15%)"
+    )
+    assert results.record(str(tmp_path / "nowhere"), "correlation")[1] is None
+
+
+def test_integration_a_sweep_at_a_time():
+    from ui_records import chain
+
+    rec = chain()["integrate"]
+    sweep = {"by_resolution": rec["by_resolution"]}
+    assert (
+        results.each_sweep_plots(dict(rec, each_sweep=[dict(sweep, sweep=0)])) == []
+    ), "one sweep, the whole run's tables: nothing more"
+    two = dict(rec, each_sweep=[dict(sweep, sweep=0), dict(sweep, sweep=1)])
+    plots = results.each_sweep_plots(two)
+    assert [p.title for p in plots] == [
+        "<I/σ> by resolution, each sweep",
+        "Profile correlation by resolution, each sweep",
+    ]
+    assert [s.name for s in plots[0].series] == ["sweep 0", "sweep 1"]
+    cut = {"program": "mxi_integrate", "each_sweep": [dict(sweep, sweep=0)]}
+    assert results.each_sweep_plots(cut), "a cluster's: only the sweeps left"
+    assert results.plots(two)[0].title == "<I/σ> by resolution, each sweep"

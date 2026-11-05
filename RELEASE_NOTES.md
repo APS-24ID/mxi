@@ -22,6 +22,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   time, the same as the previous sweep's; saved as `mxi view` saves them, into
   `masked.rflx` through `mxi untrusted` and `mxi_mask.json`, and Find spots
   then reads `masked.rflx`. Closing with regions not saved asks first.
+- mxi ui's plots: integration a sweep at a time, a line each, where there are
+  several; and the Correlation tool's -- the matrix in OPTICS's order, the
+  reachability coloured by cluster, the data sets' principal components, the
+  functional by dimension -- from the `mxi_correlation.json` it now always
+  writes. The tool reads `scaled.rflx` by default, as `mxi correlation` takes,
+  where it had offered `symmetrized.rflx`.
 - mxi ui's viewer sums images: from the one shown, as many as are asked for,
   so that a shadow or faint spots show; the spots on any of them marked, the
   contrast set afresh.

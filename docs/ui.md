@@ -113,6 +113,10 @@ small circle; each layer can be hidden.
 
 - **Images**: ◀ and ▶, the arrow keys, or a number typed; where there are
   several sweeps, a list of them. The zoom is kept from image to image.
+- **Sum**: the images summed from the one shown -- 10 or 50 shows a shadow
+  against the summed background, and faint spots, where one image shows
+  neither; the spots on any of them marked, the contrast set afresh, the sum
+  stopping at the sweep's last image.
 - **Zoom**: + and −, or the keys + and - (about the pointer); or drag up and
   down with the right button, or with Control and the left, a level each 30
   pixels, about where the drag began; or a wheel or a trackpad's scroll.

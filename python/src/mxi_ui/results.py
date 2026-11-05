@@ -430,7 +430,8 @@ def plots(rec):
                 [("rmerge", "Rmerge"), ("rmeas", "Rmeas"), ("rpim", "Rpim")],
                 "R factors by resolution",
                 "R",
-                log=True,
+                # Linear, as R factors are usually drawn: on a log axis,
+                # as mxi report has them, they looked odd here (Graeme).
             )
             if r:
                 made.append(r)

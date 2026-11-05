@@ -61,7 +61,8 @@ def test_each_step_has_its_plots():
     ]
     assert titles["symmetry"] == [] and titles["import"] == []
     scale = results.plots(c["scale"])
-    assert scale[3].log and all(p.resolution for p in scale)
+    assert not scale[3].log, "R factors on a linear axis, as usual"
+    assert all(p.resolution for p in scale)
     assert scale[2].right and scale[2].right[0].name == "multiplicity"
 
 

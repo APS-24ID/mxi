@@ -48,6 +48,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   contrast set afresh.
 - `mxi_tools` finds mxi by the `MXI` environment variable first, as mxi ui
   does.
+- `docs/process.md`, a guide to `mxi process`: where each option goes, where
+  it starts from a `.rflx` and why, what to do when a step fails, and the ways
+  through -- one crystal, a mask first, many crystals to their clusters --
+  with their flows, drawn by GitHub from the Markdown.
 
 **Fixed**
 - `mxi process masked.rflx` -- a file `mxi untrusted` wrote -- had been

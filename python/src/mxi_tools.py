@@ -29,7 +29,12 @@ def mxi_command(name: str) -> list[str]:
     """How to run one of mxi's commands: mxi beside this module, or on the
     PATH, with the command -- [".../mxi", "untrusted"] -- every step a command
     of one program since 1.1, an installed release having nothing else; else
-    the command's own program, mxi_untrusted, as a build before 1.1 had."""
+    the command's own program, mxi_untrusted, as a build before 1.1 had. The
+    MXI environment variable first, where set: mxi ui finds mxi by it too, and
+    its viewer saves through this."""
+    named = os.environ.get("MXI")
+    if named and os.path.isfile(named) and os.access(named, os.X_OK):
+        return [named, name]
     here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mxi")
     if os.path.isfile(here) and os.access(here, os.X_OK):
         return [here, name]
@@ -523,12 +528,18 @@ def untrusted_to_shape(region: dict):
     raise ValueError(f"not an untrusted region: {region}")
 
 
-def save_untrusted(path: str, by_imageset: dict, output: str = "masked.rflx") -> str:
+def save_untrusted(
+    path: str, by_imageset: dict, output: str = "masked.rflx", where: str | None = None
+) -> str:
     """Each image set's regions written by mxi untrusted into a new file,
     `output`, the input left as it was; and kept in mxi_mask.json, to apply
-    again with no window. Returns mxi untrusted's report."""
+    again with no window. Both in `where` -- the current directory where it
+    is not given, as mxi view is run in the data's; mxi ui, run anywhere,
+    names the data's. Returns mxi untrusted's report."""
+    where = where or os.getcwd()
+    output = output if os.path.isabs(output) else os.path.join(where, output)
     mask = {"imagesets": {str(k): v for k, v in by_imageset.items()}}
-    with open("mxi_mask.json", "w") as f:
+    with open(os.path.join(where, "mxi_mask.json"), "w") as f:
         json.dump(mask, f, indent=1)
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
         json.dump(mask, f)

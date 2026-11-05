@@ -446,3 +446,132 @@ def test_the_image_is_fitted_when_the_window_opens(strong):
         )
     finally:
         root.destroy()
+
+
+class Click:
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+
+
+def drag(v, mode, start, end):
+    v.mode.set(mode)
+    v._mode_changed()
+    v._press(Click(*start))
+    v._move(Click(*end))
+    v._release(Click(*end))
+
+
+def test_regions_drawn_where_they_are_drawn(strong):
+    import math
+
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        ims = v._imageset()
+        assert v.regions.of(ims) == [], "the planted series has none"
+        drag(v, "rectangle", (100, 120), (60, 80))
+        (a, b), (c, d) = v.view.to_detector(60, 80), v.view.to_detector(100, 120)
+        assert v.regions.of(ims)[0]["rectangle"] == [
+            round(a, 1),
+            round(b, 1),
+            round(c, 1),
+            round(d, 1),
+        ]
+        drag(v, "circle", (300, 300), (330, 340))
+        assert math.isclose(
+            v.regions.of(ims)[1]["circle"][2], 50 * v.view.scale, abs_tol=0.1
+        )
+        v.mode.set("polygon")
+        v._mode_changed()
+        for p in ((400, 100), (500, 100), (450, 200)):
+            v._press(Click(*p))
+            v._release(Click(*p))
+        v._close_polygon()
+        assert len(v.regions.of(ims)[2]["polygon"]) == 3
+        settle(root, 2)
+        assert len(v.canvas.find_withtag("region")) == 3, "all three drawn"
+        assert v.count.cget("text") == "Untrusted regions: 3, not saved"
+        # Look: a click chooses the region under it; Delete removes it; Undo.
+        v.mode.set("look")
+        v._press(Click(80, 100))
+        v._release(Click(80, 100))
+        assert v.chosen == 0
+        v.delete_chosen()
+        assert len(v.regions.of(ims)) == 2 and "rectangle" not in v.regions.of(ims)[0]
+        v.undo()
+        assert len(v.regions.of(ims)) == 3
+        v.view.zoom(1.25, 200, 200)
+        v.draw()
+        x0, y0, x1, y1 = v.canvas.coords(v.canvas.find_withtag("region")[0])
+        assert (
+            abs(x0 - v.view.to_canvas(a, b)[0]) < 0.2
+            and abs(x1 - v.view.to_canvas(c, d)[0]) < 0.2
+        ), "where drawn, zoomed"
+    finally:
+        root.destroy()
+
+
+def test_saved_through_mxi_untrusted_and_find_spots_reads_it(strong, monkeypatch):
+    import json
+
+    from tkinter import messagebox
+
+    import mxi_tools
+    from mxi_ui.window import MainWindow
+
+    monkeypatch.setenv("MXI", MXI)  # as mxi ui finds it, and so mxi_tools
+    root = tkinter.Tk()
+    root.withdraw()
+    w = MainWindow(root, str(strong))
+    try:
+        w.tree.selection_set("find")
+        root.update()
+        v = w.view_images()
+        v.top.geometry("800x700")
+        settle(root, 20)
+        drag(v, "rectangle", (60, 80), (100, 120))
+        drag(v, "circle", (300, 300), (330, 340))
+        wanted = v.regions.of(v._imageset())
+        before = (strong / "strong.rflx").read_bytes()
+        masked = v.save()
+        assert (
+            masked == str(strong / "masked.rflx")
+            and (strong / "mxi_mask.json").exists()
+        )
+        assert (
+            strong / "strong.rflx"
+        ).read_bytes() == before, "the file shown as it was"
+        saved = mxi_tools.sweeps(mxi_tools.read_experiments(masked))[0]["shapes"]
+        assert saved == wanted, "read back as drawn"
+        assert json.load(open(strong / "mxi_mask.json"))["imagesets"]["0"] == wanted
+        assert w._form_of(w.selected)["inputs"].get() == "masked.rflx"
+        assert "Find spots reads it" in w.status.get()
+        assert v.count.cget("text") == "Untrusted regions: 2"
+        # Unsaved, closing asks; saved, it does not.
+        asked = []
+        monkeypatch.setattr(
+            messagebox, "askyesno", lambda *a, **k: asked.append(a) or False
+        )
+        v.close()
+        assert asked == [] and not v.top.winfo_exists()
+        v2 = w.view_images()
+        settle(root, 10)
+        drag(v2, "rectangle", (10, 10), (50, 50))
+        v2.close()
+        assert asked and v2.top.winfo_exists(), "unsaved: asked, and kept"
+    finally:
+        root.destroy()
+
+
+def test_undo_by_its_key(strong):
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        v.top.deiconify()
+        drag(v, "rectangle", (60, 80), (100, 120))
+        assert len(v.regions.of(v._imageset())) == 1
+        v.canvas.focus_force()
+        settle(root, 3)
+        v.canvas.event_generate("<Control-z>")
+        settle(root, 3)
+        assert v.regions.of(v._imageset()) == [], "Ctrl-Z undid it"
+    finally:
+        root.destroy()

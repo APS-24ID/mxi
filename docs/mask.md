@@ -8,6 +8,13 @@ of it. On a small molecule refined to R1 0.026, most of the observations beyond
 (`docs/outstanding.md`, item 78; `mxeq truth`). These two programs mark such
 regions **untrusted**, so that spot finding and integration leave them out.
 
+## Drawing them in mxi ui
+
+`mxi ui`'s viewer draws them too, with no napari: **View images** for the
+Import step, then a rectangle, circle or polygon on the images, and **Save**
+-- `masked.rflx` and `mxi_mask.json`, as below, and Find spots set to read it
+(`docs/ui.md`, Untrusted regions).
+
 ## Viewing and drawing them: mxi view
 
 ```sh

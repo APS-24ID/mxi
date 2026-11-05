@@ -122,6 +122,28 @@ small circle; each layer can be hidden.
   colour maps.
 - **Under the cursor**: the pixel, its counts and its resolution.
 
+### Untrusted regions
+
+Beneath the layers, the detector's untrusted regions -- a backstop's shadow,
+its arm, a cryo nozzle -- which spot finding and integration then leave out
+(`docs/mask.md`). The bar leads with how many the sweep has, and whether they
+are saved. The left button draws what is chosen:
+
+- **Look**: drag to pan; click a region to choose it (yellow), Delete or
+  Backspace removes it.
+- **Rectangle**: drag corner to corner. **Circle**: drag from its centre to
+  its edge. **Polygon**: click each vertex, a double-click or Return closing
+  it, Escape abandoning it. Shift-drag pans while drawing.
+
+**Undo** (Ctrl-Z, Cmd-Z on a Mac) puts the sweep's regions back as they were
+before the last change, a step at a time, each sweep its own; **Clear**
+removes the sweep's; **Same as previous** copies those of the sweep shown
+before, for sweeps sharing their shadows. **Save** writes `masked.rflx` beside
+the file shown, with every sweep's regions, through `mxi untrusted`, and keeps
+them in `mxi_mask.json`; the file shown is left as it was. Find spots then
+reads `masked.rflx`. Closing the viewer with regions not saved asks first. The
+regions a file holds already are shown, to change or add to.
+
 Each pixel shown is the maximum of the detector pixels it stands for, so that
 a spot one pixel wide shows at any zoom; the scale is a whole number of
 pixels either way, so that the picture and its boxes agree pixel for pixel.
@@ -145,9 +167,8 @@ through `mxi_tools`, as `mxi view` does.
 
 ## Not yet
 
-- Drawing the detector's untrusted regions in the viewer: for now `mxi view`
-  (`docs/mask.md`) or `mxi untrusted`. When the viewer draws them, `mxi view`
-  will open it and the napari viewer will be retired.
+- `mxi view` still opens the napari viewer: next, it opens this one, and
+  napari is retired.
 - Each sweep's own integration figures, where there are several; the
   clusters of `mxi correlation`, plotted.
 - The resolution under the cursor from a multi-panel detector's first panel

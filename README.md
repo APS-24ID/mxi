@@ -172,7 +172,8 @@ mxi process ../cluster_0.rflx --d-min-auto   # a cluster from mxi correlation: s
 
 Given a `.rflx` instead of images, it picks up after the step that wrote the
 file -- its writer, the file's `creator` -- and finishes: a cluster written by
-`mxi correlation --write-clusters` is scaled afresh and exported. Each step is
+`mxi correlation --write-clusters` is scaled afresh and exported, and a file
+masked by `mxi untrusted` (`masked.rflx`) goes on from spot finding. Each step is
 the command above, run as it would be by hand, with its own output and log;
 data needing more than these options are processed a step at a time. A step that fails stops it: which step, its exit code, its
 log, and how to go on once it is put right -- the step's own command, or

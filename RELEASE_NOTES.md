@@ -39,6 +39,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   `mxi-ui`.
 
 **Changed**
+- A cluster `mxi correlation --write-clusters` writes carries its own
+  crystals' history, not the whole run's: each step's record cut to its sweeps
+  and experiments, the whole run's figures left out and named, scaling's
+  record left out (a cluster is scaled afresh), and correlation's own record
+  -- the cluster, its data sets, the file it was cut from. Its report, and mxi
+  ui's summaries, are its crystals'.
 - mxi's Python tools are one wheel, `mxi-python`, where mxeq's was its own:
   mxeq, the referee, under the same import name and command; `mxi_tools`,
   which reads mxi's files and images; the viewer `mxi-view` (napari through

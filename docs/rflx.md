@@ -98,6 +98,19 @@ A top-level `summary` group, in the experiment list's encoding:
 carried from file to file (`docs/output.md`). Older files have none; the pair
 has no place for it.
 
+A cluster that `mxi correlation --write-clusters` writes carries its own
+crystals' history, not the whole run's (`src/summary_cut.hh`): of each step's
+record, the parts a sweep or an experiment at a time are kept for its
+experiments and renumbered -- tables with a `sweep` column, lists of entries
+with `sweep` or `experiment`, refinement's groups by their `experiments`, spot
+finding's `spots_per_image` and `first_image`, import's table of sweeps --
+spot finding's spots and signal pixels summed over them; the whole run's
+figures, which cannot be cut, are left out and named in `whole_run_left_out`.
+Symmetry's record is kept whole, its group and reindexing being the cluster's
+too; scaling's is left out, its statistics being every crystal's and a cluster
+scaled afresh. `mxi correlation` adds its own record: the cluster, its data
+sets and of how many, and the file it was cut from.
+
 ## The programs
 
 **Input.** One `.rflx`, or the DIALS pair as now:

@@ -12,8 +12,7 @@
 // and finishes: a cluster mxi correlation wrote is scaled and exported, each
 // cluster as the tutorial's cows, pigs and people do by hand (Graeme, 5
 // November). The file's own writer, its root attribute "creator", says
-// which step that was -- not its summary's last step: a cluster carries the
-// summary it was cut from, scaling's last, though it needs scaling again.
+// which step that was; its summary's last step only where there is none.
 //
 // Each step is a process of its own -- this program again, by its own path
 // (self_path.hh) -- so that nothing differs from running them by hand, and no

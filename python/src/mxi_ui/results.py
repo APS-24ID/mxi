@@ -120,6 +120,12 @@ LABELS = {
     "two_theta_cell": "Cell from 2θ",
     "two_theta_cell_esd": "Its e.s.d.s",
     "ambiguous": "Ambiguous spots",
+    # A cluster's (mxi correlation --write-clusters, summary_cut.hh):
+    "cluster": "Cluster",
+    "data_sets": "Data sets",
+    "of_data_sets": "Of",
+    "cut_from": "Cut from",
+    "whole_run_left_out": "Left out (the whole run's)",
 }
 
 SKIP = {
@@ -158,6 +164,8 @@ def _text(value, key=""):
         return _one(value)
     if isinstance(value, list) and all(_number(v) is not None for v in value):
         return "  ".join(_one(v) for v in value)
+    if isinstance(value, list) and all(isinstance(v, str) for v in value):
+        return ", ".join(value)
     return str(value)
 
 

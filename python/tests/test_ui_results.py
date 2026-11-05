@@ -169,3 +169,26 @@ def test_a_table_cell_that_is_a_list_is_compact():
     assert table.rows == [
         ["67.28 67.45 67.50 109.51 109.65 109.22", "235918", "154385", "1"]
     ]
+
+
+def test_a_clusters_records_read_as_facts():
+    find = {
+        "program": "mxi_find",
+        "spots": 40,
+        "whole_run_left_out": ["spots_by_resolution"],
+    }
+    assert (
+        dict(results.facts(find))["Left out (the whole run's)"] == "spots_by_resolution"
+    )
+    own = {
+        "program": "mxi_correlation",
+        "cluster": 1,
+        "data_sets": 12,
+        "of_data_sets": 36,
+        "cut_from": "scaled.rflx",
+    }
+    facts = dict(results.facts(own))
+    assert (
+        facts["Cluster"] == "1" and facts["Data sets"] == "12" and facts["Of"] == "36"
+    )
+    assert facts["Cut from"] == "scaled.rflx"

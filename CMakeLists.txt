@@ -127,6 +127,7 @@ add_library(mxi
   src/verify.cc
   src/self_path.cc
   src/summary_cut.cc
+  src/triage.cc
   src/experiment_images.cc
   src/hdf5_handle.cc
   src/combine.cc
@@ -279,6 +280,10 @@ target_compile_options(mxi_verify PRIVATE -Wall -Wextra)
 add_library(mxi_process OBJECT apps/mxi_process.cc)
 target_link_libraries(mxi_process PRIVATE mxi)
 target_compile_options(mxi_process PRIVATE -Wall -Wextra)
+# What the scaled data say of twinning, as phenix.xtriage (apps/mxi_triage.cc).
+add_library(mxi_triage OBJECT apps/mxi_triage.cc)
+target_link_libraries(mxi_triage PRIVATE mxi)
+target_compile_options(mxi_triage PRIVATE -Wall -Wextra)
 
 add_library(mxi_grid OBJECT apps/mxi_grid.cc)
 target_link_libraries(mxi_grid PRIVATE mxi)
@@ -393,6 +398,7 @@ add_executable(mxi_tests
   tests/main.cc
   tests/test_combine.cc
   tests/test_summary_cut.cc
+  tests/test_triage.cc
   tests/spots/test_dext_squares.cc
   tests/spots/test_dext_fused.cc
   tests/spots/test_signal_order.cc
@@ -449,7 +455,7 @@ set(MXI_PROGRAMS
   mxi_background mxi_combine mxi_convert mxi_correlation mxi_export mxi_find
   mxi_foreground mxi_forward mxi_grid mxi_import mxi_index mxi_integrate
   mxi_max mxi_profile mxi_readtest mxi_refine mxi_report mxi_residuals
-  mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted mxi_verify mxi_process)
+  mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted mxi_verify mxi_process mxi_triage)
 # No source in two commands: they are one binary, and a source compiled into
 # two is defined twice -- src/cuda_device.cu was, in mxi_find and
 # mxi_integrate, and the CUDA release build failed to link (1.1.0). Shared code

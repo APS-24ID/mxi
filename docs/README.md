@@ -11,6 +11,7 @@ its conclusions sometimes overturned later, with an index of those.
 | [`docs/review.md`](review.md) | guide | for reviewers: what this is, how it differs from DIALS, where things are |
 | [`docs/algorithms.md`](algorithms.md) | reference | each stage's methods, their sources, where they live and how they differ from DIALS |
 | [`docs/ui.md`](ui.md) | guide | mxi ui, the interface: starting it, what it needs, the window, running a step, its summary and plots, the image viewer, how it works, what is not yet done |
+| [`docs/triage.md`](triage.md) | begun | `mxi triage`, what the data say of twinning, as phenix.xtriage: the statistics, the twin laws, the summary, where it differs from xtriage, what is to come |
 | [`docs/process.md`](process.md) | guide | `mxi process`, the whole sequence: where each option goes, where it starts from a `.rflx`, what to do when a step fails, ways through -- with their flows |
 | [`docs/mask.md`](mask.md) | guide | viewing the images, and the detector's untrusted regions: drawing them with mxi view, keeping and applying them with mxi untrusted |
 | [`docs/release.md`](release.md) | guide | making a release: the tag, the builds for Linux with CUDA and macOS with Metal, what they test, the source archive, macOS's quarantine |

@@ -485,3 +485,53 @@ def test_scrolling_by_wheel_and_trackpad_in_pixels():
         assert gestures.touchpad_delta(root, packed) == (3, -7)
     finally:
         root.destroy()
+
+
+def test_quit_in_sight_asking_first_where_something_would_be_lost(
+    tmp_path, monkeypatch
+):
+    from tkinter import messagebox
+
+    from mxi_ui.window import MainWindow
+
+    answers = []
+    monkeypatch.setattr(
+        messagebox, "askyesno", lambda *a, **k: answers.append(a[1]) or False
+    )
+    root = tkinter.Tk()
+    root.withdraw()
+    w = MainWindow(root, str(tmp_path))
+    try:
+        assert (
+            w.quit_button.winfo_manager() == "pack"
+            and w.quit_button.cget("text") == "Quit"
+        )
+
+        class Viewer:  # a viewer with regions drawn, not saved
+            class top:
+                winfo_exists = staticmethod(lambda: True)
+
+            class regions:
+                changed = True
+
+            saved = False
+
+        w.viewers.append(Viewer)
+        w.quit_button.invoke()
+        assert (
+            root.winfo_exists() and answers and "not saved" in answers[-1]
+        ), "asked, and stays"
+        w.viewers.clear()
+        w.quit_button.invoke()
+        assert len(answers) == 1, "nothing to lose: quits without asking"
+        assert not _exists(root)
+    finally:
+        if _exists(root):
+            root.destroy()
+
+
+def _exists(root):
+    try:
+        return bool(root.winfo_exists())
+    except tkinter.TclError:
+        return False

@@ -22,6 +22,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   time, the same as the previous sweep's; saved as `mxi view` saves them, into
   `masked.rflx` through `mxi untrusted` and `mxi_mask.json`, and Find spots
   then reads `masked.rflx`. Closing with regions not saved asks first.
+- mxi ui has a Quit button (and Cmd-Q, Ctrl-Q), and its viewer a Close button
+  (Cmd-W, Ctrl-W): each asks first where something would be lost -- a command
+  running, regions drawn and not saved, in the viewer or, quitting, in any
+  viewer open.
 - mxi ui's notes, for learning: beneath each step's form, what it does, what
   to look at in its results, what goes wrong and which option answers it, and
   links to the guides that say more. Every option a note names is checked

@@ -117,6 +117,7 @@ ROW_HEIGHT = 330  # pixels a row of plots, at least: more scroll
 # Run's shortcut: Command-Return on a Mac, Control-Return elsewhere.
 RUN_KEY = "Command" if sys.platform == "darwin" else "Control"
 RUN_KEY_SHOWN = "Cmd" if sys.platform == "darwin" else "Ctrl"
+QUIT_KEY_SHOWN = f"{RUN_KEY_SHOWN}-Q"
 DONE, PENDING = "done", ""
 
 
@@ -141,6 +142,10 @@ class MainWindow:
         self.refresh()
         root.after(POLL_MS, self._poll)
         root.protocol("WM_DELETE_WINDOW", self.quit)
+        # Cmd-Q, and the application menu's Quit, on a Mac; Ctrl-Q elsewhere.
+        if sys.platform == "darwin":
+            root.createcommand("::tk::mac::Quit", self.quit)
+        root.bind_all(f"<{RUN_KEY}-q>", lambda _e: self.quit())
         root.bind_all(f"<{RUN_KEY}-Return>", lambda _e: self.run_selected())
 
     # --- building ---------------------------------------------------------
@@ -150,7 +155,7 @@ class MainWindow:
         file = tk.Menu(bar, tearoff=False)
         file.add_command(label="Open directory...", command=self.choose_directory)
         file.add_separator()
-        file.add_command(label="Quit", command=self.quit)
+        file.add_command(label="Quit", command=self.quit, accelerator=QUIT_KEY_SHOWN)
         bar.add_cascade(label="File", menu=file)
         run = tk.Menu(bar, tearoff=False)
         run.add_command(
@@ -179,10 +184,15 @@ class MainWindow:
         foot = ttk.Frame(self.root, padding=(8, 4))
         foot.pack(side=tk.BOTTOM, fill=tk.X)
         ttk.Label(foot, textvariable=self.status).pack(side=tk.LEFT)
+        # Quit, in sight: on a Mac the menus are at the top of the screen,
+        # and a window's own button easily missed (Graeme).
+        self.quit_button = ttk.Button(foot, text="Quit", command=self.quit)
+        self.quit_button.pack(side=tk.RIGHT)
+        Tooltip(self.quit_button, f"Quit mxi ui: {QUIT_KEY_SHOWN}")
         self.cancel_button = ttk.Button(
             foot, text="Cancel", command=self.cancel, state=tk.DISABLED
         )
-        self.cancel_button.pack(side=tk.RIGHT)
+        self.cancel_button.pack(side=tk.RIGHT, padx=(0, 6))
 
         panes = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
         panes.pack(fill=tk.BOTH, expand=True)
@@ -834,10 +844,23 @@ class MainWindow:
         )
 
     def quit(self):
+        """Quit, by the button, the menu, the key or the window's close:
+        asking first where a command runs, or a viewer has untrusted regions
+        drawn and not saved -- which closing would lose without the question
+        the viewer itself asks."""
         if self.runner.running():
             if not messagebox.askyesno(
                 "mxi ui", "A command is running. Stop it and quit?"
             ):
                 return
             self.runner.cancel()
+        unsaved = [
+            v
+            for v in self.viewers
+            if v.top.winfo_exists() and v.regions.changed and not v.saved
+        ]
+        if unsaved and not messagebox.askyesno(
+            "mxi ui", "Untrusted regions drawn in a viewer are not saved. Quit anyway?"
+        ):
+            return
         self.root.destroy()

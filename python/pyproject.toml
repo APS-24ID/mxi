@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mxi-python"
-version = "1.1.4"
+version = "1.1.5"
 description = "mxi's Python tools: mxeq, the referee; mxi_tools, reading mxi's files and images; the viewer"
 readme = "README.md"
 requires-python = ">=3.10"

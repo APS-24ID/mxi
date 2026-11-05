@@ -42,8 +42,9 @@ On the right, the chosen step's tabs: **Setup**, its form; **Log**, what its
 command printed; **Summary** and **Plots**, what its file records. Choosing
 another step keeps the tab, so that going through the steps' summaries stays
 on the summaries. Beneath the tabs, in view whichever is shown, the command
-the form makes, with **Copy** and **Run**; at the foot, the status and
-**Cancel**.
+the form makes, with **Copy** and **Run**; at the foot, the status,
+**Cancel**, and **Quit** (Cmd-Q on a Mac, Ctrl-Q elsewhere), which asks first
+where a command runs or a viewer's regions are not saved.
 
 ## Running a step
 
@@ -135,6 +136,8 @@ small circle; each layer can be hidden.
   pixels, about where the drag began; or a wheel or a trackpad's scroll.
   Fit, 0 or a double-click shows the whole image, as the window opens.
 - **Pan**: drag with the left button.
+- **Close** (Cmd-W, Ctrl-W): the viewer, asking first where regions are not
+  saved; under `mxi view`, the program.
 - **Contrast**: set from the image, its darkest counts on the slider; three
   colour maps.
 - **Under the cursor**: the pixel, its counts and its resolution.

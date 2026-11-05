@@ -145,6 +145,10 @@ class Viewer:
         self.top.title(title or f"mxi ui: {os.path.basename(path)}")
         self.top.geometry("1000x900")
         self.top.protocol("WM_DELETE_WINDOW", self.close)
+        self.top.bind(
+            "<Command-w>" if sys.platform == "darwin" else "<Control-w>",
+            lambda _e: self.close(),
+        )
         self.sweep = tk.IntVar(value=0)
         self.image = tk.IntVar(value=1)
         self.summing = tk.IntVar(value=max(1, int(summing)))
@@ -244,6 +248,11 @@ class Viewer:
         zoom_out.pack(side=tk.LEFT, padx=(2, 4))
         fit = ttk.Button(bar, text="Fit", width=4, command=self.fit)
         fit.pack(side=tk.LEFT)
+        # Close, in sight -- the program's end under mxi view -- asking first
+        # where regions are not saved (close()).
+        done = ttk.Button(bar, text="Close", command=self.close)
+        done.pack(side=tk.RIGHT)
+        Tooltip(done, "Close the viewer: Cmd-W or Ctrl-W")
         Tooltip(
             zoom_in,
             "Zoom in: + or =; or drag up with the right button (or Control-drag)",

@@ -637,3 +637,30 @@ def test_the_contrast_refits_to_a_sum(strong):
         assert v.ceiling.get() > one, "summed counts, a higher top"
     finally:
         root.destroy()
+
+
+def test_the_viewer_closes_by_its_button_asking_first_where_unsaved(
+    strong, monkeypatch
+):
+    from tkinter import messagebox
+
+    asked = []
+    monkeypatch.setattr(
+        messagebox, "askyesno", lambda *a, **k: asked.append(a) or False
+    )
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        close = [
+            b
+            for b in v.top.winfo_children()[0].winfo_children()
+            if b.winfo_class() == "TButton" and b.cget("text") == "Close"
+        ]
+        assert close
+        drag(v, "rectangle", (60, 80), (100, 120))
+        close[0].invoke()
+        assert asked and v.top.winfo_exists(), "unsaved: asked, and kept"
+        v.regions.changed = False
+        close[0].invoke()
+        assert not v.top.winfo_exists()
+    finally:
+        root.destroy()

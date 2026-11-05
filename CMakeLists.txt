@@ -126,6 +126,7 @@ add_library(mxi
   src/untrusted.cc
   src/verify.cc
   src/self_path.cc
+  src/summary_cut.cc
   src/experiment_images.cc
   src/hdf5_handle.cc
   src/combine.cc
@@ -391,6 +392,7 @@ endif()
 add_executable(mxi_tests
   tests/main.cc
   tests/test_combine.cc
+  tests/test_summary_cut.cc
   tests/spots/test_dext_squares.cc
   tests/spots/test_dext_fused.cc
   tests/spots/test_signal_order.cc

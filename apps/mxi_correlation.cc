@@ -7,6 +7,7 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <ctime>
 #include <fstream>
 #include <map>
 #include <optional>
@@ -24,6 +25,7 @@
 #include "log_mirror.hh"
 #include "refl.hh"
 #include "rflx.hh"
+#include "summary_cut.hh"
 #include "symmetry.hh"
 #include "views.hh"
 
@@ -592,8 +594,31 @@ int mxi_correlation_main(int argc, char **argv) {
         const json::Value &sub = part.document;
         const Table &table = part.reflections;
         const std::string path = prefix + "_" + std::to_string(label) + ".rflx";
+        // The cluster's own history, not the whole run's: each record cut
+        // to its crystals (summary_cut.hh), and this step's record after,
+        // saying what it was cut from. Carried whole, its report had been
+        // every crystal's (Graeme, 5 November).
+        std::optional<json::Value> cut;
+        if (summary) {
+          json::Object own;
+          own["program"] = json::Value("mxi_correlation");
+          char stamp[32];
+          const std::time_t now = std::time(nullptr);
+          std::strftime(stamp, sizeof stamp, "%Y-%m-%dT%H:%M:%SZ",
+                        std::gmtime(&now));
+          own["time"] = json::Value(std::string(stamp));
+          own["cluster"] = json::Value(static_cast<long>(label));
+          own["clusters"] = json::Value(static_cast<long>(labels.size()));
+          own["data_sets"] = json::Value(
+              static_cast<long>(members_count(clusters.labels, label)));
+          own["of_data_sets"] =
+              json::Value(static_cast<long>(clusters.labels.size()));
+          own["cut_from"] = json::Value(args.positional[0]);
+          const json::Value record(std::move(own));
+          cut = cut_summary(*summary, document, keep, &record);
+        }
         rflx::write(path, &sub, &table, "mxi_correlation", false,
-                    summary ? &*summary : nullptr);
+                    cut ? &*cut : nullptr);
         std::printf("Wrote %s: cluster %d, %zu data sets, %zu reflections\n",
                     path.c_str(), label, members_count(clusters.labels, label),
                     table.nrows);

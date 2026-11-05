@@ -191,3 +191,26 @@ def test_a_failure_picking_up_says_how_to_go_on(strong):
     failed = run.stderr.split("stopped at step ")[1].split(",")[0]  # "2 of 6"
     assert failed.endswith("of 6")
     assert "or all that remains:\n  mxi process " in run.stderr and "-j 2" in run.stderr
+
+
+def test_a_report_on_a_cut_summary_leaves_out_what_was_left_out(strong):
+    # A cluster's records lack the whole run's figures (summary_cut.hh): the
+    # report is still made, from what is there.
+    import h5py
+    import numpy as np
+
+    with h5py.File(strong / "strong.rflx", "a") as f:
+        g = f["summary/steps/0"]
+        keys = [k.decode() if isinstance(k, bytes) else k for k in g.attrs["__keys__"]]
+        del g["spots_by_resolution"]
+        g.attrs["__keys__"] = np.array(
+            [k for k in keys if k != "spots_by_resolution"], dtype=h5py.string_dtype()
+        )
+    run = subprocess.run(
+        [MXI, "report", "strong.rflx", "-o", "cut.html"],
+        capture_output=True,
+        text=True,
+        cwd=strong,
+    )
+    assert run.returncode == 0, run.stderr
+    assert "spots per image" in (strong / "cut.html").read_text().lower()

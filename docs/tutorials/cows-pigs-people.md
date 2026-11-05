@@ -297,7 +297,8 @@ cows, the pigs and the people -- with no outliers.
 
 `correlation.html` shows the three blocks plainly in the correlation matrix.
 `--write-clusters` writes each cluster as its own file, `cluster_0.rflx`,
-`cluster_1.rflx` and `cluster_2.rflx`, ready to scale alone:
+`cluster_1.rflx` and `cluster_2.rflx`, ready to scale alone, each with its own
+crystals' history -- its report is its crystals', not all 36:
 
 ```sh
 mkdir 0 1 2

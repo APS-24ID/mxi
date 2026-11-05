@@ -106,7 +106,7 @@ takes 36.6 s of wall time and 3m42 of CPU (30 September 2026).
 | step | library, in `src/` | program | reference document |
 |---|---|---|---|
 | import | `nxmx_import` (the NXmx geometry, its transformation chains) | `mxi import` | `docs/import.md` |
-| the images | `nxmx_reader` (frames, the detector's pixel mask), `decompress`, `hdf5_handle`, `experiment_images`; `untrusted` (regions marked untrusted, joined to the pixel mask) | `mxi view` (napari: the images, the spots, and the regions drawn), `mxi untrusted` (list, set, clear), `mxi max` (a maximum projection) | `docs/mask.md` |
+| the images | `nxmx_reader` (frames, the detector's pixel mask), `decompress`, `hdf5_handle`, `experiment_images`; `untrusted` (regions marked untrusted, joined to the pixel mask) | `mxi view` (mxi ui's viewer: the images, summed where asked, the spots, and the regions drawn), `mxi untrusted` (list, set, clear), `mxi max` (a maximum projection) | `docs/mask.md` |
 | spot finding | `dext` (the threshold on the CPU), `dext_metal.cc` and `.metal`, `dext_cuda.cu`, `dext_gpu`, `signal_order`, `spots`, `spot_table` | `mxi find` | `docs/spots.md` |
 | geometry | `geometry` (the models, the sample offset), `predict`, `derivatives`, `linalg` | | `docs/conventions.md` |
 | indexing | `index` (3D FFT, the real-space grid search, a known cell), `fft`, `fft_fftw` | `mxi index` | `docs/algorithms.md`; `CLAUDE.md`, indexing |
@@ -122,8 +122,8 @@ Library files are `src/<name>.hh` and `.cc`. There is one program, `mxi`, and
 every step is a command of it (since 1.1): `apps/mxi.cc` dispatches -- `mxi
 find ...` runs `mxi_find_main` -- and each command is still its own source,
 `apps/mxi_<name>.cc`, built as an object library with its own settings and
-linked into `mxi`. `mxi view` is Python on napari (optional),
-`python/src/mxi_view.py`, copied beside `mxi` by the build with the module it
+linked into `mxi`. `mxi view` is Python, mxi ui's viewer in a window of its
+own, `python/src/mxi_view.py`, copied beside `mxi` by the build with the module it
 shares, `python/src/mxi_tools.py`, and run by it. Both are also in the wheel
 `mxi-python` with mxeq: every Python tool is in `python/src/`. `mxi ui`, the
 interface, is the package `python/src/mxi_ui` (`docs/ui.md`), copied beside

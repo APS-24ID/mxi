@@ -171,8 +171,6 @@ through `mxi_tools`, as `mxi view` does.
 
 ## Not yet
 
-- `mxi view` still opens the napari viewer: next, it opens this one, and
-  napari is retired.
 - Each sweep's own integration figures, where there are several; the
   clusters of `mxi correlation`, plotted.
 - The resolution under the cursor from a multi-panel detector's first panel

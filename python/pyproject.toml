@@ -30,8 +30,6 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
-# The napari viewer, mxi-view, until the interface's own viewer replaces it.
-napari = ["napari[all]"]
 # Kept so that installing mxeq's former extras still works; both are now
 # dependencies. The checker itself must keep working without them:
 # `mxeq.plots` draws what the C++ tools wrote, `mxeq.fixtures` makes test

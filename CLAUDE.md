@@ -98,7 +98,8 @@ through h5py_with_filters: the summary's arrays are compressed too); a viewer
 of its own for each step's images, spots drawn as their boxes, zoom by
 buttons, keys and a right-button drag (Graeme has no wheel). The wheel is
 mxi-python, every Python tool. Not yet: untrusted regions in the viewer, and
-then retiring napari's mxi view. Screenshots under xvfb were how its layout
+then retiring napari's mxi view (done: mxi view is mxi ui's viewer, which
+sums images and draws the regions). Screenshots under xvfb were how its layout
 faults were found; the tests now check what they showed.
 For a new session to
 pick up
@@ -264,7 +265,8 @@ predicted the anisotropy. Most of the disagreement had been the comparison.
   Answers: `--min-zeta` (0.2 for several sweeps; the profile model now follows
   it); untrusted regions (src/untrusted.cc, the image set's "untrusted" list,
   merged into the pixel mask by Series::add_masked; drawn at first in a
-  matplotlib `mxi_mask`, since replaced by `mxi_view` -- napari, optional,
+  matplotlib `mxi_mask`, since replaced by `mxi_view` -- napari's through
+  1.1.4, mxi ui's Tk viewer after,
   python/src/mxi_view.py and the shared mxi_tools.py -- writing masked.rflx
   through `mxi_untrusted`); the sample
   offset (Goniometer::sample_offset, d(phi) = S R(phi) c, two parameters a

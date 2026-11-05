@@ -13,7 +13,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from tkinter import font as tkfont
 
-from mxi_ui import results, state
+from mxi_ui import gestures, results, state
 from mxi_ui.locate import find_mxi
 from mxi_ui.model import build, problems
 from mxi_ui.runner import Runner, as_text
@@ -54,6 +54,8 @@ def draw(axes, plot):
                     (max(xs) - min(xs)) / max(len(xs), 1) * 0.9 if len(xs) > 1 else 0.01
                 )
             axes.bar(xs, ys, width=width, label=series.name)
+        elif series.thin:
+            axes.plot(xs, ys, color="0.6", linewidth=0.8, alpha=0.7, label="_nolegend_")
         else:
             axes.plot(
                 xs,
@@ -61,6 +63,7 @@ def draw(axes, plot):
                 marker="o" if len(xs) <= 30 else None,
                 markersize=3,
                 label=series.name,
+                linewidth=2.2 if any(s.thin for s in plot.series) else 1.5,
             )
     if plot.log:
         axes.set_yscale("log")
@@ -95,7 +98,10 @@ def draw(axes, plot):
                 )
         twin.set_ylabel(plot.right_label)
         twin.set_ylim(bottom=0)
-    if len(plot.series) + len(plot.right) > 1:
+    labelled = [s for s in plot.series if not s.thin]
+    if len(labelled) + len(plot.right) > 1 or (
+        labelled and len(labelled) < len(plot.series)
+    ):
         # One legend for both axes, the right's series among the left's.
         handles, labels = axes.get_legend_handles_labels()
         if plot.right:
@@ -716,12 +722,11 @@ class MainWindow:
             0, 0, window=self.canvas.get_tk_widget(), anchor=tk.NW
         )
         widget = self.canvas.get_tk_widget()
-        for target in (widget, self.scroller):
-            target.bind(
-                "<MouseWheel>", lambda e: self._scroll_plots(-1 if e.delta > 0 else 1)
-            )
-            target.bind("<Button-4>", lambda _e: self._scroll_plots(-1))
-            target.bind("<Button-5>", lambda _e: self._scroll_plots(1))
+        # By the pixel, from a wheel or a trackpad's two fingers -- Tk 9's
+        # <TouchpadScroll>, which a Mac's trackpad sends and no wheel event:
+        # bound for the wheel alone, the plots had not scrolled (Graeme).
+        self.scroller.configure(yscrollincrement=1)
+        gestures.bind_scrolling((widget, self.scroller), self._scroll_plots)
         self._fit_plots()
 
     def _fit_plots(self):
@@ -745,9 +750,11 @@ class MainWindow:
         self.scroller.configure(scrollregion=(0, 0, width, height))
         self.canvas.draw_idle()
 
-    def _scroll_plots(self, units):
-        if self.canvas is not None:
-            self.scroller.yview_scroll(units, "units")
+    def _scroll_plots(self, pixels):
+        """Down by `pixels`, up where negative."""
+        if self.canvas is not None and pixels:
+            step = int(round(pixels)) or (1 if pixels > 0 else -1)
+            self.scroller.yview_scroll(step, "units")
 
     # --- running ----------------------------------------------------------
 

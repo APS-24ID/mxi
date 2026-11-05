@@ -20,6 +20,7 @@ import numpy as np
 
 import mxi_tools
 
+from mxi_ui import gestures
 from mxi_ui import regions as shapes
 from mxi_ui import render
 from mxi_ui.tooltip import Tooltip
@@ -564,16 +565,7 @@ class Viewer:
 
     def _touchpad(self, e):
         """Tk 9's trackpad scroll: its vertical part zooms, as a wheel's."""
-        try:
-            _dx, dy = (
-                int(v)
-                for v in self.top.tk.splitlist(
-                    self.top.tk.call("tk::PreciseScrollDeltas", e.delta)
-                )
-            )
-        except (tk.TclError, ValueError):
-            dy = e.delta & 0xFFFF
-            dy = dy - 0x10000 if dy >= 0x8000 else dy
+        _dx, dy = gestures.touchpad_delta(self.top, e.delta)
         if dy:
             self._wheel(e, 1 if dy > 0 else -1)
 

@@ -23,6 +23,7 @@ class Series:
     name: str
     x: list
     y: list
+    thin: bool = False  # one of many, drawn grey and fine, in no legend
 
 
 @dataclass
@@ -526,13 +527,21 @@ def _matrix(title, full, order):
     )
 
 
+MANY_SWEEPS = 8  # more, and a line each is a tangle: grey, a median, bars
+
+
 def each_sweep_plots(rec):
-    """Integration a sweep at a time, a line each, where there are several --
-    or where only they are left (a cluster's cut summary): so that a sweep
-    unlike the others shows."""
+    """Integration a sweep at a time, where there are several -- or where only
+    they are left (a cluster's cut summary): so that a sweep unlike the
+    others shows. Up to MANY_SWEEPS, a line each; more -- 36 crystals' -- each
+    a thin grey line under their median, and a bar each for its overall
+    <I/σ> and profile correlation, which shows which sweep is the odd one: a
+    line each, with a legend of 36, had buried the plot (Graeme)."""
     each = [e for e in rec.get("each_sweep") or [] if isinstance(e, dict)]
     if not each or (len(each) < 2 and is_table(rec.get("by_resolution"))):
         return []
+    if len(each) > MANY_SWEEPS:
+        return _many_sweeps(each)
     made = []
     for key, title, ylabel in (
         (("isigma_prf", "isigma_sum"), "<I/σ> by resolution, each sweep", "<I/σ>"),
@@ -552,6 +561,68 @@ def each_sweep_plots(rec):
                 )
         if series:
             made.append(Plot(title, "Resolution (Å)", ylabel, series, resolution=True))
+    return made
+
+
+def _many_sweeps(each):
+    made = []
+    lines = []
+    for e in each:
+        t = e.get("by_resolution")
+        name = next((k for k in ("isigma_prf", "isigma_sum") if column(t, k)), None)
+        if is_table(t) and name:
+            lines.append(
+                Series(
+                    f"sweep {e.get('sweep')}",
+                    _resolution_x(t),
+                    [_number(v) for v in column(t, name)],
+                    thin=True,
+                )
+            )
+    if lines:
+        series = list(lines)
+        # The median, shell by shell, where the sweeps share their shells.
+        if len({len(s.x) for s in lines}) == 1:
+            xs, ys = [], []
+            for k in range(len(lines[0].x)):
+                at = [s.x[k] for s in lines if s.x[k] is not None]
+                vs = sorted(s.y[k] for s in lines if s.y[k] is not None)
+                if at and vs:
+                    xs.append(sum(at) / len(at))
+                    mid = len(vs) // 2
+                    ys.append(vs[mid] if len(vs) % 2 else (vs[mid - 1] + vs[mid]) / 2)
+            series.append(Series("median", xs, ys))
+        made.append(
+            Plot(
+                f"<I/σ> by resolution, {len(lines)} sweeps",
+                "Resolution (Å)",
+                "<I/σ>",
+                series,
+                resolution=True,
+            )
+        )
+    for keys, title, ylabel in (
+        (("isigma_prf", "isigma_sum"), "<I/σ>, each sweep", "<I/σ>"),
+        (("cc_prf",), "Profile correlation, each sweep", "CC"),
+    ):
+        xs, ys = [], []
+        for k, e in enumerate(each):
+            t = e.get("overall")
+            name = next((n for n in keys if column(t, n)), None)
+            if is_table(t) and name:
+                xs.append(int(e.get("sweep", k)))
+                ys.append(_number(column(t, name)[0]))
+        if xs:
+            made.append(
+                Plot(
+                    title,
+                    "Sweep",
+                    ylabel,
+                    [Series(ylabel, xs, ys)],
+                    bars=True,
+                    integer=True,
+                )
+            )
     return made
 
 

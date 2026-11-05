@@ -102,12 +102,13 @@ steps it does record.
 | Find spots | spots per image, a line a sweep; spots by resolution |
 | Index | the RMSDs, cycle by cycle |
 | Refine | the RMSDs, cycle by cycle; each crystal's cell lengths and angles over the scan |
-| Integrate | <I/σ> summed and profile-fitted, profile correlation, background, by resolution; with several sweeps, <I/σ> and profile correlation a line a sweep |
+| Integrate | <I/σ> summed and profile-fitted, profile correlation, background, by resolution; with several sweeps, <I/σ> and profile correlation a line a sweep -- more than 8, each a grey line under their median, and a bar a sweep for its overall <I/σ> and profile correlation, to show which is the odd one |
 | Scale | CC½, <I/σ>, completeness with multiplicity on its own axis, the R factors, by resolution |
 | Correlation | the correlation matrix and the cosine-angle matrix (the angles between the data sets' cosym coordinates, as the report has them), both in OPTICS's order -- where the report orders each by its Ward dendrogram; the reachability, coloured by cluster; the data sets on their first two principal components; the functional by dimension -- from its `mxi_correlation.json`, the tool always asking for it |
 
 A resolution axis is spaced evenly in 1/d², ticked in d. Each row of plots keeps
-its height, and the tab scrolls where there are more than it shows.
+its height, and the tab scrolls where there are more than it shows -- by its
+scrollbar, a wheel, or a trackpad's two fingers.
 
 ## The images
 

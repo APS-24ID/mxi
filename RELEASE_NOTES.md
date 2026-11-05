@@ -27,13 +27,14 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   links to the guides that say more. Every option a note names is checked
   against its command's `--help`.
 - mxi ui's plots: integration a sweep at a time, a line each, where there are
-  several; and the Correlation tool's -- the correlation and cosine-angle
-  matrices in OPTICS's order, the reachability coloured by cluster, the data
-  sets' principal components, the functional by dimension -- from the
-  `mxi_correlation.json` it now always writes. The tool reads `scaled.rflx` by
-  default, as `mxi correlation` takes, where it had offered
-  `symmetrized.rflx`. The Plots tab scrolls where there are more than it
-  shows.
+  several -- more than 8, each a grey line under their median and a bar a
+  sweep for its overall <I/sigma> and profile correlation; and the Correlation
+  tool's -- the correlation and cosine-angle matrices in OPTICS's order, the
+  reachability coloured by cluster, the data sets' principal components, the
+  functional by dimension -- from the `mxi_correlation.json` it now always
+  writes. The tool reads `scaled.rflx` by default, as `mxi correlation` takes,
+  where it had offered `symmetrized.rflx`. The Plots tab scrolls where there
+  are more than it shows, by its scrollbar, a wheel or a trackpad.
 - mxi ui's viewer sums images: from the one shown, as many as are asked for,
   so that a shadow or faint spots show; the spots on any of them marked, the
   contrast set afresh.

@@ -304,3 +304,43 @@ def test_a_matrix_with_no_value_draws_none_there():
     i, j = doc["ordering"].index(0), doc["ordering"].index(1)
     assert plot.matrix[i][j] != plot.matrix[i][j], "NaN, not drawn"
     assert plot.matrix[i][i] == 1.0, "the diagonal 1"
+
+
+def test_many_sweeps_grey_under_their_median_and_a_bar_each():
+    # 36 crystals' sweeps, a line each with a legend of 36, had buried the
+    # plot: each grey and fine, the median bold, and a bar a sweep.
+    from ui_records import chain
+
+    rec = chain()["integrate"]
+    each = []
+    for k in range(36):
+        t = dict(rec["by_resolution"])
+        t["isigma_prf"] = [v * (1 + k / 100) for v in t["isigma_prf"]]
+        overall = {
+            "columns": ["isigma_prf", "cc_prf"],
+            "isigma_prf": [10 + k],
+            "cc_prf": [0.9],
+        }
+        each.append({"sweep": k, "by_resolution": t, "overall": overall})
+    plots = results.each_sweep_plots(dict(rec, each_sweep=each))
+    assert [p.title for p in plots] == [
+        "<I/σ> by resolution, 36 sweeps",
+        "<I/σ>, each sweep",
+        "Profile correlation, each sweep",
+    ]
+    lines = plots[0].series
+    assert (
+        sum(s.thin for s in lines) == 36
+        and lines[-1].name == "median"
+        and not lines[-1].thin
+    )
+    first = sorted(s.y[0] for s in lines[:36])
+    assert math.isclose(lines[-1].y[0], (first[17] + first[18]) / 2), "the median of 36"
+    bars = plots[1]
+    assert (
+        bars.bars and bars.series[0].x == list(range(36)) and bars.series[0].y[35] == 45
+    )
+    few = results.each_sweep_plots(dict(rec, each_sweep=each[:8]))
+    assert (
+        few[0].title == "<I/σ> by resolution, each sweep" and len(few[0].series) == 8
+    ), "eight, a line each, as before"

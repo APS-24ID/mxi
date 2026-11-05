@@ -56,6 +56,7 @@ MXI_PROGRAM(residuals)
 MXI_PROGRAM(readtest)
 MXI_PROGRAM(verify)
 MXI_PROGRAM(process)
+MXI_PROGRAM(triage)
 #undef MXI_PROGRAM
 
 namespace {
@@ -80,6 +81,8 @@ const Command kCommands[] = {
      false},
     {"correlation", mxi_correlation_main, "crystals clustered, as cosym",
      false},
+    {"triage", mxi_triage_main,
+     "twinning and the intensities' statistics, as xtriage", false},
     {"combine", mxi_combine_main, "experiment lists joined", false},
     {"split", mxi_split_main, "an experiment list taken apart", false},
     {"convert", mxi_convert_main, ".rflx to and from .expt and .refl", false},

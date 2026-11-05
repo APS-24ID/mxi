@@ -4,6 +4,16 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
+## Unreleased -- since 1.1.5
+
+**New**
+- `mxi triage SCALED.rflx`, begun: what the scaled intensities say of
+  twinning, as phenix.xtriage says it -- the moments, N(Z) and the L test,
+  independent of twin laws; the twin laws the lattice allows, each one's R and
+  H-test fraction; a summary that calls the data twinned only where both kinds
+  say so, and a symmetry missed where twin-related pairs are equal but the L
+  test is not twin-like (docs/triage.md).
+
 ## 1.1.5 -- 5 November 2026
 
 **Changed**

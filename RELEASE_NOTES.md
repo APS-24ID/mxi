@@ -6,6 +6,20 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 ## Unreleased -- since 1.1.3
 
+**Changed**
+- A cluster `mxi correlation --write-clusters` writes carries its own
+  crystals' history, not the whole run's: each step's record cut to its sweeps
+  and experiments, the whole run's figures left out and named, scaling's
+  record left out (a cluster is scaled afresh), and correlation's own record
+  -- the cluster, its data sets, the file it was cut from. Its report, and mxi
+  ui's summaries, are its crystals'.
+- mxi's Python tools are one wheel, `mxi-python`, where mxeq's was its own:
+  mxeq, the referee, under the same import name and command; `mxi_tools`,
+  which reads mxi's files and images; the viewer `mxi-view` (napari through
+  the `[napari]` extra); and `mxi-ui`. matplotlib is now a dependency. The
+  release's wheel is `mxi_python-1.1.4-py3-none-any.whl`; where the `mxeq`
+  wheel was installed, `pip uninstall mxeq` first.
+
 **New**
 - `mxi process MASTER.nxs...`, for routine data: the whole sequence, import to
   export, a step at a time, each the command a script of them would run, with
@@ -37,18 +51,6 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   -- and where tkinter is missing it says what to install for the system (`mxi
   ui --check`). It is in the release archives beside mxi, and in the wheel as
   `mxi-ui`.
-
-**Changed**
-- A cluster `mxi correlation --write-clusters` writes carries its own
-  crystals' history, not the whole run's: each step's record cut to its sweeps
-  and experiments, the whole run's figures left out and named, scaling's
-  record left out (a cluster is scaled afresh), and correlation's own record
-  -- the cluster, its data sets, the file it was cut from. Its report, and mxi
-  ui's summaries, are its crystals'.
-- mxi's Python tools are one wheel, `mxi-python`, where mxeq's was its own:
-  mxeq, the referee, under the same import name and command; `mxi_tools`,
-  which reads mxi's files and images; the viewer `mxi-view` (napari through
-  the `[napari]` extra); and `mxi-ui`. matplotlib is now a dependency.
 
 **Not yet**
 - Untrusted regions are still drawn in `mxi view` (napari) or set with `mxi

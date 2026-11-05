@@ -84,7 +84,8 @@ find's progress; mxi view on macOS from the PATH; CMake 3.22; CUDA too old
 for its compiler said at configure. The candidates found a test counting
 progress lines that depended on the cores, and macOS's runner Python moving
 to 3.15 (the tests now in 3.12, set up for them).
-Since 1.1.3, for 1.1.4: mxi process, the eight steps in turn (apps/
+5 November, version 1.1.4 set for its first candidate (the notes still
+"Unreleased" until the release is dated). Since 1.1.3, for 1.1.4: mxi process, the eight steps in turn (apps/
 mxi_process.cc; each step this program again, by self_path.hh's path), or
 from a .rflx after the step its creator attribute names -- a cluster from
 mxi correlation scaled afresh. A cluster's summary is cut to its crystals
@@ -262,7 +263,7 @@ predicted the anisotropy. Most of the disagreement had been the comparison.
   it); untrusted regions (src/untrusted.cc, the image set's "untrusted" list,
   merged into the pixel mask by Series::add_masked; drawn at first in a
   matplotlib `mxi_mask`, since replaced by `mxi_view` -- napari, optional,
-  tools/mxi_view.py and the shared tools/mxi_tools.py -- writing masked.rflx
+  python/src/mxi_view.py and the shared mxi_tools.py -- writing masked.rflx
   through `mxi_untrusted`); the sample
   offset (Goniometer::sample_offset, d(phi) = S R(phi) c, two parameters a
   lattice, exact derivatives -- every other derivative carries it). The old

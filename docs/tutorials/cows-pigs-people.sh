@@ -35,7 +35,7 @@ mkdir -p "$WHERE/cows" && cd "$WHERE/cows"
 step cows import mxi import "$DATA"/CIX*.nxs
 step cows find mxi find imported.rflx
 step cows index mxi index strong.rflx --no-joint
-mxi show indexed.rflx | grep experiment > "$OUT/cows-cells.txt"
+mxi show indexed.rflx --unit-cell > "$OUT/cows-cells.txt"
 step cows refine mxi refine indexed.rflx
 step cows integrate mxi integrate refined.rflx
 step cows symmetry mxi symmetry integrated.rflx

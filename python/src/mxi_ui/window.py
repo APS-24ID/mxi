@@ -462,6 +462,7 @@ class MainWindow:
                 self.root,
                 path,
                 f"mxi ui: {self.selected.title}, {os.path.basename(path)}",
+                on_saved=self.masked,
             )
         except Exception as e:  # noqa: BLE001 -- said, whatever it is
             messagebox.showerror(
@@ -470,6 +471,16 @@ class MainWindow:
             return None
         self.viewers.append(viewer)
         return viewer
+
+    def masked(self, path):
+        """The viewer saved untrusted regions to `path` (masked.rflx): spot
+        finding reads it from now on, as docs/mask.md has it -- the form's
+        input set, the step to run next said."""
+        name = os.path.basename(path)
+        form = self._form_of(by_key("find"))
+        form["inputs"].set(name)
+        self.status.set(f"Untrusted regions saved in {name}: Find spots reads it")
+        self._update_command()
 
     def copy_command(self):
         self.root.clipboard_clear()

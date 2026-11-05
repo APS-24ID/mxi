@@ -4,6 +4,17 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
+## Unreleased -- since 1.1.4
+
+**New**
+- mxi ui's viewer draws the detector's untrusted regions: rectangles, circles
+  and polygons on a sweep's images, chosen and deleted, undone a step at a
+  time, the same as the previous sweep's; saved as `mxi view` saves them, into
+  `masked.rflx` through `mxi untrusted` and `mxi_mask.json`, and Find spots
+  then reads `masked.rflx`. Closing with regions not saved asks first.
+- `mxi_tools` finds mxi by the `MXI` environment variable first, as mxi ui
+  does.
+
 ## 1.1.4 -- 4 November 2026
 
 **Changed**

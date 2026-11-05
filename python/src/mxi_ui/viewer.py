@@ -11,6 +11,7 @@ the pixel, its counts and its resolution. Tk only, with numpy and h5py.
 """
 
 import os
+import sys
 import time
 import tkinter as tk
 from tkinter import ttk
@@ -19,10 +20,19 @@ import numpy as np
 
 import mxi_tools
 
+from mxi_ui import regions as shapes
 from mxi_ui import render
 from mxi_ui.tooltip import Tooltip
 
 MIN_RADIUS = 5  # canvas pixels: the least a marker is, however small its spot
+REGION = "#ff6d00"  # an untrusted region's outline
+CHOSEN = "#ffd600"  # the one chosen, to delete
+MODES = (
+    ("look", "Look"),
+    ("rectangle", "Rectangle"),
+    ("circle", "Circle"),
+    ("polygon", "Polygon"),
+)
 DRAG_LEVEL = 30  # canvas pixels dragged a zoom level, with the right button
 WHEEL_INTERVAL = 0.1  # seconds: at most a zoom level each, from a scroll
 LAYERS = (
@@ -93,8 +103,9 @@ def layers_for(table, experiments):
 
 
 class Viewer:
-    def __init__(self, parent, path, title=None):
+    def __init__(self, parent, path, title=None, on_saved=None):
         self.path = path
+        self.on_saved = on_saved  # told masked.rflx's path when saved
         self.document = mxi_tools.read_experiments(path)
         self.sweeps = masters(self.document, path)
         if not self.sweeps:
@@ -104,9 +115,21 @@ class Viewer:
         )
         self.images = {}
         self.layers = {}
+        # The untrusted regions each sweep's image set holds already; drawn,
+        # undone and saved here (regions.py, docs/mask.md).
+        self.regions = shapes.Regions(
+            {s["index"]: s.get("shapes", []) for s in self.sweeps}
+        )
+        self.mode = None
+        self.chosen = None
+        self._shape = None  # a rectangle's or circle's first point, being drawn
+        self._vertices = []  # a polygon's, being drawn
+        self._previous_sweep = None
+        self.saved = False
         self.top = tk.Toplevel(parent)
         self.top.title(title or f"mxi ui: {os.path.basename(path)}")
         self.top.geometry("1000x900")
+        self.top.protocol("WM_DELETE_WINDOW", self.close)
         self.sweep = tk.IntVar(value=0)
         self.image = tk.IntVar(value=1)
         self.ceiling = tk.DoubleVar(value=10.0)
@@ -195,12 +218,65 @@ class Viewer:
         Tooltip(fit, "The whole image: 0, or double-click")
         self.toggles = ttk.Frame(self.top, padding=(8, 0, 8, 4))
         self.toggles.pack(fill=tk.X)
+        self._regions_bar()
+
+    def _regions_bar(self):
+        """Untrusted regions: what the left button draws, and what to do
+        with them -- as mxi view's napari panel had it (docs/mask.md)."""
+        bar = ttk.Frame(self.top, padding=(8, 0, 8, 4))
+        bar.pack(fill=tk.X)
+        # Its count leading the bar, in view however narrow the window: at its
+        # end, it had been cut off.
+        self.count = ttk.Label(bar, text="Untrusted regions")
+        self.count.pack(side=tk.LEFT, padx=(0, 6))
+        self.mode = tk.StringVar(value="look")
+        tips = {
+            "look": "Drag to pan; click a region to choose it, Delete to remove it",
+            "rectangle": "Drag corner to corner; Shift-drag pans",
+            "circle": "Drag from its centre to its edge; Shift-drag pans",
+            "polygon": "Click each vertex; double-click or Return closes it, Escape abandons it",
+        }
+        for key, label in MODES:
+            b = ttk.Radiobutton(
+                bar,
+                text=label,
+                value=key,
+                variable=self.mode,
+                command=self._mode_changed,
+            )
+            b.pack(side=tk.LEFT)
+            Tooltip(b, tips[key])
+        for label, action, tip in (
+            (
+                "Undo",
+                self.undo,
+                "The sweep's regions as before the last change: Ctrl-Z or Cmd-Z",
+            ),
+            ("Clear", self.clear, "Remove the sweep's regions"),
+            (
+                "Same as previous",
+                self.same_as_previous,
+                "The regions of the sweep shown before, for sweeps sharing their shadows",
+            ),
+            (
+                "Save",
+                self.save,
+                "masked.rflx, beside the file, with every sweep's regions; "
+                "and mxi_mask.json: the file shown is left as it was",
+            ),
+        ):
+            b = ttk.Button(bar, text=label, command=action)
+            b.pack(side=tk.LEFT, padx=(8 if label == "Undo" else 2, 0))
+            Tooltip(b, tip)
 
     def _bindings(self):
         c = self.canvas
         c.bind("<Configure>", lambda _e: self._resized())
         c.bind("<ButtonPress-1>", self._press)
         c.bind("<B1-Motion>", self._move)
+        c.bind("<ButtonRelease-1>", self._release)
+        c.bind("<Shift-ButtonPress-1>", lambda e: self._press(e, pan=True))
+        c.bind("<Shift-B1-Motion>", self._move)
         # Zoom by dragging up or down with the right button -- Button-2 on a
         # Mac, Button-3 elsewhere -- or Control and the left: no wheel needed,
         # and a trackpad's two fingers had done nothing (Graeme).
@@ -211,7 +287,7 @@ class Viewer:
         ):
             c.bind(press, self._zoom_press)
             c.bind(motion, self._zoom_drag)
-        c.bind("<Double-Button-1>", lambda _e: self.fit())
+        c.bind("<Double-Button-1>", self._double)
         c.bind("<Motion>", self._hover)
         c.bind("<MouseWheel>", lambda e: self._wheel(e, 1 if e.delta > 0 else -1))
         c.bind("<Button-4>", lambda e: self._wheel(e, 1))  # X11's wheel
@@ -233,12 +309,22 @@ class Viewer:
             keys[f"<KeyPress-{key}>"] = lambda: self.zoom(1, at_pointer=True)
         for key in ("minus", "KP_Subtract"):
             keys[f"<KeyPress-{key}>"] = lambda: self.zoom(-1, at_pointer=True)
+        keys["<Control-z>"] = self.undo
+        keys["<Command-z>" if sys.platform == "darwin" else "<Control-Z>"] = self.undo
+        keys["<Delete>"] = self.delete_chosen
+        keys["<BackSpace>"] = self.delete_chosen
+        keys["<Return>"] = self._close_polygon
+        keys["<Escape>"] = self._abandon
         for key, action in keys.items():
             self.top.bind(key, lambda e, act=action: None if typing(e) else act())
 
     # --- the sweep and image ----------------------------------------------
 
     def choose_sweep(self, k):
+        if self.view is not None and k != self.sweep.get():
+            self._previous_sweep = self.sweep.get()
+        self.chosen = None
+        self._vertices = []
         self.sweep.set(k)
         s = self.sweeps[k]
         if s["master"] not in self.images:
@@ -337,6 +423,7 @@ class Viewer:
             round(cx), round(cy), image=self.photo, anchor=tk.NW, tags="image"
         )
         self._markers()
+        self._draw_regions()
 
     def _markers(self):
         """Each spot as its box -- the pixels it covers, its edges a pixel
@@ -377,9 +464,21 @@ class Viewer:
 
     # --- the mouse ----------------------------------------------------------
 
-    def _press(self, e):
-        self._drag = (e.x, e.y)
+    def _press(self, e, pan=False):
         self.canvas.focus_set()  # the keys the image's, not the image box's
+        self._moved = False
+        mode = self.mode.get() if self.mode is not None else "look"
+        if pan or mode == "look":
+            self._drag = (e.x, e.y)
+            self._shape = None
+            return
+        self._drag = None
+        x, y = self.view.to_detector(e.x, e.y)
+        if mode == "polygon":
+            self._vertices.append((x, y))
+            self.draw()
+        else:
+            self._shape = (x, y)
 
     def _zoom_press(self, e):
         self._zooming = (e.x, e.y, e.y)  # where, and the last y a level taken
@@ -417,12 +516,191 @@ class Viewer:
             self._wheel(e, 1 if dy > 0 else -1)
 
     def _move(self, e):
+        self._moved = True
+        if self._shape is not None:
+            self._rubber(e)
+            return
         if self._drag is None or self.view is None:
             return
         self.view.pan(e.x - self._drag[0], e.y - self._drag[1])
         self._auto_fit = False
         self._drag = (e.x, e.y)
         self.draw()
+
+    def _release(self, e):
+        """A rectangle or circle drawn, from where the press was; in Look, a
+        click that did not pan chooses the region under it."""
+        if self._shape is not None:
+            x0, y0 = self._shape
+            x, y = self.view.to_detector(e.x, e.y)
+            self._shape = None
+            made = (
+                shapes.rectangle(x0, y0, x, y)
+                if self.mode.get() == "rectangle"
+                else shapes.circle(x0, y0, x, y)
+            )
+            if self.regions.add(self._imageset(), made):
+                self.saved = False
+            self.draw()
+            return
+        if self._drag is not None and not self._moved:
+            x, y = self.view.to_detector(e.x, e.y)
+            self.chosen = self.regions.at(self._imageset(), x, y)
+            self.draw()
+        self._drag = None
+
+    def _rubber(self, e):
+        """The shape being dragged, drawn as it goes."""
+        self.canvas.delete("rubber")
+        x0, y0 = self.view.to_canvas(*self._shape)
+        if self.mode.get() == "rectangle":
+            self.canvas.create_rectangle(
+                x0, y0, e.x, e.y, outline=REGION, dash=(4, 2), tags="rubber"
+            )
+        else:
+            r = ((e.x - x0) ** 2 + (e.y - y0) ** 2) ** 0.5
+            self.canvas.create_oval(
+                x0 - r,
+                y0 - r,
+                x0 + r,
+                y0 + r,
+                outline=REGION,
+                dash=(4, 2),
+                tags="rubber",
+            )
+
+    def _double(self, e):
+        if self.mode is not None and self.mode.get() == "polygon":
+            self._close_polygon()
+        else:
+            self.fit()
+
+    def _close_polygon(self):
+        made = shapes.polygon(self._vertices)
+        self._vertices = []
+        if self.regions.add(self._imageset(), made):
+            self.saved = False
+        self.draw()
+
+    def _abandon(self):
+        self._vertices = []
+        self._shape = None
+        self.chosen = None
+        self.draw()
+
+    def _mode_changed(self):
+        self._vertices = []
+        self._shape = None
+        self.draw()
+
+    # --- the regions --------------------------------------------------------
+
+    def close(self):
+        """Closed, asking first where regions were drawn and not saved."""
+        from tkinter import messagebox
+
+        if (
+            self.regions.changed
+            and not self.saved
+            and not messagebox.askyesno(
+                "mxi ui",
+                "The untrusted regions drawn are not saved. Close anyway?",
+                parent=self.top,
+            )
+        ):
+            return
+        self.top.destroy()
+
+    def _imageset(self):
+        return self.sweeps[self.sweep.get()]["index"]
+
+    def delete_chosen(self):
+        if self.chosen is not None and self.regions.remove(
+            self._imageset(), self.chosen
+        ):
+            self.saved = False
+        self.chosen = None
+        self.draw()
+
+    def undo(self):
+        self.regions.undo(self._imageset())
+        self.chosen = None
+        self.draw()
+
+    def clear(self):
+        if self.regions.clear(self._imageset()):
+            self.saved = False
+        self.chosen = None
+        self.draw()
+
+    def same_as_previous(self):
+        if self._previous_sweep is None:
+            self.readout.set("No other sweep shown yet")
+            return
+        other = self.sweeps[self._previous_sweep]["index"]
+        if self.regions.copy_from(self._imageset(), other):
+            self.saved = False
+        self.draw()
+
+    def save(self):
+        """Every sweep's regions into masked.rflx beside the file shown,
+        through mxi untrusted, and mxi_mask.json; the file shown as it was."""
+        where = os.path.dirname(os.path.abspath(self.path))
+        try:
+            report = mxi_tools.save_untrusted(
+                self.path, self.regions.by_imageset, "masked.rflx", where
+            )
+        except (RuntimeError, OSError, SystemExit) as e:
+            # SystemExit too: mxi_tools says so where mxi cannot be found,
+            # which here would close the interface.
+            self.readout.set(
+                f"Not saved: {str(e).strip().splitlines()[-1] if str(e).strip() else e}"
+            )
+            return None
+        self.saved = True
+        self.regions.changed = False
+        last = report.strip().splitlines()[-1] if report.strip() else "saved"
+        self.readout.set(f"{last}; and mxi_mask.json")
+        masked = os.path.join(where, "masked.rflx")
+        if self.on_saved is not None:
+            self.on_saved(masked)
+        self.draw()  # the count no longer "not saved"
+        return masked
+
+    def _draw_regions(self):
+        for i, region in enumerate(self.regions.of(self._imageset())):
+            style = dict(
+                outline=CHOSEN if i == self.chosen else REGION,
+                width=3 if i == self.chosen else 2,
+                tags="region",
+            )
+            if "rectangle" in region:
+                x0, y0, x1, y1 = region["rectangle"]
+                self.canvas.create_rectangle(
+                    *self.view.to_canvas(x0, y0), *self.view.to_canvas(x1, y1), **style
+                )
+            elif "circle" in region:
+                cx, cy, r = region["circle"]
+                (a, b), q = self.view.to_canvas(cx, cy), r / self.view.scale
+                self.canvas.create_oval(a - q, b - q, a + q, b + q, **style)
+            elif "polygon" in region:
+                points = [c for p in region["polygon"] for c in self.view.to_canvas(*p)]
+                self.canvas.create_polygon(*points, fill="", **style)
+        if self._vertices:
+            points = [c for p in self._vertices for c in self.view.to_canvas(*p)]
+            if len(points) >= 4:
+                self.canvas.create_line(
+                    *points, fill=REGION, dash=(4, 2), tags="region"
+                )
+            for x, y in zip(points[::2], points[1::2]):
+                self.canvas.create_oval(
+                    x - 3, y - 3, x + 3, y + 3, outline=REGION, tags="region"
+                )
+        n = len(self.regions.of(self._imageset()))
+        unsaved = self.regions.changed and not self.saved
+        self.count.configure(
+            text=f"Untrusted regions: {n}" + (", not saved" if unsaved else "")
+        )
 
     def zoom(self, direction, at=None, at_pointer=False):
         """A level in (direction > 0) or out, about canvas point `at`; at the

@@ -425,6 +425,17 @@ history on 20 October: four closed, nine rewritten to what is now true.
   `docs/import.md`. Untested: several modules, a moving detector, beam direction
   or polarisation from the file, materials but silicon.
 
+## Overlapping reflections
+
+* **88.** **capability -- mxi integrate --fit-overlaps judged on real data, and
+    its default.** Overlapping reflections fitted together (docs/integration.md,
+    Several lattices): on its own boxes, a weak spot's contamination by a
+    strong neighbour removed and its sigma calibrated; on the planted series,
+    nothing outside the groups touched. To judge on ins2_27, where some 573 a
+    lattice have overlapped foregrounds: the members' intensities against
+    their equivalents and DIALS's, the merging statistics with and without --
+    then whether it should be the default.
+
 ## The interface and its viewer
 
 * **85.** **capability -- moving or reshaping an untrusted region.** The

@@ -68,6 +68,18 @@ namespace {
 
 // Integration's summaries, by resolution and overall, as the processing's
 // summary keeps them (docs/output.md).
+// How many reflections were profile fitted together with their neighbours
+// (--fit-overlaps), where the table says.
+void add_overlap_count(Summary &step, const Table &t) {
+  if (!t.has("profile.fitted_together"))
+    return;
+  const Column &c = t.at("profile.fitted_together");
+  long n = 0;
+  for (std::size_t r = 0; r < t.nrows; ++r)
+    n += c.integer(r) != 0 ? 1 : 0;
+  step.set("fitted_together", json::Value(n));
+}
+
 void add_integration_tables(Summary &step, const IntegrationSummary &in) {
   const auto columns = [](const std::vector<const SummaryRow *> &rows) {
     std::vector<std::vector<json::Value>> c(12);
@@ -171,6 +183,7 @@ json::Value joined_summary(const std::string &input, const Table &joined,
     print_summary(stdout, *s);
     add_integration_tables(step, *s);
   }
+  add_overlap_count(step, joined);
   return step.document();
 }
 
@@ -357,6 +370,10 @@ void usage(const char *program) {
       "                    background: by default, their foregrounds are\n"
       "                    masked out of it, any lattice's, as DIALS's\n"
       "                    3d_threaded integrator does\n"
+      "  --fit-overlaps    reflections whose foregrounds overlap, of any\n"
+      "                    lattice, profile fitted together: each its own\n"
+      "                    profile, the shared pixels apportioned between\n"
+      "                    them (docs/integration.md)\n"
       "  --each-alone      the lattices of a sweep a run each, reading its\n"
       "                    images once a lattice, rather than in one pass\n"
       "  --two-pass        read the images twice, to learn and then to fit, "
@@ -978,6 +995,7 @@ int run_integrate(int argc, char **argv) {
       "--save-background-parameters",
       "--two-pass",
       "--no-mask-neighbours",
+      "--fit-overlaps",
       "--profile-only",
       "--each-alone",
       "--sweep-run", // internal: one of several
@@ -998,6 +1016,7 @@ int run_integrate(int argc, char **argv) {
   takes_value.erase("--save-background-parameters");
   takes_value.erase("--two-pass");
   takes_value.erase("--no-mask-neighbours");
+  takes_value.erase("--fit-overlaps");
   takes_value.erase("--profile-only");
   takes_value.erase("--each-alone");
   takes_value.erase("--sweep-run");
@@ -1469,6 +1488,21 @@ int run_integrate(int argc, char **argv) {
     // meet: a hash of 32 pixel tiles of the panel, then the three-dimensional
     // test.
     const bool mask_neighbours = !args.has("--no-mask-neighbours");
+    // --fit-overlaps: reflections whose foregrounds overlap fitted together
+    // (fit_together). Found from the neighbours, in the one pass's fit.
+    bool fit_overlaps = args.has("--fit-overlaps");
+    if (fit_overlaps && !mask_neighbours) {
+      std::printf(
+          "--fit-overlaps finds overlaps among the neighbours: not with "
+          "--no-mask-neighbours\n");
+      fit_overlaps = false;
+    }
+    if (fit_overlaps &&
+        (args.has("--two-pass") || args.has("--summation-only"))) {
+      std::printf("--fit-overlaps fits in the one pass's profile fitting: not "
+                  "with --two-pass or --summation-only\n");
+      fit_overlaps = false;
+    }
     // The other lattices of this sweep (--mask-also, from integrate_several):
     // each with its own crystal and its own profile model, predicted and
     // boxed here for their foregrounds to be masked out of this lattice's
@@ -1529,6 +1563,10 @@ int run_integrate(int argc, char **argv) {
                                 : others[j - planned.size()].prediction->panel;
     };
     std::vector<std::vector<std::uint32_t>> neighbours(planned.size());
+    // Each reflection's group of reflections whose foregrounds overlap, -1 if
+    // none; each group's size.
+    std::vector<std::int32_t> overlap_group(planned.size(), -1);
+    std::vector<std::size_t> group_size;
     if (mask_neighbours) {
       // Tiles of 32 pixels and 16 images: keyed on the panel alone, a tile
       // held every reflection that ever fell there through the scan, and
@@ -1607,6 +1645,72 @@ int run_integrate(int argc, char **argv) {
       for (const auto &n : neighbours)
         meeting += n.empty() ? 0 : 1;
       detail("Neighbours masked: %zu of the boxes meet another\n", meeting);
+      if (fit_overlaps) {
+        // Of the boxes that meet, the pairs whose foregrounds share a voxel,
+        // each under its own lattice's models -- this run's reflections only:
+        // another run's (--mask-also) are masked, not fitted -- joined into
+        // groups through every pair, as a union-find.
+        std::vector<std::vector<std::uint32_t>> meets(planned.size());
+        const auto meet_range = [&](std::size_t from, std::size_t to) {
+          for (std::size_t i = from; i < to; ++i) {
+            const std::uint32_t li = planned[i].lattice;
+            for (std::uint32_t j : neighbours[i]) {
+              if (j <= i || j >= planned.size())
+                continue;
+              const std::uint32_t lj = planned[j].lattice;
+              if (foregrounds_meet(experiments[li], *planned[i].prediction,
+                                   lattice_masks[li], planned[i].bbox,
+                                   experiments[lj], *planned[j].prediction,
+                                   lattice_masks[lj], planned[j].bbox))
+                meets[i].push_back(j);
+            }
+          }
+        };
+        {
+          const std::size_t n = planned.size();
+          const std::size_t parts =
+              std::max<std::size_t>(1, std::min(workers, n));
+          std::vector<std::thread> pool;
+          for (std::size_t k = 0; k < parts; ++k)
+            pool.emplace_back(meet_range, n * k / parts, n * (k + 1) / parts);
+          for (std::thread &t : pool)
+            t.join();
+        }
+        std::vector<std::uint32_t> parent(planned.size());
+        for (std::size_t i = 0; i < planned.size(); ++i)
+          parent[i] = static_cast<std::uint32_t>(i);
+        const auto root = [&](std::uint32_t x) {
+          while (parent[x] != x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+          }
+          return x;
+        };
+        for (std::size_t i = 0; i < planned.size(); ++i)
+          for (std::uint32_t j : meets[i])
+            parent[root(static_cast<std::uint32_t>(i))] = root(j);
+        std::vector<std::size_t> members(planned.size(), 0);
+        for (std::size_t i = 0; i < planned.size(); ++i)
+          ++members[root(static_cast<std::uint32_t>(i))];
+        std::unordered_map<std::uint32_t, std::int32_t> id_of;
+        for (std::size_t i = 0; i < planned.size(); ++i) {
+          const std::uint32_t r = root(static_cast<std::uint32_t>(i));
+          if (members[r] < 2)
+            continue;
+          auto [it, fresh] =
+              id_of.emplace(r, static_cast<std::int32_t>(group_size.size()));
+          if (fresh)
+            group_size.push_back(members[r]);
+          overlap_group[i] = it->second;
+        }
+        std::size_t in_groups = 0;
+        for (std::size_t n : group_size)
+          in_groups += n;
+        std::printf(
+            "Overlapping foregrounds: %zu reflections in %zu groups, to be "
+            "fitted together\n",
+            in_groups, group_size.size());
+      }
     }
 
     // ONE PASS OVER THE FRAMES, WITH SHOEBOXES OPEN ACROSS THEM
@@ -2120,8 +2224,9 @@ int run_integrate(int argc, char **argv) {
     // Each reflection's reason, written as profile.failure: 0 fitted, else why
     // not (FitFailure), so that where a data set's fits fail can be looked at.
     std::vector<std::uint8_t> failure_of(planned.size(), 0);
-    const auto failed = [&](std::size_t row, FitFailure why) {
-      failure_of[row] = static_cast<std::uint8_t>(why);
+    // The counter of each reason a fit failed: failed counts one, and a fit
+    // done after all (--fit-overlaps) uncounts it.
+    const auto counter_for = [&](FitFailure why) -> std::atomic<std::size_t> * {
       std::atomic<std::size_t> *counter = &prf_degenerate;
       switch (why) {
       case FitFailure::no_box:
@@ -2148,6 +2253,11 @@ int run_integrate(int argc, char **argv) {
       default:
         break;
       }
+      return counter;
+    };
+    const auto failed = [&](std::size_t row, FitFailure why) {
+      failure_of[row] = static_cast<std::uint8_t>(why);
+      std::atomic<std::size_t> *counter = counter_for(why);
       counter->fetch_add(1, std::memory_order_relaxed);
     };
     const auto record_fit = [&](std::size_t row, const ProfileFit &fit) {
@@ -2412,6 +2522,83 @@ int run_integrate(int argc, char **argv) {
       }
     };
 
+    // --fit-overlaps: each group's boxes kept as each is fitted alone, its
+    // background as the fit takes it; when a group's last is in, its members
+    // fitted together (fit_together), each with its own lattice's profile.
+    // The results wait for the end, applied over the fits alone -- the
+    // device's arrive when collected, which would overwrite them.
+    struct OverlapHeld {
+      std::size_t row;
+      Shoebox box;
+    };
+    std::unordered_map<std::int32_t, std::vector<OverlapHeld>> overlap_held;
+    std::vector<std::pair<std::size_t, ProfileFit>> overlap_results;
+    std::vector<std::uint8_t> together_of(planned.size(), 0);
+    std::size_t overlap_fitted_groups = 0, overlap_degenerate = 0,
+                overlap_unfitted = 0;
+    const auto hold_overlaps = [&](const std::vector<std::size_t> &now) {
+      std::vector<std::int32_t> complete;
+      for (std::size_t k : now) {
+        const std::size_t row = held_rows[k];
+        const std::int32_t g = overlap_group[row];
+        if (g < 0)
+          continue;
+        OverlapHeld h{row, held[k]};
+        h.box.background.assign(h.box.size(),
+                                static_cast<float>(bmean.reals[row]));
+        std::vector<OverlapHeld> &members = overlap_held[g];
+        members.push_back(std::move(h));
+        if (members.size() == group_size[static_cast<std::size_t>(g)])
+          complete.push_back(g);
+      }
+      if (complete.empty())
+        return;
+      std::vector<std::vector<OverlapHeld> *> groups;
+      for (std::int32_t g : complete)
+        groups.push_back(&overlap_held.at(g));
+      // 0 not fitted (no profile for a member), 1 fitted, 2 degenerate.
+      std::vector<std::uint8_t> outcome(groups.size(), 0);
+      std::vector<std::vector<ProfileFit>> fits(groups.size());
+      in_parallel(groups.size(), [&](std::size_t c) {
+        std::vector<OverlapMember> members;
+        for (const OverlapHeld &h : *groups[c]) {
+          const Prediction &q = *planned[h.row].prediction;
+          const std::uint32_t lattice = planned[h.row].lattice;
+          const std::vector<double> local = profile_at(
+              references[lattice], panel, static_cast<std::size_t>(q.panel),
+              q.px_fast, q.px_slow, q.z);
+          if (local.size() != grids[lattice].size())
+            return;
+          OverlapMember m;
+          m.box = &h.box;
+          m.profile =
+              profile_on_pixels(e, h.box, q.s1, q.phi, grids[lattice], local);
+          if (m.profile.empty())
+            return;
+          members.push_back(std::move(m));
+        }
+        fits[c] = fit_together(members, integrate_options.gain);
+        bool all = true;
+        for (const ProfileFit &f : fits[c])
+          all = all && f.valid;
+        outcome[c] = all ? 1 : 2;
+      });
+      for (std::size_t c = 0; c < groups.size(); ++c) {
+        const std::vector<OverlapHeld> &members = *groups[c];
+        if (outcome[c] == 1) {
+          ++overlap_fitted_groups;
+          for (std::size_t m = 0; m < members.size(); ++m)
+            overlap_results.emplace_back(members[m].row, fits[c][m]);
+        } else if (outcome[c] == 2) {
+          overlap_degenerate += members.size();
+        } else {
+          overlap_unfitted += members.size();
+        }
+      }
+      for (std::int32_t g : complete)
+        overlap_held.erase(g);
+    };
+
     // Fit every held box whose scan blocks are all final -- or every one, at
     // the end -- in parallel, and let it go.
     const auto fit_ready = [&](bool everything) {
@@ -2451,6 +2638,8 @@ int run_integrate(int argc, char **argv) {
           fit_one(held_rows[now[n]], held[now[n]], &held_cells[now[n]]);
         });
       t_fit += now_wall() - t0;
+      if (fit_overlaps)
+        hold_overlaps(now);
       std::vector<bool> gone(held.size(), false);
       for (std::size_t k : now) {
         gone[k] = true;
@@ -2989,6 +3178,33 @@ int run_integrate(int argc, char **argv) {
             }
         } else if (single_pass) {
           fit_ready(true);
+          if (fit_overlaps) {
+            // Each overlapped reflection's fit together over its fit alone --
+            // a failure alone uncounted where together it was fitted.
+            std::size_t replaced = 0;
+            for (const auto &[row, fit] : overlap_results) {
+              if (!fit.valid)
+                continue;
+              if (failure_of[row] != 0) {
+                counter_for(static_cast<FitFailure>(failure_of[row]))
+                    ->fetch_sub(1, std::memory_order_relaxed);
+                failure_of[row] = 0;
+              }
+              record_fit(row, fit);
+              together_of[row] = 1;
+              ++replaced;
+            }
+            std::printf("Fitted together: %zu reflections in %zu groups",
+                        replaced, overlap_fitted_groups);
+            if (overlap_degenerate > 0)
+              std::printf("; %zu whose profiles could not be told apart, each "
+                          "fitted alone",
+                          overlap_degenerate);
+            if (overlap_unfitted > 0)
+              std::printf("; %zu with no profile for a member, each alone",
+                          overlap_unfitted);
+            std::printf("\n");
+          }
         } else {
           pass = 1;
           at = 0;
@@ -3076,6 +3292,13 @@ int run_integrate(int argc, char **argv) {
       for (std::size_t r = 0; r < planned.size(); ++r)
         why.ints[r] = failure_of[r];
     }
+    if (fit_overlaps) {
+      // 1 where the profile-fitted intensity is from a fit together with the
+      // reflections its foreground overlaps (--fit-overlaps).
+      Column &together = out.int_column("profile.fitted_together", "int", 1);
+      for (std::size_t r = 0; r < planned.size(); ++r)
+        together.ints[r] = together_of[r];
+    }
     for (std::size_t i = 0; i < whole.size(); ++i)
       if (!whole[i].identifier.empty())
         out.identifiers[i] = whole[i].identifier;
@@ -3149,6 +3372,7 @@ int run_integrate(int argc, char **argv) {
                        json::Value(static_cast<long>(planned.size())));
         if (integration_summary)
           add_integration_tables(processing, *integration_summary);
+        add_overlap_count(processing, out);
       }
       const json::Value processing_document = processing.document();
       rflx::write_outputs(outputs, &document, &out, "mxi_integrate",

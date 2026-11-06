@@ -337,6 +337,41 @@ a sweep, each its lattices in one pass and its own crystal-less experiment
 carried, the runs joined in the list's order; postrefinement and
 `--each-alone` a run an experiment. `docs/multi-lattice.md`.
 
+**Overlaps fitted together** (`--fit-overlaps`; Graeme, 6 November). A
+reflection whose foreground another's overlaps, fitted alone, counts its
+neighbour's photons in that overlap as its own. With `--fit-overlaps`, each
+group of reflections whose foregrounds share a voxel -- of one lattice or
+several, each under its own models, found among the neighbours above
+(`foregrounds_meet`) and joined through every pair -- is fitted together on
+its pixels (`fit_together`, src/reference.hh): the union of their measured
+foregrounds as the background plus each reflection's scale times its own
+lattice's profile, carried onto the pixels wherever its box reaches, by the
+same weighted least squares as one alone -- the same start, weights, three
+rounds and sandwich variance, a K by K solve where one alone divides, so that
+one reflection fitted so is fitted exactly as alone (tested to 1e-9). A voxel
+in several boxes takes the mean of their backgrounds, each box's background
+error carried into every member's intensity through the voxels it reaches;
+each member's intensity is its scale times its profile over its own whole
+foreground, as alone. Where the profiles cannot be told apart, the members
+keep their fits alone.
+
+On boxes made for it (tests/test_fit_together.cc): a weak spot beside one
+eight times as strong, their 3-sigma foregrounds overlapping, 400 trials --
+fitted alone 3198 where the same spot with no neighbour fits to 975.2;
+together, 975.7, its deviations over sigma mean -0.01 and variance 0.92.
+
+In the run, the groups are found before any image is read; each member's box
+is kept as it is fitted alone, and when a group's last is in, the group is
+fitted together; the results are written over the fits alone once every fit
+is in -- the device's arrive when their batch is collected -- a failure alone
+uncounted where together it was fitted. Summation is untouched, and every
+reflection outside a group is the same, byte for byte, as without the option
+(python/tests/test_fit_overlaps.py, on the CPU and through the device's
+batches). The one pass only, with neighbours masked. Each reflection fitted
+so is marked in the column `profile.fitted_together`, and their number is in
+the summary, `fitted_together`. Off by default until judged on real data
+(docs/outstanding.md, 88).
+
 ## What it writes
 
 Every column DIALS' own `integrated.refl` has that this computes:
@@ -366,6 +401,9 @@ Columns of this package's own:
   its own box. See the open questions for what it cannot tell you in z.
 * **`profile.measured`** -- the fraction of the reflection's profile the
   detector recorded; one unless it crosses a masked pixel.
+* **`profile.fitted_together`** -- with `--fit-overlaps` only: 1 where the
+  profile-fitted intensity is from a fit together with the reflections its
+  foreground overlaps (above).
 * **`profile.failure`** -- why it was not profile fitted, 0 if it was; the codes
   are under "Why a reflection is not profile fitted".
 * **`background.dispersion`** and **`background.dispersion_trimmed`**, with

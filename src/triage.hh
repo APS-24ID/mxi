@@ -30,11 +30,12 @@ struct TriageData {
 struct TriageOptions {
   double d_max = 10.0;        //: low resolution of the twin tests, as xtriage's
   double d_min = 0.0;         //: high resolution; 0 for xtriage's choice
-  double isigi_cut = 3.0;     //: in that choice: I/sigma at least this ...
-  double completeness = 0.85; //: ... in at least this fraction of a shell
-  double coarsest_d_min = 3.5; //: the choice never coarser than this
-  double max_delta = 3.0;      //: obliquity of twin laws (degrees)
-  unsigned seed = 1;           //: the L test's choice of neighbours
+  double isigi_cut = 3.0;     //: in that choice: I/sigma over this ...
+  double completeness = 0.85; //: ... in over this fraction of a shell
+  double resolution_at_least = 3.5; //: the choice never coarser than this
+  int strength_bins = 15;           //: shells of the choice, equal volume
+  double max_delta = 3.0;           //: obliquity of twin laws (degrees)
+  unsigned seed = 1;                //: the L test's choice of neighbours
 };
 
 //: The moments of the normalised intensities, E^2 = I / (eps <I/eps>), and
@@ -53,11 +54,14 @@ struct CumulativeIntensity {
   double max_deviation_acentric = 0, max_deviation_centric = 0;
 };
 
-//: Padilla & Yeates' L test (2003): L = (I1 - I2) / (I1 + I2) for acentric
-//: reflections and a neighbour h + (2h', 2k', 2l'), 2 <= |dh|+|dk|+|dl| <= 8.
-//: Untwinned <|L|> = 1/2, <L^2> = 1/3; perfectly twinned 3/8, 1/5. The
-//: multivariate Z score: the Mahalanobis distance of (<|L|>, <L^2>) from the
-//: untwinned values, L uniform on [-1, 1] -- over 3.5, abnormal, as xtriage.
+//: Padilla & Yeates' L test (2003), as xtriage's: L = (E1^2 - E2^2) /
+//: (E1^2 + E2^2) for each positive acentric reflection and one neighbour
+//: drawn for it, h + (2h', 2k', 2l'), |dh|+|dk|+|dl| 2, 4 or 6 -- none where
+//: that neighbour was not measured. Untwinned <|L|> = 1/2, <L^2> = 1/3;
+//: perfectly twinned 3/8, 1/5. The multivariate Z score is xtriage's: the
+//: Mahalanobis distance of (<|L|>, <L^2>) from those of some 1200 PDB data
+//: sets, (0.4851, 0.3164), by their covariance -- how far from typical good
+//: data, whatever their number, not a test of the ideal values.
 struct LTest {
   std::size_t pairs = 0;
   double mean_abs_l = 0, mean_l2 = 0, z_score = 0;
@@ -67,7 +71,9 @@ struct LTest {
 //: coset; merohedral where it keeps the cell's metric exactly. R_obs =
 //: sum |I1 - I2| / sum (I1 + I2) over twin-related pairs; the H test's twin
 //: fraction (Yeates 1997) from the strongest half of the pairs, as xtriage:
-//: H = (I1 - I2) / (I1 + I2), <|H|> = 1/2 - alpha.
+//: H = (I1 - I2) / (I1 + I2), <|H|> = 1/2 - alpha. Both on the intensities
+//: as merged, xtriage's: R over every reflection with a mate, centric too,
+//: sum |I1 - I2| / sum |I1 + I2|; H over the acentric.
 struct TwinLaw {
   Rotation op{};
   std::string text; //: as xtriage writes it, "-h,k,-l"
@@ -84,12 +90,12 @@ struct Triage {
   CumulativeIntensity nz;
   LTest l_test;
   std::vector<TwinLaw> twin_laws;
-  bool abnormal = false; //: the L test's Z over 3.5, either way
-  //: Abnormal as twinning makes it: <|L|> below 1/2. Above, the spread is
-  //: wider than untwinned data's -- not twinning: the zones a higher
-  //: symmetry makes centric, taken as acentric, or translational NCS. xtriage's
-  //: Z is two-sided; its own example of a symmetry missed has <|L|> 0.512.
-  bool twin_like = false;
+  //: xtriage's abnormal intensity statistics: Z at least 3.5 and <|L|> below
+  //: 1/2, as twinning moves it.
+  bool abnormal = false;
+  //: Z at least 3.5 the other way, <|L|> 1/2 or more: a spread wider than
+  //: good data's, which twinning never makes -- translational NCS can.
+  bool wide = false;
   std::string verdict; //: xtriage's summary, in words
 };
 
@@ -100,10 +106,11 @@ int epsilon(const SpaceGroup &group, const Miller &hkl);
 std::vector<TwinLaw> twin_laws(const UnitCell &cell, const SpaceGroup &group,
                                double max_delta);
 
-//: xtriage's high resolution limit for the twin tests: the finest d, from
-//: d_max down, of shells in which at least `completeness` of the reflections
-//: possible have I/sigma at least isigi_cut -- never coarser than
-//: coarsest_d_min, never finer than the data.
+//: xtriage's high resolution limit for the twin tests (data_statistics.py,
+//: i_sigi_completeness_stats): the data's range in 15 shells of equal volume,
+//: the last left out; of those finer than resolution_at_least, the finest in
+//: which more than `completeness` of the reflections possible have I/sigma
+//: over isigi_cut -- or resolution_at_least where none is, or it is coarser.
 double twin_test_d_min(const TriageData &data, const UnitCell &cell,
                        const SpaceGroup &group, const TriageOptions &o);
 

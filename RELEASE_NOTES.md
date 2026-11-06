@@ -7,6 +7,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.1.5
 
 **New**
+- The image viewer (`mxi view`, mxi ui's View images) colours several lattices
+  on a sweep apart: each lattice's spots in a colour of its own and its
+  predictions in a lighter tint of it, each a layer to show or hide, the
+  unindexed spots red as before.
 - `mxi triage SCALED.rflx`, begun: what the scaled intensities say of
   twinning, as phenix.xtriage says it -- the moments, N(Z) and the L test,
   independent of twin laws; the twin laws the lattice allows, each one's R and

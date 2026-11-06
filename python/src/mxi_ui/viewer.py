@@ -36,11 +36,20 @@ MODES = (
 )
 DRAG_LEVEL = 30  # canvas pixels dragged a zoom level, with the right button
 WHEEL_INTERVAL = 0.1  # seconds: at most a zoom level each, from a scroll
-LAYERS = (
-    # key, label, the table's column, colour
-    ("indexed", "Indexed spots", "xyzobs.px.value", "#2e7d32"),
-    ("unindexed", "Spots", "xyzobs.px.value", "#d32f2f"),
-    ("predicted", "Predictions", "xyzcal.px", "#1565c0"),
+# Several lattices on a sweep: a colour each, its spots strong, its
+# predictions a lighter tint of it -- matplotlib's tab20 pairs, red left out,
+# red being the unindexed spots' (Graeme: boxes of different lattices told
+# apart).
+LATTICE_COLOURS = (
+    ("#2ca02c", "#98df8a"),  # green
+    ("#1f77b4", "#aec7e8"),  # blue
+    ("#ff7f0e", "#ffbb78"),  # orange
+    ("#9467bd", "#c5b0d5"),  # purple
+    ("#8c564b", "#c49c94"),  # brown
+    ("#e377c2", "#f7b6d2"),  # pink
+    ("#bcbd22", "#dbdb8d"),  # olive
+    ("#17becf", "#9edae5"),  # cyan
+    ("#7f7f7f", "#c7c7c7"),  # grey
 )
 COLUMNS = ["id", "xyzobs.px.value", "xyzcal.px", "bbox", "miller_index"]
 
@@ -76,31 +85,70 @@ def masters(document, path):
     return out
 
 
-def layers_for(table, experiments):
-    """The marker layers a sweep's rows make: spots indexed and not where the
-    table has indices -- else all its spots as one -- and predictions where it
-    has them; each a mxi_tools.Markers, None where it would be empty."""
+def layers_for(table, experiments, lattices=()):
+    """The marker layers a sweep's rows make, and how each is drawn: ({key:
+    mxi_tools.Markers or None}, [(key, label, colour)] in drawing order) --
+    each key one word, as a canvas tag must be.
+    With one lattice or none: spots indexed and not where the table has
+    indices -- else all its spots as one -- and predictions where it has them.
+    With several (`lattices`, the sweep's experiments with a crystal): each
+    lattice's indexed spots and its predictions, a colour each, the spots
+    unindexed apart."""
     if "id" not in table:
-        return {}
+        return {}, []
     ids = np.asarray(table["id"])
     mine = np.isin(ids, list(experiments))
-    out = {}
+    hkl = (
+        np.asarray(table["miller_index"]).reshape(len(ids), -1)
+        if "miller_index" in table
+        else None
+    )
+    indexed = mine & np.any(hkl != 0, axis=1) if hkl is not None else None
+    out, styles = {}, []
+
+    def layer(key, label, colour, rows, column):
+        sub = {k: np.asarray(v)[rows] for k, v in table.items()}
+        markers = mxi_tools.Markers(sub, column, experiments)
+        out[key] = markers if len(markers) else None
+        styles.append((key, label, colour))
+
+    if len(lattices) > 1:
+        for n, e in enumerate(lattices):
+            spots, predictions = LATTICE_COLOURS[n % len(LATTICE_COLOURS)]
+            if "xyzobs.px.value" in table and indexed is not None:
+                layer(
+                    f"lattice{n + 1}",
+                    f"Lattice {n + 1}",
+                    spots,
+                    indexed & (ids == e),
+                    "xyzobs.px.value",
+                )
+            if "xyzcal.px" in table:
+                layer(
+                    f"predicted{n + 1}",
+                    f"Lattice {n + 1}, predicted",
+                    predictions,
+                    mine & (ids == e),
+                    "xyzcal.px",
+                )
+        if "xyzobs.px.value" in table:
+            layer(
+                "unindexed",
+                "Spots",
+                "#d32f2f",
+                mine & ~indexed if indexed is not None else mine,
+                "xyzobs.px.value",
+            )
+        return out, styles
     if "xyzobs.px.value" in table:
-        if "miller_index" in table:
-            hkl = np.asarray(table["miller_index"]).reshape(len(ids), -1)
-            indexed = mine & np.any(hkl != 0, axis=1)
-            groups = {"indexed": indexed, "unindexed": mine & ~indexed}
+        if indexed is not None:
+            layer("indexed", "Indexed spots", "#2e7d32", indexed, "xyzobs.px.value")
+            layer("unindexed", "Spots", "#d32f2f", mine & ~indexed, "xyzobs.px.value")
         else:
-            groups = {"unindexed": mine}
-        for key, rows in groups.items():
-            sub = {k: np.asarray(v)[rows] for k, v in table.items()}
-            markers = mxi_tools.Markers(sub, "xyzobs.px.value", experiments)
-            out[key] = markers if len(markers) else None
+            layer("unindexed", "Spots", "#d32f2f", mine, "xyzobs.px.value")
     if "xyzcal.px" in table:
-        sub = {k: np.asarray(v)[mine] for k, v in table.items()}
-        markers = mxi_tools.Markers(sub, "xyzcal.px", experiments)
-        out["predicted"] = markers if len(markers) else None
-    return out
+        layer("predicted", "Predictions", "#1565c0", mine, "xyzcal.px")
+    return out, styles
 
 
 class Viewer:
@@ -154,7 +202,8 @@ class Viewer:
         self.summing = tk.IntVar(value=max(1, int(summing)))
         self.ceiling = tk.DoubleVar(value=10.0)
         self.scheme = tk.StringVar(value="grey")
-        self.showing = {key: tk.BooleanVar(value=True) for key, *_ in LAYERS}
+        self.showing = {}  # each layer's tick, made as layers are met
+        self.styles = {}  # each sweep's layers: (key, label, colour)
         self.readout = tk.StringVar(value="")
         self.view = None
         self.photo = None
@@ -378,10 +427,14 @@ class Viewer:
         self.spin.configure(from_=self.first, to=self.last)
         self.of.configure(text=f"of {self.first} to {self.last}")
         if k not in self.layers:
-            self.layers[k] = layers_for(self.table, s["experiments"])
+            lattices = [e for e in s["experiments"] if self._has_crystal(e)]
+            self.layers[k], self.styles[k] = layers_for(
+                self.table, s["experiments"], lattices
+            )
         for child in self.toggles.winfo_children():
             child.destroy()
-        for key, label, _column, colour in LAYERS:
+        for key, label, colour in self.styles[k]:
+            self.showing.setdefault(key, tk.BooleanVar(value=True))
             markers = self.layers[k].get(key)
             if markers is None:
                 continue
@@ -428,6 +481,12 @@ class Viewer:
             return int(self.summing.get())
         except (tk.TclError, ValueError):
             return 0
+
+    def _has_crystal(self, experiment):
+        try:
+            return "crystal" in self.document["experiment"][experiment]
+        except (KeyError, IndexError, TypeError):
+            return False
 
     def _image(self):
         try:
@@ -507,7 +566,7 @@ class Viewer:
         layers = self.layers.get(self.sweep.get(), {})
         frame = self._image() - 1
         width, height = self._canvas_size()
-        for key, _label, _column, colour in LAYERS:
+        for key, _label, colour in self.styles.get(self.sweep.get(), []):
             markers = layers.get(key)
             if markers is None or not self.showing[key].get():
                 continue

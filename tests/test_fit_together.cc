@@ -193,6 +193,55 @@ TEST(overlapping_spots_fitted_together_are_unbiased_and_calibrated) {
                "deviations over sigma, variance: " + std::to_string(z_var));
 }
 
+TEST(the_summed_intensity_corrected_for_its_neighbours) {
+  // The same weak spot beside the same strong one, its SUMMED intensity: the
+  // foreground's counts less the background, its variance their Poisson
+  // variance (the background known here, so nothing for its estimate). Alone,
+  // it holds the neighbour's photons; less fit_together's neighbours, it does
+  // not, and the variance with neighbours_variance added is right.
+  const Spot weak{17, 15, 6, 1000}, strong{20.6, 15, 6, 8000};
+  std::mt19937 random(23);
+  const int trials = 400;
+  double raw_sum = 0, corrected_sum = 0, z_sum = 0, z2_sum = 0, expected = 0;
+  for (int trial = 0; trial < trials; ++trial) {
+    const Volume v = sample({weak, strong}, random);
+    Shoebox a, b;
+    const OverlapMember ma = box_of(weak, v, &a), mb = box_of(strong, v, &b);
+    double counts = 0, background = 0, fraction = 0;
+    for (std::size_t i = 0; i < a.size(); ++i)
+      if (a.mask[i] & shoebox_mask::kForeground) {
+        counts += a.data[i];
+        background += a.background[i];
+        fraction += ma.profile[i];
+      }
+    expected = weak.intensity * fraction;
+    const double summed = counts - background;
+    const double variance = std::max(summed, 0.0) + background;
+    const std::vector<ProfileFit> together = fit_together({ma, mb});
+    check::is_true(together[0].valid && together[0].neighbours > 0.0,
+                   "fitted, neighbours");
+    const double corrected = summed - together[0].neighbours;
+    const double corrected_variance =
+        variance + together[0].neighbours_variance;
+    check::is_true(corrected_variance > 0.0, "a variance");
+    raw_sum += summed;
+    corrected_sum += corrected;
+    const double z = (corrected - expected) / std::sqrt(corrected_variance);
+    z_sum += z;
+    z2_sum += z * z;
+  }
+  const double raw = raw_sum / trials, corrected = corrected_sum / trials;
+  const double z_mean = z_sum / trials,
+               z_var = z2_sum / trials - z_mean * z_mean;
+  std::printf("        summed: alone %.1f, corrected %.1f, expected %.1f; z "
+              "mean %.3f var %.3f\n",
+              raw, corrected, expected, z_mean, z_var);
+  check::is_true(raw > 1.5 * expected, "alone, the neighbour's photons in it");
+  check::close(corrected, expected, 0.02 * expected, "corrected, unbiased");
+  check::close(z_mean, 0.0, 0.15, "deviations over sigma, mean");
+  check::close(z_var, 1.0, 0.2, "deviations over sigma, variance");
+}
+
 TEST(spots_that_cannot_be_told_apart_are_degenerate) {
   std::mt19937 random(5);
   const Spot s{20, 15, 6, 3000};

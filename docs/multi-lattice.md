@@ -118,11 +118,12 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   22 of its 54 regions borrowing.
 * Stage 5, overlaps fitted together (Graeme, 6 November: with profile fitting
   on the pixels and every lattice in the one pass, fit overlapping spots
-  together): `--fit-overlaps`, each group of reflections whose foregrounds
-  overlap, of one lattice or several, fitted together, each with its own
-  lattice's profile -- docs/integration.md, Several lattices. On its own
-  boxes, the contamination of a weak spot by a strong neighbour removed
-  entirely, its sigma calibrated; on ins2_27, to judge.
+  together): each group of reflections whose foregrounds overlap, of one
+  lattice or several, fitted together, each with its own lattice's profile,
+  and the summed intensities corrected -- docs/integration.md, Several
+  lattices. On ins2_27, the overlapped measurements from +0.92 sigma from
+  their equivalents, rms 3.79, to +0.07 and 1.06: the default since,
+  `--no-fit-overlaps` each alone.
 * Stage 6, symmetry: cosym (src/cosym.cc), in mxi symmetry before the
   pooling, for experiments whose crystals are not one model. Each experiment's
   intensities merged in P1, normalised, Friedel mates averaged; each pair's

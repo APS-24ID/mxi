@@ -337,7 +337,8 @@ a sweep, each its lattices in one pass and its own crystal-less experiment
 carried, the runs joined in the list's order; postrefinement and
 `--each-alone` a run an experiment. `docs/multi-lattice.md`.
 
-**Overlaps fitted together** (`--fit-overlaps`; Graeme, 6 November). A
+**Overlaps fitted together** (the default since 6 November, Graeme;
+`--no-fit-overlaps` fits each alone). A
 reflection whose foreground another's overlaps, fitted alone, counts its
 neighbour's photons in that overlap as its own. With `--fit-overlaps`, each
 group of reflections whose foregrounds share a voxel -- of one lattice or
@@ -353,12 +354,28 @@ in several boxes takes the mean of their backgrounds, each box's background
 error carried into every member's intensity through the voxels it reaches;
 each member's intensity is its scale times its profile over its own whole
 foreground, as alone. Where the profiles cannot be told apart, the members
-keep their fits alone.
+keep their fits alone. Each member's SUMMED intensity is corrected too: the
+neighbours' fitted counts inside its measured foreground taken off, and its
+variance given what that adds -- the shares' own variance, less twice their
+covariance with the counts summed, the shares fitted from the same pixels --
+never below its variance with no signal: scaling may take the summed
+intensities, and they held the neighbours' photons as the fits alone did.
 
 On boxes made for it (tests/test_fit_together.cc): a weak spot beside one
 eight times as strong, their 3-sigma foregrounds overlapping, 400 trials --
 fitted alone 3198 where the same spot with no neighbour fits to 975.2;
 together, 975.7, its deviations over sigma mean -0.01 and variance 0.92.
+Summed, the same spot alone holds 4531; corrected, 974.9 against 975.6, its
+deviations over sigma mean -0.02 and variance 1.03.
+
+On Graeme's two crystals of insulin, ins2_27, merged at a multiplicity of 81:
+some 1100 measurements had overlapped foregrounds. Fitted alone, they lay
++0.92 sigma from the mean of their equivalents, rms 3.79, 17.4 per cent
+beyond 3 sigma -- and none was rejected as an outlier; fitted together,
++0.07 sigma, rms 1.06, 1.4 per cent. Under 0.1 per cent of the measurements,
+each moving its reflection's merged mean by about a hundredth of a sigma at
+that multiplicity: the merging statistics did not move. They will where
+overlaps are many and multiplicity low.
 
 In the run, the groups are found before any image is read; each member's box
 is kept as it is fitted alone, and when a group's last is in, the group is
@@ -367,10 +384,11 @@ is in -- the device's arrive when their batch is collected -- a failure alone
 uncounted where together it was fitted. Summation is untouched, and every
 reflection outside a group is the same, byte for byte, as without the option
 (python/tests/test_fit_overlaps.py, on the CPU and through the device's
-batches). The one pass only, with neighbours masked. Each reflection fitted
-so is marked in the column `profile.fitted_together`, and their number is in
-the summary, `fitted_together`. Off by default until judged on real data
-(docs/outstanding.md, 88).
+batches). The one pass only, with neighbours masked: with `--two-pass`,
+`--summation-only` or `--no-mask-neighbours`, each alone, said only where
+`--fit-overlaps` was asked for by name. Each reflection fitted so is marked in
+the column `profile.fitted_together`, and their number is in the summary,
+`fitted_together`.
 
 ## What it writes
 
@@ -401,9 +419,10 @@ Columns of this package's own:
   its own box. See the open questions for what it cannot tell you in z.
 * **`profile.measured`** -- the fraction of the reflection's profile the
   detector recorded; one unless it crosses a masked pixel.
-* **`profile.fitted_together`** -- with `--fit-overlaps` only: 1 where the
-  profile-fitted intensity is from a fit together with the reflections its
-  foreground overlaps (above).
+* **`profile.fitted_together`** -- 1 where the profile-fitted intensity is
+  from a fit together with the reflections its foreground overlaps, and the
+  summed intensity corrected for them (above); absent with
+  `--no-fit-overlaps`.
 * **`profile.failure`** -- why it was not profile fitted, 0 if it was; the codes
   are under "Why a reflection is not profile fitted".
 * **`background.dispersion`** and **`background.dispersion_trimmed`**, with

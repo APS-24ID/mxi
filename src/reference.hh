@@ -311,4 +311,31 @@ ProfileFit fit_on_pixels(const Shoebox &box,
                          const std::vector<double> &pixel_profile,
                          double gain = 1.0, int iterations = 3);
 
+//: One reflection of a group fitted together: its box, its background filled,
+//: and its profile on the box's pixels (profile_on_pixels).
+struct OverlapMember {
+  const Shoebox *box = nullptr;
+  std::vector<double> profile;
+};
+
+//: Reflections whose foregrounds overlap, fitted together on their pixels.
+//:
+//: Each alone counts its neighbour's photons in its foreground as its own.
+//: Together, the pixels of the union of their foregrounds are fitted as the
+//: background and the sum of each reflection's scale times its own profile --
+//: of its own lattice, wherever its box reaches -- by the same weighted least
+//: squares as fit_on_pixels, a K by K solve where that divides: the same
+//: start, weights, rounds, sandwich variance and background term, so that one
+//: reflection fitted this way is fitted exactly as fit_on_pixels fits it
+//: (tested). A voxel in several boxes takes the mean of their backgrounds, and
+//: each box's background error is carried into every member's intensity
+//: through the voxels it reaches. Each member's intensity is its scale times
+//: its profile's sum over its own whole foreground, as one alone.
+//:
+//: Where the profiles cannot be told apart -- the solve's pivot vanishing --
+//: every member's fit is invalid with FitFailure::degenerate, and the caller
+//: keeps what each had alone.
+std::vector<ProfileFit> fit_together(const std::vector<OverlapMember> &members,
+                                     double gain = 1.0, int iterations = 3);
+
 } // namespace mxi

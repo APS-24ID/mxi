@@ -113,4 +113,13 @@ void mark_overlapped(const Experiment &e, const Prediction &q,
                      const MaskOptions &options, const std::int32_t q_bbox[6],
                      Shoebox *box);
 
+//: Whether two reflections' foregrounds share a voxel -- each under its own
+//: experiment and profile model, by the region test build_shoebox and
+//: mark_overlapped use: the reflections mxi integrate --fit-overlaps fits
+//: together.
+bool foregrounds_meet(const Experiment &ea, const Prediction &a,
+                      const MaskOptions &oa, const std::int32_t a_bbox[6],
+                      const Experiment &eb, const Prediction &b,
+                      const MaskOptions &ob, const std::int32_t b_bbox[6]);
+
 } // namespace mxi

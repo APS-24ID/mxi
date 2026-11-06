@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <map>
 #include <utility>
 
 #include "profile_model.hh"
@@ -1180,6 +1181,296 @@ ProfileFit fit_profile(const std::vector<double> &reference,
       out.correlation = cov / std::sqrt(va * vb);
   }
   out.valid = true;
+  return out;
+}
+
+namespace {
+
+// The inverse of a small symmetric matrix, by Gauss-Jordan with partial
+// pivoting; false where a pivot vanishes against the matrix's scale.
+bool invert(std::vector<double> a, std::size_t n, std::vector<double> *out) {
+  std::vector<double> inv(n * n, 0.0);
+  for (std::size_t i = 0; i < n; ++i)
+    inv[i * n + i] = 1.0;
+  double scale = 0.0;
+  for (std::size_t i = 0; i < n; ++i)
+    scale = std::max(scale, std::abs(a[i * n + i]));
+  if (!(scale > 0.0))
+    return false;
+  for (std::size_t col = 0; col < n; ++col) {
+    std::size_t pivot = col;
+    for (std::size_t r = col + 1; r < n; ++r)
+      if (std::abs(a[r * n + col]) > std::abs(a[pivot * n + col]))
+        pivot = r;
+    if (!(std::abs(a[pivot * n + col]) > 1e-10 * scale))
+      return false;
+    for (std::size_t q = 0; q < n; ++q) {
+      std::swap(a[col * n + q], a[pivot * n + q]);
+      std::swap(inv[col * n + q], inv[pivot * n + q]);
+    }
+    const double d = a[col * n + col];
+    for (std::size_t q = 0; q < n; ++q) {
+      a[col * n + q] /= d;
+      inv[col * n + q] /= d;
+    }
+    for (std::size_t r = 0; r < n; ++r) {
+      if (r == col)
+        continue;
+      const double f = a[r * n + col];
+      if (f == 0.0)
+        continue;
+      for (std::size_t q = 0; q < n; ++q) {
+        a[r * n + q] -= f * a[col * n + q];
+        inv[r * n + q] -= f * inv[col * n + q];
+      }
+    }
+  }
+  *out = std::move(inv);
+  return true;
+}
+
+} // namespace
+
+std::vector<ProfileFit> fit_together(const std::vector<OverlapMember> &members,
+                                     double gain, int iterations) {
+  const std::size_t k_n = members.size();
+  std::vector<ProfileFit> out(k_n);
+  if (k_n == 0)
+    return out;
+  for (const OverlapMember &m : members) {
+    const Shoebox *b = m.box;
+    if (b == nullptr || m.profile.size() != b->size() ||
+        b->data.size() != b->size() || b->mask.size() != b->size() ||
+        b->background.size() != b->size())
+      return out; // each invalid, why none: the caller's inputs
+  }
+
+  // Each member's profile over its own WHOLE foreground (its intensity) and
+  // over what of it was measured, as fit_on_pixels.
+  std::vector<double> profile_sum(k_n, 0.0), seen(k_n, 0.0);
+  for (std::size_t k = 0; k < k_n; ++k) {
+    const Shoebox &b = *members[k].box;
+    for (std::size_t i = 0; i < b.size(); ++i) {
+      if ((b.mask[i] & shoebox_mask::kForeground) == 0)
+        continue;
+      profile_sum[k] += members[k].profile[i];
+      if (b.mask[i] & shoebox_mask::kValid)
+        seen[k] += members[k].profile[i];
+    }
+    if (!(profile_sum[k] > 0.0)) {
+      for (ProfileFit &f : out)
+        f.why = FitFailure::profile_off_foreground;
+      return out;
+    }
+    if (!(seen[k] > 0.0)) {
+      for (ProfileFit &f : out)
+        f.why = FitFailure::foreground_masked;
+      return out;
+    }
+  }
+
+  // The union of the members' measured foregrounds, voxel by voxel: its
+  // counts, its background -- the mean of the boxes' that hold it -- and each
+  // member's profile there, zero outside its box.
+  struct Voxel {
+    double data = 0.0, background = 0.0;
+    std::vector<double> q;           // each member's profile here
+    std::vector<std::uint8_t> holds; // whether each member's box holds it
+    double n_boxes = 0.0;
+  };
+  std::map<std::array<std::int32_t, 3>, std::size_t> index;
+  std::vector<Voxel> voxels;
+  for (std::size_t k = 0; k < k_n; ++k) {
+    const Shoebox &b = *members[k].box;
+    for (std::int32_t z = b.bbox[4]; z < b.bbox[5]; ++z)
+      for (std::int32_t y = b.bbox[2]; y < b.bbox[3]; ++y)
+        for (std::int32_t x = b.bbox[0]; x < b.bbox[1]; ++x) {
+          const std::size_t i =
+              b.at(x - b.bbox[0], y - b.bbox[2], z - b.bbox[4]);
+          const std::uint8_t m = b.mask[i];
+          if ((m & shoebox_mask::kForeground) && (m & shoebox_mask::kValid) &&
+              index.find({z, y, x}) == index.end()) {
+            index[{z, y, x}] = voxels.size();
+            Voxel v;
+            v.data = static_cast<double>(b.data[i]);
+            v.q.assign(k_n, 0.0);
+            v.holds.assign(k_n, 0);
+            voxels.push_back(std::move(v));
+          }
+        }
+  }
+  for (std::size_t k = 0; k < k_n; ++k) {
+    const Shoebox &b = *members[k].box;
+    for (std::int32_t z = b.bbox[4]; z < b.bbox[5]; ++z)
+      for (std::int32_t y = b.bbox[2]; y < b.bbox[3]; ++y)
+        for (std::int32_t x = b.bbox[0]; x < b.bbox[1]; ++x) {
+          const auto found = index.find({z, y, x});
+          if (found == index.end())
+            continue;
+          const std::size_t i =
+              b.at(x - b.bbox[0], y - b.bbox[2], z - b.bbox[4]);
+          Voxel &v = voxels[found->second];
+          v.q[k] = members[k].profile[i];
+          v.holds[k] = 1;
+          v.background += static_cast<double>(b.background[i]);
+          v.n_boxes += 1.0;
+        }
+  }
+  for (Voxel &v : voxels)
+    v.background /= std::max(v.n_boxes, 1.0);
+
+  // The start: each member's own foreground summed, as fit_on_pixels starts.
+  std::vector<double> scale(k_n, 0.0);
+  for (std::size_t k = 0; k < k_n; ++k) {
+    const Shoebox &b = *members[k].box;
+    for (std::size_t i = 0; i < b.size(); ++i)
+      if ((b.mask[i] & shoebox_mask::kForeground) &&
+          (b.mask[i] & shoebox_mask::kValid))
+        scale[k] += static_cast<double>(b.data[i]) -
+                    static_cast<double>(b.background[i]);
+    scale[k] /= profile_sum[k];
+  }
+
+  std::vector<double> a_inv, cov(k_n * k_n, 0.0);
+  int rounds = 0;
+  std::vector<double> last_w(voxels.size(), 0.0);
+  for (int round = 0; round < std::max(iterations, 1); ++round) {
+    std::vector<double> a(k_n * k_n, 0.0), r(k_n, 0.0),
+        sandwich(k_n * k_n, 0.0);
+    for (std::size_t j = 0; j < voxels.size(); ++j) {
+      const Voxel &v = voxels[j];
+      double expected = v.background;
+      for (std::size_t k = 0; k < k_n; ++k)
+        expected += std::max(scale[k], 0.0) * v.q[k];
+      const double w = 1.0 / std::max(gain * expected, gain * g_weight_floor);
+      const double var = std::max(gain * expected, gain * g_least_variance);
+      last_w[j] = w;
+      const double residual = v.data - v.background;
+      for (std::size_t k = 0; k < k_n; ++k) {
+        if (v.q[k] == 0.0)
+          continue;
+        r[k] += v.q[k] * residual * w;
+        for (std::size_t l = 0; l < k_n; ++l) {
+          a[k * k_n + l] += v.q[k] * v.q[l] * w;
+          sandwich[k * k_n + l] += v.q[k] * v.q[l] * w * w * var;
+        }
+      }
+    }
+    if (!invert(a, k_n, &a_inv)) {
+      for (ProfileFit &f : out)
+        f.why = FitFailure::degenerate;
+      return out;
+    }
+    for (std::size_t k = 0; k < k_n; ++k) {
+      double s = 0.0;
+      for (std::size_t l = 0; l < k_n; ++l)
+        s += a_inv[k * k_n + l] * r[l];
+      scale[k] = s;
+    }
+    // A^-1 S A^-1, the sandwich.
+    std::vector<double> t(k_n * k_n, 0.0);
+    for (std::size_t i = 0; i < k_n; ++i)
+      for (std::size_t j = 0; j < k_n; ++j)
+        for (std::size_t m = 0; m < k_n; ++m)
+          t[i * k_n + j] += a_inv[i * k_n + m] * sandwich[m * k_n + j];
+    std::fill(cov.begin(), cov.end(), 0.0);
+    for (std::size_t i = 0; i < k_n; ++i)
+      for (std::size_t j = 0; j < k_n; ++j)
+        for (std::size_t m = 0; m < k_n; ++m)
+          cov[i * k_n + j] += t[i * k_n + m] * a_inv[m * k_n + j];
+    rounds = round + 1;
+  }
+
+  // Each box's background error, one number under its pixels, its variance
+  // the mean background over the pixels it was estimated from (as
+  // fit_on_pixels): it moves the background of every voxel the box holds by
+  // its share of that voxel's mean, and through the solve every member.
+  std::vector<double> background_variance(k_n, 0.0);
+  for (std::size_t k = 0; k < k_n; ++k) {
+    const Shoebox &b = *members[k].box;
+    double foreground = 0.0, background_pixels = 0.0, background_sum = 0.0;
+    for (std::size_t i = 0; i < b.size(); ++i) {
+      if ((b.mask[i] & shoebox_mask::kValid) == 0)
+        continue;
+      if (b.mask[i] & shoebox_mask::kForeground) {
+        foreground += 1.0;
+        background_sum += static_cast<double>(b.background[i]);
+      } else if (b.mask[i] & shoebox_mask::kBackground) {
+        background_pixels += 1.0;
+      }
+    }
+    if (background_pixels > 0.0 && foreground > 0.0)
+      background_variance[k] =
+          gain * (background_sum / foreground) / background_pixels;
+  }
+  for (std::size_t m = 0; m < k_n; ++m)
+    out[m].variance = cov[m * k_n + m] * profile_sum[m] * profile_sum[m];
+  for (std::size_t k = 0; k < k_n; ++k) {
+    if (!(background_variance[k] > 0.0))
+      continue;
+    // g_l = sum_v w q_l c_kv, c_kv the box's share of the voxel's background.
+    std::vector<double> g(k_n, 0.0);
+    for (std::size_t j = 0; j < voxels.size(); ++j) {
+      const Voxel &v = voxels[j];
+      if (!v.holds[k])
+        continue;
+      const double share = 1.0 / std::max(v.n_boxes, 1.0);
+      for (std::size_t l = 0; l < k_n; ++l)
+        g[l] += last_w[j] * v.q[l] * share;
+    }
+    for (std::size_t m = 0; m < k_n; ++m) {
+      double moved = 0.0;
+      for (std::size_t l = 0; l < k_n; ++l)
+        moved += a_inv[m * k_n + l] * g[l];
+      const double carried = profile_sum[m] * moved;
+      out[m].variance += background_variance[k] * carried * carried;
+    }
+  }
+
+  for (std::size_t m = 0; m < k_n; ++m) {
+    ProfileFit &f = out[m];
+    f.intensity = scale[m] * profile_sum[m];
+    f.iterations = rounds;
+    f.measured = seen[m] / profile_sum[m];
+    // With no signal, the background alone -- as it would be alone: its own
+    // box's figure, from fit_on_pixels.
+    f.variance_background =
+        fit_on_pixels(*members[m].box, members[m].profile, gain, iterations)
+            .variance_background;
+    // The profile against what is left for it once the others' fitted share
+    // is taken off, over its own measured foreground.
+    double n = 0.0, sp = 0.0, sd = 0.0, spp = 0.0, sdd = 0.0, spd = 0.0;
+    const Shoebox &b = *members[m].box;
+    for (std::int32_t z = b.bbox[4]; z < b.bbox[5]; ++z)
+      for (std::int32_t y = b.bbox[2]; y < b.bbox[3]; ++y)
+        for (std::int32_t x = b.bbox[0]; x < b.bbox[1]; ++x) {
+          const std::size_t i =
+              b.at(x - b.bbox[0], y - b.bbox[2], z - b.bbox[4]);
+          if ((b.mask[i] & shoebox_mask::kForeground) == 0 ||
+              (b.mask[i] & shoebox_mask::kValid) == 0)
+            continue;
+          const Voxel &v = voxels[index.at({z, y, x})];
+          double rest = v.data - v.background;
+          for (std::size_t l = 0; l < k_n; ++l)
+            if (l != m)
+              rest -= scale[l] * v.q[l];
+          const double p = v.q[m];
+          n += 1.0;
+          sp += p;
+          sd += rest;
+          spp += p * p;
+          sdd += rest * rest;
+          spd += p * rest;
+        }
+    if (n > 1.0) {
+      const double c = spd / n - (sp / n) * (sd / n);
+      const double va = spp / n - (sp / n) * (sp / n);
+      const double vb = sdd / n - (sd / n) * (sd / n);
+      if (va > 0.0 && vb > 0.0)
+        f.correlation = c / std::sqrt(va * vb);
+    }
+    f.valid = true;
+  }
   return out;
 }
 

@@ -288,4 +288,26 @@ void mark_overlapped(const Experiment &e, const Prediction &q,
                             z - box->bbox[4])] |= shoebox_mask::kOverlapped;
 }
 
+bool foregrounds_meet(const Experiment &ea, const Prediction &a,
+                      const MaskOptions &oa, const std::int32_t a_bbox[6],
+                      const Experiment &eb, const Prediction &b,
+                      const MaskOptions &ob, const std::int32_t b_bbox[6]) {
+  if (a.panel != b.panel)
+    return false;
+  std::int32_t meet[6];
+  for (int k = 0; k < 6; k += 2) {
+    meet[k] = std::max(a_bbox[k], b_bbox[k]);
+    meet[k + 1] = std::min(a_bbox[k + 1], b_bbox[k + 1]);
+    if (meet[k] >= meet[k + 1])
+      return false;
+  }
+  std::vector<std::uint8_t> in_a, in_b;
+  region_of(ea, a, oa, meet, &in_a);
+  region_of(eb, b, ob, meet, &in_b);
+  for (std::size_t i = 0; i < in_a.size() && i < in_b.size(); ++i)
+    if (in_a[i] && in_b[i])
+      return true;
+  return false;
+}
+
 } // namespace mxi

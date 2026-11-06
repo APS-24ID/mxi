@@ -664,3 +664,62 @@ def test_the_viewer_closes_by_its_button_asking_first_where_unsaved(
         assert not v.top.winfo_exists()
     finally:
         root.destroy()
+
+
+def test_several_lattices_a_colour_each(strong):
+    # Graeme: with more than one lattice, the boxes in different colours. A
+    # second lattice on the planted sweep, every other spot its.
+    import json
+
+    import numpy as np
+    from mxeq import refl
+
+    from mxi_ui.viewer import LATTICE_COLOURS
+
+    doc = json.load(open(strong / "indexed.expt"))
+    second = dict(
+        doc["experiment"][1],
+        crystal=1,
+        identifier="1c0ffee0-0000-4000-8000-0000000000a2",
+    )
+    doc["experiment"].append(second)
+    doc["crystal"].append(dict(doc["crystal"][0]))
+    json.dump(doc, open(strong / "two.expt", "w"))
+    table = refl.load(str(strong / "indexed.refl"))
+    ids = np.asarray(table.columns["id"]).copy()
+    ids[::2] = 2
+    table.columns["id"] = ids.astype(table.columns["id"].dtype)
+    table.identifiers = {1: doc["experiment"][1]["identifier"], 2: second["identifier"]}
+    refl.write(str(strong / "two.refl"), table)
+    run = subprocess.run(
+        [MXI, "convert", "two.expt", "two.refl", "-o", "two.rflx"],
+        capture_output=True,
+        text=True,
+        cwd=strong,
+    )
+    assert run.returncode == 0, run.stderr
+    root, v = open_viewer(strong / "two.rflx")
+    try:
+        keys = [key for key, _label, _colour in v.styles[0]]
+        assert keys[:2] == ["lattice1", "lattice2"] and "indexed" not in keys
+        colours = {key: colour for key, _label, colour in v.styles[0]}
+        assert colours["lattice1"] == LATTICE_COLOURS[0][0]
+        assert colours["lattice2"] == LATTICE_COLOURS[1][0]
+        boxes = [c.cget("text") for c in v.toggles.winfo_children()]
+        assert boxes[0].startswith("Lattice 1 (") and boxes[1].startswith("Lattice 2 (")
+        v.image.set(3)
+        v.show()
+        settle(root)
+        for key in ("lattice1", "lattice2"):
+            drawn = v.canvas.find_withtag(key)
+            assert drawn, key
+            assert {v.canvas.itemcget(i, "outline") for i in drawn} == {
+                colours[key]
+            }, key
+        v.showing["lattice2"].set(False)
+        v.draw()
+        assert v.canvas.find_withtag("lattice1") and not v.canvas.find_withtag(
+            "lattice2"
+        )
+    finally:
+        root.destroy()

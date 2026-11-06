@@ -21,8 +21,8 @@ mxi view strong.rflx          # the strong spots on the images
 in `mxi ui` it is **View images**, for the step chosen (`docs/ui.md`, The
 images). A sweep at a time, where there are several; on each image, whatever
 the file holds: the strong spots, indexed apart from unindexed after
-indexing, and the predictions, each drawn as its box on exactly the images
-its box spans. Zoom with + and −, the keys + and -, a right-button drag or a
+indexing -- several lattices a colour each -- and the predictions, each drawn
+as its box on exactly the images its box spans. Zoom with + and −, the keys + and -, a right-button drag or a
 scroll; pan by dragging; contrast and colour maps; under the cursor, the
 pixel, its counts and its resolution.
 

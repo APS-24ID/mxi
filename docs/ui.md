@@ -119,7 +119,10 @@ the images alone -- as the DIALS interface opened its viewer for a step;
 several can be open at once. On each image, the spots and predictions the
 file holds, on exactly the images each spans: spot finding's strong spots;
 indexing's spots, those indexed (green) apart from those not (red); the
-predictions (blue) of refinement and integration. Each spot is drawn as its
+predictions (blue) of refinement and integration. With several lattices on a
+sweep, each lattice has a colour -- its spots strong, its predictions a lighter
+tint of it, matplotlib's tab20 pairs, red left for the unindexed -- and a
+layer each, to show one at a time. Each spot is drawn as its
 box, the pixels it covers, as DIALS's viewer draws them -- never too small to
 see zoomed out -- solid where centred on the image shown, dashed where it
 spans it from a neighbour; a prediction without a box (refinement's) is a

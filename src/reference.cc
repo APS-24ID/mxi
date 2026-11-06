@@ -1333,7 +1333,7 @@ std::vector<ProfileFit> fit_together(const std::vector<OverlapMember> &members,
 
   std::vector<double> a_inv, cov(k_n * k_n, 0.0);
   int rounds = 0;
-  std::vector<double> last_w(voxels.size(), 0.0);
+  std::vector<double> last_w(voxels.size(), 0.0), last_var(voxels.size(), 0.0);
   for (int round = 0; round < std::max(iterations, 1); ++round) {
     std::vector<double> a(k_n * k_n, 0.0), r(k_n, 0.0),
         sandwich(k_n * k_n, 0.0);
@@ -1345,6 +1345,7 @@ std::vector<ProfileFit> fit_together(const std::vector<OverlapMember> &members,
       const double w = 1.0 / std::max(gain * expected, gain * g_weight_floor);
       const double var = std::max(gain * expected, gain * g_least_variance);
       last_w[j] = w;
+      last_var[j] = var;
       const double residual = v.data - v.background;
       for (std::size_t k = 0; k < k_n; ++k) {
         if (v.q[k] == 0.0)
@@ -1469,6 +1470,36 @@ std::vector<ProfileFit> fit_together(const std::vector<OverlapMember> &members,
       if (va > 0.0 && vb > 0.0)
         f.correlation = c / std::sqrt(va * vb);
     }
+    // The neighbours' counts in its summed foreground, and what taking them
+    // off adds to the sum's variance: c' Cov c - 2 c' A^-1 h, h_l the sum
+    // over its foreground of w var q_l -- the covariance of the counts summed
+    // with the scales fitted from them.
+    std::vector<double> cm(k_n, 0.0), hm(k_n, 0.0);
+    for (std::int32_t z = b.bbox[4]; z < b.bbox[5]; ++z)
+      for (std::int32_t y = b.bbox[2]; y < b.bbox[3]; ++y)
+        for (std::int32_t x = b.bbox[0]; x < b.bbox[1]; ++x) {
+          const std::size_t i =
+              b.at(x - b.bbox[0], y - b.bbox[2], z - b.bbox[4]);
+          if ((b.mask[i] & shoebox_mask::kForeground) == 0 ||
+              (b.mask[i] & shoebox_mask::kValid) == 0)
+            continue;
+          const std::size_t j = index.at({z, y, x});
+          for (std::size_t l = 0; l < k_n; ++l) {
+            if (l != m)
+              cm[l] += voxels[j].q[l];
+            hm[l] += last_w[j] * last_var[j] * voxels[j].q[l];
+          }
+        }
+    double shares = 0.0, quadratic = 0.0, cross = 0.0;
+    for (std::size_t l = 0; l < k_n; ++l) {
+      shares += scale[l] * cm[l];
+      for (std::size_t q = 0; q < k_n; ++q) {
+        quadratic += cm[l] * cov[l * k_n + q] * cm[q];
+        cross += cm[l] * a_inv[l * k_n + q] * hm[q];
+      }
+    }
+    f.neighbours = shares;
+    f.neighbours_variance = quadratic - 2.0 * cross;
     f.valid = true;
   }
   return out;

@@ -1,4 +1,5 @@
-"""mxi integrate --fit-overlaps, the plumbing: reflections whose foregrounds
+"""mxi integrate fitting overlaps together (the default; --no-fit-overlaps
+each alone), the plumbing: reflections whose foregrounds
 overlap found, their boxes held, fitted together (fit_together, tested on its
 own in tests/test_fit_together.cc), the results put over the fits alone -- on
 the CPU and through the device's batches (emulated) alike -- and nothing else
@@ -52,26 +53,26 @@ def outside_identical(a, b, together):
 
 
 def test_overlaps_fitted_together_and_nothing_else_touched(planted):
-    _, alone = integrate(planted, "alone.rflx")
-    out, both = integrate(planted, "together.rflx", "--fit-overlaps")
+    _, alone = integrate(planted, "alone.rflx", "--no-fit-overlaps")
+    out, both = integrate(planted, "together.rflx")
     assert "Overlapping foregrounds:" in out and "Fitted together:" in out
     assert "profile.fitted_together" not in alone.columns, "without it, no new column"
     together = np.asarray(both.columns["profile.fitted_together"]).astype(bool)
     assert together.sum() >= 4, "the widened foregrounds overlap"
     outside_identical(alone, both, together)
-    # The members: every one flagged overlapped as before; summation the same;
-    # profile fitting changed.
+    # The members: every one flagged overlapped as before; profile fitting
+    # changed, and the summed intensities without their neighbours' counts,
+    # each variance at least its variance with no signal.
     flags = np.asarray(both.columns["flags"]).astype(np.int64)
     assert np.all((flags[together] >> 12) & 1)
-    for k in ("intensity.sum.value", "intensity.sum.variance"):
-        assert np.array_equal(
+    for k in ("intensity.prf.value", "intensity.sum.value"):
+        assert not np.array_equal(
             np.asarray(alone.columns[k])[together],
             np.asarray(both.columns[k])[together],
         ), k
-    assert not np.array_equal(
-        np.asarray(alone.columns["intensity.prf.value"])[together],
-        np.asarray(both.columns["intensity.prf.value"])[together],
-    )
+    v = np.asarray(both.columns["intensity.sum.variance"])[together]
+    floor = np.asarray(both.columns["intensity.sum.variance_background"])[together]
+    assert np.all(v >= floor) and np.all(v > 0)
     steps = rflx.summary_dict(str(planted / "together.rflx"))["steps"]
     assert steps[-1]["fitted_together"] == int(together.sum())
     assert (
@@ -84,21 +85,30 @@ def test_through_the_devices_batches_the_same_fits_together(planted):
     # The device's fits arrive when a batch is collected: the fits together
     # must still be what is written, exactly the CPU's (both fitted on the
     # CPU, in double, from the same boxes).
-    _, cpu = integrate(planted, "cpu.rflx", "--fit-overlaps")
-    _, alone = integrate(planted, "emu_alone.rflx", "--gpu-emulate")
-    _, emu = integrate(planted, "emu.rflx", "--gpu-emulate", "--fit-overlaps")
+    _, cpu = integrate(planted, "cpu.rflx")
+    _, alone = integrate(
+        planted, "emu_alone.rflx", "--gpu-emulate", "--no-fit-overlaps"
+    )
+    _, emu = integrate(planted, "emu.rflx", "--gpu-emulate")
     together = np.asarray(emu.columns["profile.fitted_together"]).astype(bool)
     assert np.array_equal(
         together, np.asarray(cpu.columns["profile.fitted_together"]).astype(bool)
     )
     outside_identical(alone, emu, together)
-    for k in ("intensity.prf.value", "intensity.prf.variance"):
+    for k in (
+        "intensity.prf.value",
+        "intensity.prf.variance",
+        "intensity.sum.value",
+        "intensity.sum.variance",
+    ):
         assert np.array_equal(
             np.asarray(cpu.columns[k])[together], np.asarray(emu.columns[k])[together]
         ), k
 
 
 @pytest.mark.parametrize("words", [["--no-mask-neighbours"], ["--two-pass"]])
-def test_refused_where_it_cannot_run(planted, words):
+def test_where_it_cannot_run_each_alone_said_only_if_asked(planted, words):
     out, t = integrate(planted, "refused.rflx", "--fit-overlaps", *words)
     assert "--fit-overlaps" in out and "profile.fitted_together" not in t.columns
+    out, t = integrate(planted, "quiet.rflx", *words)
+    assert "--fit-overlaps" not in out and "profile.fitted_together" not in t.columns

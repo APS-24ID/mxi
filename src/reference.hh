@@ -278,6 +278,14 @@ struct ProfileFit {
   //: it is the honest way to spot a reflection the profile does not describe.
   double correlation = 0.0;
   int iterations = 0;
+  //: From fit_together only: the neighbours' fitted counts inside this
+  //: reflection's measured foreground, sum over l of s_l times l's profile
+  //: there -- what its summed intensity holds of theirs, to subtract -- and
+  //: what subtracting it adds to the summed intensity's variance: the shares'
+  //: own, c' Cov(s) c, less twice their covariance with the summed counts,
+  //: the shares fitted from the same pixels. Zero for a fit alone.
+  double neighbours = 0.0;
+  double neighbours_variance = 0.0;
   //: The fraction of the profile that was actually measured, one when nothing
   //: was masked. A fit is an extrapolation below that and the caller decides
   //: how far it will go: a reflection with a tenth of itself visible has an

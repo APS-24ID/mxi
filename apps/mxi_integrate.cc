@@ -370,10 +370,13 @@ void usage(const char *program) {
       "                    background: by default, their foregrounds are\n"
       "                    masked out of it, any lattice's, as DIALS's\n"
       "                    3d_threaded integrator does\n"
-      "  --fit-overlaps    reflections whose foregrounds overlap, of any\n"
-      "                    lattice, profile fitted together: each its own\n"
-      "                    profile, the shared pixels apportioned between\n"
-      "                    them (docs/integration.md)\n"
+      "  --no-fit-overlaps  fit each reflection alone: by default, those\n"
+      "                    whose foregrounds overlap, of any lattice, are\n"
+      "                    profile fitted together, each its own profile, the\n"
+      "                    shared pixels apportioned between them, and their\n"
+      "                    summed intensities corrected (docs/integration.md)\n"
+      "  --fit-overlaps    the default, as above: accepted, for what asks for "
+      "it\n"
       "  --each-alone      the lattices of a sweep a run each, reading its\n"
       "                    images once a lattice, rather than in one pass\n"
       "  --two-pass        read the images twice, to learn and then to fit, "
@@ -996,6 +999,7 @@ int run_integrate(int argc, char **argv) {
       "--two-pass",
       "--no-mask-neighbours",
       "--fit-overlaps",
+      "--no-fit-overlaps",
       "--profile-only",
       "--each-alone",
       "--sweep-run", // internal: one of several
@@ -1017,6 +1021,7 @@ int run_integrate(int argc, char **argv) {
   takes_value.erase("--two-pass");
   takes_value.erase("--no-mask-neighbours");
   takes_value.erase("--fit-overlaps");
+  takes_value.erase("--no-fit-overlaps");
   takes_value.erase("--profile-only");
   takes_value.erase("--each-alone");
   takes_value.erase("--sweep-run");
@@ -1488,19 +1493,25 @@ int run_integrate(int argc, char **argv) {
     // meet: a hash of 32 pixel tiles of the panel, then the three-dimensional
     // test.
     const bool mask_neighbours = !args.has("--no-mask-neighbours");
-    // --fit-overlaps: reflections whose foregrounds overlap fitted together
-    // (fit_together). Found from the neighbours, in the one pass's fit.
-    bool fit_overlaps = args.has("--fit-overlaps");
+    // Reflections whose foregrounds overlap fitted together (fit_together),
+    // by default (Graeme, 6 November, on the evidence in docs/integration.md):
+    // found from the neighbours, in the one pass's fit. Where it cannot run,
+    // each alone -- said only where it was asked for by name.
+    const bool asked_overlaps = args.has("--fit-overlaps");
+    bool fit_overlaps = !args.has("--no-fit-overlaps");
     if (fit_overlaps && !mask_neighbours) {
-      std::printf(
-          "--fit-overlaps finds overlaps among the neighbours: not with "
-          "--no-mask-neighbours\n");
+      if (asked_overlaps)
+        std::printf(
+            "--fit-overlaps finds overlaps among the neighbours: not with "
+            "--no-mask-neighbours\n");
       fit_overlaps = false;
     }
     if (fit_overlaps &&
         (args.has("--two-pass") || args.has("--summation-only"))) {
-      std::printf("--fit-overlaps fits in the one pass's profile fitting: not "
-                  "with --two-pass or --summation-only\n");
+      if (asked_overlaps)
+        std::printf(
+            "--fit-overlaps fits in the one pass's profile fitting: not "
+            "with --two-pass or --summation-only\n");
       fit_overlaps = false;
     }
     // The other lattices of this sweep (--mask-also, from integrate_several):
@@ -3192,6 +3203,15 @@ int run_integrate(int argc, char **argv) {
               }
               record_fit(row, fit);
               together_of[row] = 1;
+              // The summed intensity without its neighbours' counts, its
+              // variance with what taking them off adds -- never below its
+              // variance with no signal.
+              if (fit.neighbours != 0.0) {
+                isum.reals[row] -= fit.neighbours;
+                ivar.reals[row] =
+                    std::max(ivar.reals[row] + fit.neighbours_variance,
+                             ivar_bg.reals[row]);
+              }
               ++replaced;
             }
             std::printf("Fitted together: %zu reflections in %zu groups",

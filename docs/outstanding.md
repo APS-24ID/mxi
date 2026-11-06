@@ -427,14 +427,12 @@ history on 20 October: four closed, nine rewritten to what is now true.
 
 ## Overlapping reflections
 
-* **88.** **capability -- mxi integrate --fit-overlaps judged on real data, and
-    its default.** Overlapping reflections fitted together (docs/integration.md,
-    Several lattices): on its own boxes, a weak spot's contamination by a
-    strong neighbour removed and its sigma calibrated; on the planted series,
-    nothing outside the groups touched. To judge on ins2_27, where some 573 a
-    lattice have overlapped foregrounds: the members' intensities against
-    their equivalents and DIALS's, the merging statistics with and without --
-    then whether it should be the default.
+* **88.** **Closed, 6 November: overlaps fitted together, the default.** On
+    ins2_27 the overlapped measurements went from +0.92 sigma from their
+    equivalents, rms 3.79, to +0.07 and 1.06 (docs/integration.md); the summed
+    intensities corrected as well. What remains of it: 1.4 per cent of them
+    still beyond 3 sigma, where a Gaussian has 0.3 -- groups the fit does not
+    yet describe, to look at if they matter.
 
 ## The interface and its viewer
 

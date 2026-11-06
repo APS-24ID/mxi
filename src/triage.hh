@@ -85,6 +85,11 @@ struct TwinLaw {
 
 struct Triage {
   double d_max = 0, d_min = 0; //: the twin tests' range
+  //: As xtriage prepares the data before the twin tests: put on an absolute
+  //: scale with the fall-off of an anisotropic Wilson model removed (laue.hh,
+  //: its f2(s) left in), over d*^2 0.008 to 0.690; and outliers removed.
+  bool sharpened = false;
+  std::size_t outliers = 0;
   std::size_t used = 0, acentric = 0, centric = 0;
   Moments acentric_moments, centric_moments;
   CumulativeIntensity nz;

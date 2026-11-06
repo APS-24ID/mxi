@@ -19,6 +19,16 @@ regularised to the group. Its output is also in `mxi_triage.log`.
 As xtriage's, from its source (cctbx's mmtbx/scaling: data_statistics.py,
 twin_analyses.py, absolute_scaling.py, twinning.h):
 
+- **Prepared first**, as xtriage's wilson_scaling prepares them for its twin
+  analysis: over d*^2 0.008 to 0.690, put on an absolute scale with the
+  fall-off of an anisotropic Wilson model removed, its f2(s) left in -- the
+  model fitted by maximum likelihood as `mxi symmetry` fits it (laue.hh),
+  the reflections taken as P1's, all acentric, which matters little to the
+  scale and B -- and its possible outliers removed: E^2 / eps by the kernel
+  normalisation below, an outlier where its Wilson probability is below 1e-6
+  or the chance that the largest of n is as large is below 0.1. Sharpened,
+  the H test's strongest half is chosen across resolution, not from the low
+  resolution that raw intensities favour.
 - **The range**: 10 A to a limit chosen from the data's strength -- the data's
   whole range in 15 shells of equal volume, the last left out; of those finer
   than 3.5 A, the finest in which more than 85 per cent of the reflections
@@ -83,17 +93,22 @@ possible.
 
 ## Where it still differs from xtriage
 
-- **The basic filters before the twin analysis**: xtriage first corrects
-  anisotropy (a maximum-likelihood anisotropic Wilson fit) and removes Wilson
-  outliers; not yet here.
+- **The Wilson fit before the twin tests**: `mxi symmetry`'s, the reflections
+  taken as P1's; xtriage's knows each one's epsilon and centricity.
 - **The H test's fraction**: from <|H|>; xtriage reports the fraction from a
   fit to the cumulative distribution of H, the two agreeing to 0.001 on the
   insulin data compared.
 - **The L test's draw of neighbours**: a different random generator, so the
-  pairs differ; the statistics agree to the third figure.
+  pairs differ: <|L|> by some 0.005 on insulin, which the Z score -- its
+  covariance from real data sets small -- turns into 0.6 against 2.3.
 - **A twin law's name**: the same law, perhaps another member of its coset --
   -h,-l,-k here where xtriage writes -l,-k,-h for I 2 3, the two related by
   the three-fold.
+- **Unexplained, so far**: the centric <I^2>/<I>^2 on the same insulin data,
+  3.27 here against xtriage's 2.85, where the centric N(z) agrees to the third
+  figure -- a difference in a few of the strongest centric reflections, not
+  the bulk, and not outliers (xtriage removed none). Their merging is the
+  next place to look: xtriage merged mxi's scaled.mtz itself.
 
 ## Tested, and to come
 
@@ -101,10 +116,12 @@ Tested on intensities drawn as Wilson's statistics have them, where every
 figure has a known value: untwinned, twinned at 0.3 and perfectly by a
 merohedral law, and P 4 2 2 data taken as P 4 (`tests/test_triage.cc`); and
 end to end, on scaled files of such intensities, merged as the command merges
-them (`python/tests/test_triage.py`). Compared with xtriage on insulin, I 2 3,
-DIALS's processing against mxi's: the moments, N(z) and the L test within
-0.03, the same twin law, both untwinned. A comparison on the same data -- mxi's
-scaled.mtz given to xtriage -- is still to make.
+them (`python/tests/test_triage.py`). Compared with xtriage on the same
+insulin data, I 2 3 -- mxi's scaled.mtz given to it: the same range, 10 to
+1.70 A; the acentric moments within 0.01; N(z) to the third figure; <|L|>
+within 0.005; R obs 0.493 against 0.497; the same twin law; both untwinned --
+all before the data's preparation was ported, which changes R obs and the H
+test most; to compare again.
 
 To come: the Britton plot and xtriage's maximum-likelihood twin fraction;
 translational NCS from the Patterson; anisotropy corrected first; Wilson

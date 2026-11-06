@@ -1,5 +1,7 @@
 #include "triage.hh"
 
+#include "laue.hh"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -214,6 +216,84 @@ Moments moments(const Used &u, bool centric) {
   return m;
 }
 
+// The data as xtriage gives them to its twin analysis (data_statistics.py,
+// wilson_scaling): over d*^2 0.008 to 0.690, put on an absolute scale with
+// the anisotropic fall-off removed -- anisotropic_correction with its ML
+// fit's scale and B; here the same model's fit, laue.hh's, and its f2(s) left
+// in as there -- then possible_outliers removed: E^2 by kernel normalisation,
+// divided by eps, an outlier where its Wilson probability is below 1e-6 or
+// its extreme-value probability, the chance that the largest of n is as
+// large, below 0.1. Sharpened, the H test's strongest half is chosen across
+// resolution, not from the low resolution the raw intensities favour.
+TriageData prepared(const TriageData &given, const UnitCell &cell,
+                    const SpaceGroup &group, Triage *t) {
+  const double d_lo = std::sqrt(1.0 / 0.008), d_hi = std::sqrt(1.0 / 0.690);
+  TriageData window;
+  P1Intensities p1;
+  for (std::size_t r = 0; r < given.hkl.size(); ++r) {
+    const double d = d_spacing(cell, given.hkl[r]);
+    if (d > d_lo || d < d_hi)
+      continue;
+    window.hkl.push_back(given.hkl[r]);
+    window.intensity.push_back(given.intensity[r]);
+    window.sigma.push_back(given.sigma[r]);
+    p1.hkl.push_back(given.hkl[r]);
+    p1.i.push_back(given.intensity[r]);
+    p1.sigma.push_back(given.sigma[r]);
+    p1.d.push_back(d);
+  }
+  WilsonFit fit;
+  P1Intensities scratch = p1;
+  if (!p1.hkl.empty())
+    normalise(scratch, 200, &fit);
+  t->sharpened = fit.fitted;
+  if (fit.fitted)
+    for (std::size_t r = 0; r < window.hkl.size(); ++r) {
+      const Miller &m = window.hkl[r];
+      const double q[6] = {double(m[0]) * m[0], double(m[1]) * m[1],
+                           double(m[2]) * m[2], 2.0 * m[0] * m[1],
+                           2.0 * m[0] * m[2],   2.0 * m[1] * m[2]};
+      double qb = 0.0;
+      for (int j = 0; j < 6; ++j)
+        qb += q[j] * fit.b[j];
+      const double factor = std::exp(qb - fit.log_scale);
+      window.intensity[r] *= factor;
+      window.sigma[r] *= factor;
+    }
+  // possible_outliers: over the whole window, E^2 / eps.
+  const Used all = normalised(window, cell, group, 0.0, 1e9);
+  std::size_t n_acentric = 0, n_centric = 0;
+  for (bool c : all.centric)
+    (c ? n_centric : n_acentric) += 1;
+  std::vector<bool> outlier(window.hkl.size(), false);
+  for (std::size_t i = 0; i < all.rows.size(); ++i) {
+    const std::size_t r = all.rows[i];
+    const double e2 = std::max(all.e2[i] / epsilon(group, window.hkl[r]), 0.0);
+    double single, extreme;
+    if (all.centric[i]) {
+      const double cdf = std::erf(std::sqrt(e2 / 2.0));
+      single = 1.0 - cdf;
+      extreme = 1.0 - std::pow(cdf, static_cast<double>(n_centric));
+    } else {
+      single = std::exp(-e2);
+      extreme =
+          1.0 - std::pow(1.0 - std::exp(-e2), static_cast<double>(n_acentric));
+    }
+    outlier[r] = extreme < 0.1 || single < 1e-6;
+  }
+  TriageData out;
+  for (std::size_t r = 0; r < window.hkl.size(); ++r) {
+    if (outlier[r]) {
+      ++t->outliers;
+      continue;
+    }
+    out.hkl.push_back(window.hkl[r]);
+    out.intensity.push_back(window.intensity[r]);
+    out.sigma.push_back(window.sigma[r]);
+  }
+  return out;
+}
+
 } // namespace
 
 int epsilon(const SpaceGroup &group, const Miller &hkl) {
@@ -348,12 +428,15 @@ double twin_test_d_min(const TriageData &data, const UnitCell &cell,
   return cut > o.resolution_at_least ? o.resolution_at_least : cut;
 }
 
-Triage triage(const TriageData &data, const UnitCell &cell,
+Triage triage(const TriageData &given, const UnitCell &cell,
               const SpaceGroup &group, const TriageOptions &options) {
   Triage t;
   t.d_max = options.d_max;
+  // The range from the data as given, as xtriage chooses it; every test on
+  // the data as xtriage prepares them.
   t.d_min = options.d_min > 0 ? options.d_min
-                              : twin_test_d_min(data, cell, group, options);
+                              : twin_test_d_min(given, cell, group, options);
+  const TriageData data = prepared(given, cell, group, &t);
   const Used u = normalised(data, cell, group, t.d_min, t.d_max);
   // Counted as used: the positive E^2, which the moments, N(z) and the L
   // test take, as xtriage's.

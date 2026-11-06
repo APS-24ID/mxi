@@ -160,9 +160,14 @@ int run_triage(int argc, char **argv) {
     std::printf("  cell %.3f %.3f %.3f %.3f %.3f %.3f\n\n", cell.a, cell.b,
                 cell.c, cell.alpha, cell.beta, cell.gamma);
     std::printf("The twin tests: %.2f to %.2f A, %zu reflections (%zu "
-                "acentric, %zu centric)\n\n",
+                "acentric, %zu centric)\n",
                 t.d_max, t.d_min, t.used, t.acentric, t.centric);
-
+    std::printf(
+        "  as xtriage's: %s, %zu Wilson outlier%s removed\n\n",
+        t.sharpened
+            ? "on an absolute scale with the anisotropic fall-off removed"
+            : "as merged (too few reflections to fit the fall-off)",
+        t.outliers, t.outliers == 1 ? "" : "s");
     std::printf("Moments of the normalised intensities\n");
     std::printf("  %-14s %8s %10s %9s   %8s %10s %9s\n", "", "acentric",
                 "untwinned", "perfect", "centric", "untwinned", "perfect");

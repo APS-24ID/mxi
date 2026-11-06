@@ -9,6 +9,11 @@ mxi triage scaled.rflx
 mxi triage scaled.rflx --d-min 3      # the twin tests to 3 A
 ```
 
+Its methods are xtriage's where they are right, and its own where xtriage's
+choice is a quirk or arbitrary: the conclusions should be xtriage's, the numbers
+may differ a little (as mxi's do from DIALS's elsewhere); for xtriage's own
+numbers, run xtriage. Each difference, and why, is listed below.
+
 Every crystal's scaled observations are merged, as `mxi correlation` merges
 them -- scaled, not outliers, partiality at least 0.4, cctbx's merging of
 equivalents -- in the file's space group, Friedel mates together, the cell
@@ -30,17 +35,16 @@ twin_analyses.py, absolute_scaling.py, twinning.h):
   the H test's strongest half is chosen across resolution, not from the low
   resolution that raw intensities favour.
 - **The range**: 10 A to a limit chosen from the data's strength -- the data's
-  whole range in 15 shells of equal volume, the last left out; of those finer
-  than 3.5 A, the finest in which more than 85 per cent of the reflections
-  possible have I > 3 sigma; 3.5 A where none is (`--d-max`, `--d-min`).
+  whole range in 15 shells of equal volume; of those finer than 3.5 A, from
+  low resolution, the last in which more than 85 per cent of the reflections
+  possible have I > 3 sigma, before the first that has not; 3.5 A where none
+  has (`--d-max`, `--d-min`).
 - **Normalisation**: <I/eps> by a Gaussian kernel -- as wide as the d*^2 of
   the 50th reflection from low resolution, less the least -- at 23 Chebyshev
-  nodes, a 13-term Chebyshev series fitted to its log; E^2 = I over that.
-  As xtriage's, eps is not divided out of E^2: the few acentric reflections on
-  a rotation axis come out eps times too strong, which raises the moments a
-  little (perfectly twinned P 4 data: <I^2>/<I>^2 1.58, not 1.5; with eps
-  divided, 1.5). Kept, to compare with xtriage.
-- **The positive E^2 only**, for the moments, N(z) and the L test.
+  nodes, a 13-term Chebyshev series fitted to its log; E^2 = I / (eps times
+  that), as E^2 is defined.
+- **Every E^2** for the moments and N(z), negative ones too; the positive only
+  for the L test, which needs I1 + I2 above zero.
 
 ## Statistics that do not depend on twin laws
 
@@ -54,14 +58,16 @@ twin_analyses.py, absolute_scaling.py, twinning.h):
 acentric, erf(sqrt(z/2)) centric: twinning makes the acentric curve
 sigmoidal.
 
-**The L test** (Padilla & Yeates 2003), as xtriage's: L = (E1^2 - E2^2) /
-(E1^2 + E2^2) for each positive acentric reflection and one neighbour drawn
-for it, h + (dh, dk, dl), each even, |dh|+|dk|+|dl| 2, 4 or 6 -- none where
-that neighbour was not measured. Untwinned, <|L|> 1/2 and <L^2> 1/3;
-perfectly twinned 3/8 and 1/5. Its **multivariate Z score** is xtriage's:
-the distance of (<|L|>, <L^2>) from the mean of some 1200 PDB data sets,
-(0.4851, 0.3164), by their covariance -- how far from typical good data, not
-a test against the ideal values, so not growing with the number of pairs.
+**The L test** (Padilla & Yeates 2003): L = (E1^2 - E2^2) / (E1^2 + E2^2)
+for each positive acentric reflection and a neighbour h + (dh, dk, dl), each
+even, |dh|+|dk|+|dl| 2, 4 or 6 -- tried in an order drawn afresh for each
+reflection, to the first measured, and none the lattice's own symmetry relates
+to it. Untwinned, <|L|> 1/2 and <L^2> 1/3; perfectly twinned 3/8 and 1/5. Its
+**multivariate Z score** is xtriage's: the distance of (<|L|>, <L^2>) from the
+mean of some 1200 PDB data sets, (0.4851, 0.3164), by their covariance -- how
+far from typical good data, not a test against the ideal values, so not
+growing with the number of pairs: a test against the ideal values flags the
+smallest departure of a large data set.
 
 ## Twin laws
 
@@ -91,24 +97,47 @@ possible.
   twinning never makes -- translational NCS can.
 - Otherwise: no twinning is suspected.
 
-## Where it still differs from xtriage
+## Where it differs from xtriage, and why
+
+Chosen, as more nearly right:
+
+- **eps divided out of E^2.** xtriage's normalised intensities leave it in, so
+  that the acentric reflections on a rotation axis come out eps times too
+  strong: a perfect twin in P 4 gives <I^2>/<I>^2 1.58 by its way, 1.5 by
+  this.
+- **Every E^2 in the moments and N(z).** xtriage keeps the positive only,
+  which takes the weakest reflections out -- as twinning does -- and lowers
+  N(z) at small z, the more the weaker the data.
+- **The L test's neighbours.** None the lattice's own symmetry relates to the
+  reflection: such pairs are not independent, and where a symmetry was missed
+  they are equal, L 0, as if twinned. And each reflection's neighbours tried
+  to the first measured, where xtriage draws one and gives up if it is
+  missing: more pairs, no bias.
+- **The range's limit at the first shell too weak.** xtriage takes the finest
+  shell strong enough wherever it lies -- one beyond a weak shell by chance --
+  and its loop leaves the last shell out.
+
+Approximate here:
 
 - **The Wilson fit before the twin tests**: `mxi symmetry`'s, the reflections
   taken as P1's; xtriage's knows each one's epsilon and centricity.
-- **The H test's fraction**: from <|H|>; xtriage reports the fraction from a
-  fit to the cumulative distribution of H, the two agreeing to 0.001 on the
-  insulin data compared.
-- **The L test's draw of neighbours**: a different random generator, so the
-  pairs differ: <|L|> by some 0.005 on insulin, which the Z score -- its
-  covariance from real data sets small -- turns into 0.6 against 2.3.
+- **The H test's fraction**: from <|H|>; xtriage reports a fit to the
+  cumulative distribution of H, the two agreeing to 0.001 on insulin.
+
+Arbitrary:
+
+- **The L test's draw of neighbours**: another random generator. The Z score,
+  its covariance from real data sets small, magnifies the difference: <|L|>
+  0.482 against 0.487 on insulin gave 2.34 against 0.63.
 - **A twin law's name**: the same law, perhaps another member of its coset --
-  -h,-l,-k here where xtriage writes -l,-k,-h for I 2 3, the two related by
-  the three-fold.
-- **Unexplained, so far**: the centric <I^2>/<I>^2 on the same insulin data,
-  3.27 here against xtriage's 2.85, where the centric N(z) agrees to the third
-  figure -- a difference in a few of the strongest centric reflections, not
-  the bulk, and not outliers (xtriage removed none). Their merging is the
-  next place to look: xtriage merged mxi's scaled.mtz itself.
+  -h,-l,-k here where xtriage writes -l,-k,-h for I 2 3, related by the
+  three-fold.
+
+Unexplained, so far: the centric <I^2>/<I>^2 on the same insulin data, 3.27
+here against xtriage's 2.85, where the centric N(z) agreed -- a few of the
+strongest centric reflections, not the bulk, and not outliers (xtriage removed
+none). Their merging is the next place to look: xtriage merged mxi's
+scaled.mtz itself.
 
 ## Tested, and to come
 

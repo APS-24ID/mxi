@@ -188,7 +188,10 @@ Used normalised(const TriageData &data, const UnitCell &cell,
     return u;
   const Chebyshev fit = chebyshev_fit(13, x, y, low, high);
   for (std::size_t i = 0; i < n; ++i)
-    u.e2[i] = data.intensity[u.rows[i]] / std::exp(fit(s2[i]));
+    // I / (eps <I/eps>): eps divided out, as E^2 is defined -- xtriage's
+    // normalised_miller leaves it in, the few acentric reflections on an
+    // axis eps times too strong (a perfect twin in P 4: 1.58, not 1.5).
+    u.e2[i] = scaled[i] / std::exp(fit(s2[i]));
   return u;
 }
 
@@ -196,9 +199,10 @@ Moments moments(const Used &u, bool centric) {
   Moments m;
   double e2 = 0, e4 = 0, e = 0, dev = 0;
   for (std::size_t i = 0; i < u.e2.size(); ++i) {
-    // The positive E^2 only, as xtriage's wilson_normalised_intensities
-    // selects them.
-    if (u.centric[i] != centric || !(u.e2[i] > 0))
+    // Every E^2, negative ones too: a weak reflection measured below zero is
+    // still a weak reflection. xtriage keeps the positive only, which takes
+    // the weakest out -- as twinning does -- and lowers N(z) at small z.
+    if (u.centric[i] != centric)
       continue;
     const double x = u.e2[i];
     e2 += x;
@@ -268,7 +272,7 @@ TriageData prepared(const TriageData &given, const UnitCell &cell,
   std::vector<bool> outlier(window.hkl.size(), false);
   for (std::size_t i = 0; i < all.rows.size(); ++i) {
     const std::size_t r = all.rows[i];
-    const double e2 = std::max(all.e2[i] / epsilon(group, window.hkl[r]), 0.0);
+    const double e2 = std::max(all.e2[i], 0.0); // eps divided out already
     double single, extreme;
     if (all.centric[i]) {
       const double cdf = std::erf(std::sqrt(e2 / 2.0));
@@ -415,15 +419,18 @@ double twin_test_d_min(const TriageData &data, const UnitCell &cell,
   for (std::size_t r = 0; r < data.hkl.size(); ++r)
     if (data.intensity[r] > o.isigi_cut * data.sigma[r])
       strong[bin_of(d_spacing(cell, data.hkl[r]))] += 1.0;
-  // From low resolution, the finest shell finer than resolution_at_least
-  // that is complete enough -- not the first that is not: no shell after the
-  // last but one counted, as xtriage's loop leaves it out.
+  // From low resolution, of the shells finer than resolution_at_least, to
+  // the last complete enough before the first that is not. xtriage takes the
+  // finest complete enough wherever it lies, a shell beyond a failing one by
+  // chance, and its loop leaves the last shell out; here each counts.
   double cut = 4.0;
-  for (int b = 0; b + 1 < bins; ++b) {
+  for (int b = 0; b < bins; ++b) {
     const double d_edge = std::cbrt(1.0 / (lo + (hi - lo) * (b + 1) / bins));
-    if (d_edge < o.resolution_at_least && possible[b] > 0 &&
-        strong[b] / possible[b] > o.completeness)
-      cut = d_edge;
+    if (d_edge >= o.resolution_at_least)
+      continue;
+    if (!(possible[b] > 0 && strong[b] / possible[b] > o.completeness))
+      break;
+    cut = d_edge;
   }
   return cut > o.resolution_at_least ? o.resolution_at_least : cut;
 }
@@ -438,11 +445,8 @@ Triage triage(const TriageData &given, const UnitCell &cell,
                               : twin_test_d_min(given, cell, group, options);
   const TriageData data = prepared(given, cell, group, &t);
   const Used u = normalised(data, cell, group, t.d_min, t.d_max);
-  // Counted as used: the positive E^2, which the moments, N(z) and the L
-  // test take, as xtriage's.
   for (std::size_t i = 0; i < u.rows.size(); ++i)
-    if (u.e2[i] > 0)
-      (u.centric[i] ? t.centric : t.acentric) += 1;
+    (u.centric[i] ? t.centric : t.acentric) += 1;
   t.used = t.acentric + t.centric;
   t.acentric_moments = moments(u, false);
   t.centric_moments = moments(u, true);
@@ -452,7 +456,7 @@ Triage triage(const TriageData &given, const UnitCell &cell,
     const double z = 0.1 * k;
     double na = 0, nc = 0;
     for (std::size_t i = 0; i < u.e2.size(); ++i)
-      if (u.e2[i] > 0 && u.e2[i] <= z)
+      if (u.e2[i] <= z)
         (u.centric[i] ? nc : na) += 1;
     const double fa = t.acentric ? na / t.acentric : 0.0,
                  fc = t.centric ? nc / t.centric : 0.0;
@@ -485,12 +489,28 @@ Triage triage(const TriageData &given, const UnitCell &cell,
         if (a % 2 == 0 && b % 2 == 0 && c % 2 == 0 && s >= 2 && s < 8)
           offsets.push_back({a, b, c});
       }
+  // Each reflection's neighbours tried in an order drawn afresh, to the first
+  // measured -- xtriage draws one and gives up where it is missing -- and
+  // none the lattice's own symmetry relates to it: such pairs are not
+  // independent, equal where a symmetry was missed (L 0, as if twinned).
+  const std::vector<Rotation> lattice =
+      lattice_symmetry(cell, options.max_delta);
   std::mt19937 random(options.seed);
-  std::uniform_int_distribution<std::size_t> pick(0, offsets.size() - 1);
   double sum_abs = 0, sum_sq = 0;
   for (const auto &[h, i] : acentric_at) {
-    const Miller mate = group.unique(add(h, offsets[pick(random)]));
-    const auto found = acentric_at.find(mate);
+    std::shuffle(offsets.begin(), offsets.end(), random);
+    auto found = acentric_at.end();
+    for (const Miller &dh : offsets) {
+      const Miller mate = group.unique(add(h, dh));
+      bool related = mate == h;
+      for (const Rotation &r : lattice)
+        related = related || group.unique(mxi::apply(r, h)) == mate;
+      if (related)
+        continue;
+      found = acentric_at.find(mate);
+      if (found != acentric_at.end())
+        break;
+    }
     if (found == acentric_at.end())
       continue;
     const double p = u.e2[i], q = u.e2[found->second];

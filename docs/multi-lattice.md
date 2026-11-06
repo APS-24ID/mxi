@@ -86,7 +86,8 @@ STATUS: agreed, October 2026, with Graeme's answers (below). Built:
   others with theirs (--mask-also), predicting and boxing them, with their own
   crystals and profile models, for masking alone. Each lattice is still read
   once a lattice: one pass over the images, the profile fitting shared between
-  lattices, is a re-architecture left for after. On ins2_27: 5756 of each
+  lattices, is a re-architecture left for after (since built: the next stage,
+  one pass). On ins2_27: 5756 of each
   lattice's boxes meet another; overlapped background 2552 and 2375,
   overlapped foreground 573 and 573. Against DIALS, unchanged to four places:
   the 205 and 52 strong reflections whose backgrounds were overlapped rose 0.1

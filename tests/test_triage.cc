@@ -127,10 +127,9 @@ TEST(triage_twinned_data_are_said_so) {
                  t.verdict);
   const Triage perfect =
       triage(as_data(twinned(truth, p4, law, 0.5), p4, 8), kCell, p4);
-  // 1.58, not 1.5: xtriage divides I by <I/eps> but not by eps, so the 00l
-  // reflections, acentric in P 4 with eps 4, come out four times too strong
-  // -- divided out, 1.5 (tried). Kept as xtriage's, to compare with it.
-  check::close(perfect.acentric_moments.i2_over_i_squared, 1.5, 0.12,
+  // 1.5 with eps divided out of E^2, as it is defined; xtriage leaves it in,
+  // and the 00l reflections (acentric in P 4, eps 4) had made it 1.58.
+  check::close(perfect.acentric_moments.i2_over_i_squared, 1.5, 0.08,
                "perfect: 1.5");
   check::close(perfect.l_test.mean_abs_l, 0.375, 0.02, "perfect: <|L|> 3/8");
   check::close(perfect.twin_laws[0].h_alpha, 0.5, 0.03, "perfect: 1/2");

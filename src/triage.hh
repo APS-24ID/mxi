@@ -38,8 +38,9 @@ struct TriageOptions {
   unsigned seed = 1;                //: the L test's choice of neighbours
 };
 
-//: The moments of the normalised intensities, E^2 = I / (eps <I/eps>), and
-//: their values untwinned and perfectly twinned (xtriage's table).
+//: The moments of the normalised intensities, E^2 = I / (eps <I/eps>), every
+//: one, negative too -- and their values untwinned and perfectly twinned
+//: (xtriage's table).
 struct Moments {
   std::size_t n = 0;
   double i2_over_i_squared = 0; //: <I^2>/<I>^2: 2 acentric, 3 centric
@@ -54,10 +55,11 @@ struct CumulativeIntensity {
   double max_deviation_acentric = 0, max_deviation_centric = 0;
 };
 
-//: Padilla & Yeates' L test (2003), as xtriage's: L = (E1^2 - E2^2) /
-//: (E1^2 + E2^2) for each positive acentric reflection and one neighbour
-//: drawn for it, h + (2h', 2k', 2l'), |dh|+|dk|+|dl| 2, 4 or 6 -- none where
-//: that neighbour was not measured. Untwinned <|L|> = 1/2, <L^2> = 1/3;
+//: Padilla & Yeates' L test (2003): L = (E1^2 - E2^2) / (E1^2 + E2^2) for
+//: each positive acentric reflection and a neighbour h + (dh, dk, dl), each
+//: even, |dh|+|dk|+|dl| 2, 4 or 6 -- the first measured in an order drawn for
+//: it, none the lattice's own symmetry relates to it (docs/triage.md: where
+//: this differs from xtriage, and why). Untwinned <|L|> = 1/2, <L^2> = 1/3;
 //: perfectly twinned 3/8, 1/5. The multivariate Z score is xtriage's: the
 //: Mahalanobis distance of (<|L|>, <L^2>) from those of some 1200 PDB data
 //: sets, (0.4851, 0.3164), by their covariance -- how far from typical good

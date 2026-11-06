@@ -87,7 +87,9 @@ to 3.15 (the tests now in 3.12, set up for them).
 4 November, released as 1.1.4, its candidate's macOS build stalled (the
 runners, or a window waiting for a display: mxi ui's window tests are now not
 run in the release builds, MXI_NO_WINDOW_TESTS, and each test step has 30
-minutes). Since 1.1.5: mxi triage begun (src/triage.{hh,cc}, docs/triage.md) --
+minutes). Since 1.1.5: mxi triage begun (src/triage.{hh,cc}, docs/triage.md), correct
+before identical to xtriage (Graeme: the conclusions the same, the numbers
+may differ, as with DIALS; each difference and why in the guide) --
 xtriage's twinning statistics and twin laws; next, Britton and the ML twin
 fraction, tNCS, anisotropy corrected first, Wilson, the data's health, and
 a comparison with xtriage on real data. 5 November, released as 1.1.5 after one candidate: mxi view became mxi ui's

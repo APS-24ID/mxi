@@ -151,6 +151,23 @@ As dials.correlation_matrix (Thompson et al. 2025):
 * **Ward's hierarchical clustering** for the report's dendrograms, by the
   Lance-Williams update, as scipy's.
 
+## Twinning -- `mxi triage` (`docs/triage.md`)
+
+As phenix.xtriage (Zwart, Grosse-Kunstleve & Adams 2005), each choice on its
+merits:
+
+* **The data prepared** by a maximum-likelihood anisotropic **Wilson** fit,
+  its fall-off removed, and **Wilson outliers** removed (Read 1999), by their
+  own probability and the **extreme-value** chance of the largest of n.
+* **Normalisation** by a Gaussian **kernel** estimate of <I/eps>, smoothed by
+  a **Chebyshev** fit to its log, as cctbx's kernel_normalisation.
+* **The moments** <I^2>/<I>^2, <F>^2/<F^2> and <|E^2 - 1|> and the
+  **cumulative distribution N(z)** against Wilson's.
+* **The L test** (Padilla & Yeates 2003), its multivariate **Z score**
+  xtriage's, from some 1200 PDB data sets.
+* **Twin laws** from the lattice's symmetry by **Le Page**'s method (as for
+  symmetry, above), and for each the **H test** (Yeates 1997) and R.
+
 ## Export -- `mxi export` (`docs/export.md`)
 
 **An unmerged MTZ** as dials.export writes it: the intensities and their

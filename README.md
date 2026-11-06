@@ -8,7 +8,8 @@
 mxi is a data processing package for NXmx format macromolecular crystallography
 (MX) data: from the diffraction images to scaled, unmerged intensities ready for
 structure solution -- spot finding, indexing, refinement, integration, symmetry,
-scaling and the clustering of data from many crystals.
+scaling, the clustering of data from many crystals, and what the scaled data
+say of twinning.
 
 **It is a new, standalone package.** mxi is a completely new project, written from
 scratch in C++. It contains no DIALS code and does not need DIALS installed.
@@ -239,7 +240,7 @@ The options most often wanted:
 
 | program | |
 | --- | --- |
-| `mxi show` | what a file holds: the models, the reflections by what has been done to them, each program's summary ([`docs/output.md`](docs/output.md)) |
+| `mxi show` | what a file holds: the models, the reflections by what has been done to them, each program's summary -- or a part, `--unit-cell` each crystal's cell a line, `--step NAME` one step's record ([`docs/output.md`](docs/output.md)) |
 | `mxi report` | an HTML report of a file's processing, every step's figures and plots ([`docs/output.md`](docs/output.md)) |
 | `mxi convert` | between `.rflx` and DIALS' `.expt` and `.refl` (below) |
 | `mxi combine` | several runs' files joined into one: data sets processed separately, to go through symmetry and scaling together |
@@ -319,7 +320,9 @@ mxeq regress compare --against reference # what changed, past its tolerance
 `ctest --test-dir build` runs the C++ tests. `pytest python/tests` runs
 mxeq's, and those of the programs that need real data, given the programs and
 data through `MXI_*` environment variables; without them those tests are
-skipped ([`python/README.md`](python/README.md)).
+skipped ([`python/README.md`](python/README.md)). mxi ui's window tests need a
+display -- a desktop, or xvfb -- and are skipped where `MXI_NO_WINDOW_TESTS` is
+set, as the release builds set it.
 
 ## Acknowledgements
 

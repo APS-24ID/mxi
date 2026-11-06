@@ -57,8 +57,9 @@ checklist (its section 8) as reader and writer. The points mxi depends on:
 
 ### What mxi writes
 
-* Root attributes: `format = "dxtbx_h5"`, `format_version = 1`, `creator` naming
-  mxi and its version, `timestamp`.
+* Root attributes: `format = "dxtbx_h5"`, `format_version = 1`, `creator` the
+  program that wrote it -- `mxi_find`, `mxi_correlation` -- by which `mxi
+  process` knows where to go on from a file (docs/process.md), `timestamp`.
 * `/experiments`, always: every step's file carries the models as that step left
   them.
 * `/reflections/0`, one table, its rows' experiments by `id`, as mxi's tables are
@@ -204,9 +205,10 @@ Then mxi convert; then each program's input, then its output; then mxeq.
 
 ## Open questions
 
-1. **Compression**: settled, October 2026 -- none in the programs' files,
-   gzip in mxi convert's (above). Parallel gzip, compressing chunks on every
-   core and writing them direct, could make a compressed default cheap, if disk
+1. **Compression**: settled, October 2026 -- bitshuffle-LZ4 in every file
+   the programs write, fast enough not to be seen (above); mxi convert
+   compressing further, for files kept or sent. Parallel gzip, compressing
+   chunks on every core and writing them direct, could make more cheap, if disk
    ever matters more.
 2. **Masks, gain and pedestal**, which dxtbx stores as absolute paths: kept as
    paths, as dxtbx-h5 keeps them for now, so a `.rflx` moved away from its masks

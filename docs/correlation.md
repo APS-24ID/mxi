@@ -157,7 +157,11 @@ its own .rflx, `cluster_0.rflx` and on (`--prefix`): its data sets, any
 crystal-less sweep experiment of theirs (the same image set and scan, so that
 mxi's own files keep their sweeps), and their reflections, the ids renumbered
 and the identifier map to match (keep_experiments, which dials_form now
-uses), the input's processing summary carried. On Graeme's 36 crystals: three
+uses); and its own crystals' history -- each step's record in the input's
+summary cut to the cluster's sweeps and experiments, renumbered as the
+cluster's file numbers them, figures only the whole run had named as left
+out -- with mxi correlation's own record after it (src/summary_cut.cc), so
+that a cluster's report is its crystals'. On Graeme's 36 crystals: three
 files of 12, about 420000 rows each; the second scaled on its own by
 mxi scale, completeness 90.1 per cent and multiplicity 9.8, as
 dials.correlation_matrix reports that cluster (90.1, 9.74); R merge 0.146

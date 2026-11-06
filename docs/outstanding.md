@@ -357,6 +357,24 @@ history on 20 October: four closed, nine rewritten to what is now true.
 
 * **28.** **mxi export: mmCIF.** The unmerged MTZ is written, as dials.export's
     (`docs/export.md`); mmCIF is not.
+* **82.** **capability -- mxi triage, the rest of xtriage.** Begun with the
+    intensity statistics and the twin laws (`docs/triage.md`); to come: the
+    Britton plot and the maximum-likelihood twin fraction; translational NCS
+    from the Patterson (its p-value); the Wilson statistics reported -- the ML
+    isotropic and anisotropic B, the mean intensity against an expected curve;
+    the data's health -- low-resolution completeness, ice rings from the
+    intensities, anomalous measurability; and Matthews, given a residue count.
+* **83.** **correctness -- mxi triage's centric <I^2>/<I>^2 against
+    xtriage's.** On the same insulin data (mxi's scaled.mtz given to xtriage):
+    3.27 here, 2.85 there, where the centric N(z) agreed to the third figure and
+    xtriage removed no outliers -- a few of the strongest centric reflections,
+    not the bulk. xtriage merged scaled.mtz itself; mxi triage merges
+    scaled.rflx with its own selection (partiality 0.4): the merging is the next
+    place to look. Seen 6 November.
+* **84.** **mxi triage's Wilson fit before the twin tests** takes the
+    reflections as P1's, all acentric, epsilon 1 (it is `mxi symmetry`'s,
+    laue.hh); xtriage's knows each one's. Little to the scale and B, but a fit
+    that knows them is the right one.
 ## The spot finder
 
 
@@ -407,10 +425,26 @@ history on 20 October: four closed, nine rewritten to what is now true.
   `docs/import.md`. Untested: several modules, a moving detector, beam direction
   or polarisation from the file, materials but silicon.
 
+## The interface and its viewer
+
+* **85.** **capability -- moving or reshaping an untrusted region.** The
+    viewer draws, chooses, deletes and undoes rectangles, circles and polygons
+    (`docs/ui.md`, `docs/mask.md`); napari's shapes layer also moved a region,
+    moved its vertices, and drew ellipses and freehand polygons. Here a region
+    is deleted and drawn again.
+* **86.** **The resolution under the cursor** is from a multi-panel
+    detector's first panel only (`docs/ui.md`).
+
 ## Infrastructure
 * **31.** **The C++ suite is slow**: mxi_tests about five minutes on one core
     here, most of it a handful of older refinement and indexing tests and, since
     October, the spot finder's tests joined to it. ctest runs it as one test.
+* **87.** **mxi ui's window tests do not run in the release builds**
+    (`MXI_NO_WINDOW_TESTS`, since v1.1.4-rc1's macOS test step seemed to
+    stall): they run
+    where there is a display -- xvfb here, a desktop -- so before a release, on
+    a desktop, `pytest python/tests/test_ui_window.py
+    python/tests/test_ui_viewer.py`.
 ## Closed
 
 * **81.** **release -- the workflow's actions on Node.js 24.** Closed 3 November,

@@ -1,7 +1,7 @@
 # Reviewing this code: a guide for DIALS developers
 
 STATUS: written 30 September 2026 for external review, brought up to date 12
-October 2026. It says what this is,
+October and 6 November 2026. It says what this is,
 how to build and run it on your own data, where the code for each step lives,
 what follows DIALS and where it departs from it, and how correctness has been
 established. Every claim points at the document with the evidence;
@@ -15,7 +15,13 @@ one crystal** (`docs/multi-sweep.md`), **or several crystals in one beam**
 (`docs/multi-lattice.md`), step for step as DIALS divides it, with the spot
 finder's threshold and the profile fitting also on the GPU (Metal and CUDA):
 
-    mxi find -> mxi index -> mxi refine -> mxi integrate -> mxi symmetry -> mxi scale -> mxi export
+    mxi import -> mxi find -> mxi index -> mxi refine -> mxi integrate
+               -> mxi symmetry -> mxi scale -> mxi export
+
+`mxi process` runs them in turn (`docs/process.md`); `mxi ui` is an interface
+to them, their results and the images (`docs/ui.md`); `mxi correlation`
+sorts many crystals into clusters (`docs/correlation.md`), and `mxi triage`
+says what scaled data say of twinning (`docs/triage.md`).
 
 Its own files are `.rflx`, one HDF5 file a step in dxtbx-h5's layout
 (`docs/rflx.md`); it reads and writes DIALS' own `.expt` and `.refl` as well,
@@ -29,8 +35,10 @@ read for it, and the file says which.
 Its dependencies: HDF5, with bitshuffle and LZ4 vendored for the Eiger's
 compression; gemmi for space groups (MPL 2.0, a submodule, unmodified); FFTW
 optionally for indexing's transform (GPL, off by default -- the default build
-uses a built-in radix-2); CUDA or Metal optionally for the spot finder. The
-package is BSD 3-clause.
+uses a built-in radix-2); CUDA or Metal optionally for the spot finder and the
+profile fitting. `mxi view` and `mxi ui` are Python, needing tkinter, numpy,
+h5py and hdf5plugin, and matplotlib for the plots. The package is BSD
+3-clause.
 
 **How it was written.** Every commit is authored by Graeme Winter with Claude
 (Anthropic) as co-author, and says so. The direction, the data and the decisions
@@ -39,12 +47,12 @@ package is BSD 3-clause.
 that caused bugs, and what not to do again. It is worth reading for the same
 reason a DIALS developer's notes would be.
 
-Its size, excluding third-party code: the library 32629 lines in `src/`, spot
-finding among it; twenty-two programs in 12988 lines in `apps/`; C++ tests
-17583 lines; a Python package of comparison and regression tools, `mxeq`,
-10258 lines, with 7843 of tests; 10205 lines of documents. Some 530 commits
-over six weeks, released as 1.0.5; `RELEASE_NOTES.md` says what each release
-changed.
+Its size on 6 November 2026, excluding third-party code: the library 34590
+lines in `src/`, spot finding among it; 28 commands in 14407 lines in `apps/`;
+C++ tests 18244 lines; in Python, the comparison and regression tools,
+`mxeq`, 11520 lines, the interface, `mxi_ui`, 3749, with 11927 lines of tests;
+some 11300 lines of documents. 643 commits over two months, the latest
+release 1.1.5; `RELEASE_NOTES.md` says what each release changed.
 `docs/algorithms.md` lists each stage's methods and their sources.
 
 `mxeq regress` runs the chain over real data sets on each machine and keeps
@@ -114,7 +122,9 @@ takes 36.6 s of wall time and 3m42 of CPU (30 September 2026).
 | integration | `integrate` (summation), `background`, `shoebox`, `mask`, `profile_model`, `profile_grid`, `reference` (profiles and fitting), `postrefine`; on a GPU `fit_batch`, `fit_cuda.cu`, `fit_metal.metal`, `fit_device_*`, `cuda_device.cu`, `metal_device` | `mxi integrate` | `docs/integration.md`; `docs/gpu.md` |
 | symmetry | `symmetry` (space groups, settings, via gemmi), `laue`, `cosym` | `mxi symmetry` | `docs/symmetry.md` |
 | scaling | `scale`, `scale_model`, `resolution`, `two_theta` | `mxi scale` | `docs/scaling.md` |
-| many crystals | `correlation`, `combine` | `mxi correlation`, `mxi combine`, `mxi split` | `docs/correlation.md`, `docs/multi-sweep.md` |
+| many crystals | `correlation`, `combine`, `summary_cut` (a cluster's own history) | `mxi correlation`, `mxi combine`, `mxi split` | `docs/correlation.md`, `docs/multi-sweep.md` |
+| the data's quality | `triage` (twinning, as xtriage), `verify` (how much of each lattice's prediction was seen) | `mxi triage`, `mxi verify` | `docs/triage.md` |
+| the whole sequence | `self_path` (this program's own path, to run its commands) | `mxi process` | `docs/process.md` |
 | output | `rflx`, `refl` (msgpack by hand), `expt`, `views` | `mxi export`, `mxi convert`, `mxi show`, `mxi report` | `docs/export.md`, `docs/rflx.md` |
 | plumbing | `json`, `args`, `summary`, `processing`, `parallel` | | |
 
@@ -127,16 +137,17 @@ own, `python/src/mxi_view.py`, copied beside `mxi` by the build with the module 
 shares, `python/src/mxi_tools.py`, and run by it. Both are also in the wheel
 `mxi-python` with mxeq: every Python tool is in `python/src/`. `mxi ui`, the
 interface, is the package `python/src/mxi_ui` (`docs/ui.md`), copied beside
-`mxi` with its launcher `mxi-ui`; only its windows import tkinter. In the build directory each command's old
-name, `"mxi_find"`, is a link to `mxi`, which runs the command it is called by:
-the tests run them so; they are not installed. Seven commands are for looking at
+`mxi` with its launcher `mxi-ui`; only its windows import tkinter. In the
+build directory each command's old name, `"mxi_find"`, is a link to `mxi`, which runs the command it is called by:
+the tests run them so; they are not installed. Eight commands are for looking at
 a step rather than doing it, listed apart by `mxi help`: `mxi profile`
 estimates the profile model, `mxi foreground` marks each reflection's
 foreground for dials.image_viewer, `mxi grid` and `mxi forward` show spots in
 Kabsch space and rendered onto the pixels, `mxi residuals` decomposes centroid
 residuals, `mxi background` fits backgrounds to given pixels, and `mxi
-readtest` times reading. `cmake --install` puts `mxi`, with `mxi view`'s
-Python, in a `bin`.
+readtest` times reading; and `mxi verify` says how much of what each lattice
+predicts was seen. `cmake --install` puts `mxi`, with the Python it runs --
+`mxi view`'s and `mxi ui`'s -- in a `bin`.
 
 What files record is unchanged: each processing step is named as before,
 `"mxi_find"`, `"mxi_refine"`, in a file's summary, and each command's log is

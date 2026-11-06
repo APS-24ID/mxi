@@ -14,7 +14,7 @@ its conclusions sometimes overturned later, with an index of those.
 | [`docs/triage.md`](triage.md) | begun | `mxi triage`, what the data say of twinning, as phenix.xtriage: the statistics, the twin laws, the summary, where it differs from xtriage, what is to come |
 | [`docs/process.md`](process.md) | guide | `mxi process`, the whole sequence: where each option goes, where it starts from a `.rflx`, what to do when a step fails, ways through -- with their flows |
 | [`docs/mask.md`](mask.md) | guide | viewing the images, and the detector's untrusted regions: drawing them with mxi view, keeping and applying them with mxi untrusted |
-| [`docs/release.md`](release.md) | guide | making a release: the tag, the builds for Linux with CUDA and macOS with Metal, what they test, the source archive, macOS's quarantine |
+| [`docs/release.md`](release.md) | guide | making a release: the tag, the builds for Linux with CUDA and macOS with Metal, what they test and leave out (the device and window tests), the source archive, macOS's quarantine |
 | [`RELEASE_NOTES.md`](../RELEASE_NOTES.md) | reference | what each release changed, newest first |
 | [`docs/tutorials/cows-pigs-people.md`](tutorials/cows-pigs-people.md) | tutorial | 36 insulin crystals from three species: processing many crystals, and finding which belong together |
 | [`docs/outstanding.md`](outstanding.md) | list | every open task, with its evidence |
@@ -22,7 +22,7 @@ its conclusions sometimes overturned later, with an index of those.
 | [`docs/multi-sweep.md`](multi-sweep.md) | plan | more than one sweep, from import to scaling: where each program stands, the steps, how each is tested |
 | [`docs/multi-lattice.md`](multi-lattice.md) | plan, built | several lattices in one data set, with shared models and their own crystals and profiles; sweeps carried through indexing, as dials/dials#1029 proposes: the model, each program, the stages, the questions |
 | [`docs/rflx.md`](rflx.md) | design, built | `.rflx`, one HDF5 file a step in dxtbx-h5's layout, as mxi's primary format: the decisions, the format, the programs, the converter, and how it will be judged |
-| [`docs/output.md`](output.md) | built; the GUI later | what each program prints for a crystallographer, the processing's summary in each .rflx, mxi show, mxi report's HTML report, and porting dials_ui to mxi |
+| [`docs/output.md`](output.md) | built | what each program prints for a crystallographer, the processing's summary in each .rflx, mxi show, mxi report's HTML report; since, mxi ui reading the summaries, and what mxi process, the clusters, mxi triage and mxi verify write |
 | [`docs/regression.md`](regression.md) | built; bisecting next | regression runs over real data sets: mxeq regress, its directory, the figures kept and how runs are compared |
 | [`docs/correlation.md`](correlation.md) | built | mxi correlation: clustering data sets by their intensities, as dials.correlation_matrix -- the matrix, the coordinates, OPTICS |
 | [`docs/export.md`](export.md) | design | mxi export, an unmerged MTZ as dials.export writes it: the intensities and their corrections, the columns, the batches and their headers |

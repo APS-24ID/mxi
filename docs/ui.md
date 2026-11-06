@@ -183,13 +183,19 @@ done; `runner.py` a command in the background; `results.py` a step's facts,
 tables and plots from its file's summary; `render.py` the viewer's
 reduction, scale and geometry; `regions.py` its untrusted regions; `notes.py`
 each step's notes; `deps.py` the check for what is needed;
-`window.py` and `viewer.py` the windows. Only the windows import tkinter, so
-that everything else imports, and is tested, where there is no display. It
-finds mxi beside itself, as a release archive lays it out, else on the PATH,
-or where the `MXI` environment variable says. It reads images and files
+`window.py` and `viewer.py` the windows; `gestures.py` a wheel's and a
+trackpad's scrolling; `tooltip.py` the tooltips; `locate.py` finding `mxi`;
+`app.py` the command, `mxi ui`. Only the windows and what they need of Tk
+-- `window.py`, `viewer.py`, `tooltip.py`, `gestures.py`, and `app.py` when
+it opens one -- import tkinter, so that everything else imports, and is
+tested, where there is no display. It finds mxi where the `MXI` environment
+variable says, else beside itself, as a release archive lays it out, else on
+the PATH. It reads images and files
 through `mxi_tools`, as `mxi view` does.
 
 ## Not yet
 
 - The resolution under the cursor from a multi-panel detector's first panel
   only.
+- Moving or reshaping an untrusted region, as napari could: a region is
+  deleted and drawn again (`docs/outstanding.md`, 85).

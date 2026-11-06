@@ -1,7 +1,7 @@
 # What the programs say, and for whom
 
 STATUS: built, 12 and 13 October 2026, as Graeme decided (below); the GUI
-deferred.
+built since as mxi ui (November, docs/ui.md), reading the summaries below.
 
 Graeme: the programs' output is technical -- where the data are -- and light on
 crystallography, refinement's progress and the like. DIALS's logs are mostly of
@@ -136,15 +136,26 @@ what makes a constant flat (0.01 A, 0.1 degree). A step it has no section for
 gets its tables; long or nested lists are left to the plots. Not yet: the error
 model's normal probability plot, anomalous plots, Wilson plots -- dials.scale's analysis plots past the merging statistics.
 
-## The GUI, later
+## Since: the interface, and the commands after
 
-Port `dials_ui` to mxi as a second back end in the same program, not a copy:
-its steps, runner and frame are about running programs in order and showing
-their output, and only its step definitions and its parsers are DIALS's. An
-mxi back end is a step list (`mxi import` to `mxi export`, their options) and a
-reader of `mxi_<program>.json` in place of the log parsers. The viewers
-(image viewer, reciprocal lattice viewer) stay DIALS's, given the DIALS pair
-through `mxi convert` where they need it.
+**mxi ui** (docs/ui.md), the GUI the section that stood here planned -- not a
+port of `dials_ui` as planned but a program of mxi's own, in tkinter, reading
+each step's figures and tables from its file's summary (mxi_tools.read_summary)
+where the plan had a JSON file a program, and with its own image viewer where
+the plan had kept DIALS's.
+
+**mxi process** (docs/process.md) prints a header for each step it runs,
+its command, then the step's own output; `mxi_process.log` keeps its own lines,
+each step its own log as ever. It adds nothing to a summary: each step records
+itself.
+
+**mxi correlation --write-clusters** gives each cluster's file its own crystals'
+history, each step's record cut to its sweeps and experiments, and adds its
+own record after it (docs/rflx.md, The processing's summary).
+
+**mxi triage** (docs/triage.md) and **mxi verify** report, to the terminal and
+their logs, `mxi_triage.log` and `mxi_verify.log`; they write no file and record
+nothing.
 
 ## --timing
 

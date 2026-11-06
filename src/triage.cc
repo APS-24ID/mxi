@@ -50,12 +50,91 @@ Miller add(const Miller &a, const Miller &b) {
   return {a[0] + b[0], a[1] + b[1], a[2] + b[2]};
 }
 
-// The reflections used: in [d_min, d_max], each with its E^2 and whether it is
-// centric, by index.
+// Chebyshev nodes as cctbx's chebyshev_nodes(n, low, high, include_limits=
+// True): -cos((2k - 1) pi / 2n), stretched to reach the limits.
+std::vector<double> chebyshev_nodes(int n, double low, double high) {
+  std::vector<double> x(static_cast<std::size_t>(n));
+  for (int k = 0; k < n; ++k)
+    x[k] = -std::cos((2.0 * (k + 1) - 1.0) / n * std::acos(-1.0) / 2.0);
+  const double span = (x.back() - x.front()) / 2.0;
+  for (double &v : x)
+    v = 0.5 * (low + high) + 0.5 * (high - low) * (v / span);
+  x.front() = low;
+  x.back() = high;
+  return x;
+}
+
+// A Chebyshev series on [low, high], fitted by least squares to (x, y).
+struct Chebyshev {
+  double low = 0, high = 1;
+  std::vector<double> c;
+  double operator()(double x) const {
+    const double t = (2.0 * x - low - high) / (high - low);
+    double t0 = 1, t1 = t, sum = c.empty() ? 0.0 : c[0];
+    for (std::size_t k = 1; k < c.size(); ++k) {
+      sum += c[k] * t1;
+      const double t2 = 2 * t * t1 - t0;
+      t0 = t1;
+      t1 = t2;
+    }
+    return sum;
+  }
+};
+
+Chebyshev chebyshev_fit(int terms, const std::vector<double> &x,
+                        const std::vector<double> &y, double low, double high) {
+  Chebyshev f{low, high, {}};
+  const std::size_t m = static_cast<std::size_t>(terms);
+  std::vector<double> a(m * m, 0.0), b(m, 0.0), basis(m);
+  for (std::size_t i = 0; i < x.size(); ++i) {
+    const double t = (2.0 * x[i] - low - high) / (high - low);
+    basis[0] = 1;
+    if (m > 1)
+      basis[1] = t;
+    for (std::size_t k = 2; k < m; ++k)
+      basis[k] = 2 * t * basis[k - 1] - basis[k - 2];
+    for (std::size_t p = 0; p < m; ++p) {
+      b[p] += basis[p] * y[i];
+      for (std::size_t q = 0; q < m; ++q)
+        a[p * m + q] += basis[p] * basis[q];
+    }
+  }
+  // The normal equations by Gaussian elimination with partial pivoting.
+  for (std::size_t col = 0; col < m; ++col) {
+    std::size_t pivot = col;
+    for (std::size_t r = col + 1; r < m; ++r)
+      if (std::abs(a[r * m + col]) > std::abs(a[pivot * m + col]))
+        pivot = r;
+    for (std::size_t q = 0; q < m; ++q)
+      std::swap(a[col * m + q], a[pivot * m + q]);
+    std::swap(b[col], b[pivot]);
+    const double d = a[col * m + col];
+    if (std::abs(d) < 1e-300)
+      continue;
+    for (std::size_t r = 0; r < m; ++r) {
+      if (r == col)
+        continue;
+      const double factor = a[r * m + col] / d;
+      for (std::size_t q = 0; q < m; ++q)
+        a[r * m + q] -= factor * a[col * m + q];
+      b[r] -= factor * b[col];
+    }
+  }
+  f.c.resize(m);
+  for (std::size_t k = 0; k < m; ++k)
+    f.c[k] = std::abs(a[k * m + k]) < 1e-300 ? 0.0 : b[k] / a[k * m + k];
+  return f;
+}
+
+// The reflections in [d_min, d_max], and each one's E^2, normalised as
+// xtriage's kernel_normalisation (absolute_scaling.py, auto_kernel): <I/eps>
+// by a Gaussian kernel -- its width the d*^2 of the 50th reflection from low
+// resolution less the least -- at 23 Chebyshev nodes over the range, a
+// 13-term Chebyshev series fitted to its log, and E^2 = I / that, eps NOT
+// divided out (its normalised_miller; normalised_miller_dev_eps divides).
 struct Used {
-  std::vector<std::size_t> rows;
-  std::map<Miller, std::size_t> at; //: unique index -> position in rows
-  std::vector<double> e2;
+  std::vector<std::size_t> rows; //: in range, every one
+  std::vector<double> e2;        //: each one's E^2
   std::vector<bool> centric;
 };
 
@@ -67,32 +146,47 @@ Used normalised(const TriageData &data, const UnitCell &cell,
     const double d = d_spacing(cell, data.hkl[r]);
     if (!(d >= d_min && d <= d_max) || group.absent(data.hkl[r]))
       continue;
-    u.at[data.hkl[r]] = u.rows.size();
     u.rows.push_back(r);
     u.centric.push_back(group.centric(data.hkl[r]));
     s2.push_back(1.0 / (d * d));
     scaled.push_back(data.intensity[r] / epsilon(group, data.hkl[r]));
   }
-  // <I/eps> in shells of equal count by resolution, about 400 a shell, 1 to
-  // 20 of them; E^2 each one's I/eps over its shell's mean.
   const std::size_t n = u.rows.size();
   u.e2.assign(n, 0.0);
-  if (n == 0)
+  if (n < 2)
     return u;
-  std::vector<std::size_t> order(n);
-  std::iota(order.begin(), order.end(), 0);
-  std::sort(order.begin(), order.end(),
-            [&](std::size_t a, std::size_t b) { return s2[a] < s2[b]; });
-  const std::size_t shells = std::clamp<std::size_t>(n / 400, 1, 20);
-  for (std::size_t k = 0; k < shells; ++k) {
-    const std::size_t lo = k * n / shells, hi = (k + 1) * n / shells;
-    double mean = 0.0;
-    for (std::size_t i = lo; i < hi; ++i)
-      mean += scaled[order[i]];
-    mean /= static_cast<double>(std::max<std::size_t>(hi - lo, 1));
-    for (std::size_t i = lo; i < hi; ++i)
-      u.e2[order[i]] = mean > 0.0 ? scaled[order[i]] / mean : 0.0;
+  std::vector<double> sorted = s2;
+  std::sort(sorted.begin(), sorted.end());
+  const double low = sorted.front(), high = sorted.back();
+  std::size_t number = std::min<std::size_t>(50, n - 1);
+  double width = sorted[number] - low;
+  while (width <= 0 && number + 50 < n / 2) {
+    number += 50;
+    width = sorted[number] - low;
   }
+  if (!(width > 0) || !(high > low))
+    return u;
+  const std::vector<double> nodes = chebyshev_nodes(23, low, high);
+  std::vector<double> x, y;
+  for (double node : nodes) {
+    double w = 0, sum = 0;
+    for (std::size_t i = 0; i < n; ++i) {
+      const double dx = s2[i] - node;
+      const double k = std::exp(-dx * dx / (2 * width * width));
+      w += k;
+      sum += k * scaled[i];
+    }
+    const double mean = sum / std::max(w, 1e-8);
+    if (mean > 1e-16) {
+      x.push_back(node);
+      y.push_back(std::log(mean));
+    }
+  }
+  if (x.size() < 2)
+    return u;
+  const Chebyshev fit = chebyshev_fit(13, x, y, low, high);
+  for (std::size_t i = 0; i < n; ++i)
+    u.e2[i] = data.intensity[u.rows[i]] / std::exp(fit(s2[i]));
   return u;
 }
 
@@ -100,7 +194,9 @@ Moments moments(const Used &u, bool centric) {
   Moments m;
   double e2 = 0, e4 = 0, e = 0, dev = 0;
   for (std::size_t i = 0; i < u.e2.size(); ++i) {
-    if (u.centric[i] != centric)
+    // The positive E^2 only, as xtriage's wilson_normalised_intensities
+    // selects them.
+    if (u.centric[i] != centric || !(u.e2[i] > 0))
       continue;
     const double x = u.e2[i];
     e2 += x;
@@ -202,26 +298,27 @@ std::vector<TwinLaw> twin_laws(const UnitCell &cell, const SpaceGroup &group,
 
 double twin_test_d_min(const TriageData &data, const UnitCell &cell,
                        const SpaceGroup &group, const TriageOptions &o) {
-  double data_d_min = 1e9;
-  for (const Miller &m : data.hkl)
-    data_d_min = std::min(data_d_min, d_spacing(cell, m));
-  if (data.hkl.empty() || data_d_min >= o.d_max)
-    return data_d_min;
-  // The reflections possible in the asymmetric unit, from d_max to the data's
-  // limit, and of those, how many have I/sigma at least isigi_cut: shells of
-  // equal volume in 1/d^3, ten.
-  const int shells = 10;
-  const double lo = 1.0 / (o.d_max * o.d_max * o.d_max),
-               hi = 1.0 / (data_d_min * data_d_min * data_d_min);
-  auto shell_of = [&](double d) {
-    const double x = 1.0 / (d * d * d);
-    return std::clamp(static_cast<int>((x - lo) / (hi - lo) * shells), 0,
-                      shells - 1);
+  if (data.hkl.empty())
+    return o.resolution_at_least;
+  double d_lo = 0.0, d_hi = 1e9;
+  for (const Miller &m : data.hkl) {
+    const double d = d_spacing(cell, m);
+    d_lo = std::max(d_lo, d);
+    d_hi = std::min(d_hi, d);
+  }
+  // Shells of equal volume over the data's range, as cctbx's binner sets
+  // them up for n bins: equal steps in d*^3.
+  const int bins = std::max(o.strength_bins, 2);
+  const double lo = 1.0 / (d_lo * d_lo * d_lo), hi = 1.0 / (d_hi * d_hi * d_hi);
+  auto bin_of = [&](double d) {
+    const double v = 1.0 / (d * d * d);
+    return std::clamp(static_cast<int>((v - lo) / (hi - lo) * bins), 0,
+                      bins - 1);
   };
-  std::vector<double> possible(shells, 0.0), strong(shells, 0.0);
-  const int hm = static_cast<int>(cell.a / data_d_min) + 1,
-            km = static_cast<int>(cell.b / data_d_min) + 1,
-            lm = static_cast<int>(cell.c / data_d_min) + 1;
+  std::vector<double> possible(bins, 0.0), strong(bins, 0.0);
+  const int hm = static_cast<int>(cell.a / d_hi) + 1,
+            km = static_cast<int>(cell.b / d_hi) + 1,
+            lm = static_cast<int>(cell.c / d_hi) + 1;
   std::set<Miller> counted;
   for (int h = -hm; h <= hm; ++h)
     for (int k = -km; k <= km; ++k)
@@ -230,25 +327,25 @@ double twin_test_d_min(const TriageData &data, const UnitCell &cell,
         if (h == 0 && k == 0 && l == 0)
           continue;
         const double d = d_spacing(cell, m);
-        if (d < data_d_min || d > o.d_max || group.absent(m))
+        if (d < d_hi || d > d_lo || group.absent(m))
           continue;
         if (counted.insert(group.unique(m)).second)
-          possible[shell_of(d)] += 1.0;
+          possible[bin_of(d)] += 1.0;
       }
-  for (std::size_t r = 0; r < data.hkl.size(); ++r) {
-    const double d = d_spacing(cell, data.hkl[r]);
-    if (d > o.d_max || d < data_d_min || !(data.sigma[r] > 0))
-      continue;
-    if (data.intensity[r] / data.sigma[r] >= o.isigi_cut)
-      strong[shell_of(d)] += 1.0;
+  for (std::size_t r = 0; r < data.hkl.size(); ++r)
+    if (data.intensity[r] > o.isigi_cut * data.sigma[r])
+      strong[bin_of(d_spacing(cell, data.hkl[r]))] += 1.0;
+  // From low resolution, the finest shell finer than resolution_at_least
+  // that is complete enough -- not the first that is not: no shell after the
+  // last but one counted, as xtriage's loop leaves it out.
+  double cut = 4.0;
+  for (int b = 0; b + 1 < bins; ++b) {
+    const double d_edge = std::cbrt(1.0 / (lo + (hi - lo) * (b + 1) / bins));
+    if (d_edge < o.resolution_at_least && possible[b] > 0 &&
+        strong[b] / possible[b] > o.completeness)
+      cut = d_edge;
   }
-  double d_min = o.d_max;
-  for (int s = 0; s < shells; ++s) {
-    if (possible[s] == 0 || strong[s] / possible[s] < o.completeness)
-      break;
-    d_min = std::cbrt(1.0 / (lo + (hi - lo) * (s + 1) / shells));
-  }
-  return std::max(std::min(d_min, o.coarsest_d_min), data_d_min);
+  return cut > o.resolution_at_least ? o.resolution_at_least : cut;
 }
 
 Triage triage(const TriageData &data, const UnitCell &cell,
@@ -258,9 +355,12 @@ Triage triage(const TriageData &data, const UnitCell &cell,
   t.d_min = options.d_min > 0 ? options.d_min
                               : twin_test_d_min(data, cell, group, options);
   const Used u = normalised(data, cell, group, t.d_min, t.d_max);
-  t.used = u.rows.size();
-  for (bool c : u.centric)
-    (c ? t.centric : t.acentric) += 1;
+  // Counted as used: the positive E^2, which the moments, N(z) and the L
+  // test take, as xtriage's.
+  for (std::size_t i = 0; i < u.rows.size(); ++i)
+    if (u.e2[i] > 0)
+      (u.centric[i] ? t.centric : t.acentric) += 1;
+  t.used = t.acentric + t.centric;
   t.acentric_moments = moments(u, false);
   t.centric_moments = moments(u, true);
 
@@ -269,7 +369,7 @@ Triage triage(const TriageData &data, const UnitCell &cell,
     const double z = 0.1 * k;
     double na = 0, nc = 0;
     for (std::size_t i = 0; i < u.e2.size(); ++i)
-      if (u.e2[i] <= z)
+      if (u.e2[i] > 0 && u.e2[i] <= z)
         (u.centric[i] ? nc : na) += 1;
     const double fa = t.acentric ? na / t.acentric : 0.0,
                  fc = t.centric ? nc / t.centric : 0.0;
@@ -287,95 +387,82 @@ Triage triage(const TriageData &data, const UnitCell &cell,
           std::max(t.nz.max_deviation_centric, std::abs(fc - tc));
   }
 
-  // The L test: each acentric reflection and a neighbour (2h', 2k', 2l'),
-  // 1 <= |h'|+|k'|+|l'| <= 4, tried in an order drawn afresh for each.
+  // The L test as xtriage's (twinning.h, l_test): over the positive acentric
+  // E^2, each reflection one neighbour drawn from the offsets (dh, dk, dl),
+  // each even, 2 <= |dh|+|dk|+|dl| < 8; none where it was not measured.
+  std::map<Miller, std::size_t> acentric_at; //: unique index -> position in u
+  for (std::size_t i = 0; i < u.rows.size(); ++i)
+    if (!u.centric[i] && u.e2[i] > 0)
+      acentric_at[data.hkl[u.rows[i]]] = i;
   std::vector<Miller> offsets;
-  for (int a = -4; a <= 4; ++a)
-    for (int b = -4; b <= 4; ++b)
-      for (int c = -4; c <= 4; ++c) {
+  for (int a = -8; a <= 8; ++a)
+    for (int b = -8; b <= 8; ++b)
+      for (int c = -8; c <= 8; ++c) {
         const int s = std::abs(a) + std::abs(b) + std::abs(c);
-        if (s >= 1 && s <= 4)
-          offsets.push_back({2 * a, 2 * b, 2 * c});
+        if (a % 2 == 0 && b % 2 == 0 && c % 2 == 0 && s >= 2 && s < 8)
+          offsets.push_back({a, b, c});
       }
   std::mt19937 random(options.seed);
+  std::uniform_int_distribution<std::size_t> pick(0, offsets.size() - 1);
   double sum_abs = 0, sum_sq = 0;
-  // Not a neighbour the lattice's own symmetry relates to it: equal where a
-  // symmetry was missed, or near it where twinned, L = 0 then, and the test
-  // had called P 4 2 2 data taken as P 4 abnormal (Z 7.8) -- L is to compare
-  // unrelated reflections, the mixture twinning makes of each still showing.
-  const std::vector<Rotation> lattice =
-      lattice_symmetry(cell, options.max_delta);
-  for (std::size_t i = 0; i < u.rows.size(); ++i) {
-    if (u.centric[i])
+  for (const auto &[h, i] : acentric_at) {
+    const Miller mate = group.unique(add(h, offsets[pick(random)]));
+    const auto found = acentric_at.find(mate);
+    if (found == acentric_at.end())
       continue;
-    const Miller &h = data.hkl[u.rows[i]];
-    std::shuffle(offsets.begin(), offsets.end(), random);
-    for (const Miller &dh : offsets) {
-      const Miller mate = group.unique(add(h, dh));
-      const auto found = u.at.find(mate);
-      if (mate == h || found == u.at.end() || u.centric[found->second])
-        continue;
-      bool related = false;
-      for (const Rotation &r : lattice)
-        related = related || group.unique(mxi::apply(r, h)) == mate;
-      if (related)
-        continue;
-      // E^2, not I: a neighbour two indices off is a little further out, and
-      // the fall-off alone had made the two differ -- <|L|> up from 1/2,
-      // untwinned data abnormal to the Z score over 30 000 pairs.
-      const double i1 = u.e2[i], i2 = u.e2[found->second];
-      if (!(i1 + i2 > 0))
-        break;
-      const double l = std::clamp((i1 - i2) / (i1 + i2), -1.0, 1.0);
-      sum_abs += std::abs(l);
-      sum_sq += l * l;
-      ++t.l_test.pairs;
-      break;
-    }
+    const double p = u.e2[i], q = u.e2[found->second];
+    const double l = (p - q) / (p + q);
+    sum_abs += std::abs(l);
+    sum_sq += l * l;
+    ++t.l_test.pairs;
   }
   if (t.l_test.pairs) {
     const double n = static_cast<double>(t.l_test.pairs);
     t.l_test.mean_abs_l = sum_abs / n;
     t.l_test.mean_l2 = sum_sq / n;
-    // Mahalanobis distance from (1/2, 1/3), L uniform on [-1, 1]: var |L| =
-    // 1/12, var L^2 = 4/45, cov = 1/12; of the means, over n.
-    const double a = 1.0 / 12.0 / n, b = 1.0 / 12.0 / n, c = 4.0 / 45.0 / n;
-    const double det = a * c - b * b;
-    const double x = t.l_test.mean_abs_l - 0.5,
-                 y = t.l_test.mean_l2 - 1.0 / 3.0;
-    t.l_test.z_score =
-        std::sqrt(std::max(0.0, (c * x * x - 2 * b * x * y + a * y * y) / det));
+    // xtriage's (twin_results_interpretation.compute_maha_l): from the mean
+    // and inverse covariance of some 1200 PDB data sets.
+    const double x = t.l_test.mean_abs_l - 0.48513455414,
+                 y = t.l_test.mean_l2 - 0.316418789809;
+    t.l_test.z_score = std::sqrt(std::max(
+        0.0, x * x * 679728.0 + y * y * 506232.0 - 2.0 * 583582.0 * x * y));
   }
-  t.abnormal = t.l_test.pairs > 0 && t.l_test.z_score > 3.5;
-  t.twin_like = t.abnormal && t.l_test.mean_abs_l < 0.5;
+  t.abnormal = t.l_test.pairs > 0 && t.l_test.z_score >= 3.5 &&
+               t.l_test.mean_abs_l < 0.5;
+  t.wide = t.l_test.pairs > 0 && t.l_test.z_score >= 3.5 &&
+           t.l_test.mean_abs_l >= 0.5;
 
-  // Each twin law: its pairs of acentric reflections in range, each once.
+  // Each twin law on the intensities as merged, in range, as xtriage's
+  // (twinning.h: twin_r, h_test): R over every reflection with a mate other
+  // than itself, centric too, each from both sides; the H test over the
+  // acentric, the strongest half of its pairs by I1 + I2.
+  std::map<Miller, std::size_t> in_range;
+  for (std::size_t i = 0; i < u.rows.size(); ++i)
+    in_range[data.hkl[u.rows[i]]] = i;
   for (TwinLaw law : twin_laws(cell, group, options.max_delta)) {
+    double top = 0, bottom = 0;
     std::vector<std::pair<double, double>> pairs;
-    for (std::size_t i = 0; i < u.rows.size(); ++i) {
-      if (u.centric[i])
-        continue;
-      const Miller &h = data.hkl[u.rows[i]];
+    for (const auto &[h, i] : in_range) {
       const Miller mate = group.unique(mxi::apply(law.op, h));
-      const auto found = u.at.find(mate);
-      if (!(h < mate) || found == u.at.end() || u.centric[found->second])
+      const auto found = in_range.find(mate);
+      if (mate == h || found == in_range.end())
         continue;
-      pairs.emplace_back(data.intensity[u.rows[i]],
-                         data.intensity[u.rows[found->second]]);
+      const double p = data.intensity[u.rows[i]],
+                   q = data.intensity[u.rows[found->second]];
+      top += std::abs(p - q);
+      bottom += std::abs(p + q);
+      if (!u.centric[i] && !u.centric[found->second])
+        pairs.emplace_back(p, q);
     }
-    law.pairs = pairs.size();
-    double num = 0, den = 0;
-    for (const auto &[a, b] : pairs) {
-      num += std::abs(a - b);
-      den += a + b;
-    }
-    law.r_obs = den > 0 ? num / den : 0.0;
-    std::sort(pairs.begin(), pairs.end(), [](const auto &p, const auto &q) {
-      return p.first + p.second > q.first + q.second;
+    law.r_obs = bottom > 0 ? top / bottom : 0.0;
+    law.pairs = pairs.size() / 2; // each from both sides
+    std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) {
+      return a.first + a.second > b.first + b.second;
     });
+    const std::size_t half = pairs.size() / 2;
     double h_abs = 0;
     std::size_t used = 0;
-    for (std::size_t k = 0; k < (pairs.size() + 1) / 2; ++k) {
+    for (std::size_t k = 0; k < half; ++k) {
       const double s = pairs[k].first + pairs[k].second;
       if (!(s > 0))
         continue;
@@ -399,7 +486,7 @@ Triage triage(const TriageData &data, const UnitCell &cell,
   auto round_to = [](double x, double unit) {
     return std::round(x / unit) * unit;
   };
-  const bool missed = highest && highest->h_alpha > 0.4 && !t.twin_like;
+  const bool missed = highest && highest->h_alpha > 0.4 && !t.abnormal;
   if (missed) {
     v << "The intensities related by " << highest->text
       << " are nearly equal (H-test fraction "
@@ -407,10 +494,10 @@ Triage triage(const TriageData &data, const UnitCell &cell,
       << round_to(highest->r_obs, 0.001)
       << ") while the L test shows no twinning: more likely a symmetry element "
          "missed than a twin. The space group may be too low.";
-    if (t.abnormal)
+    if (t.wide)
       v << " (The L test's spread is wider than untwinned data's, Z " << z
         << ", as the zones a higher symmetry makes centric would make it.)";
-  } else if (t.twin_like && highest)
+  } else if (t.abnormal && highest)
     v << "The L test's statistics differ from untwinned data's as twinning "
          "makes them (Z "
       << z << ", <|L|> " << round_to(t.l_test.mean_abs_l, 0.001)
@@ -418,13 +505,13 @@ Triage triage(const TriageData &data, const UnitCell &cell,
          "H-test fraction is "
       << round_to(highest->h_alpha, 0.01) << ", for " << highest->text
       << ". Refining against a twin target may be worth trying.";
-  else if (t.twin_like)
+  else if (t.abnormal)
     v << "The L test's statistics differ from untwinned data's as twinning "
          "makes them (Z "
       << z
       << "), yet no twin law is possible here: something else -- the "
          "data themselves, anisotropy -- is worth looking for.";
-  else if (t.abnormal)
+  else if (t.wide)
     v << "The L test's spread is wider than untwinned data's (Z " << z
       << ", <|L|> " << round_to(t.l_test.mean_abs_l, 0.001)
       << "): not twinning's signature. Translational NCS can do it.";

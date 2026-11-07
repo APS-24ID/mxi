@@ -36,14 +36,17 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   test is not twin-like (docs/triage.md).
 
 **Changed**
-- `mxi index` estimates the largest cell some ten times faster: on Graeme's
-  428 349 spots of a 128 A cell it had taken 10.2 of 13.2 seconds. Its test
-  for overlapping boxes had looked up each reflection's experiment and panel
-  by column name, for each of some 127 million pairs of boxes; its
+- `mxi index` estimates the largest cell in a fraction of the time: on
+  Graeme's 428 349 spots of a 128 A cell, the max cell 10.21 s before, 0.28 s
+  now, and the whole run 13.2 s before, 2.9 s now -- every candidate cell, the
+  cell chosen and the 414 387 indexed exactly as before. Its test for
+  overlapping boxes had looked up each reflection's experiment and panel by
+  column name for each of some 127 million pairs of boxes; its
   nearest-neighbour search kept its cells in a tree, searched whole cubes, ran
-  on one thread, and with points nearly in a plane made its cells minute. Each
-  read once now; the cells in one array, each shell's own visited, the points
-  shared among the threads, and sized from the points' widest span. The same
+  on one thread, and with points nearly in a plane made its cells minute. Now
+  each reflection's experiment and panel are read once, the cells are one
+  array with each shell's own visited, the points are shared among the
+  threads, and the cells are sized from the points' widest span. The same
   neighbours, the same largest cell, to the bit.
 
 ## 1.1.5 -- 5 November 2026

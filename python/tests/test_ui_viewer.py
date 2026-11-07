@@ -741,7 +741,7 @@ def test_the_scan_slider_through_the_sweeps_images(strong, monkeypatch):
         v._scanned("4.3")
         settle(root)
         assert v.image.get() == 4 and v.scan_at.get() == 4
-        assert v.of.cget("text") == f"image 4 of {v.first} to {v.last}"
+        assert v.typed.get() == "4" and v.of.cget("text") == f"of {v.first} to {v.last}"
         s = v.sweeps[v.sweep.get()]
         assert np.array_equal(v.frame, v.images[s["master"]].frame(3)), "image 4 drawn"
         v.step(1)
@@ -758,5 +758,34 @@ def test_the_scan_slider_through_the_sweeps_images(strong, monkeypatch):
         v._scanned("99")
         settle(root)
         assert v.image.get() == v.last, "held to the sweep"
+    finally:
+        root.destroy()
+
+
+def test_the_image_number_typed(strong):
+    # Graeme: the image's number editable beside the slider. Typed and Return,
+    # that image, the slider following; past the sweep, held to it; not a
+    # number, or Escape, the image shown again.
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        v.top.deiconify()  # keys go to the focused field of a window shown
+        v.number.focus_force()
+        settle(root)
+        v.typed.set("5")
+        v.number.event_generate("<Return>")
+        settle(root)
+        assert v.image.get() == 5 and v.scan_at.get() == 5 and v.typed.get() == "5"
+        v.typed.set("99")
+        v._typed()
+        assert v.image.get() == v.last and v.typed.get() == str(v.last)
+        v.typed.set("two")
+        v._typed()
+        assert v.image.get() == v.last and v.typed.get() == str(v.last), "unchanged"
+        v.number.focus_force()
+        settle(root)
+        v.typed.set("3")
+        v.number.event_generate("<Escape>")
+        settle(root)
+        assert v.typed.get() == str(v.last) and v.image.get() == v.last
     finally:
         root.destroy()

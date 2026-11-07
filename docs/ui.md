@@ -140,7 +140,8 @@ small circle; each layer can be hidden.
   Fit, 0 or a double-click shows the whole image, as the window opens.
 - **The image shown**: a slider under the toolbar, as wide as the window, where
   the image is among the sweep's at a glance -- dragged, each shown as fast as
-  images can be read -- an arrow each side to step one, and which it is.
+  images can be read -- an arrow each side to step one, and which it is, its
+  number editable: typed, and Return, that image.
 - **Pan**: drag with the left button.
 - **Close** (Cmd-W, Ctrl-W): the viewer, asking first where regions are not
   saved; under `mxi view`, the program.

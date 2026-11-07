@@ -11,7 +11,7 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   slider under the toolbar, as wide as the window, in place of the number box:
   where the image is among the sweep's at a glance, and dragged, each shown as
   fast as images can be read; an arrow each side to step one, and which image
-  it is beside them.
+  it is beside them, its number editable to go straight to one.
 - `mxi integrate` fits reflections whose foregrounds overlap, of one lattice
   or several, together -- each with its own lattice's profile, the shared
   pixels apportioned between them -- and takes their neighbours' counts out of

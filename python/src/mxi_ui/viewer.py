@@ -206,6 +206,7 @@ class Viewer:
         self.styles = {}  # each sweep's layers: (key, label, colour)
         self.readout = tk.StringVar(value="")
         self.scan_at = tk.DoubleVar(value=1.0)  # the image slider's place
+        self.typed = tk.StringVar(value="1")  # the image's number, as typed
         self._scan_wanted = None  # the image the slider last asked for
         self._scan_due = False
         self.view = None
@@ -239,8 +240,17 @@ class Viewer:
         ttk.Button(row, text="◀", width=3, command=lambda: self.step(-1)).pack(
             side=tk.LEFT
         )
-        self.of = ttk.Label(row, text="", width=22)
-        self.of.pack(side=tk.RIGHT, padx=(8, 0))
+        # Which image, the number editable (Graeme): typed, and Return, that
+        # image; Escape, or what is not a number, the image shown again.
+        self.of = ttk.Label(row, text="", width=14)
+        self.of.pack(side=tk.RIGHT)
+        self.number = ttk.Entry(row, textvariable=self.typed, width=6, justify=tk.RIGHT)
+        self.number.pack(side=tk.RIGHT, padx=(2, 4))
+        self.number.bind("<Return>", lambda _e: self._typed())
+        self.number.bind("<KP_Enter>", lambda _e: self._typed())
+        self.number.bind("<Escape>", lambda _e: self.typed.set(str(self._image())))
+        Tooltip(self.number, "Type an image's number, and Return, to go to it")
+        ttk.Label(row, text="image").pack(side=tk.RIGHT, padx=(8, 0))
         ttk.Button(row, text="▶", width=3, command=lambda: self.step(1)).pack(
             side=tk.RIGHT
         )
@@ -254,6 +264,16 @@ class Viewer:
         )
         self.scan.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=6)
         Tooltip(self.scan, "The image shown: drag through the sweep's images")
+
+    def _typed(self):
+        try:
+            wanted = int(self.typed.get().strip())
+        except ValueError:
+            self.typed.set(str(self._image()))
+            return
+        self.image.set(min(self.last, max(self.first, wanted)))
+        self.show()
+        self.canvas.focus_set()
 
     def _scanned(self, value):
         try:
@@ -536,7 +556,8 @@ class Viewer:
         n = min(self.last, max(self.first, self._image()))
         self.image.set(n)
         self.scan_at.set(n)  # the slider follows, its command not called
-        self.of.configure(text=f"image {n} of {self.first} to {self.last}")
+        self.typed.set(str(n))
+        self.of.configure(text=f"of {self.first} to {self.last}")
         s = self.sweeps[self.sweep.get()]
         images = self.images[s["master"]]
         # The sum ends at the sweep's last image (mxi_tools.Images.summed;

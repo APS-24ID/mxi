@@ -47,11 +47,6 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--sweep", type=int, default=0, help="the sweep shown first (0)"
     )
-    parser.add_argument(
-        "--mask",
-        action="store_true",
-        help="open with the untrusted regions' tools shown (the Mask button)",
-    )
     parser.add_argument("--version", action="version", version=f"mxi view {VERSION}")
     args = parser.parse_args(argv)
     if not os.path.exists(args.experiments):
@@ -80,7 +75,6 @@ def main(argv=None) -> int:
             where=os.getcwd(),
             summing=args.sum,
             sweep=args.sweep,
-            masking=args.mask,
         )
     except Exception as e:  # noqa: BLE001 -- said, whatever it is
         print(f"mxi view: {e}", file=sys.stderr)

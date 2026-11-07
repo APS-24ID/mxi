@@ -246,20 +246,20 @@ def test_mxi_view_runs_from_the_path_as_plain_mxi(tmp_path):
 def test_mxi_view_opens_mxi_uis_viewer(tmp_path):
     # mxi view is mxi ui's viewer since napari's was retired: a file named
     # that is not there said first, whatever the display; with one, a window
-    # opened and kept open, the options -o, --sum, --sweep and --mask taken.
+    # opened and kept open, the options -o, --sum and --sweep taken.
     run = subprocess.run(
         [MXI, "view", "nowhere.rflx"], capture_output=True, text=True, cwd=tmp_path
     )
     assert run.returncode == 2 and "no such file: nowhere.rflx" in run.stderr
     helped = subprocess.run([MXI, "view", "--help"], capture_output=True, text=True)
-    assert all(o in helped.stdout for o in ("-o", "--sum", "--sweep", "--mask"))
+    assert all(o in helped.stdout for o in ("-o", "--sum", "--sweep"))
     if not os.environ.get("DISPLAY") or os.environ.get("MXI_NO_WINDOW_TESTS"):
         pytest.skip("no display for the window (or the release builds')")
     strong, _master = planted(tmp_path)
     import time
 
     p = subprocess.Popen(
-        [MXI, "view", str(strong), "--sum", "3", "-o", "mine.rflx", "--mask"],
+        [MXI, "view", str(strong), "--sum", "3", "-o", "mine.rflx"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=tmp_path,

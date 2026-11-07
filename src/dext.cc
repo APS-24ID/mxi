@@ -3,7 +3,7 @@
 
 #include "dext.hh"
 
-#pragma region DISPERSION EXTENDED
+// region: DISPERSION EXTENDED
 
 template <typename T>
 int dext(const T *image_in, std::vector<SignalPixel> &signal_out,
@@ -39,7 +39,7 @@ int dext(const T *image_in, std::vector<SignalPixel> &signal_out,
   const R sigma_b = R(6.0), sigma_s = R(3.0);
   const T masked = static_cast<T>(std::numeric_limits<T>::max() - 1);
 
-#pragma region SAT ACCUMULATE INITAL THRESHOLD
+  // region: SAT ACCUMULATE INITAL THRESHOLD
 
   // Index through pointers throughout.  Pointer arithmetic takes a signed
   // ptrdiff_t, so the std::int32_t loop counters need no cast and no
@@ -64,7 +64,7 @@ int dext(const T *image_in, std::vector<SignalPixel> &signal_out,
     }
   }
 
-#pragma region INITIAL THRESHOLD
+  // region: INITIAL THRESHOLD
 
   for (std::int32_t i = 0, k = 0; i < ny; i++) {
     for (std::int32_t j = 0; j < nx; j++, k++) {
@@ -112,7 +112,7 @@ int dext(const T *image_in, std::vector<SignalPixel> &signal_out,
     }
   }
 
-#pragma region ERODE
+  // region: ERODE
 
   const std::int32_t er = knl - 1;
 
@@ -141,7 +141,7 @@ int dext(const T *image_in, std::vector<SignalPixel> &signal_out,
     }
   }
 
-#pragma region RECOMPUTE MASKED SAT
+  // region: RECOMPUTE MASKED SAT
 
   // i2_sat is dead from here on, but it is not released: the scratch is meant
   // to be reused across frames, and freeing it here would mean reallocating it
@@ -160,7 +160,7 @@ int dext(const T *image_in, std::vector<SignalPixel> &signal_out,
     }
   }
 
-#pragma region RECOMPUTE SAT AND FINAL THRESHOLD
+  // region: RECOMPUTE SAT AND FINAL THRESHOLD
 
   knl += 2;
 

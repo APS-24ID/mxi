@@ -138,6 +138,8 @@ small circle; each layer can be hidden.
   down with the right button, or with Control and the left, a level each 30
   pixels, about where the drag began; or a wheel or a trackpad's scroll.
   Fit, 0 or a double-click shows the whole image, as the window opens.
+- **Scan** through the images with the slider under the image, as wide as
+  the window: dragged, each image is shown as fast as images can be read.
 - **Pan**: drag with the left button.
 - **Close** (Cmd-W, Ctrl-W): the viewer, asking first where regions are not
   saved; under `mxi view`, the program.

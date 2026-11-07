@@ -205,6 +205,9 @@ class Viewer:
         self.showing = {}  # each layer's tick, made as layers are met
         self.styles = {}  # each sweep's layers: (key, label, colour)
         self.readout = tk.StringVar(value="")
+        self.scan_at = tk.DoubleVar(value=1.0)  # the scan slider's place
+        self._scan_wanted = None  # the image the slider last asked for
+        self._scan_due = False
         self.view = None
         self.photo = None
         self.frame = None
@@ -216,6 +219,7 @@ class Viewer:
         self._controls()
         self.canvas = tk.Canvas(self.top, background="#808080", highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
+        self._scan_bar()
         ttk.Label(
             self.top, textvariable=self.readout, padding=(8, 3), font="TkFixedFont"
         ).pack(fill=tk.X)
@@ -223,6 +227,43 @@ class Viewer:
         self.choose_sweep(min(max(0, int(sweep)), len(self.sweeps) - 1))
 
     # --- building ---------------------------------------------------------
+
+    def _scan_bar(self):
+        """A slider the width of the window, under the image, through the
+        sweep's images (Graeme: to scan through them). Dragged, it shows the
+        image it is at as fast as images are read -- each drawn when the
+        window is next idle, at the latest place, the events of a slow read
+        come to one -- and it follows the arrows, the box and the keys."""
+        row = ttk.Frame(self.top, padding=(8, 4, 8, 0))
+        row.pack(fill=tk.X)
+        self.scan = ttk.Scale(
+            row,
+            orient=tk.HORIZONTAL,
+            from_=1,
+            to=1,
+            variable=self.scan_at,
+            command=self._scanned,
+        )
+        self.scan.pack(fill=tk.X, expand=True)
+        Tooltip(self.scan, "Drag through the sweep's images")
+
+    def _scanned(self, value):
+        try:
+            wanted = int(round(float(value)))
+        except (TypeError, ValueError):
+            return
+        self._scan_wanted = min(self.last, max(self.first, wanted))
+        if not self._scan_due:
+            self._scan_due = True
+            self.top.after_idle(self._scan_show)
+
+    def _scan_show(self):
+        self._scan_due = False
+        wanted = self._scan_wanted
+        if wanted is None or wanted == self._image():
+            return
+        self.image.set(wanted)
+        self.show()
 
     def _controls(self):
         bar = ttk.Frame(self.top, padding=(8, 6))
@@ -426,6 +467,7 @@ class Viewer:
         self.first, self.last = s["first"], last
         self.spin.configure(from_=self.first, to=self.last)
         self.of.configure(text=f"of {self.first} to {self.last}")
+        self.scan.configure(from_=self.first, to=self.last)
         if k not in self.layers:
             lattices = [e for e in s["experiments"] if self._has_crystal(e)]
             self.layers[k], self.styles[k] = layers_for(
@@ -499,6 +541,7 @@ class Viewer:
         sweep's master, as mxi numbers them."""
         n = min(self.last, max(self.first, self._image()))
         self.image.set(n)
+        self.scan_at.set(n)  # the slider follows, its command not called
         s = self.sweeps[self.sweep.get()]
         images = self.images[s["master"]]
         # The sum ends at the sweep's last image (mxi_tools.Images.summed;

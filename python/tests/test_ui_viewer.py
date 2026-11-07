@@ -723,3 +723,37 @@ def test_several_lattices_a_colour_each(strong):
         )
     finally:
         root.destroy()
+
+
+def test_the_scan_slider_through_the_sweeps_images(strong, monkeypatch):
+    # Graeme: a slider to scan through the images. Its range the sweep's; moved,
+    # that image shown; following the arrows; a fast drag drawn once, at its
+    # latest place, not once an event.
+    import numpy as np
+
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        assert (
+            float(v.scan.cget("from")) == v.first and float(v.scan.cget("to")) == v.last
+        )
+        v._scanned("4.3")
+        settle(root)
+        assert v.image.get() == 4 and v.scan_at.get() == 4
+        s = v.sweeps[v.sweep.get()]
+        assert np.array_equal(v.frame, v.images[s["master"]].frame(3)), "image 4 drawn"
+        v.step(1)
+        assert v.image.get() == 5 and v.scan_at.get() == 5, "the slider follows"
+        shown = []
+        real = v.show
+        monkeypatch.setattr(
+            v, "show", lambda *a, **k: (shown.append(v.image.get()), real(*a, **k))
+        )
+        for place in ("1", "2", "3", "6"):
+            v._scanned(place)
+        settle(root)
+        assert v.image.get() == 6 and shown == [6], shown
+        v._scanned("99")
+        settle(root)
+        assert v.image.get() == v.last, "held to the sweep"
+    finally:
+        root.destroy()

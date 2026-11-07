@@ -1,7 +1,7 @@
 # Export: PDBx/mmCIF, merged and unmerged
 
-STATUS: plan, 6 November 2026; Graeme's decisions below. `docs/outstanding.md`,
-28.
+STATUS: plan, 6 November 2026; Graeme's decisions below. Parked the same day,
+Graeme to do more homework before it is built. `docs/outstanding.md`, 28.
 
 `mxi export scaled.rflx -o scaled.cif` to write a PDBx/mmCIF file that a wwPDB
 deposition takes: the scaled observations, unmerged, and the data merged,

@@ -357,7 +357,7 @@ history on 20 October: four closed, nine rewritten to what is now true.
 
 * **28.** **mxi export: mmCIF.** The unmerged MTZ is written, as dials.export's
     (`docs/export.md`); mmCIF is not. Planned, 6 November: `docs/mmcif.md`,
-    the new dialect, merged and unmerged.
+    the new dialect, merged and unmerged; parked, Graeme doing more homework.
 * **82.** **capability -- mxi triage, the rest of xtriage.** Begun with the
     intensity statistics and the twin laws (`docs/triage.md`); to come: the
     Britton plot and the maximum-likelihood twin fraction; translational NCS

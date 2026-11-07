@@ -22,10 +22,11 @@ mxi view strong.rflx          # the strong spots on the images
 images). A sweep at a time, where there are several; on each image, whatever
 the file holds: the strong spots, indexed apart from unindexed after indexing
 -- several lattices a colour each -- and the predictions, each drawn as its
-box on exactly the images its box spans. Scan through the images with the
-slider under the image. Zoom with + and −, the keys + and -, a right-button
-drag or a scroll; pan by dragging; contrast and colour maps; under the cursor,
-the pixel, its counts and its resolution.
+box on exactly the images its box spans. The image shown is a slider under the
+toolbar, where it is among the sweep's at a glance; drag it to scan through
+them. Zoom with + and −, the keys + and -, a right-button drag or a scroll;
+pan by dragging; contrast and colour maps; under the cursor, the pixel, its
+counts and its resolution.
 
 To find a shadow, raise **Sum** to 10 or 50: that many images summed from the
 one shown, the shadow showing against the summed background; the spots on

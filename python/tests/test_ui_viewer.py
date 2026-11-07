@@ -297,21 +297,22 @@ def test_a_trackpads_burst_of_scrolls_zooms_a_level_a_tenth_of_a_second(strong):
         root.destroy()
 
 
-def test_typing_an_image_number_keeps_the_zoom(strong):
-    # 0 was bound to Fit on the whole window: typing image 10 fitted the view.
+def test_typing_in_a_box_keeps_the_zoom(strong):
+    # 0 was bound to Fit on the whole window: typing image 10 in the image box
+    # (a slider since) fitted the view. The Sum box now, typed 10 and -.
     root, v = open_viewer(strong / "strong.rflx")
     try:
         v.top.deiconify()
         v.zoom(1)
         v.zoom(1)
         zoomed = v.view.scale
-        v.spin.focus_force()
+        v.sum_box.focus_force()
         settle(root)
-        v.spin.event_generate("<KeyPress-1>")
-        v.spin.event_generate("<KeyPress-0>")
-        v.spin.event_generate("<KeyPress-minus>")
+        v.sum_box.event_generate("<KeyPress-1>")
+        v.sum_box.event_generate("<KeyPress-0>")
+        v.sum_box.event_generate("<KeyPress-minus>")
         settle(root)
-        assert v.view.scale == zoomed, "the image box's keys are the box's"
+        assert v.view.scale == zoomed, "a box's keys are the box's"
         v.canvas.focus_force()
         settle(root)
         v.canvas.event_generate("<KeyPress-0>")
@@ -726,7 +727,8 @@ def test_several_lattices_a_colour_each(strong):
 
 
 def test_the_scan_slider_through_the_sweeps_images(strong, monkeypatch):
-    # Graeme: a slider to scan through the images. Its range the sweep's; moved,
+    # Graeme: a slider, not the number box, to see where the image is among
+    # all the sweep's, under the toolbar. Its range the sweep's; moved,
     # that image shown; following the arrows; a fast drag drawn once, at its
     # latest place, not once an event.
     import numpy as np
@@ -739,6 +741,7 @@ def test_the_scan_slider_through_the_sweeps_images(strong, monkeypatch):
         v._scanned("4.3")
         settle(root)
         assert v.image.get() == 4 and v.scan_at.get() == 4
+        assert v.of.cget("text") == f"image 4 of {v.first} to {v.last}"
         s = v.sweeps[v.sweep.get()]
         assert np.array_equal(v.frame, v.images[s["master"]].frame(3)), "image 4 drawn"
         v.step(1)

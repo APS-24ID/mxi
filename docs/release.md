@@ -105,11 +105,13 @@ mxi ui's window tests are left out too (`MXI_NO_WINDOW_TESTS`): v1.1.4-rc1's
 macOS test step seemed to stall -- the runners having problems then, or as
 likely a window waiting on a hosted runner for a display that never comes --
 and that cause is ruled out so. They run where there is a display -- xvfb in a
-Linux session, a desktop -- so before a release, on a desktop, `pytest
-python/tests/test_ui_window.py python/tests/test_ui_viewer.py`
-(`docs/outstanding.md`, 87). Each test step is held to 30 minutes, so that
-anything else that stalls fails in half an hour, with its log, rather than
-after GitHub's six hours.
+Linux session, a desktop -- so before a release, on a desktop,
+`MXI_BUILD=build pytest -rs python/tests/test_ui_window.py
+python/tests/test_ui_viewer.py` -- the viewer's tests make their data with
+mxi, and without the build directory skip, every one, as on 7 November (`-rs`
+says why any is skipped) (`docs/outstanding.md`, 87). Each test step is held
+to 30 minutes, so that anything else that stalls fails in half an hour, with
+its log, rather than after GitHub's six hours.
 
 The Metal build downloads Apple's metal-cpp headers from the URL at the top of
 the workflow (`METAL_CPP_URL`); if Apple renames the zip, the current name is

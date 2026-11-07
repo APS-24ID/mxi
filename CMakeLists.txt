@@ -400,6 +400,7 @@ add_executable(mxi_tests
   tests/test_summary_cut.cc
   tests/test_triage.cc
   tests/test_fit_together.cc
+  tests/test_index_neighbours.cc
   tests/spots/test_dext_squares.cc
   tests/spots/test_dext_fused.cc
   tests/spots/test_signal_order.cc

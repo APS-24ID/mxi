@@ -35,6 +35,17 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   say so, and a symmetry missed where twin-related pairs are equal but the L
   test is not twin-like (docs/triage.md).
 
+**Changed**
+- `mxi index` estimates the largest cell some ten times faster: on Graeme's
+  428 349 spots of a 128 A cell it had taken 10.2 of 13.2 seconds. Its test
+  for overlapping boxes had looked up each reflection's experiment and panel
+  by column name, for each of some 127 million pairs of boxes; its
+  nearest-neighbour search kept its cells in a tree, searched whole cubes, ran
+  on one thread, and with points nearly in a plane made its cells minute. Each
+  read once now; the cells in one array, each shell's own visited, the points
+  shared among the threads, and sized from the points' widest span. The same
+  neighbours, the same largest cell, to the bit.
+
 ## 1.1.5 -- 5 November 2026
 
 **Changed**

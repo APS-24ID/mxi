@@ -34,6 +34,28 @@ MODES = (
     ("circle", "Circle"),
     ("polygon", "Polygon"),
 )
+MODE_TIPS = {
+    "look": "Look: drag to pan; click a region to choose it, Delete to remove it",
+    "rectangle": "Rectangle: drag corner to corner; Shift-drag pans",
+    "circle": "Circle: drag from its centre to its edge; Shift-drag pans",
+    "polygon": "Polygon: click each vertex; double-click or Return closes it, "
+    "Escape abandons it",
+}
+UNDO_KEY = "Cmd-Z" if sys.platform == "darwin" else "Ctrl-Z"
+
+
+def masking_label(n, unsaved, mode):
+    """The Masking menu's label: how many regions the sweep has and whether
+    they are saved, and what a click draws where it is not just looking --
+    'Masking' alone where there is nothing to say."""
+    text = "Masking"
+    if n or unsaved:
+        text += f": {n}" + (", not saved" if unsaved else "")
+    if mode != "look":
+        text += f" ({dict(MODES).get(mode, mode)})"
+    return text
+
+
 DRAG_LEVEL = 30  # canvas pixels dragged a zoom level, with the right button
 WHEEL_INTERVAL = 0.1  # seconds: at most a zoom level each, from a scroll
 # Several lattices on a sweep: a colour each, its spots strong, its
@@ -162,13 +184,8 @@ class Viewer:
         where=None,
         summing=1,
         sweep=0,
-        masking=False,
     ):
         self.path = path
-        # The untrusted regions' tools shown: a row of their own, hidden by
-        # default, the Mask button its switch (Graeme: the viewer's space).
-        self.masking = None
-        self._masking_at_start = masking
         self.on_saved = on_saved  # told masked.rflx's path when saved
         # Save's file, and the directory it and mxi_mask.json go in: beside
         # the file shown (mxi ui), or where mxi view is run.
@@ -358,17 +375,32 @@ class Viewer:
         zoom_out.pack(side=tk.LEFT, padx=(2, 4))
         fit = ttk.Button(bar, text="Fit", width=4, command=self.fit)
         fit.pack(side=tk.LEFT)
-        self.masking = tk.BooleanVar(value=self._masking_at_start)
-        mask = ttk.Checkbutton(
-            bar,
-            text="Mask",
-            # A tick box, as the layers' are: the theme's toggle button, not
-            # pressed, is drawn flat, and read as a label.
-            variable=self.masking,
-            command=self._mask_toggled,
+        # Untrusted regions: their tools a menu, taking no row from the image
+        # (Graeme): what the left button draws, and what to do with them
+        # (docs/mask.md). Its label says how many, whether saved, and what a
+        # click draws.
+        self.mode = tk.StringVar(value="look")
+        self.masking_text = tk.StringVar(value="Masking")
+        self.masking_button = ttk.Menubutton(bar, textvariable=self.masking_text)
+        menu = tk.Menu(self.masking_button, tearoff=False)
+        for key, label in MODES:
+            menu.add_radiobutton(
+                label=label, value=key, variable=self.mode, command=self._mode_changed
+            )
+        menu.add_separator()
+        menu.add_command(label="Undo", accelerator=UNDO_KEY, command=self.undo)
+        menu.add_command(label="Clear", command=self.clear)
+        menu.add_command(label="Same as previous", command=self.same_as_previous)
+        menu.add_separator()
+        menu.add_command(label="Save", command=self.save)
+        self.masking_button["menu"] = menu
+        self.masking_menu = menu
+        self.masking_button.pack(side=tk.LEFT, padx=(12, 0))
+        Tooltip(
+            self.masking_button,
+            "Untrusted regions: draw them, undo, clear, take the previous "
+            "sweep's, save masked.rflx (docs/mask.md)",
         )
-        mask.pack(side=tk.LEFT, padx=(12, 0))
-        Tooltip(mask, "Untrusted regions: show or hide their tools (docs/mask.md)")
         # Close, in sight -- the program's end under mxi view -- asking first
         # where regions are not saved (close()).
         done = ttk.Button(bar, text="Close", command=self.close)
@@ -383,59 +415,6 @@ class Viewer:
         self._image_bar()
         self.toggles = ttk.Frame(self.top, padding=(8, 0, 8, 4))
         self.toggles.pack(fill=tk.X)
-        self._regions_bar()
-        if not self.masking.get():
-            self.regions_row.pack_forget()
-
-    def _regions_bar(self):
-        """Untrusted regions: what the left button draws, and what to do
-        with them (docs/mask.md)."""
-        bar = ttk.Frame(self.top, padding=(8, 0, 8, 4))
-        bar.pack(fill=tk.X)
-        self.regions_row = bar
-        # Its count leading the bar, in view however narrow the window: at its
-        # end, it had been cut off.
-        self.count = ttk.Label(bar, text="Untrusted regions")
-        self.count.pack(side=tk.LEFT, padx=(0, 6))
-        self.mode = tk.StringVar(value="look")
-        tips = {
-            "look": "Drag to pan; click a region to choose it, Delete to remove it",
-            "rectangle": "Drag corner to corner; Shift-drag pans",
-            "circle": "Drag from its centre to its edge; Shift-drag pans",
-            "polygon": "Click each vertex; double-click or Return closes it, Escape abandons it",
-        }
-        for key, label in MODES:
-            b = ttk.Radiobutton(
-                bar,
-                text=label,
-                value=key,
-                variable=self.mode,
-                command=self._mode_changed,
-            )
-            b.pack(side=tk.LEFT)
-            Tooltip(b, tips[key])
-        for label, action, tip in (
-            (
-                "Undo",
-                self.undo,
-                "The sweep's regions as before the last change: Ctrl-Z or Cmd-Z",
-            ),
-            ("Clear", self.clear, "Remove the sweep's regions"),
-            (
-                "Same as previous",
-                self.same_as_previous,
-                "The regions of the sweep shown before, for sweeps sharing their shadows",
-            ),
-            (
-                "Save",
-                self.save,
-                "masked.rflx, beside the file, with every sweep's regions; "
-                "and mxi_mask.json: the file shown is left as it was",
-            ),
-        ):
-            b = ttk.Button(bar, text=label, command=action)
-            b.pack(side=tk.LEFT, padx=(8 if label == "Undo" else 2, 0))
-            Tooltip(b, tip)
 
     def _bindings(self):
         c = self.canvas
@@ -782,17 +761,6 @@ class Viewer:
             self.saved = False
         self.draw()
 
-    def _mask_toggled(self):
-        """The region tools shown, in their place after the layers' ticks, or
-        hidden -- and then only looking, a polygon begun abandoned, so that a
-        click on the image draws nothing. The regions stay drawn either way."""
-        if self.masking.get():
-            self.regions_row.pack(fill=tk.X, after=self.toggles)
-        else:
-            self.regions_row.pack_forget()
-            self.mode.set("look")
-            self._mode_changed()
-
     def _abandon(self):
         self._vertices = []
         self._shape = None
@@ -800,6 +768,9 @@ class Viewer:
         self.draw()
 
     def _mode_changed(self):
+        # How to draw it, where it is seen while drawing: the menu has no
+        # tooltips.
+        self.readout.set(MODE_TIPS.get(self.mode.get(), ""))
         self._vertices = []
         self._shape = None
         self.draw()
@@ -914,9 +885,7 @@ class Viewer:
                 )
         n = len(self.regions.of(self._imageset()))
         unsaved = self.regions.changed and not self.saved
-        self.count.configure(
-            text=f"Untrusted regions: {n}" + (", not saved" if unsaved else "")
-        )
+        self.masking_text.set(masking_label(n, unsaved, self.mode.get()))
 
     def zoom(self, direction, at=None, at_pointer=False):
         """A level in (direction > 0) or out, about canvas point `at`; at the

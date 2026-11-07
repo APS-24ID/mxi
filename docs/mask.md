@@ -12,7 +12,7 @@ regions **untrusted**, so that spot finding and integration leave them out.
 
 ```sh
 mxi import ../data/*.nxs
-mxi view imported.rflx --mask # its tools shown; Save writes masked.rflx
+mxi view imported.rflx        # Masking, Save: writes masked.rflx
 mxi find masked.rflx
 mxi view strong.rflx          # the strong spots on the images
 ```
@@ -30,9 +30,8 @@ counts and its resolution.
 
 To find a shadow, raise **Sum** to 10 or 50: that many images summed from the
 one shown, the shadow showing against the summed background; the spots on
-any of them marked. Then tick **Mask** in the toolbar -- the tools for untrusted
-regions are hidden until it is, to leave the image the room -- and in their
-row draw:
+any of them marked. Then, from the toolbar's **Masking** menu -- the tools for
+untrusted regions, taking no row from the image -- choose what to draw:
 
 * **Rectangle**, dragged corner to corner;
 * **Circle**, dragged from its centre to its edge;

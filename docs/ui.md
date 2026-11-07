@@ -153,11 +153,12 @@ small circle; each layer can be hidden.
 
 The detector's untrusted regions -- a backstop's shadow, its arm, a cryo
 nozzle -- which spot finding and integration then leave out (`docs/mask.md`).
-Their tools are a row of their own beneath the layers, hidden until **Mask**
-is ticked in the toolbar (or the viewer is opened with `mxi view --mask`), to
-leave the image the room; unticked, the left button only looks again, and
-the regions stay drawn on the image. The row leads with how many the sweep
-has, and whether they are saved. The left button draws what is chosen:
+Their tools are the toolbar's **Masking** menu, taking no row from the image:
+what the left button draws -- Look, Rectangle, Circle, Polygon -- then Undo,
+Clear, Same as previous and Save. The menu's label says how many regions the
+sweep has, whether they are saved, and what a click draws ("Masking: 3, not
+saved (Rectangle)"); choosing a mode puts how to draw it in the readout under
+the image. The left button draws what is chosen:
 
 - **Look**: drag to pan; click a region to choose it (yellow), Delete or
   Backspace removes it.

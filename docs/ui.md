@@ -151,10 +151,13 @@ small circle; each layer can be hidden.
 
 ### Untrusted regions
 
-Beneath the layers, the detector's untrusted regions -- a backstop's shadow,
-its arm, a cryo nozzle -- which spot finding and integration then leave out
-(`docs/mask.md`). The bar leads with how many the sweep has, and whether they
-are saved. The left button draws what is chosen:
+The detector's untrusted regions -- a backstop's shadow, its arm, a cryo
+nozzle -- which spot finding and integration then leave out (`docs/mask.md`).
+Their tools are a row of their own beneath the layers, hidden until **Mask**
+is ticked in the toolbar (or the viewer is opened with `mxi view --mask`), to
+leave the image the room; unticked, the left button only looks again, and
+the regions stay drawn on the image. The row leads with how many the sweep
+has, and whether they are saved. The left button draws what is chosen:
 
 - **Look**: drag to pan; click a region to choose it (yellow), Delete or
   Backspace removes it.

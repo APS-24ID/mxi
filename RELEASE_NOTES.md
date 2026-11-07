@@ -16,14 +16,6 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   where the image is among the sweep's at a glance, and dragged, each shown as
   fast as images can be read; an arrow each side to step one, and which image
   it is beside them, its number editable to go straight to one.
-- `mxi integrate` fits reflections whose foregrounds overlap, of one lattice
-  or several, together -- each with its own lattice's profile, the shared
-  pixels apportioned between them -- and takes their neighbours' counts out of
-  their summed intensities, where each alone had counted its neighbours'
-  photons as its own. On Graeme's two crystals of insulin, the 1100 or so
-  overlapped measurements went from +0.92 sigma from their equivalents, rms
-  3.79, to +0.07 and 1.06. The default; `--no-fit-overlaps` fits each alone.
-  Marked in `profile.fitted_together`, counted in the summary.
 - The image viewer (`mxi view`, mxi ui's View images) colours several lattices
   on a sweep apart: each lattice's spots in a colour of its own and its
   predictions in a lighter tint of it, each a layer to show or hide, the
@@ -36,6 +28,16 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   test is not twin-like (docs/triage.md).
 
 **Changed**
+- `mxi integrate` fits reflections whose foregrounds overlap, of one lattice
+  or several, together -- each with its own lattice's profile, the shared
+  pixels apportioned between them -- and takes their neighbours' counts out of
+  their summed intensities, where each alone had counted its neighbours'
+  photons as its own. This changes the default output: overlapped reflections
+  have different profile-fitted and summed intensities, and every integrated
+  file has a column `profile.fitted_together`, the summary a count. On
+  Graeme's two crystals of insulin, the 1100 or so overlapped measurements
+  went from +0.92 sigma from their equivalents, rms 3.79, to +0.07 and 1.06.
+  `--no-fit-overlaps` fits each alone, as before.
 - `mxi index` estimates the largest cell in a fraction of the time: on
   Graeme's 428 349 spots of a 128 A cell, the max cell 10.21 s before, 0.28 s
   now, and the whole run 13.2 s before, 2.9 s now -- every candidate cell, the

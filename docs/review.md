@@ -183,7 +183,8 @@ observations at -25 sigma from one under their backgrounds.
 **Indexing** is the three-dimensional FFT (Bricogne 1986), as DIALS' `fft3d`,
 its largest cell estimated as `find_max_cell` does -- ice rings and
 overlapping boxes left out, nearest neighbours by sweep, 45 degree block and
-entering or not, the edge of their histogram's peak times 1.3. The margin
+entering or not -- found exactly by a grid of cells, across the threads --
+the edge of their histogram's peak times 1.3. The margin
 matters: the median times 1.5, as it was, let a small molecule with a second
 lattice in it index in a supercell twice the true one's volume. And it has a
 macrocycle of assignment and refinement. The transform, its candidates and the

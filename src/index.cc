@@ -1,5 +1,4 @@
 #include "index.hh"
-#include "parallel.hh"
 
 #include <gemmi/symmetry.hpp>
 
@@ -7,13 +6,16 @@
 #include <chrono>
 #include <cmath>
 #include <complex>
+#include <cstdint>
 #include <cstdio>
 #include <limits>
 #include <map>
 #include <numeric>
 #include <tuple>
+#include <unordered_map>
 
 #include "fft.hh"
+#include "parallel.hh"
 #include "refine.hh"
 
 namespace mxi {
@@ -244,76 +246,147 @@ std::vector<double> ice_rings(double d_min) {
   return rings;
 }
 
+} // namespace
+
 // Each point's nearest neighbour among `members`, by a grid of cells: every
 // cell within Chebyshev distance k searched before any beyond, and the search
 // stopped once the best found is within k cells -- nothing unsearched can be
 // nearer. Coincident points (a reflection seen twice) are not neighbours.
-void nearest_within(const std::vector<Vec3> &points,
-                    const std::vector<std::size_t> &members,
-                    std::vector<double> *direct) {
-  if (members.size() < 2)
-    return;
+//
+// The cells' points held together in one array, sorted by cell, each cell's
+// first found by an index -- a dense one where the grid is a few cells a point,
+// else a hash (points nearly in a plane make the cells small and the grid
+// huge) -- and only each shell's own cells visited, the points shared among
+// the threads, each its own slot. The neighbours, and so the distances and
+// their order, are exactly those of the std::map and whole-cube search this
+// replaced, which had taken 10 of a 13 second indexing run on 428 349 spots
+// (Graeme): tested against every pair (tests/test_index_neighbours.cc).
+std::vector<double>
+inverse_nearest_neighbours(const std::vector<Vec3> &points,
+                           const std::vector<std::size_t> &members) {
+  std::vector<double> direct;
+  const std::size_t n = members.size();
+  if (n < 2)
+    return direct;
   Vec3 lo = points[members[0]], hi = lo;
   for (std::size_t m : members) {
     const Vec3 &p = points[m];
     lo = Vec3{std::min(lo.x, p.x), std::min(lo.y, p.y), std::min(lo.z, p.z)};
     hi = Vec3{std::max(hi.x, p.x), std::max(hi.y, p.y), std::max(hi.z, p.z)};
   }
+  // The cells about a point apiece: each span floored at a thousandth of the
+  // widest, not at 1e-9 -- points nearly in a plane (a thin wedge of a sweep)
+  // had made the cells minute against their spacing, and each search hundreds
+  // of shells deep. Any size finds the nearest exactly; this one, quickly.
   const Vec3 span = hi - lo;
-  const double volume =
-      std::max(span.x, 1e-9) * std::max(span.y, 1e-9) * std::max(span.z, 1e-9);
-  const double h =
-      std::cbrt(volume / static_cast<double>(members.size())) + 1e-12;
+  const double widest = std::max({span.x, span.y, span.z});
+  const double floor_at = std::max(widest * 1e-3, 1e-9);
+  const double volume = std::max(span.x, floor_at) *
+                        std::max(span.y, floor_at) * std::max(span.z, floor_at);
+  const double h = std::cbrt(volume / static_cast<double>(n)) + 1e-12;
   const auto index = [&](double v, double origin) {
     return static_cast<long>(std::floor((v - origin) / h));
   };
   const long nx = index(hi.x, lo.x) + 1, ny = index(hi.y, lo.y) + 1,
              nz = index(hi.z, lo.z) + 1;
-  std::map<long, std::vector<std::size_t>> cells;
   const auto key = [&](long x, long y, long z) {
     return (x * ny + y) * nz + z;
   };
-  for (std::size_t m : members) {
-    const Vec3 &p = points[m];
-    cells[key(index(p.x, lo.x), index(p.y, lo.y), index(p.z, lo.z))].push_back(
-        m);
+
+  // The members sorted by cell: each cell's points [start, end) of `sorted`.
+  std::vector<long> cell_of(n);
+  for (std::size_t i = 0; i < n; ++i) {
+    const Vec3 &p = points[members[i]];
+    cell_of[i] = key(index(p.x, lo.x), index(p.y, lo.y), index(p.z, lo.z));
   }
+  std::vector<std::size_t> order(n);
+  std::iota(order.begin(), order.end(), 0);
+  std::stable_sort(
+      order.begin(), order.end(),
+      [&](std::size_t a, std::size_t b) { return cell_of[a] < cell_of[b]; });
+  std::vector<std::size_t> sorted(n);
+  for (std::size_t i = 0; i < n; ++i)
+    sorted[i] = members[order[i]];
+  const double cells = static_cast<double>(nx) * static_cast<double>(ny) *
+                       static_cast<double>(nz);
+  const bool dense = cells <= 4.0 * static_cast<double>(n) + 1024.0;
+  std::vector<std::uint32_t> first; // dense: cell -> start; nz*ny*nx + 1
+  std::unordered_map<long, std::pair<std::uint32_t, std::uint32_t>> spans;
+  if (dense) {
+    first.assign(static_cast<std::size_t>(cells) + 1, 0);
+    for (std::size_t i = 0; i < n; ++i)
+      ++first[static_cast<std::size_t>(cell_of[order[i]]) + 1];
+    for (std::size_t c = 1; c < first.size(); ++c)
+      first[c] += first[c - 1];
+  } else {
+    spans.reserve(n);
+    for (std::size_t i = 0; i < n;) {
+      std::size_t j = i;
+      while (j < n && cell_of[order[j]] == cell_of[order[i]])
+        ++j;
+      spans[cell_of[order[i]]] = {static_cast<std::uint32_t>(i),
+                                  static_cast<std::uint32_t>(j)};
+      i = j;
+    }
+  }
+  const auto range = [&](long c) -> std::pair<std::uint32_t, std::uint32_t> {
+    if (dense)
+      return {first[static_cast<std::size_t>(c)],
+              first[static_cast<std::size_t>(c) + 1]};
+    const auto it = spans.find(c);
+    return it == spans.end() ? std::pair<std::uint32_t, std::uint32_t>{0, 0}
+                             : it->second;
+  };
+
   constexpr double kCoincident = 1e-4;
-  for (std::size_t m : members) {
-    const Vec3 &p = points[m];
-    const long cx = index(p.x, lo.x), cy = index(p.y, lo.y),
-               cz = index(p.z, lo.z);
-    double best = 1e300;
-    const long reach = std::max({nx, ny, nz});
-    for (long k = 0; k <= reach; ++k) {
-      for (long x = cx - k; x <= cx + k; ++x)
-        for (long y = cy - k; y <= cy + k; ++y)
-          for (long z = cz - k; z <= cz + k; ++z) {
-            if (std::max({std::labs(x - cx), std::labs(y - cy),
-                          std::labs(z - cz)}) != k)
-              continue; // only the shell at distance k
-            if (x < 0 || y < 0 || z < 0 || x >= nx || y >= ny || z >= nz)
-              continue;
-            const auto it = cells.find(key(x, y, z));
-            if (it == cells.end())
-              continue;
-            for (std::size_t o : it->second) {
-              if (o == m)
-                continue;
-              const double d = (points[o] - p).norm();
-              if (d > kCoincident && d < best)
-                best = d;
+  const long reach = std::max({nx, ny, nz});
+  std::vector<double> best_of(n, 1e300);
+  for_each_block(kParallelBlocks, [&](std::size_t b) {
+    for (std::size_t i = block_begin(n, kParallelBlocks, b);
+         i < block_begin(n, kParallelBlocks, b + 1); ++i) {
+      const std::size_t m = members[i];
+      const Vec3 &p = points[m];
+      const long cx = index(p.x, lo.x), cy = index(p.y, lo.y),
+                 cz = index(p.z, lo.z);
+      double best = 1e300;
+      const auto visit = [&](long x, long y, long z) {
+        if (x < 0 || y < 0 || z < 0 || x >= nx || y >= ny || z >= nz)
+          return;
+        const auto [s, e] = range(key(x, y, z));
+        for (std::uint32_t t = s; t < e; ++t) {
+          const std::size_t o = sorted[t];
+          if (o == m)
+            continue;
+          const double d = (points[o] - p).norm();
+          if (d > kCoincident && d < best)
+            best = d;
+        }
+      };
+      for (long k = 0; k <= reach; ++k) {
+        // The shell at Chebyshev distance k: its whole z range where x or y
+        // is on the shell, else its two z faces.
+        for (long x = cx - k; x <= cx + k; ++x)
+          for (long y = cy - k; y <= cy + k; ++y) {
+            if (std::labs(x - cx) == k || std::labs(y - cy) == k) {
+              for (long z = cz - k; z <= cz + k; ++z)
+                visit(x, y, z);
+            } else {
+              visit(x, y, cz - k);
+              if (k > 0)
+                visit(x, y, cz + k);
             }
           }
-      if (best <= static_cast<double>(k) * h)
-        break;
+        if (best <= static_cast<double>(k) * h)
+          break;
+      }
+      best_of[i] = best;
     }
-    if (best < 1e299)
-      direct->push_back(1.0 / best);
-  }
+  });
+  for (std::size_t i = 0; i < n; ++i)
+    if (best_of[i] < 1e299)
+      direct.push_back(1.0 / best_of[i]);
+  return direct;
 }
-
-} // namespace
 
 double estimate_max_cell_as_dials(const ExperimentList &experiments,
                                   const Table &reflections,
@@ -340,21 +413,26 @@ double estimate_max_cell_as_dials(const ExperimentList &experiments,
 
   // Overlapping boxes, as find_overlaps with no border: two boxes of one
   // experiment and panel whose pixel and frame ranges intersect.
-  const bool has_id = reflections.has("id");
-  const bool has_panel = reflections.has("panel");
-  const auto id_of = [&](std::size_t i) -> std::size_t {
-    if (!has_id)
-      return 0;
-    const std::int64_t id = reflections.at("id").integer(i);
-    return id > 0 && static_cast<std::size_t>(id) < experiments.size()
-               ? static_cast<std::size_t>(id)
-               : 0;
-  };
-  const auto panel_of = [&](std::size_t i) -> std::size_t {
-    return has_panel
-               ? static_cast<std::size_t>(reflections.at("panel").integer(i))
-               : 0;
-  };
+  // Each reflection's experiment and panel read once: looked up by column
+  // name for each pair of boxes in the overlap test, they had cost seconds
+  // on 428 349 spots (Graeme's).
+  std::vector<std::size_t> ids(n, 0), panels(n, 0);
+  if (reflections.has("id")) {
+    const Column &c = reflections.at("id");
+    for (std::size_t i = 0; i < n; ++i) {
+      const std::int64_t id = c.integer(i);
+      ids[i] = id > 0 && static_cast<std::size_t>(id) < experiments.size()
+                   ? static_cast<std::size_t>(id)
+                   : 0;
+    }
+  }
+  if (reflections.has("panel")) {
+    const Column &c = reflections.at("panel");
+    for (std::size_t i = 0; i < n; ++i)
+      panels[i] = static_cast<std::size_t>(c.integer(i));
+  }
+  const auto id_of = [&](std::size_t i) { return ids[i]; };
+  const auto panel_of = [&](std::size_t i) { return panels[i]; };
   if (reflections.has("bbox")) {
     const Column &b = reflections.at("bbox");
     std::vector<std::size_t> order(n);
@@ -372,8 +450,10 @@ double estimate_max_cell_as_dials(const ExperimentList &experiments,
                    active.end());
       for (std::size_t j : active) {
         const std::int64_t *bj = &b.ints[j * 6];
-        if (id_of(i) == id_of(j) && panel_of(i) == panel_of(j) &&
-            bi[0] < bj[1] && bj[0] < bi[1] && bi[2] < bj[3] && bj[2] < bi[3]) {
+        // The boxes' extents first: a few integers, and almost every pair
+        // fails them.
+        if (bi[0] < bj[1] && bj[0] < bi[1] && bi[2] < bj[3] && bj[2] < bi[3] &&
+            id_of(i) == id_of(j) && panel_of(i) == panel_of(j)) {
           keep[i] = 0;
           keep[j] = 0;
         }
@@ -406,8 +486,11 @@ double estimate_max_cell_as_dials(const ExperimentList &experiments,
               entering[i]}]
           .push_back(i);
   std::vector<double> direct;
-  for (const auto &[g, members] : groups)
-    nearest_within(points, members, &direct);
+  for (const auto &[g, members] : groups) {
+    const std::vector<double> these =
+        inverse_nearest_neighbours(points, members);
+    direct.insert(direct.end(), these.begin(), these.end());
+  }
   return max_cell_from_neighbours(std::move(direct));
 }
 

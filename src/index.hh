@@ -217,6 +217,14 @@ double max_cell_from_neighbours(std::vector<double> direct,
 //: reciprocal space within its sweep, its 45 degree block and its entering or
 //: exiting set; then max_cell_from_neighbours. `points` are the reflections'
 //: reciprocal lattice points, in order.
+//: For each of `members` (indices into points), the reciprocal of its
+//: distance to the nearest other member -- coincident points (within 1e-4,
+//: a reflection measured again) not counted -- in members' order; none for a
+//: point with no neighbour. The max cell's nearest-neighbour analysis.
+std::vector<double>
+inverse_nearest_neighbours(const std::vector<Vec3> &points,
+                           const std::vector<std::size_t> &members);
+
 double estimate_max_cell_as_dials(const ExperimentList &experiments,
                                   const Table &reflections,
                                   const std::vector<Vec3> &points);

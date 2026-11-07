@@ -451,10 +451,11 @@ history on 20 October: four closed, nine rewritten to what is now true.
     October, the spot finder's tests joined to it. ctest runs it as one test.
 * **87.** **mxi ui's window tests do not run in the release builds**
     (`MXI_NO_WINDOW_TESTS`, since v1.1.4-rc1's macOS test step seemed to
-    stall): they run
-    where there is a display -- xvfb here, a desktop -- so before a release, on
-    a desktop, `pytest python/tests/test_ui_window.py
-    python/tests/test_ui_viewer.py`.
+    stall): they run where there is a display -- xvfb here, a desktop -- so
+    before a release, on a desktop, `MXI_BUILD=build pytest -rs
+    python/tests/test_ui_window.py python/tests/test_ui_viewer.py` -- the
+    viewer's tests make their data with mxi, and without the build directory
+    skip, every one, as on 7 November (`-rs` says why any is skipped).
 ## Closed
 
 * **81.** **release -- the workflow's actions on Node.js 24.** Closed 3 November,

@@ -162,8 +162,13 @@ class Viewer:
         where=None,
         summing=1,
         sweep=0,
+        masking=False,
     ):
         self.path = path
+        # The untrusted regions' tools shown: a row of their own, hidden by
+        # default, the Mask button its switch (Graeme: the viewer's space).
+        self.masking = None
+        self._masking_at_start = masking
         self.on_saved = on_saved  # told masked.rflx's path when saved
         # Save's file, and the directory it and mxi_mask.json go in: beside
         # the file shown (mxi ui), or where mxi view is run.
@@ -353,6 +358,17 @@ class Viewer:
         zoom_out.pack(side=tk.LEFT, padx=(2, 4))
         fit = ttk.Button(bar, text="Fit", width=4, command=self.fit)
         fit.pack(side=tk.LEFT)
+        self.masking = tk.BooleanVar(value=self._masking_at_start)
+        mask = ttk.Checkbutton(
+            bar,
+            text="Mask",
+            # A tick box, as the layers' are: the theme's toggle button, not
+            # pressed, is drawn flat, and read as a label.
+            variable=self.masking,
+            command=self._mask_toggled,
+        )
+        mask.pack(side=tk.LEFT, padx=(12, 0))
+        Tooltip(mask, "Untrusted regions: show or hide their tools (docs/mask.md)")
         # Close, in sight -- the program's end under mxi view -- asking first
         # where regions are not saved (close()).
         done = ttk.Button(bar, text="Close", command=self.close)
@@ -368,12 +384,15 @@ class Viewer:
         self.toggles = ttk.Frame(self.top, padding=(8, 0, 8, 4))
         self.toggles.pack(fill=tk.X)
         self._regions_bar()
+        if not self.masking.get():
+            self.regions_row.pack_forget()
 
     def _regions_bar(self):
         """Untrusted regions: what the left button draws, and what to do
         with them (docs/mask.md)."""
         bar = ttk.Frame(self.top, padding=(8, 0, 8, 4))
         bar.pack(fill=tk.X)
+        self.regions_row = bar
         # Its count leading the bar, in view however narrow the window: at its
         # end, it had been cut off.
         self.count = ttk.Label(bar, text="Untrusted regions")
@@ -762,6 +781,17 @@ class Viewer:
         if self.regions.add(self._imageset(), made):
             self.saved = False
         self.draw()
+
+    def _mask_toggled(self):
+        """The region tools shown, in their place after the layers' ticks, or
+        hidden -- and then only looking, a polygon begun abandoned, so that a
+        click on the image draws nothing. The regions stay drawn either way."""
+        if self.masking.get():
+            self.regions_row.pack(fill=tk.X, after=self.toggles)
+        else:
+            self.regions_row.pack_forget()
+            self.mode.set("look")
+            self._mode_changed()
 
     def _abandon(self):
         self._vertices = []

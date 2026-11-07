@@ -7,6 +7,9 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.1.5
 
 **New**
+- The image viewer's tools for untrusted regions are hidden until **Mask** is
+  ticked in its toolbar, leaving the image their row; `mxi view --mask` opens
+  with them shown. Hidden, a click only looks, and the regions stay drawn.
 - The image viewer (`mxi view`, mxi ui's View images) shows which image as a
   slider under the toolbar, as wide as the window, in place of the number box:
   where the image is among the sweep's at a glance, and dragged, each shown as

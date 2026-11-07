@@ -789,3 +789,36 @@ def test_the_image_number_typed(strong):
         assert v.typed.get() == str(v.last) and v.image.get() == v.last
     finally:
         root.destroy()
+
+
+def test_the_mask_tools_shown_only_when_asked_for(strong):
+    # Graeme: split the masking tools out, freeing the viewer's space. Their
+    # row hidden by default; the Mask button shows it in its place, after the
+    # layers' ticks; hidden again, only looking, a polygon begun abandoned --
+    # the regions drawn either way. Opened masking, shown from the start.
+    from mxi_ui.viewer import Viewer
+
+    root, v = open_viewer(strong / "strong.rflx")
+    try:
+        assert v.regions_row.winfo_manager() == "" and not v.masking.get()
+        drag(v, "rectangle", (60, 80), (100, 120))  # a region, then hidden
+        v.masking.set(True)
+        v._mask_toggled()
+        rows = v.top.pack_slaves()
+        assert v.regions_row.winfo_manager() == "pack"
+        assert rows.index(v.regions_row) == rows.index(v.toggles) + 1, "in its place"
+        v.mode.set("polygon")
+        v._mode_changed()
+        v._vertices = [(10.0, 10.0), (40.0, 12.0)]
+        v.masking.set(False)
+        v._mask_toggled()
+        assert v.regions_row.winfo_manager() == "" and v.mode.get() == "look"
+        assert v._vertices == [], "the polygon begun, abandoned"
+        settle(root)
+        assert v.canvas.find_withtag("region"), "the region drawn still"
+        masking = Viewer(root, str(strong / "strong.rflx"), masking=True)
+        settle(root, 10)
+        assert masking.regions_row.winfo_manager() == "pack" and masking.masking.get()
+        masking.top.destroy()
+    finally:
+        root.destroy()

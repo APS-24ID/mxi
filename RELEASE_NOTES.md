@@ -7,10 +7,11 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.1.5
 
 **New**
-- The image viewer (`mxi view`, mxi ui's View images) has a slider under the
-  image, the width of the window, to scan through a sweep's images: dragged,
-  each is shown as fast as images can be read, and it follows the arrows, the
-  image box and the keys.
+- The image viewer (`mxi view`, mxi ui's View images) shows which image as a
+  slider under the toolbar, as wide as the window, in place of the number box:
+  where the image is among the sweep's at a glance, and dragged, each shown as
+  fast as images can be read; an arrow each side to step one, and which image
+  it is beside them.
 - `mxi integrate` fits reflections whose foregrounds overlap, of one lattice
   or several, together -- each with its own lattice's profile, the shared
   pixels apportioned between them -- and takes their neighbours' counts out of

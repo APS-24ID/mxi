@@ -63,7 +63,7 @@ def _at_least(lo, hi, least):
 
 
 def typing(event):
-    """Whether a key came while typing in a field -- the image box, a list --
+    """Whether a key came while typing in a field -- the Sum box, a list --
     where it is the field's, not the viewer's."""
     return event.widget.winfo_class() in (
         "TSpinbox",
@@ -205,7 +205,7 @@ class Viewer:
         self.showing = {}  # each layer's tick, made as layers are met
         self.styles = {}  # each sweep's layers: (key, label, colour)
         self.readout = tk.StringVar(value="")
-        self.scan_at = tk.DoubleVar(value=1.0)  # the scan slider's place
+        self.scan_at = tk.DoubleVar(value=1.0)  # the image slider's place
         self._scan_wanted = None  # the image the slider last asked for
         self._scan_due = False
         self.view = None
@@ -219,7 +219,6 @@ class Viewer:
         self._controls()
         self.canvas = tk.Canvas(self.top, background="#808080", highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
-        self._scan_bar()
         ttk.Label(
             self.top, textvariable=self.readout, padding=(8, 3), font="TkFixedFont"
         ).pack(fill=tk.X)
@@ -228,14 +227,23 @@ class Viewer:
 
     # --- building ---------------------------------------------------------
 
-    def _scan_bar(self):
-        """A slider the width of the window, under the image, through the
-        sweep's images (Graeme: to scan through them). Dragged, it shows the
-        image it is at as fast as images are read -- each drawn when the
-        window is next idle, at the latest place, the events of a slow read
-        come to one -- and it follows the arrows, the box and the keys."""
-        row = ttk.Frame(self.top, padding=(8, 4, 8, 0))
+    def _image_bar(self):
+        """The image shown, a slider the width of the window under the toolbar
+        -- where the image is among the sweep's at a glance, and dragged, each
+        shown as fast as images are read: drawn when the window is next idle,
+        at the latest place, the events of a slow read come to one -- with an
+        arrow each side to step, and which image it is (Graeme: a slider, not
+        the number box it replaces)."""
+        row = ttk.Frame(self.top, padding=(8, 0, 8, 6))
         row.pack(fill=tk.X)
+        ttk.Button(row, text="◀", width=3, command=lambda: self.step(-1)).pack(
+            side=tk.LEFT
+        )
+        self.of = ttk.Label(row, text="", width=22)
+        self.of.pack(side=tk.RIGHT, padx=(8, 0))
+        ttk.Button(row, text="▶", width=3, command=lambda: self.step(1)).pack(
+            side=tk.RIGHT
+        )
         self.scan = ttk.Scale(
             row,
             orient=tk.HORIZONTAL,
@@ -244,8 +252,8 @@ class Viewer:
             variable=self.scan_at,
             command=self._scanned,
         )
-        self.scan.pack(fill=tk.X, expand=True)
-        Tooltip(self.scan, "Drag through the sweep's images")
+        self.scan.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=6)
+        Tooltip(self.scan, "The image shown: drag through the sweep's images")
 
     def _scanned(self, value):
         try:
@@ -279,23 +287,10 @@ class Viewer:
                 "<<ComboboxSelected>>", lambda _e: self.choose_sweep(box.current())
             )
             box.pack(side=tk.LEFT, padx=(4, 12))
-        ttk.Button(bar, text="◀", width=3, command=lambda: self.step(-1)).pack(
-            side=tk.LEFT
-        )
-        self.spin = ttk.Spinbox(
-            bar, textvariable=self.image, width=7, command=self.show
-        )
-        self.spin.pack(side=tk.LEFT, padx=2)
-        self.spin.bind("<Return>", lambda _e: self.show())
-        ttk.Button(bar, text="▶", width=3, command=lambda: self.step(1)).pack(
-            side=tk.LEFT
-        )
-        self.of = ttk.Label(bar, text="")
-        self.of.pack(side=tk.LEFT, padx=(4, 8))
         # Images summed from the one shown: a shadow shows against the summed
         # background, and faint spots, where one image shows neither.
         ttk.Label(bar, text="Sum").pack(side=tk.LEFT)
-        sum_box = ttk.Spinbox(
+        self.sum_box = sum_box = ttk.Spinbox(
             bar,
             textvariable=self.summing,
             from_=1,
@@ -349,6 +344,7 @@ class Viewer:
         )
         Tooltip(zoom_out, "Zoom out: -; or drag down with the right button")
         Tooltip(fit, "The whole image: 0, or double-click")
+        self._image_bar()
         self.toggles = ttk.Frame(self.top, padding=(8, 0, 8, 4))
         self.toggles.pack(fill=tk.X)
         self._regions_bar()
@@ -465,8 +461,6 @@ class Viewer:
         images = self.images[s["master"]]
         last = s["last"] if s["last"] is not None else len(images)
         self.first, self.last = s["first"], last
-        self.spin.configure(from_=self.first, to=self.last)
-        self.of.configure(text=f"of {self.first} to {self.last}")
         self.scan.configure(from_=self.first, to=self.last)
         if k not in self.layers:
             lattices = [e for e in s["experiments"] if self._has_crystal(e)]
@@ -542,6 +536,7 @@ class Viewer:
         n = min(self.last, max(self.first, self._image()))
         self.image.set(n)
         self.scan_at.set(n)  # the slider follows, its command not called
+        self.of.configure(text=f"image {n} of {self.first} to {self.last}")
         s = self.sweeps[self.sweep.get()]
         images = self.images[s["master"]]
         # The sum ends at the sweep's last image (mxi_tools.Images.summed;

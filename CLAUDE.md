@@ -87,7 +87,7 @@ to 3.15 (the tests now in 3.12, set up for them).
 4 November, released as 1.1.4, its candidate's macOS build stalled (the
 runners, or a window waiting for a display: mxi ui's window tests are now not
 run in the release builds, MXI_NO_WINDOW_TESTS, and each test step has 30
-minutes). Since 1.1.5, for 1.2.0 (version set, 7 November): overlaps fitted together by
+minutes). 7 November, released as 1.2.0 after one candidate: overlaps fitted together by
 default, their sums corrected (a change to default output, hence 1.2.0); the
 viewer's lattice colours, image slider and Masking menu; mxi index's max cell
 fast; the window tests run on Graeme's Mac, 47 passed. Since 1.1.5: mxi triage begun (src/triage.{hh,cc}, docs/triage.md), correct

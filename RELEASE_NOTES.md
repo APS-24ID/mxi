@@ -4,7 +4,7 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
-## Unreleased -- since 1.1.5
+## 1.2.0 -- 7 November 2026
 
 **New**
 - The image viewer's tools for untrusted regions are a **Masking** menu in its

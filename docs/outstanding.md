@@ -426,15 +426,6 @@ history on 20 October: four closed, nine rewritten to what is now true.
   `docs/import.md`. Untested: several modules, a moving detector, beam direction
   or polarisation from the file, materials but silicon.
 
-## Overlapping reflections
-
-* **88.** **Closed, 6 November: overlaps fitted together, the default.** On
-    ins2_27 the overlapped measurements went from +0.92 sigma from their
-    equivalents, rms 3.79, to +0.07 and 1.06 (docs/integration.md); the summed
-    intensities corrected as well. What remains of it: 1.4 per cent of them
-    still beyond 3 sigma, where a Gaussian has 0.3 -- groups the fit does not
-    yet describe, to look at if they matter.
-
 ## The interface and its viewer
 
 * **85.** **capability -- moving or reshaping an untrusted region.** The
@@ -457,6 +448,13 @@ history on 20 October: four closed, nine rewritten to what is now true.
     viewer's tests make their data with mxi, and without the build directory
     skip, every one, as on 7 November (`-rs` says why any is skipped).
 ## Closed
+
+* **88.** **Closed, 6 November: overlaps fitted together, the default.** On
+    ins2_27 the overlapped measurements went from +0.92 sigma from their
+    equivalents, rms 3.79, to +0.07 and 1.06 (docs/integration.md); the summed
+    intensities corrected as well. What remains of it: 1.4 per cent of them
+    still beyond 3 sigma, where a Gaussian has 0.3 -- groups the fit does not
+    yet describe, to look at if they matter.
 
 * **81.** **release -- the workflow's actions on Node.js 24.** Closed 3 November,
   for 1.1.3's candidate: actions/checkout@v5, upload-artifact@v6 and

@@ -6,6 +6,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 ## Unreleased -- since 1.2.0
 
+**New**
+- `mxi process --timing`: `--timing` to every step that times itself, and at
+  the end a table of each step's time, import and export too (Graeme).
+
 **Changed**
 - The interface and its viewer are commands of their own: `mxi-ui` and
   `mxi-view`, where they had been `mxi ui` and `mxi view` -- the same

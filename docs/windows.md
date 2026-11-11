@@ -1,0 +1,184 @@
+# A Windows build: the plan, and the integer audit
+
+STATUS: investigation and documentation only, 7 November 2026 (Graeme: "Write
+up the plan and the long audit ... this should only be an investigation and
+documentation exercise"). Nothing here is built yet. `docs/outstanding.md`, 89.
+
+Graeme has no Windows development machine, but can test; the builds would run
+on GitHub Actions' Windows runners, as the Linux and macOS release builds run
+on theirs.
+
+## The answer
+
+Possible, and a moderate port, not a large one. What mxi depends on builds on
+Windows: HDF5, zlib and gemmi through vcpkg, which the release builds already
+use; bitshuffle; on the Python side tkinter (with python.org's Python), numpy,
+h5py, hdf5plugin and matplotlib, all with Windows wheels. What is POSIX in mxi
+is in six places, each with a direct Windows equivalent; and one class of
+silent error -- `long` is 32 bits on 64-bit Windows -- wants auditing first,
+done below.
+
+## What is POSIX, and its Windows equivalent
+
+Found by searching the source for system headers and calls (src, apps):
+
+| Where | What | On Windows |
+| --- | --- | --- |
+| `src/self_path.cc` | the executable's own path: `/proc/self/exe`, `_NSGetExecutablePath`, `realpath` | `GetModuleFileNameW` |
+| `apps/mxi_process.cc` | each step started and waited for: `posix_spawn`, `waitpid` | `CreateProcessW`, `WaitForSingleObject`, `GetExitCodeProcess` |
+| `src/progress.hh` | whether a terminal, and its width: `isatty`, `ioctl(TIOCGWINSZ)` | `_isatty`, `GetConsoleScreenBufferInfo` |
+| `src/timing.hh` | peak memory for `--timing`: `getrusage` | `GetProcessMemoryInfo` (PeakWorkingSetSize) |
+| `src/log_mirror.hh` | stdout and stderr copied to a log: `unistd`/`fcntl` descriptors, a pipe | the C runtime's `_dup`, `_dup2`, `_pipe` |
+| `src/nxmx_reader.cc` | direct reads of NXmx files: `unistd`/`fcntl` | `_open`/`_read`, or `ReadFile` |
+| `apps/mxi.cc` | `mxi view`, `mxi ui`: `execv` of a Python script with a `#!` line | Python started explicitly (`py -3`, or `python` on the PATH), the script its argument |
+| `python/src/mxi_ui/locate.py`, `mxi_tools.py` | `mxi` looked for beside the package by that name | `mxi.exe` |
+| 10 files | `M_PI` | `_USE_MATH_DEFINES`, defined for the build |
+| `src/processing.hh` | one `__attribute__` | guarded for MSVC |
+| `CMakeLists.txt` | `-Wall -Wextra -Wpedantic` on every target | by compiler: `/W4` for MSVC, or clang-cl, which takes them |
+
+Not found: `fork`, `mmap`, `dlopen`, `pthread` (threads are `std::thread`),
+`long double`, `H5T_NATIVE_LONG`. `mxi_readtest` (a diagnostic timing reads)
+can be left out of a Windows build.
+
+**Text mode.** On Windows a file opened without binary mode has its line
+endings translated, which corrupts binary data. Every binary read is
+`fopen(..., "rb")`; the four `fopen(..., "w")` and two `std::ofstream` without
+`binary` write text (comment-headed tables, HTML), where translation is right;
+the binary files mxi writes go through HDF5 and gemmi, which open them so
+themselves. Nothing to change.
+
+## The integer audit
+
+64-bit Windows is LLP64: `long` and `unsigned long` are 32 bits, where Linux and
+macOS (LP64) make them 64; `long long`, `std::size_t`, `std::ptrdiff_t` and the
+`<cstdint>` types are the same on all three. A `long` holding a value past 2^31
+compiles on Windows and is silently wrong there. 253 uses of `long` in `src` and
+`apps` (46 more in `tests`), each read, 7 November:
+
+### Wrong on Windows: to change before a Windows build
+
+* **`src/rflx.cc` 1015--1026: the shoeboxes' offsets.** A file's shoeboxes are
+  held in one flat array of every reflection's voxels, and each reflection's
+  are found by `begin() + static_cast<long>(at)`. Two million reflections of a
+  thousand voxels are 2e9 voxels, past 2^31: on Windows the offset would wrap,
+  and a reflection be given another's pixels, without a word.
+* **`src/nxmx_reader.cc` 446: a signed overflow.** The search for HDF5's
+  signature, `for (long at = 0; ... at <= (1L << 30); at = at == 0 ? 512 :
+  at * 2)`: at 2^30 the body runs and `at * 2` is 2^31 -- on Windows signed
+  overflow, undefined. In practice negative, and `fseek` to it fails and ends
+  the loop, so no hang (as first written here, and corrected on reading the
+  loop whole); reached only for a file of 1 GB or more with no signature at
+  any offset tried; but undefined behaviour a compiler may optimise on. Its
+  `fseek` takes a `long` too: on Windows it cannot seek past 2 GB --
+  `_fseeki64` there, should a seek ever need to.
+* **`src/index.cc` 288--371: the max cell's grid of cells.** The cell key
+  `(x ny + y) nz + z` is a `long`; in the hashed branch, kept for grids far
+  larger than the points, the product can pass 2^31. Measured on 428 349 spots
+  of a 128 A cell the grid is some 6e5 cells -- safe there, but nothing in the
+  type says so.
+* **`apps/mxi_find.cc` 1290: running totals of signal pixels and spots** over
+  a whole run, which a large enough run takes past 2^31.
+
+### Safe at real sizes, but the wrong type
+
+* **Iterator offsets**, `begin() + static_cast<long>(...)`: `src/index.cc`
+  (1493, 1633, 1637, 1675), `src/laue.cc` 375, `src/correlation.cc` 507 and
+  736, `apps/mxi_import.cc` 156, `apps/mxi_process.cc` 279,
+  `apps/mxi_grid.cc` 213. An iterator's difference type is `std::ptrdiff_t`,
+  64 bits everywhere; `3 i` passes 2^31 only past 700 million rows.
+* **Values into the summary**: 81 `json::Value(static_cast<long>(...))` and
+  `json::Value(long)`. `json::Value` holds every number as a double, exact to
+  2^53; only the cast going in is 32 bits. What is cast is counts --
+  reflections, observations, outliers, images, lattices, cluster sizes,
+  milliseconds -- below 2^31 in any data seen; a summary of a run with more
+  than 2^31 of anything would be wrong.
+
+### Safe: small by their nature
+
+Experiments, sweeps, lattices and clusters numbered (`src/correlation.cc`,
+`src/summary_cut.cc`, `src/views.cc`, `src/combine.cc`, `src/expt.cc`,
+`apps/mxi_refine.cc`, `apps/mxi_integrate.cc`, `apps/mxi_report.cc`); the
+indexing transform's grid, a few hundred a side, and its loops (`src/index.cc`
+531--616); Miller indices (`src/index.cc` 1306); symmetry operators' integer
+matrices (`apps/mxi_symmetry.cc`); B-spline knots (`src/geometry.cc`,
+`src/derivatives.cc`); pixel positions (`src/verify.cc`); a duration in seconds
+(`src/progress.hh`); detector modules (`apps/mxi_residuals.cc`); a decimal's
+digits (`src/processing.cc`); an image range parsed (`apps/mxi_scale.cc`).
+
+### Formats and parsing
+
+Six `%ld` (`src/processing.cc`, `src/progress.hh`, `apps/mxi_symmetry.cc`,
+`apps/mxi_scale.cc` twice, `apps/mxi_residuals.cc`), each with `long`
+arguments: consistent now, to change with them (`%lld` with a `long long`, or
+`<cinttypes>`' `PRId64`). `std::strtol` in `apps/mxi_split.cc` and `std::stoul`
+in `src/args.cc` and `apps/mxi_untrusted.cc` parse small numbers. The Metal
+code's `unsigned long` (`src/metal_device.*`, `src/fit_device_metal.cc`,
+`src/dext_metal.cc`) is Apple's API, macOS only: left.
+
+## Sized types: a rule for mxi, Windows or not
+
+Graeme asked whether explicitly sized integer types are a good idea anyway.
+They are: a type whose size is the same on every system cannot behave
+differently on one of them, and saying how large a value can be is part of
+saying what it is. A rule:
+
+* **`std::int64_t`** for anything that counts or indexes data that grows with
+  the data -- rows, voxels, pixels, offsets into flat arrays, hash keys, running
+  totals; and for the summary's integers (`json::Value(std::int64_t)`, the
+  `long` constructor gone, so that a stray `long` does not compile into it).
+* **`std::size_t`** for sizes and indices of containers, as most of mxi has.
+* **`std::ptrdiff_t`** (or `std::next`) for iterator offsets.
+* **`std::int32_t` and the like** where a file format fixes the width.
+* **`int`** for what is small by its nature -- a Miller index, a loop over three
+  axes, an exit code.
+* **Never `long` or `unsigned long`**, outside an API that demands it (Metal's).
+
+Done as one change, before any Windows work: the four wrong-on-Windows cases
+first, then the rest. On Linux and macOS it changes nothing a test can see --
+every value already fits -- so the suites passing unchanged is the check, with
+a test for each of the four at a size past 2^31 where that can be made cheaply
+(the shoebox offset by a synthetic offset, the doubling loop by its bound).
+
+## The build
+
+* **Toolchain**: Microsoft's, through vcpkg (`x64-windows-static`), one
+  statically linked `mxi.exe` with no DLLs to find, as the Linux and macOS
+  archives are static. clang-cl, Clang with Microsoft's ABI, keeps warnings and
+  behaviour closest to the other builds and takes the `-W` flags; MSVC's own
+  `cl` wants `/W4` and finds different things. clang-cl first.
+* **CPU only.** CUDA on Windows can come later; on a hosted runner its toolkit
+  is a large install, and the CPU paths are what to prove first. No Metal.
+* **The workflow**: a Windows job in the release workflow beside Linux and
+  macOS -- vcpkg's dependencies cached, mxi built, ctest and the Python suite
+  run (Python 3.12 from actions/setup-python, with tkinter), the window tests
+  skipped (`MXI_NO_WINDOW_TESTS`) as on the other runners, and a zip kept:
+  `mxi.exe`, `mxi_ui/`, `mxi_view.py`, the licences. Python itself not in the
+  zip: `mxi view` and `mxi ui` use the Python found on the system, as on the
+  others.
+* **Its own branch** until it passes, so that a Windows failure does not hold
+  up a Linux or macOS release.
+
+## What Graeme tests
+
+Unzip; `mxi --version`; `mxi process` on a data set, its merged statistics
+against a Linux or macOS run of the same (the same within the threads' order,
+as between those two); `mxi ui` and `mxi view` opened, the windows CI cannot
+open. A path with spaces in it, and one with a non-ASCII character -- HDF5 on
+Windows takes paths in the system's code page unless built for UTF-8.
+
+## Phases
+
+1. **The integers**, by the rule above, on Linux and macOS: no Windows needed.
+2. **The platform layer**: the six POSIX places behind `src/platform.{hh,cc}`,
+   Windows' half written and compiled only there; the Python's `mxi.exe`.
+3. **The build**: CMake and vcpkg for Windows, the workflow job; round trips
+   through Graeme until it builds and its tests pass.
+4. **Graeme's test** of the zip, and a release with it.
+5. Later, if wanted: CUDA on Windows.
+
+## Open
+
+* clang-cl or MSVC's `cl` (clang-cl planned).
+* Whether the Windows zip goes in releases from its first passing build, or
+  after a release or two on its branch.
+* Paths with non-ASCII characters: HDF5's UTF-8 build, or a documented limit.

@@ -33,7 +33,7 @@ namespace {
 //: Observations made from a known model: 1500 reflections seen 6 to 10 times
 //: each, across the scan and resolution, with absorption at random directions,
 //: and noise of one per cent.
-ScaleData planted(const ScaleModel &truth, unsigned seed) {
+ScaleData planted(const ScaleModel &truth, std::uint32_t seed) {
   std::mt19937 rng(seed);
   std::uniform_real_distribution<double> uni(0.0, 1.0);
   std::exponential_distribution<double> strength(1.0 / 1000.0);
@@ -41,12 +41,12 @@ ScaleData planted(const ScaleModel &truth, unsigned seed) {
   ScaleData data;
   std::vector<double> y;
   for (std::size_t h = 0; h < 1500; ++h) {
-    data.unique.push_back(Miller{static_cast<int>(h), 0, 0});
+    data.unique.push_back(Miller{static_cast<std::int32_t>(h), 0, 0});
     const double inv_d2 =
         1.0 / 64.0 + uni(rng) * (1.0 / 2.25 - 1.0 / 64.0); // 8 to 1.5 A
     const double truth_i = 50.0 + strength(rng);
-    const int seen = 6 + static_cast<int>(uni(rng) * 5.0);
-    for (int k = 0; k < seen; ++k) {
+    const std::int32_t seen = 6 + static_cast<std::int32_t>(uni(rng) * 5.0);
+    for (std::int32_t k = 0; k < seen; ++k) {
       ScaleObservation o;
       o.rotation = uni(rng);
       o.time = o.rotation;
@@ -168,16 +168,16 @@ namespace {
 //: Groups of one reflection seen `seen` times with unit scales, true
 //: intensities from 100 to 10000, reported variances I (as counting would
 //: give), and true noise a^2 (I + (b I)^2).
-ScaleData plain(std::size_t groups, int seen, double a, double b,
-                unsigned seed) {
+ScaleData plain(std::size_t groups, std::int32_t seen, double a, double b,
+                std::uint32_t seed) {
   std::mt19937 rng(seed);
   std::uniform_real_distribution<double> uni(0.0, 1.0);
   std::normal_distribution<double> noise(0.0, 1.0);
   ScaleData data;
   for (std::size_t h = 0; h < groups; ++h) {
-    data.unique.push_back(Miller{static_cast<int>(h), 1, 0});
+    data.unique.push_back(Miller{static_cast<std::int32_t>(h), 1, 0});
     const double truth = 100.0 * std::pow(100.0, uni(rng));
-    for (int k = 0; k < seen; ++k) {
+    for (std::int32_t k = 0; k < seen; ++k) {
       const double sigma = a * std::sqrt(truth + b * b * truth * truth);
       const double i = truth + sigma * noise(rng);
       data.intensity.push_back(i);
@@ -246,9 +246,9 @@ TEST(a_large_fractional_error_is_b_not_a) {
   std::normal_distribution<double> noise(0.0, 1.0);
   ScaleData data;
   for (std::size_t h = 0; h < 4000; ++h) {
-    data.unique.push_back(Miller{static_cast<int>(h), 1, 0});
+    data.unique.push_back(Miller{static_cast<std::int32_t>(h), 1, 0});
     const double truth = 10.0 * std::pow(1000.0, uni(rng));
-    for (int k = 0; k < 8; ++k) {
+    for (std::int32_t k = 0; k < 8; ++k) {
       const double sigma = std::sqrt(truth + 0.15 * 0.15 * truth * truth);
       data.intensity.push_back(truth + sigma * noise(rng));
       data.variance.push_back(truth);
@@ -269,16 +269,16 @@ namespace {
 // Planted for the split error model: a background's variance B and a signal's
 // truth, as integration writes them, the noise a_bg^2 B + a^2 truth + (a b
 // truth)^2; through model_variances, as mxi_scale goes.
-ScaleData planted_split(double a_bg, double a, double b, unsigned seed) {
+ScaleData planted_split(double a_bg, double a, double b, std::uint32_t seed) {
   std::mt19937 rng(seed);
   std::uniform_real_distribution<double> uni(0.0, 1.0);
   std::normal_distribution<double> noise(0.0, 1.0);
   ScaleData data;
   const double B = 40.0;
   for (std::size_t h = 0; h < 6000; ++h) {
-    data.unique.push_back(Miller{static_cast<int>(h), 1, 0});
+    data.unique.push_back(Miller{static_cast<std::int32_t>(h), 1, 0});
     const double truth = std::pow(10000.0, uni(rng));
-    for (int k = 0; k < 7; ++k) {
+    for (std::int32_t k = 0; k < 7; ++k) {
       const double var =
           a_bg * a_bg * B + a * a * (truth + b * b * truth * truth);
       data.intensity.push_back(truth + std::sqrt(var) * noise(rng));
@@ -331,9 +331,9 @@ TEST(the_intensity_combination_chosen_is_better_than_either_alone) {
   std::normal_distribution<double> noise(0.0, 1.0);
   ScaleData data;
   for (std::size_t h = 0; h < 3000; ++h) {
-    data.unique.push_back(Miller{static_cast<int>(h), 2, 0});
+    data.unique.push_back(Miller{static_cast<std::int32_t>(h), 2, 0});
     const double truth = 10.0 * std::pow(3000.0, uni(rng));
-    for (int k = 0; k < 6; ++k) {
+    for (std::int32_t k = 0; k < 6; ++k) {
       const double ss = std::sqrt(truth + 200.0), sp = 0.5 * ss;
       const double sum = truth + ss * noise(rng);
       const double prf =
@@ -420,8 +420,9 @@ TEST(the_scale_uncertainties_are_what_repeating_the_experiment_gives) {
     const double inv_d2 =
         1.0 / 64.0 + uni(geometry) * (1.0 / 2.25 - 1.0 / 64.0);
     truth_i.push_back(50.0 + strength(geometry));
-    const int seen = 6 + static_cast<int>(uni(geometry) * 5.0);
-    for (int k = 0; k < seen; ++k) {
+    const std::int32_t seen =
+        6 + static_cast<std::int32_t>(uni(geometry) * 5.0);
+    for (std::int32_t k = 0; k < seen; ++k) {
       ScaleObservation o;
       o.rotation = uni(geometry);
       o.time = o.rotation;
@@ -441,13 +442,13 @@ TEST(the_scale_uncertainties_are_what_repeating_the_experiment_gives) {
   const std::size_t np = probes.observation.size();
   probes.intensity.assign(np, 0.0); // size() counts these
   std::vector<double> sum(np, 0.0), sum2(np, 0.0), predicted(np, 0.0);
-  const int repeats = 40;
-  for (int rep = 0; rep < repeats; ++rep) {
-    std::mt19937 rng(100 + static_cast<unsigned>(rep));
+  const std::int32_t repeats = 40;
+  for (std::int32_t rep = 0; rep < repeats; ++rep) {
+    std::mt19937 rng(100 + static_cast<std::uint32_t>(rep));
     std::normal_distribution<double> noise(0.0, 1.0);
     ScaleData data;
     for (std::size_t h = 0; h < 800; ++h)
-      data.unique.push_back(Miller{static_cast<int>(h), 3, 0});
+      data.unique.push_back(Miller{static_cast<std::int32_t>(h), 3, 0});
     for (std::size_t i = 0; i < where.size(); ++i) {
       const double g = truth.inverse_scale(where[i]);
       const double sigma = 0.02 * g * truth_i[group[i]];
@@ -568,14 +569,14 @@ TEST(with_anomalous_a_real_friedel_difference_is_neither_noise_nor_outliers) {
   const double a = 1.3, b = 0.03, delta = 0.10;
   ScaleData merged, apart;
   for (std::size_t h = 0; h < 3000; ++h) {
-    merged.unique.push_back(Miller{static_cast<int>(h), 1, 0});
-    apart.unique.push_back(Miller{static_cast<int>(h), 1, 0});
-    apart.unique.push_back(Miller{static_cast<int>(h), 1, 0});
+    merged.unique.push_back(Miller{static_cast<std::int32_t>(h), 1, 0});
+    apart.unique.push_back(Miller{static_cast<std::int32_t>(h), 1, 0});
+    apart.unique.push_back(Miller{static_cast<std::int32_t>(h), 1, 0});
     merged.centric.push_back(false);
     apart.centric.push_back(false);
     apart.centric.push_back(false);
     const double truth = 100.0 * std::pow(100.0, uni(rng));
-    for (int k = 0; k < 8; ++k) {
+    for (std::int32_t k = 0; k < 8; ++k) {
       const bool plus = k < 4;
       const double mean = truth * (plus ? 1.0 + delta : 1.0 - delta);
       const double sigma = a * std::sqrt(mean + b * b * mean * mean);
@@ -629,7 +630,7 @@ TEST(with_anomalous_acentric_mates_are_apart_and_centric_ones_together) {
       {1, 0, 2}, {2, 0, -3}, {4, 0, 1}}; // centric
   std::vector<Miller> rows;
   for (const Miller &m : wanted)
-    for (int repeat = 0; repeat < 2; ++repeat) {
+    for (std::int32_t repeat = 0; repeat < 2; ++repeat) {
       rows.push_back(m);
       rows.push_back(Miller{-m[0], -m[1], -m[2]});
     }
@@ -644,7 +645,7 @@ TEST(with_anomalous_acentric_mates_are_apart_and_centric_ones_together) {
   Column &sv = t.real_column("intensity.sum.value", "double", 1);
   Column &svar = t.real_column("intensity.sum.variance", "double", 1);
   for (std::size_t r = 0; r < rows.size(); ++r) {
-    for (int c = 0; c < 3; ++c)
+    for (std::int32_t c = 0; c < 3; ++c)
       hkl.ints[r * 3 + c] = rows[r][static_cast<std::size_t>(c)];
     flags.ints[r] = flag::kIntegratedPrf | flag::kIntegratedSum;
     d.reals[r] = 2.0;
@@ -677,7 +678,7 @@ TEST(with_anomalous_acentric_mates_are_apart_and_centric_ones_together) {
   std::map<std::size_t, std::set<bool>> mates;
   for (std::size_t i = 0; i < apart.size(); ++i)
     mates[apart.group[i]].insert(apart.plus[i]);
-  int split = 0, whole = 0;
+  std::int32_t split = 0, whole = 0;
   for (const auto &[g, sides] : mates) {
     if (apart.centric[g]) {
       ++whole;
@@ -702,7 +703,7 @@ TEST(several_sweeps_observations_each_take_their_own_sweeps_scan) {
   // not 1 to 2 of the first's. And an id naming no experiment is refused, the
   // table and the list not belonging together.
   const SpaceGroup group = SpaceGroup::from_name("P 1");
-  const std::vector<std::pair<int, double>> rows = {
+  const std::vector<std::pair<std::int32_t, double>> rows = {
       {0, 25.0}, {0, 75.0}, {1, 125.0}, {1, 175.0}};
   Table t;
   t.nrows = rows.size();
@@ -716,7 +717,7 @@ TEST(several_sweeps_observations_each_take_their_own_sweeps_scan) {
   Column &sv = t.real_column("intensity.sum.value", "double", 1);
   Column &svar = t.real_column("intensity.sum.variance", "double", 1);
   for (std::size_t r = 0; r < rows.size(); ++r) {
-    hkl.ints[r * 3] = 1 + static_cast<int>(r);
+    hkl.ints[r * 3] = 1 + static_cast<std::int32_t>(r);
     hkl.ints[r * 3 + 1] = 2;
     hkl.ints[r * 3 + 2] = 3;
     flags.ints[r] = flag::kIntegratedPrf | flag::kIntegratedSum;
@@ -727,7 +728,7 @@ TEST(several_sweeps_observations_each_take_their_own_sweeps_scan) {
     pvar.reals[r] = svar.reals[r] = 100.0;
   }
   ExperimentList experiments;
-  for (int s = 0; s < 2; ++s) {
+  for (std::int32_t s = 0; s < 2; ++s) {
     experiments.experiments.emplace_back();
     Scan &scan = experiments.experiments.back().scan;
     scan.first_image = 1 + 100 * s;
@@ -797,9 +798,9 @@ TEST(variances_from_the_model_leave_the_merged_mean_unbiased) {
   ScaleData data;
   data.observation.resize(n);
   for (std::size_t h = 0; h < groups; ++h) {
-    data.unique.push_back(Miller{static_cast<int>(h) + 1, 0, 0});
+    data.unique.push_back(Miller{static_cast<std::int32_t>(h) + 1, 0, 0});
     for (std::size_t k = 0; k < each; ++k) {
-      std::poisson_distribution<int> counts(background + truth);
+      std::poisson_distribution<std::int32_t> counts(background + truth);
       const double I = counts(rng) - background;
       data.intensity.push_back(I);
       const double own = std::fmax(I, 0.0) + background;

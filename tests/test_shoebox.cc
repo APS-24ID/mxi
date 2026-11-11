@@ -57,7 +57,7 @@ TEST(shoeboxes_survive_an_encode_and_a_decode) {
   for (std::size_t i = 0; i < boxes.size(); ++i) {
     check::equal(static_cast<std::int64_t>(back[i].panel), boxes[i].panel,
                  "panel");
-    for (int k = 0; k < 6; ++k) {
+    for (std::int32_t k = 0; k < 6; ++k) {
       check::equal(static_cast<std::int64_t>(back[i].bbox[k]),
                    static_cast<std::int64_t>(boxes[i].bbox[k]), "bbox");
     }
@@ -200,7 +200,7 @@ namespace {
 
 // One shoebox record as DIALS writes version 1: panel, bbox, the version byte,
 // data, the mask as a 4-byte integer a voxel, background.
-std::string version_1_record(std::int32_t x0, int version,
+std::string version_1_record(std::int32_t x0, std::int32_t version,
                              std::int32_t mask_value) {
   std::string out;
   const auto put = [&](const void *p, std::size_t n) {

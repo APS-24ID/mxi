@@ -14,6 +14,7 @@
 
 #include <complex>
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 namespace mxi {
@@ -28,7 +29,8 @@ std::size_t next_power_of_two(std::size_t n);
 // applied in either direction, because every use here looks at the modulus of
 // the result and a constant factor never matters. Threaded where FFTW is,
 // as many threads as the command's (-j/--threads, parallel.hh).
-void fft3d(std::vector<std::complex<double>> &grid, std::size_t n, int sign);
+void fft3d(std::vector<std::complex<double>> &grid, std::size_t n,
+           std::int32_t sign);
 
 //: The built-in radix-2, always compiled whichever transform is in use.
 //:
@@ -37,6 +39,6 @@ void fft3d(std::vector<std::complex<double>> &grid, std::size_t n, int sign);
 //: looks like a lattice. There is a test that the two agree, and it is only
 //: worth anything because this one is always here to disagree with.
 void fft3d_builtin(std::vector<std::complex<double>> &grid, std::size_t n,
-                   int sign);
+                   std::int32_t sign);
 
 } // namespace mxi

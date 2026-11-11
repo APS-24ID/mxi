@@ -9,6 +9,7 @@
 
 #include "fit_batch.hh"
 
+#include <cstdint>
 #include <cstdlib>
 #include <string>
 
@@ -29,7 +30,7 @@ struct FakeSlot {
   std::vector<std::uint8_t> mask;
 };
 FakeSlot g_fake[kFitSlots];
-int g_next_ticket = 0;
+std::int32_t g_next_ticket = 0;
 
 } // namespace
 
@@ -47,10 +48,10 @@ bool fit_batch_destination(std::size_t voxels, std::size_t reference_floats,
   return true;
 }
 
-int fit_batch_submit(const FitBatch &batch) {
+std::int32_t fit_batch_submit(const FitBatch &batch) {
   if (!fake() || batch.boxes.empty())
     return -1;
-  const int ticket = g_next_ticket;
+  const std::int32_t ticket = g_next_ticket;
   FakeSlot &s = g_fake[ticket % kFitSlots];
   if (s.busy)
     return -1;
@@ -60,7 +61,8 @@ int fit_batch_submit(const FitBatch &batch) {
   return ticket;
 }
 
-bool fit_batch_collect(int ticket, std::vector<mxi::fitdev::FitF> *out) {
+bool fit_batch_collect(std::int32_t ticket,
+                       std::vector<mxi::fitdev::FitF> *out) {
   FakeSlot &s = g_fake[ticket % kFitSlots];
   if (!s.busy)
     return false;
@@ -71,7 +73,7 @@ bool fit_batch_collect(int ticket, std::vector<mxi::fitdev::FitF> *out) {
 
 bool fit_batch_device(const FitBatch &batch,
                       std::vector<mxi::fitdev::FitF> *out) {
-  const int ticket = fit_batch_submit(batch);
+  const std::int32_t ticket = fit_batch_submit(batch);
   return ticket >= 0 && fit_batch_collect(ticket, out);
 }
 

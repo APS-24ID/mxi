@@ -7,6 +7,7 @@
 // up spelled two ways.
 
 #include <atomic>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -45,7 +46,7 @@ std::atomic<bool> profiling{false};
 std::atomic<bool> reporting{true};
 
 // -1 for "nothing announced yet", so the first frame always reports.
-std::atomic<int> announced{-1};
+std::atomic<std::int32_t> announced{-1};
 
 StageTimes &thread_times() {
   static thread_local StageTimes times;
@@ -147,7 +148,8 @@ void announce_windows(Window stage0, Window stage2) {
   if (!reporting.load(std::memory_order_relaxed))
     return;
   // Two bits, so a change to either is a change here.
-  const int now = static_cast<int>(stage0) * 2 + static_cast<int>(stage2);
+  const std::int32_t now =
+      static_cast<std::int32_t>(stage0) * 2 + static_cast<std::int32_t>(stage2);
   // Relaxed, and a benign race: two threads switching at once might both
   // report, which is a duplicate line and not a wrong one.
   if (announced.exchange(now, std::memory_order_relaxed) == now)

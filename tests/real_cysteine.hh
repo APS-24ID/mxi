@@ -15,7 +15,7 @@ inline constexpr double kRealSpaceC[3] = {
     -8.1994071386195237, 3.9698211625925248, -8.0536238236643101};
 
 struct Row {
-  int h, k, l;
+  std::int32_t h, k, l;
   double px_fast, px_slow, px_z;
   double rlp[3];
 };
@@ -31,7 +31,7 @@ struct Sweep {
   // goniometer, axes ordered from the sample outwards to the laboratory
   std::vector<std::array<double, 3>> axes;
   std::vector<double> angles;
-  int scan_axis;
+  std::int32_t scan_axis;
   // scan
   std::array<std::int64_t, 2> image_range;
   double osc_start, osc_width;

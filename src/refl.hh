@@ -114,7 +114,7 @@ class Table {
 public:
   std::size_t nrows = 0;
   std::map<std::size_t, std::string> identifiers;
-  int version = 2;
+  std::int32_t version = 2;
 
   bool has(const std::string &name) const { return columns_.count(name) > 0; }
   const Column &at(const std::string &name) const;

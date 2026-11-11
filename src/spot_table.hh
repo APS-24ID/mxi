@@ -9,6 +9,7 @@
 #define MXI_SPOT_TABLE_HH
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -23,7 +24,7 @@ struct SpotPart {
   const std::vector<mxi::spots::Spot> *spots = nullptr;
   const std::vector<mxi::spots::Pixel> *pixels = nullptr;
   std::size_t width = 0;
-  int id = 0;
+  std::int32_t id = 0;
   std::string identifier;
 };
 
@@ -38,7 +39,7 @@ Table spot_table(const std::vector<SpotPart> &parts, std::size_t panel,
 //: One experiment's spots written to `path` (.refl), for the tests.
 struct SpotTableOptions {
   std::size_t panel = 0;
-  int id = 0;
+  std::int32_t id = 0;
   std::string identifier;
   bool shoeboxes = true;
 };

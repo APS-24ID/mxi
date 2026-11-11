@@ -6,6 +6,7 @@
 // appendices A1 and A2, as dials.symmetry implements them.
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -66,7 +67,7 @@ struct WilsonFit {
   bool fitted = false;    //: false: too few reflections, shells used instead
   double log_scale = 0.0; //: ln k
   double b[6] = {0, 0, 0, 0, 0, 0};
-  int iterations = 0;
+  std::int32_t iterations = 0;
   std::size_t used = 0; //: reflections in the window fitted
 };
 
@@ -86,7 +87,7 @@ std::size_t normalise(P1Intensities &data, std::size_t per_shell = 200,
 
 struct ElementScore {
   Rotation rotation;
-  int order = 1;
+  std::int32_t order = 1;
   std::size_t pairs = 0;
   double cc = 0.0, sigma_cc = 0.0, z = 0.0;
   double p_given_present = 0.0, p_given_absent = 0.0, likelihood = 0.0;
@@ -114,12 +115,12 @@ struct LaueScores {
 //: counts them: each rotation axis once, a rotation and its inverse together,
 //: and the square of a four-fold as a two-fold of its own. 17 for m-3m.
 std::vector<Rotation> symmetry_elements(const std::vector<Rotation> &lattice);
-int rotation_order(const Rotation &r);
+std::int32_t rotation_order(const Rotation &r);
 
 //: Score every element and every subgroup of the lattice's rotations.
 LaueScores score_laue_groups(const P1Intensities &normalised,
                              const std::vector<Rotation> &lattice,
-                             unsigned seed = 1);
+                             std::uint32_t seed = 1);
 
 //: Evans (2011) A1: p(CC; S), a Cauchy centred on E(CC; S), and p(CC; !S),
 //: the same averaged over a true CC with density (1 - x^2)^(1/2) on [0, 1],

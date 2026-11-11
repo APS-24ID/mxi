@@ -92,7 +92,7 @@ TEST(a_scan_varying_crystal_has_a_control_point_per_ten_degrees) {
   // The default for mxi_refine --scan-varying and --postrefine alike: one per
   // 10 degrees, as the reference profiles' scan blocks, and at least five --
   // by the angle, not the number of images.
-  const auto points = [](int images, double width) {
+  const auto points = [](std::int32_t images, double width) {
     Scan s;
     s.first_image = 1;
     s.last_image = images;

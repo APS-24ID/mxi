@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace mxi {
 
@@ -83,7 +84,7 @@ bool integration_bbox(const Experiment &e, const Prediction &p,
   // smooth and monotonic over an offset this small, so the corners bound it.
   double low_fast = 0.0, high_fast = 0.0, low_slow = 0.0, high_slow = 0.0;
   bool first = true;
-  for (int i = 0; i < 4; ++i) {
+  for (std::int32_t i = 0; i < 4; ++i) {
     const double t1 = (i & 1) ? t : -t;
     const double t2 = (i & 2) ? t : -t;
     double px_fast = 0.0, px_slow = 0.0;
@@ -244,7 +245,7 @@ bool build_shoebox(const Experiment &e, const Prediction &p,
     return false;
 
   box->panel = static_cast<std::int32_t>(p.panel);
-  for (int i = 0; i < 6; ++i)
+  for (std::int32_t i = 0; i < 6; ++i)
     box->bbox[i] = bbox[i];
   box->flag = 2;
   const std::size_t n = box->size();
@@ -271,7 +272,7 @@ void mark_overlapped(const Experiment &e, const Prediction &q,
     return;
   // Only where the two boxes meet: q's foreground lies inside its own box.
   std::int32_t meet[6];
-  for (int k = 0; k < 6; k += 2) {
+  for (std::int32_t k = 0; k < 6; k += 2) {
     meet[k] = std::max(box->bbox[k], q_bbox[k]);
     meet[k + 1] = std::min(box->bbox[k + 1], q_bbox[k + 1]);
     if (meet[k] >= meet[k + 1])
@@ -295,7 +296,7 @@ bool foregrounds_meet(const Experiment &ea, const Prediction &a,
   if (a.panel != b.panel)
     return false;
   std::int32_t meet[6];
-  for (int k = 0; k < 6; k += 2) {
+  for (std::int32_t k = 0; k < 6; k += 2) {
     meet[k] = std::max(a_bbox[k], b_bbox[k]);
     meet[k + 1] = std::min(a_bbox[k + 1], b_bbox[k + 1]);
     if (meet[k] >= meet[k + 1])

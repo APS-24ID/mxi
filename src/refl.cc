@@ -203,7 +203,7 @@ private:
 // doubles.
 [[maybe_unused]] double read_double_le(const std::uint8_t *p) {
   std::uint64_t bits = 0;
-  for (int i = 7; i >= 0; --i)
+  for (std::int32_t i = 7; i >= 0; --i)
     bits = (bits << 8) | p[static_cast<std::size_t>(i)];
   double out;
   std::memcpy(&out, &bits, sizeof(out));
@@ -501,7 +501,7 @@ Table decode_reflections(const std::string &raw) {
 
   Table table;
   if (top == 3)
-    table.version = static_cast<int>(r.integer());
+    table.version = static_cast<std::int32_t>(r.integer());
 
   const std::size_t entries = r.map_header();
   bool seen_data = false;

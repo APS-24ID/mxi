@@ -28,7 +28,7 @@ namespace {
 
 namespace {
 
-int failures = 0;
+std::int32_t failures = 0;
 
 void check(bool condition, const std::string &what) {
   if (!condition) {
@@ -41,7 +41,7 @@ void check(bool condition, const std::string &what) {
 void build(std::vector<mxi::spots::Spot> *spots,
            std::vector<mxi::spots::Pixel> *pixels, std::size_t width) {
   std::size_t at = 0;
-  for (int s = 0; s < 5; ++s) {
+  for (std::int32_t s = 0; s < 5; ++s) {
     mxi::spots::Spot spot;
     spot.first = at;
     spot.n_signal = 0;
@@ -58,9 +58,9 @@ void build(std::vector<mxi::spots::Spot> *spots,
     spot.variance[1] = 0.5;
     spot.variance[2] = 0.6;
     spot.intensity = 0.0;
-    for (int z = 0; z < 2 + s % 2; ++z) {
-      for (int y = 0; y < 3; ++y) {
-        for (int x = 0; x < 3; ++x) {
+    for (std::int32_t z = 0; z < 2 + s % 2; ++z) {
+      for (std::int32_t y = 0; y < 3; ++y) {
+        for (std::int32_t x = 0; x < 3; ++x) {
           mxi::spots::Pixel p;
           p.index = static_cast<std::uint32_t>((10 + s * 7 + y) * width + 12 +
                                                s * 5 + x);
@@ -80,7 +80,7 @@ void build(std::vector<mxi::spots::Spot> *spots,
 
 } // namespace
 
-int run() {
+std::int32_t run() {
   std::vector<mxi::spots::Spot> spots;
   std::vector<mxi::spots::Pixel> pixels;
   const std::size_t width = 64;

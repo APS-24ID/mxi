@@ -108,7 +108,7 @@ TEST(cysteine_has_the_four_sweeps_that_make_it_useful) {
   check::equal(static_cast<std::int64_t>(all.size()), 4, "four sweeps");
   // Two sweeps with a non-zero setting angle below the scan axis, which is
   // what exercises the fixed rotation at all.
-  int with_setting = 0, scan_axis_zero = 0;
+  std::int32_t with_setting = 0, scan_axis_zero = 0;
   for (const cysteine::Sweep &s : all) {
     if (s.scan_axis == 1 && s.angles[0] != 0.0)
       ++with_setting;
@@ -171,7 +171,7 @@ TEST(cysteine_swapping_fixed_and_setting_is_caught) {
   // Breaks exactly the two sweeps with a non-zero phi setting, and leaves the
   // other two untouched -- which is why the insulin data could never have
   // caught this.
-  int broken = 0;
+  std::int32_t broken = 0;
   for (const cysteine::Sweep &s : cysteine::sweeps()) {
     Goniometer g = build(s).goniometer;
     std::swap(g.fixed, g.setting);
@@ -182,7 +182,7 @@ TEST(cysteine_swapping_fixed_and_setting_is_caught) {
 }
 
 TEST(cysteine_dropping_the_fixed_rotation_is_caught) {
-  int broken = 0;
+  std::int32_t broken = 0;
   for (const cysteine::Sweep &s : cysteine::sweeps()) {
     Goniometer g = build(s).goniometer;
     g.fixed = Mat3::identity();
@@ -200,7 +200,7 @@ TEST(cysteine_folding_in_the_scan_axis_angle_is_caught) {
   // This is the variant that sweep 0 catches and the other wrong compositions
   // do not: its fixed rotation is otherwise the identity, so it is blind to
   // the swap and to the dropped rotation, and sensitive only to this.
-  int broken = 0;
+  std::int32_t broken = 0;
   bool sweep_zero_caught = false;
   const std::vector<cysteine::Sweep> &all = cysteine::sweeps();
   for (std::size_t i = 0; i < all.size(); ++i) {
@@ -356,7 +356,7 @@ TEST(threeaxis_middle_axis_setting_varies_and_reaches_the_fixed_rotation) {
 }
 
 TEST(threeaxis_dropping_the_fixed_rotation_is_caught_by_three_sweeps) {
-  int broken = 0;
+  std::int32_t broken = 0;
   for (const threeaxis::Sweep &s : threeaxis::sweeps()) {
     Goniometer g = build(s).goniometer;
     g.fixed = Mat3::identity();

@@ -20,14 +20,14 @@ const UnitCell kCell{60, 60, 80, 90, 90, 90};
 // Every unique reflection of `group` to 2 A, an intensity each: acentric
 // exponential, centric eps Sigma x^2, Sigma falling off with B = 20; sigma
 // 2 per cent of the shell's mean, noise added.
-std::map<Miller, double> wilson(const SpaceGroup &group, unsigned seed) {
+std::map<Miller, double> wilson(const SpaceGroup &group, std::uint32_t seed) {
   std::mt19937 random(seed);
   std::exponential_distribution<double> exponential(1.0);
   std::normal_distribution<double> normal(0.0, 1.0);
   std::map<Miller, double> out;
-  for (int h = -31; h <= 31; ++h)
-    for (int k = -31; k <= 31; ++k)
-      for (int l = -41; l <= 41; ++l) {
+  for (std::int32_t h = -31; h <= 31; ++h)
+    for (std::int32_t k = -31; k <= 31; ++k)
+      for (std::int32_t l = -41; l <= 41; ++l) {
         const Miller m{h, k, l};
         if ((h == 0 && k == 0 && l == 0) || group.absent(m))
           continue;
@@ -46,7 +46,7 @@ std::map<Miller, double> wilson(const SpaceGroup &group, unsigned seed) {
 }
 
 TriageData as_data(const std::map<Miller, double> &truth,
-                   const SpaceGroup &group, unsigned seed) {
+                   const SpaceGroup &group, std::uint32_t seed) {
   std::mt19937 random(seed);
   std::normal_distribution<double> normal(0.0, 1.0);
   TriageData data;

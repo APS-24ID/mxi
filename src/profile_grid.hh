@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "profile_model.hh"
@@ -30,7 +31,7 @@ namespace mxi {
 
 //: A cube of (2n+1) points a side, spanning plus and minus `half_width` sigmas.
 struct ProfileGrid {
-  int n = 4; //: so the side is 2n + 1
+  std::int32_t n = 4; //: so the side is 2n + 1
   double sigma_d = 0.0;
   double sigma_m = 0.0;
   double half_width = 3.0; //: in sigmas
@@ -40,12 +41,12 @@ struct ProfileGrid {
   double counts_added = 0.0;
   double counts_outside = 0.0;
 
-  int side() const { return 2 * n + 1; }
+  std::int32_t side() const { return 2 * n + 1; }
   std::size_t size() const {
     return static_cast<std::size_t>(side()) * static_cast<std::size_t>(side()) *
            static_cast<std::size_t>(side());
   }
-  std::size_t at(int i1, int i2, int i3) const {
+  std::size_t at(std::int32_t i1, std::int32_t i2, std::int32_t i3) const {
     return (static_cast<std::size_t>(i3) * static_cast<std::size_t>(side()) +
             static_cast<std::size_t>(i2)) *
                static_cast<std::size_t>(side()) +
@@ -57,7 +58,8 @@ struct ProfileGrid {
   void normalise();
 };
 
-ProfileGrid make_grid(int n, double sigma_d, double sigma_m, double half_width);
+ProfileGrid make_grid(std::int32_t n, double sigma_d, double sigma_m,
+                      double half_width);
 
 //: Add one shoebox, transformed into the frame of its own reflection.
 //:
@@ -79,8 +81,8 @@ ProfileGrid make_grid(int n, double sigma_d, double sigma_m, double half_width);
 //: captures the signal. About the spot is the right centre for asking what
 //: shape a spot is, which is what an aggregate profile is for.
 void add_to_grid(const Experiment &e, const Shoebox &box, const Vec3 &s1,
-                 double phi_calculated, ProfileGrid *grid, int subdivisions = 5,
-                 bool recentre = false);
+                 double phi_calculated, ProfileGrid *grid,
+                 std::int32_t subdivisions = 5, bool recentre = false);
 
 //: Counts-weighted second moments of one spot's density in the Kabsch frame,
 //: about its own centroid there.

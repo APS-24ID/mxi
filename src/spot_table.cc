@@ -112,7 +112,7 @@ Table spot_table(const std::vector<SpotPart> &parts, std::size_t panel,
           mask[at] = kValid | kForeground;
         }
         append<std::uint32_t>(boxes.bytes, static_cast<std::uint32_t>(panel));
-        for (int i = 0; i < 6; ++i)
+        for (std::int32_t i = 0; i < 6; ++i)
           append<std::int32_t>(boxes.bytes, spot.bbox[i]);
         boxes.bytes.push_back(static_cast<char>(2));
         boxes.bytes.append(reinterpret_cast<const char *>(data.data()),

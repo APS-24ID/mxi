@@ -18,6 +18,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <vector>
 
@@ -150,11 +151,11 @@ inline void report(const char *what, const Difference &d, std::size_t height,
                 "%u\n",
                 b.index, b.value, static_cast<double>(b.background),
                 b.population);
-    const unsigned index =
+    const std::uint32_t index =
         d.only_gpu > 0 && d.only_cpu == 0 ? b.index : a.index;
     std::printf("           row %u, column %u of %zu x %zu\n",
-                index / static_cast<unsigned>(width),
-                index % static_cast<unsigned>(width), height, width);
+                index / static_cast<std::uint32_t>(width),
+                index % static_cast<std::uint32_t>(width), height, width);
   }
 }
 

@@ -2,6 +2,7 @@
 
 #include "refl.hh"
 #include <chrono>
+#include <cstdint>
 
 #include <algorithm>
 #include <cmath>
@@ -22,7 +23,8 @@ double quantum_efficiency(const Panel &panel, const Vec3 &s1) {
   return 1.0 - std::exp(-panel.mu * panel.thickness / cosine);
 }
 
-double resolution(const Crystal &crystal, int h, int k, int l) {
+double resolution(const Crystal &crystal, std::int32_t h, std::int32_t k,
+                  std::int32_t l) {
   // A rather than A_at: the static cell is what the column holds, even for a
   // scan-varying crystal.
   const Vec3 q =

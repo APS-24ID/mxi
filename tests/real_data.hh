@@ -19,7 +19,7 @@ inline constexpr double kGonioAxes[3][3] = {
     {-0.0045999999999999999, 0.037199999999999997, -0.99929999999999997},
     {1, 0, 0}};
 inline constexpr double kGonioAngles[3] = {0, 0, 0};
-inline constexpr int kScanAxis = 2;
+inline constexpr std::int32_t kScanAxis = 2;
 inline constexpr std::int64_t kImageRange[2] = {1, 300};
 inline constexpr double kOscStart = 0;
 inline constexpr double kOscWidth = 0.10000000000000009;
@@ -51,7 +51,7 @@ inline constexpr double kRefinedMu = 3.6630929654784739;
 inline constexpr double kRefinedThickness = 0.45000000000000001;
 
 struct Row {
-  int h, k, l;
+  std::int32_t h, k, l;
   double px_fast, px_slow, px_z;
   double mm_fast, mm_slow, mm_phi;
   double cal_mm_fast, cal_mm_slow;

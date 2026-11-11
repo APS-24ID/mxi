@@ -71,8 +71,8 @@ const char *kUsage =
 } // namespace
 
 // A Plotly figure, as mxi_report draws them.
-std::string figure(int number, const mxi::json::Array &traces,
-                   const mxi::json::Object &layout, int height = 420) {
+std::string figure(std::int32_t number, const mxi::json::Array &traces,
+                   const mxi::json::Object &layout, std::int32_t height = 420) {
   using namespace mxi;
   json::Object l = layout;
   l["height"] = json::Value(static_cast<std::int64_t>(height));
@@ -91,7 +91,7 @@ mxi::json::Value text(const std::string &s) { return mxi::json::Value(s); }
 // A matrix as a heat map in its Ward dendrogram's order, the dendrogram
 // above it: as dials.correlation_matrix draws the correlations and the cosine
 // angles. `values` n x n; the distances 1 - value.
-std::string matrix_figure(int number, const std::string &title,
+std::string matrix_figure(std::int32_t number, const std::string &title,
                           const std::vector<double> &values, std::size_t n,
                           const std::vector<std::size_t> &which) {
   using namespace mxi;
@@ -125,7 +125,7 @@ std::string matrix_figure(int number, const std::string &title,
       {"yaxis", text("y")}}));
   for (std::size_t k = 0; k < tree.x.size(); ++k) {
     json::Array xs, ys;
-    for (int q = 0; q < 4; ++q) {
+    for (std::int32_t q = 0; q < 4; ++q) {
       xs.push_back(json::Value(tree.x[k][q]));
       ys.push_back(json::Value(tree.y[k][q]));
     }
@@ -163,9 +163,10 @@ std::string matrix_figure(int number, const std::string &title,
   return figure(number, traces, layout, 760);
 }
 
-std::size_t members_count(const std::vector<int> &labels, int label) {
+std::size_t members_count(const std::vector<std::int32_t> &labels,
+                          std::int32_t label) {
   std::size_t n = 0;
-  for (int l : labels)
+  for (std::int32_t l : labels)
     n += l == label;
   return n;
 }
@@ -259,8 +260,8 @@ int mxi_correlation_main(int argc, char **argv) {
                                 fit.b[3], fit.b[1], fit.b[5],
                                 fit.b[4], fit.b[5], fit.b[2]};
         double trace = 0.0;
-        for (int r = 0; r < 3; ++r)
-          for (int c2 = 0; c2 < 3; ++c2)
+        for (std::int32_t r = 0; r < 3; ++r)
+          for (std::int32_t c2 = 0; c2 < 3; ++c2)
             trace += beta[r * 3 + c2] * G.m[c2 * 3 + r];
         if (fit.fitted)
           std::printf(" %.2f", 2.0 * trace / 3.0);
@@ -374,7 +375,7 @@ int mxi_correlation_main(int argc, char **argv) {
                     "score %.3f\n",
                     clusters.min_samples, clusters.initial_min_samples,
                     clusters.silhouette, clusters.score);
-      std::map<int, std::vector<std::size_t>> members;
+      std::map<std::int32_t, std::vector<std::size_t>> members;
       for (std::size_t i = 0; i < clusters.labels.size(); ++i)
         members[clusters.labels[i]].push_back(which[i]);
       for (const auto &[label, list] : members) {
@@ -413,7 +414,7 @@ int mxi_correlation_main(int argc, char **argv) {
              "coordinates in "
           << c.dim << " dimensions, OPTICS (min_samples "
           << clusters.min_samples << ").</p>\n";
-      std::map<int, std::vector<std::size_t>> members;
+      std::map<std::int32_t, std::vector<std::size_t>> members;
       for (std::size_t i = 0; i < clusters.labels.size(); ++i)
         members[clusters.labels[i]].push_back(which[i]);
       html << "<h2>Clusters</h2><table><tr><th>cluster</th><th>data sets"
@@ -434,7 +435,7 @@ int mxi_correlation_main(int argc, char **argv) {
       else if (clusters.score > -1.0)
         html << "<p>Silhouette " << clusters.silhouette << ", score "
              << clusters.score << ".</p>\n";
-      int number = 0;
+      std::int32_t number = 0;
       std::vector<double> r = m.r;
       for (std::size_t i = 0; i < n; ++i)
         r[i * n + i] = 1.0;
@@ -459,7 +460,7 @@ int mxi_correlation_main(int argc, char **argv) {
                             "coordinates",
                             cosine, n, which);
       {
-        std::map<int, std::pair<json::Array, json::Array>> by;
+        std::map<std::int32_t, std::pair<json::Array, json::Array>> by;
         double top = 0.0;
         for (double v : clusters.model.reachability)
           if (std::isfinite(v))
@@ -492,7 +493,7 @@ int mxi_correlation_main(int argc, char **argv) {
                            {"bargap", json::Value(0.1)}});
       }
       if (c.dim >= 2) {
-        std::map<int, std::array<json::Array, 3>> by;
+        std::map<std::int32_t, std::array<json::Array, 3>> by;
         for (std::size_t i = 0; i < n; ++i) {
           auto &v = by[clusters.labels[i]];
           v[0].push_back(json::Value(c.components[i * c.dim]));
@@ -582,10 +583,11 @@ int mxi_correlation_main(int argc, char **argv) {
       if (rflx::has_experiments(args.positional[0]))
         summary = rflx::read_summary(args.positional[0]);
       const std::string prefix = args.value("--prefix", "cluster");
-      std::set<int> labels(clusters.labels.begin(), clusters.labels.end());
+      std::set<std::int32_t> labels(clusters.labels.begin(),
+                                    clusters.labels.end());
       labels.erase(-1);
       std::printf("\n");
-      for (int label : labels) {
+      for (std::int32_t label : labels) {
         // The cluster's data sets, each with its sweep, and their rows
         // renumbered: as mxi_split writes them (src/combine.hh).
         std::vector<bool> keep(all.size(), false);
@@ -670,7 +672,7 @@ int mxi_correlation_main(int argc, char **argv) {
       doc["explained_variance_ratio"] = json::Value(std::move(ratio));
       doc["functional"] = json::Value(c.final_functional);
       json::Array labels, order, reach, search;
-      for (int l : clusters.labels)
+      for (std::int32_t l : clusters.labels)
         labels.push_back(json::Value(static_cast<std::int64_t>(l)));
       for (std::size_t k : clusters.model.ordering) {
         order.push_back(json::Value(static_cast<std::int64_t>(k)));

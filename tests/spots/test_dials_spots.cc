@@ -26,7 +26,7 @@ namespace {
 
 namespace {
 
-int failures = 0;
+std::int32_t failures = 0;
 
 void check(const std::string &what, std::uint64_t actual,
            std::uint64_t expected) {
@@ -73,7 +73,7 @@ mxi::spots::Options plain() {
 
 } // namespace
 
-int run() {
+std::int32_t run() {
   const std::size_t height = 8;
   const std::size_t width = 10;
 
@@ -106,12 +106,12 @@ int run() {
       close("variance x", spot.variance[0], 0.8 / 4.0 + 1.0 / 12.0);
       close("variance y", spot.variance[1], 1.0 / 12.0);
       close("variance z", spot.variance[2], 1.0 / 12.0);
-      check("bbox x0", static_cast<unsigned>(spot.bbox[0]), 0);
-      check("bbox x1", static_cast<unsigned>(spot.bbox[1]), 3);
-      check("bbox y0", static_cast<unsigned>(spot.bbox[2]), 0);
-      check("bbox y1", static_cast<unsigned>(spot.bbox[3]), 1);
-      check("bbox z0", static_cast<unsigned>(spot.bbox[4]), 0);
-      check("bbox z1", static_cast<unsigned>(spot.bbox[5]), 1);
+      check("bbox x0", static_cast<std::uint32_t>(spot.bbox[0]), 0);
+      check("bbox x1", static_cast<std::uint32_t>(spot.bbox[1]), 3);
+      check("bbox y0", static_cast<std::uint32_t>(spot.bbox[2]), 0);
+      check("bbox y1", static_cast<std::uint32_t>(spot.bbox[3]), 1);
+      check("bbox z0", static_cast<std::uint32_t>(spot.bbox[4]), 0);
+      check("bbox z1", static_cast<std::uint32_t>(spot.bbox[5]), 1);
       check("pixels kept for the shoebox", labeller.pixels().size(), 3);
     }
     check("groups seen", labeller.counts().groups, 1);
@@ -143,8 +143,8 @@ int run() {
       close("centroid z", spot.position[2], 1.5);
       close("variance x", spot.variance[0], 0.75 / 9.0 + 1.0 / 12.0);
       close("variance z", spot.variance[2], 0.75 / 9.0 + 1.0 / 12.0);
-      check("bbox z0", static_cast<unsigned>(spot.bbox[4]), 0);
-      check("bbox z1", static_cast<unsigned>(spot.bbox[5]), 3);
+      check("bbox z0", static_cast<std::uint32_t>(spot.bbox[4]), 0);
+      check("bbox z1", static_cast<std::uint32_t>(spot.bbox[5]), 3);
     }
   }
   {
@@ -159,8 +159,8 @@ int run() {
       close("the second one is on frame 1", labeller.spots()[1].position[2],
             1.5);
       check("with a one-frame box",
-            static_cast<unsigned>(labeller.spots()[1].bbox[5] -
-                                  labeller.spots()[1].bbox[4]),
+            static_cast<std::uint32_t>(labeller.spots()[1].bbox[5] -
+                                       labeller.spots()[1].bbox[4]),
             1);
     }
   }
@@ -181,7 +181,7 @@ int run() {
       check("the first pair", labeller.spots()[0].n_signal, 6);
       check("the second pair", labeller.spots()[1].n_signal, 6);
       check("and they are on different frames",
-            static_cast<unsigned>(labeller.spots()[1].bbox[4]), 3);
+            static_cast<std::uint32_t>(labeller.spots()[1].bbox[4]), 3);
     }
   }
 
@@ -394,7 +394,7 @@ int run() {
   // -------------------------------------------------------------------------
   {
     mxi::spots::Labeller labeller(height, width, plain());
-    const int frames = 200;
+    const std::int32_t frames = 200;
     for (std::int64_t frame = 0; frame < frames; frame++) {
       // The streak, plus a three-pixel spot that closes on the next frame, so
       // that there is always something to flush as well as something to keep.
@@ -406,14 +406,14 @@ int run() {
     check("two streaks", labeller.spots().size(), 2);
     if (labeller.spots().size() == 2) {
       check("the first is whole", labeller.spots()[0].n_signal,
-            static_cast<unsigned>(3 * frames));
+            static_cast<std::uint32_t>(3 * frames));
       check("and spans every frame",
-            static_cast<unsigned>(labeller.spots()[0].bbox[5] -
-                                  labeller.spots()[0].bbox[4]),
-            static_cast<unsigned>(frames));
+            static_cast<std::uint32_t>(labeller.spots()[0].bbox[5] -
+                                       labeller.spots()[0].bbox[4]),
+            static_cast<std::uint32_t>(frames));
     }
     check("all the pixels were kept", labeller.pixels().size(),
-          static_cast<unsigned>(6 * frames));
+          static_cast<std::uint32_t>(6 * frames));
   }
 
   // -------------------------------------------------------------------------

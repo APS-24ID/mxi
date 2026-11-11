@@ -1,6 +1,7 @@
 #include "fft.hh"
 
 #include <cmath>
+#include <cstdint>
 #include <stdexcept>
 
 namespace mxi {
@@ -17,7 +18,7 @@ namespace {
 // Iterative Cooley-Tukey on a strided line, so the same routine serves all
 // three axes without transposing the grid between passes.
 void transform_line(std::complex<double> *data, std::size_t n,
-                    std::size_t stride, int sign) {
+                    std::size_t stride, std::int32_t sign) {
   // Bit reversal.
   for (std::size_t i = 1, j = 0; i < n; ++i) {
     std::size_t bit = n >> 1;
@@ -47,7 +48,7 @@ void transform_line(std::complex<double> *data, std::size_t n,
 } // namespace
 
 void fft3d_builtin(std::vector<std::complex<double>> &grid, std::size_t n,
-                   int sign) {
+                   std::int32_t sign) {
   if ((n & (n - 1)) != 0 || n == 0) {
     throw std::invalid_argument("fft3d needs a power-of-two grid size");
   }
@@ -80,7 +81,8 @@ void fft3d_builtin(std::vector<std::complex<double>> &grid, std::size_t n,
 #ifndef MXI_USE_FFTW
 namespace mxi {
 // No library asked for, so the built-in is the transform.
-void fft3d(std::vector<std::complex<double>> &grid, std::size_t n, int sign) {
+void fft3d(std::vector<std::complex<double>> &grid, std::size_t n,
+           std::int32_t sign) {
   fft3d_builtin(grid, n, sign);
 }
 } // namespace mxi

@@ -2,6 +2,7 @@
 // each to its own and back, as the HANDOVER's conformance checklist asks.
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <iterator>
@@ -53,7 +54,7 @@ json::Value awkward_tree() {
                   json::Value(json::Object{{"k", json::Value("two")}})});
   o["strings"] = json::Value(json::Array{json::Value("a"), json::Value("b")});
   json::Array long_list;
-  for (int i = 0; i < 100; ++i)
+  for (std::int32_t i = 0; i < 100; ++i)
     long_list.push_back(json::Value(i * 0.25)); // past 64: a dataset
   o["long"] = json::Value(long_list);
   o["nested"] = json::Value(json::Object{
@@ -83,7 +84,7 @@ Table every_column() {
                                           4, 2, 3, 6, 7, 6, 8, 1, 2};
   t.int_column("pair", "tiny<int,2>", 2).ints = {1, 2, 3, 4, 5, 6};
   std::vector<Shoebox> boxes;
-  for (int r = 0; r < 3; ++r) {
+  for (std::int32_t r = 0; r < 3; ++r) {
     Shoebox b;
     b.panel = r;
     const std::int32_t box[6] = {r, r + 2, 0, 1, 0, 1 + r};

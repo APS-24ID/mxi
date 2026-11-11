@@ -56,7 +56,7 @@ struct IntegrationSummary {
 //: Shells of equal volume in reciprocal space, equal steps in 1/d^3, between
 //: the lowest and highest resolution present. A reflection without a finite
 //: positive d is left out of every row.
-IntegrationSummary summarise(const SummaryInput &in, int shells = 10);
+IntegrationSummary summarise(const SummaryInput &in, std::int32_t shells = 10);
 
 //: The two tables, as text.
 void print_summary(std::FILE *out, const IntegrationSummary &s);

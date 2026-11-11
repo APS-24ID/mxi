@@ -16,7 +16,7 @@ namespace mxi::decompress {
 
 // How many bytes `image` will write, given the frame geometry.
 std::size_t frame_bytes(std::size_t height, std::size_t width,
-                        unsigned bit_depth);
+                        std::uint32_t bit_depth);
 
 // Decompress one image into `out`, which must be at least frame_bytes() long.
 // `data` is the chunk exactly as HDF5 stored it, filter header and all, and
@@ -27,7 +27,7 @@ std::size_t frame_bytes(std::size_t height, std::size_t width,
 // -- which is the check worth having, since a wrong pointer or a wrong bit
 // depth usually decompresses to something rather than failing outright.
 void image(std::span<const std::uint8_t> data, std::string_view algorithm,
-           unsigned bit_depth, std::size_t height, std::size_t width,
+           std::uint32_t bit_depth, std::size_t height, std::size_t width,
            std::span<std::uint8_t> out);
 
 } // namespace mxi::decompress

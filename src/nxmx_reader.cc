@@ -110,7 +110,7 @@ std::string cache_key(const Block &block) {
   return block.filename + "\n" + block.dataset;
 }
 
-std::string plist_string(hid_t plist, int index,
+std::string plist_string(hid_t plist, std::int32_t index,
                          ssize_t (*get)(hid_t, size_t, char *, size_t)) {
   const ssize_t size = get(plist, static_cast<size_t>(index), nullptr, 0);
   if (size < 0)
@@ -129,15 +129,15 @@ std::string plist_string(hid_t plist, int index,
 // bytes are handed on untouched, so nothing here needs the filter to be
 // installed.
 std::string_view algorithm_of(hid_t dcpl) {
-  const int filters = H5Pget_nfilters(dcpl);
+  const std::int32_t filters = H5Pget_nfilters(dcpl);
   if (filters < 0)
     throw std::runtime_error("HDF5: cannot count filters");
-  for (int i = 0; i < filters; i++) {
-    unsigned flags = 0;
+  for (std::int32_t i = 0; i < filters; i++) {
+    std::uint32_t flags = 0;
     size_t values = 0;
     const H5Z_filter_t filter =
-        H5Pget_filter2(dcpl, static_cast<unsigned>(i), &flags, &values, nullptr,
-                       0, nullptr, nullptr);
+        H5Pget_filter2(dcpl, static_cast<std::uint32_t>(i), &flags, &values,
+                       nullptr, 0, nullptr, nullptr);
     if (filter == kBitshuffle)
       return "bslz4";
     if (filter == kLz4)
@@ -156,7 +156,7 @@ std::string_view algorithm_of(hid_t dcpl) {
 // threads x files of them, past macOS's 256 a process (Graeme). Called with
 // the HDF5 lock held.
 struct DirectFile {
-  int fd = -1;
+  std::int32_t fd = -1;
   std::uint64_t base = 0;
 };
 
@@ -166,7 +166,7 @@ struct SourceDataset {
   DirectFile direct; //: where read_chunk reads its chunks, found once
   std::uint64_t height = 0;
   std::uint64_t width = 0;
-  unsigned bit_depth = 0;
+  std::uint32_t bit_depth = 0;
   std::string_view algorithm;
 };
 
@@ -228,7 +228,7 @@ DirectFile direct_file_of(hid_t dataset) {
 struct ChunkPlace {
   haddr_t address = HADDR_UNDEF;
   hsize_t size = 0;
-  unsigned mask = 0;
+  std::uint32_t mask = 0;
 };
 
 herr_t read_chunk(hid_t dataset, const hsize_t *offset, std::uint32_t *filters,
@@ -236,7 +236,7 @@ herr_t read_chunk(hid_t dataset, const hsize_t *offset, std::uint32_t *filters,
                   const DirectFile *known = nullptr,
                   const ChunkPlace *place = nullptr) {
   DirectFile file;
-  unsigned mask = 0;
+  std::uint32_t mask = 0;
   haddr_t address = 0;
   hsize_t size = 0;
   if (known != nullptr && known->fd >= 0 && place != nullptr) {
@@ -355,7 +355,7 @@ private:
                    H5P_DEFAULT) < 0)
       return "";
     const char *target = nullptr, *object = nullptr;
-    unsigned flags = 0;
+    std::uint32_t flags = 0;
     if (H5Lunpack_elink_val(value.data(), value.size(), &flags, &target,
                             &object) < 0)
       return "";
@@ -425,7 +425,7 @@ private:
 
     const Handle type(opened(H5Dget_type(source.dataset.get()), "H5Dget_type"),
                       H5Tclose);
-    source.bit_depth = static_cast<unsigned>(8 * H5Tget_size(type.get()));
+    source.bit_depth = static_cast<std::uint32_t>(8 * H5Tget_size(type.get()));
 
     return open_.emplace(key, std::move(source)).first->second;
   }
@@ -460,7 +460,7 @@ bool starts_with_brace(const std::string &path) {
   std::FILE *file = std::fopen(path.c_str(), "rb");
   if (file == nullptr)
     return false;
-  int c = 0;
+  std::int32_t c = 0;
   while ((c = std::fgetc(file)) != EOF && std::isspace(c))
     ;
   std::fclose(file);
@@ -508,7 +508,8 @@ read_pixel_mask(hid_t file, std::uint64_t height, std::uint64_t width) {
       continue;
     const hid_t space = H5Dget_space(dataset);
     hsize_t dims[2] = {0, 0};
-    const int rank = space >= 0 ? H5Sget_simple_extent_ndims(space) : -1;
+    const std::int32_t rank =
+        space >= 0 ? H5Sget_simple_extent_ndims(space) : -1;
     if (rank == 2)
       H5Sget_simple_extent_dims(space, dims, nullptr);
     if (space >= 0)
@@ -677,10 +678,10 @@ private:
     std::vector<Block> blocks;
     for (size_t i = 0; i < count; i++) {
       Block block;
-      const std::string filename =
-          plist_string(dcpl, static_cast<int>(i), H5Pget_virtual_filename);
-      block.dataset =
-          plist_string(dcpl, static_cast<int>(i), H5Pget_virtual_dsetname);
+      const std::string filename = plist_string(
+          dcpl, static_cast<std::int32_t>(i), H5Pget_virtual_filename);
+      block.dataset = plist_string(dcpl, static_cast<std::int32_t>(i),
+                                   H5Pget_virtual_dsetname);
 
       // "." means the mapping points back into the master file itself, and
       // the master's path is already whatever the caller gave -- it must NOT
@@ -701,11 +702,11 @@ private:
       block.filename = path.string();
 
       const Handle vspace(
-          opened(H5Pget_virtual_vspace(dcpl, static_cast<unsigned>(i)),
+          opened(H5Pget_virtual_vspace(dcpl, static_cast<std::uint32_t>(i)),
                  "H5Pget_virtual_vspace"),
           H5Sclose);
       const Handle source(
-          opened(H5Pget_virtual_srcspace(dcpl, static_cast<unsigned>(i)),
+          opened(H5Pget_virtual_srcspace(dcpl, static_cast<std::uint32_t>(i)),
                  "H5Pget_virtual_srcspace"),
           H5Sclose);
 
@@ -741,7 +742,7 @@ private:
         std::filesystem::path(master_).parent_path();
     std::vector<Block> blocks;
     std::uint64_t next = 0;
-    for (int k = 1;; ++k) {
+    for (std::int32_t k = 1;; ++k) {
       char name[64];
       std::snprintf(name, sizeof name, "/entry/data/data_%06d", k);
       if (H5Lexists(file, name, H5P_DEFAULT) <= 0)
@@ -762,7 +763,7 @@ private:
            "H5Lget_val");
         const char *target_file = nullptr;
         const char *target_object = nullptr;
-        unsigned flags = 0;
+        std::uint32_t flags = 0;
         ok(H5Lunpack_elink_val(value.data(), value.size(), &flags, &target_file,
                                &target_object),
            "H5Lunpack_elink_val");

@@ -34,7 +34,7 @@ struct Frame {
 
   std::uint64_t height = 0; // slow
   std::uint64_t width = 0;  // fast
-  unsigned bit_depth = 0;   // 16 or 32
+  std::uint32_t bit_depth = 0; // 16 or 32
 
   // "bslz4", "lz4", or empty for a chunk that was stored uncompressed. Points
   // at storage owned by the Reader, which outlives the Frame.

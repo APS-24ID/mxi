@@ -1,6 +1,7 @@
 // mxi_export: an unmerged MTZ, as dials.export writes one -- the design and
 // its sources in DIALS are docs/export.md.
 
+#include <cstdint>
 #include <gemmi/mtz.hpp>
 #include <gemmi/symmetry.hpp>
 #include <gemmi/unitcell.hpp>
@@ -295,7 +296,7 @@ int run_export(int argc, char **argv) {
     for (std::size_t i = 0; i < sweeps; ++i) {
       const Cell c = cell_of(experiments[i].crystal->A);
       const double p[6] = {c.a, c.b, c.c, c.alpha, c.beta, c.gamma};
-      for (int k = 0; k < 6; ++k)
+      for (std::int32_t k = 0; k < 6; ++k)
         params[k].push_back(p[k]);
     }
     const Cell best{median(params[0]), median(params[1]), median(params[2]),
@@ -312,7 +313,7 @@ int run_export(int argc, char **argv) {
 
     // Datasets: one a wavelength, within 1e-4 A.
     std::vector<double> wavelengths;
-    std::vector<int> dataset_of(sweeps);
+    std::vector<std::int32_t> dataset_of(sweeps);
     for (std::size_t i = 0; i < sweeps; ++i) {
       const double w = experiments[i].beam.wavelength;
       std::size_t k = 0;
@@ -320,7 +321,7 @@ int run_export(int argc, char **argv) {
         ++k;
       if (k == wavelengths.size())
         wavelengths.push_back(w);
-      dataset_of[i] = static_cast<int>(k) + 1;
+      dataset_of[i] = static_cast<std::int32_t>(k) + 1;
     }
 
     // The rows: which, and their corrected intensities.
@@ -431,7 +432,7 @@ int run_export(int argc, char **argv) {
       ds.project_name = args.value("--project-name", "mxi");
       ds.wavelength = w;
     }
-    const int last = static_cast<int>(mtz.datasets.back().id);
+    const std::int32_t last = static_cast<std::int32_t>(mtz.datasets.back().id);
     const auto column = [&](const char *label, char type) {
       mtz.add_column(label, type, last, -1, false);
     };
@@ -488,13 +489,14 @@ int run_export(int argc, char **argv) {
       batch.floats[21] = 0.0f; // mosaicity
       const double ax[3] = {axis[i].x, axis[i].y, axis[i].z};
       const double so[3] = {source[i].x, source[i].y, source[i].z};
-      for (int j = 0; j < 3; ++j) {
+      for (std::int32_t j = 0; j < 3; ++j) {
         batch.floats[38 + j] = static_cast<float>(ax[j]); // scanax
         batch.floats[59 + j] = static_cast<float>(ax[j]); // e1
         batch.floats[83 + j] = static_cast<float>(so[j]); // source
       }
       batch.floats[43] = 1.0f; // batch scale
-      const int smallest = static_cast<int>(std::min_element(so, so + 3) - so);
+      const std::int32_t smallest =
+          static_cast<std::int32_t>(std::min_element(so, so + 3) - so);
       batch.floats[80 + smallest] = -1.0f; // the idealised source
       batch.floats[111] = static_cast<float>(panel.origin.dot(normal));
       batch.floats[114] = static_cast<float>(panel.image_size[0]);
@@ -522,13 +524,14 @@ int run_export(int argc, char **argv) {
           cell = cell_of(A[i]);
         }
         const Mat3 U = mosflm_u(ub, cell);
-        batch.number = static_cast<int>(e.scan.first_image + k + offsets[i]);
+        batch.number =
+            static_cast<std::int32_t>(e.scan.first_image + k + offsets[i]);
         batch.title = "Batch " + std::to_string(batch.number);
         batch.set_cell(gemmi::UnitCell(cell.a, cell.b, cell.c, cell.alpha,
                                        cell.beta, cell.gamma));
         // Column major, as MTZ keeps it.
-        for (int r = 0; r < 3; ++r)
-          for (int c = 0; c < 3; ++c)
+        for (std::int32_t r = 0; r < 3; ++r)
+          for (std::int32_t c = 0; c < 3; ++c)
             batch.floats[6 + c * 3 + r] = static_cast<float>(U.m[r * 3 + c]);
         const double start =
             e.scan.osc_start + static_cast<double>(k) * e.scan.osc_width;

@@ -172,18 +172,18 @@ namespace {
 
 volatile std::sig_atomic_t interrupted = 0;
 
-void on_signal(int /*signal*/) { interrupted = 1; }
+void on_signal(std::int32_t /*signal*/) { interrupted = 1; }
 
 using Clock = std::chrono::steady_clock;
 
 struct Options {
-  int threads = 0; // every core, as the other programs; -j for fewer
-  int timeout_seconds = 60;
+  std::int32_t threads = 0; // every core, as the other programs; -j for fewer
+  std::int32_t timeout_seconds = 60;
   // A progress bar from this many images, as integration's (progress.hh):
   // the frames are the slow part, and on a slow machine -- a Raspberry Pi --
   // a long series had run in silence (Graeme, 29 October).
   std::size_t progress_from = 100;
-  int poll_milliseconds = 200;
+  std::int32_t poll_milliseconds = 200;
   std::string master;                 // the NXmx HDF5 master file
   bool master_given = false;          // named on the command line
   std::size_t sweeps = 1;             // experiments in the list
@@ -315,7 +315,7 @@ bool looks_like_json(const std::string &path) {
   std::FILE *file = std::fopen(path.c_str(), "rb");
   if (file == nullptr)
     return false;
-  int c = 0;
+  std::int32_t c = 0;
   while ((c = std::fgetc(file)) != EOF && std::isspace(c))
     ;
   std::fclose(file);
@@ -325,7 +325,7 @@ bool looks_like_json(const std::string &path) {
 bool parse_options(int argc, char **argv, Options *options) {
   // --version first: mxi_find's says which threshold backend it was built with,
   // more than the shared parser's.
-  for (int i = 1; i < argc; ++i)
+  for (std::int32_t i = 1; i < argc; ++i)
     if (std::string(argv[i]) == "--version") {
       report_version("mxi find");
       std::exit(0);
@@ -376,13 +376,13 @@ bool parse_options(int argc, char **argv, Options *options) {
   }
   // -j/--threads, as every command takes it (args.cc), or every core this
   // job may use (parallel.hh): read once the parser has set it.
-  options->threads = static_cast<int>(mxi::parallel_threads());
+  options->threads = static_cast<std::int32_t>(mxi::parallel_threads());
   options->timeout_seconds =
-      static_cast<int>(args.number("-t", options->timeout_seconds));
+      static_cast<std::int32_t>(args.number("-t", options->timeout_seconds));
   options->progress_from = static_cast<std::size_t>(args.number(
       "--progress-from", static_cast<double>(options->progress_from)));
   options->poll_milliseconds =
-      static_cast<int>(args.number("-p", options->poll_milliseconds));
+      static_cast<std::int32_t>(args.number("-p", options->poll_milliseconds));
   if (args.has("-x"))
     options->master = args.value("-x", "");
   if (args.has("-o")) {
@@ -470,7 +470,7 @@ bool parse_options(int argc, char **argv, Options *options) {
   return true;
 }
 
-void sleep_for(int milliseconds) {
+void sleep_for(std::int32_t milliseconds) {
   std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
 }
 
@@ -545,7 +545,7 @@ template <typename T>
 void threshold(const std::uint8_t *frame, std::vector<SignalPixel> *signal,
                std::size_t height, std::size_t width) {
   const T *const pixels = reinterpret_cast<const T *>(frame);
-  int status = 0;
+  std::int32_t status = 0;
 #ifdef MXI_GPU
   if (on_device) {
     status = mxi::gpu::find<T>(pixels, *signal, height, width);
@@ -786,15 +786,15 @@ void report_written(const Options &options, std::size_t rows) {
 
 // What becomes of one experiment's spots: written as the table, for one sweep,
 // or kept to be written with the others', for several.
-using Emit =
-    std::function<int(const mxi::spots::Labeller &, const mxi::series::Info &,
-                      const mxi::ExperimentImages &)>;
+using Emit = std::function<std::int32_t(const mxi::spots::Labeller &,
+                                        const mxi::series::Info &,
+                                        const mxi::ExperimentImages &)>;
 
 // One experiment's spots, from its own images: experiment `index` of the list,
 // or the master file alone without one. Handed to `emit` where they would be
 // written, then the timing reported.
-int find_one(Options options, std::size_t index, mxi::Timing &timing,
-             const Emit &emit) {
+std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
+                      const Emit &emit) {
   std::unique_ptr<mxi::series::Series> source;
   mxi::series::Info info;
   // How many frames will be offered, when fewer than the file holds.
@@ -915,7 +915,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
   // The first frame's error, said once at the end if no frame could be read.
   std::mutex first_error_mutex;
   std::string first_error;
-  std::atomic<int> live{options.threads};
+  std::atomic<std::int32_t> live{options.threads};
   const Clock::time_point began = Clock::now();
   // Each stage's time summed across the threads: set against threads x wall,
   // what the others waited on. Reading is the HDF5 chunk read; the threshold
@@ -938,12 +938,12 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
   const double t_began = mxi::Timing::now();
 
   std::vector<std::thread> workers;
-  for (int i = 0; i < options.threads; i++) {
+  for (std::int32_t i = 0; i < options.threads; i++) {
     workers.emplace_back([&, i] {
       // However this thread leaves, the last one out says so: a chunk in
       // flight is otherwise waited on forever.
       struct Leaving {
-        std::atomic<int> &live;
+        std::atomic<std::int32_t> &live;
         Chunk &chunk;
         ~Leaving() {
           if (live.fetch_sub(1) == 1)
@@ -987,7 +987,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
             const double d1 = mxi::Timing::now();
             t_decompress.add(d1 - d0);
             found.number = frame.number;
-            unsigned depth = frame.bit_depth;
+            std::uint32_t depth = frame.bit_depth;
             const std::uint8_t *thresholded = pixels;
             if (options.gpu_force && depth == 32) {
               std::uint8_t *const into = narrowed.get(height * width * 2);
@@ -1410,9 +1410,10 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
 namespace {
 
 // The table one sweep's spots make, written as it always was.
-int write_one(const Options &options, const mxi::spots::Labeller &labeller,
-              const mxi::series::Info &info,
-              const mxi::ExperimentImages &experiments) {
+std::int32_t write_one(const Options &options,
+                       const mxi::spots::Labeller &labeller,
+                       const mxi::series::Info &info,
+                       const mxi::ExperimentImages &experiments) {
   try {
     mxi::SpotPart part;
     part.spots = &labeller.spots();
@@ -1485,7 +1486,7 @@ int mxi_find_main(int argc, char **argv) {
     std::string identifier;
   };
   std::vector<Kept> kept(options.sweeps);
-  int status = 0;
+  std::int32_t status = 0;
   for (std::size_t i = 0; i < options.sweeps; ++i) {
     mxi::ExperimentImages e;
     try {
@@ -1525,7 +1526,7 @@ int mxi_find_main(int argc, char **argv) {
     part.spots = &kept[i].spots;
     part.pixels = &kept[i].pixels;
     part.width = kept[i].width;
-    part.id = static_cast<int>(i);
+    part.id = static_cast<std::int32_t>(i);
     part.identifier = kept[i].identifier;
     parts.push_back(part);
     total += kept[i].spots.size();

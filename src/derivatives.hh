@@ -36,6 +36,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <vector>
 
 #include "geometry.hh"
@@ -75,8 +76,9 @@ struct PredictionState {
 
 // Assemble the state for a reflection observed at scan position `z`, choosing
 // the Ewald root nearer the observation as the refinement target does.
-PredictionState prediction_state(const Experiment &e, std::size_t panel, int h,
-                                 int k, int l, double z);
+PredictionState prediction_state(const Experiment &e, std::size_t panel,
+                                 std::int32_t h, std::int32_t k, std::int32_t l,
+                                 double z);
 
 // Derivatives with respect to the nine elements of the setting matrix A, in
 // row-major order. For a scan-varying crystal these are the derivatives with
@@ -84,7 +86,9 @@ PredictionState prediction_state(const Experiment &e, std::size_t panel, int h,
 // B-spline weight of a control point gives the derivative with respect to that
 // control point, which is where the banding comes from.
 std::array<CentroidDerivative, 9> crystal_derivatives(const PredictionState &s,
-                                                      int h, int k, int l);
+                                                      std::int32_t h,
+                                                      std::int32_t k,
+                                                      std::int32_t l);
 
 // The B-spline weights of the control points at scan position `z`, and the
 // index of the first of the four. Everything outside those four is exactly

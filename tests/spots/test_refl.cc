@@ -26,7 +26,7 @@ namespace {
 
 namespace {
 
-int failures = 0;
+std::int32_t failures = 0;
 
 void check(const std::string &what, std::uint64_t actual,
            std::uint64_t expected) {
@@ -161,9 +161,9 @@ private:
     return bytes_[at_++];
   }
 
-  std::uint64_t be(int width) {
+  std::uint64_t be(std::int32_t width) {
     std::uint64_t result = 0;
-    for (int i = 0; i < width; i++)
+    for (std::int32_t i = 0; i < width; i++)
       result = (result << 8) | static_cast<std::uint8_t>(byte());
     return result;
   }
@@ -306,7 +306,7 @@ void check_columns(const Table &table, bool shoeboxes) {
 
 } // namespace
 
-int run() {
+std::int32_t run() {
   const std::size_t height = 8;
   const std::size_t width = 10;
 
@@ -359,13 +359,13 @@ int run() {
       check("a centroid is three doubles", value->bytes, table.rows * 24);
       for (std::size_t row = 0; row < labeller.spots().size(); row++) {
         const mxi::spots::Spot &spot = labeller.spots()[row];
-        for (int i = 0; i < 6; i++) {
+        for (std::int32_t i = 0; i < 6; i++) {
           check("bbox element",
                 static_cast<std::uint32_t>(reader.value<std::int32_t>(
                     bbox->offset + row * 24 + static_cast<std::size_t>(i) * 4)),
                 static_cast<std::uint32_t>(spot.bbox[i]));
         }
-        for (int axis = 0; axis < 3; axis++) {
+        for (std::int32_t axis = 0; axis < 3; axis++) {
           close("centroid",
                 reader.value<double>(value->offset + row * 24 +
                                      static_cast<std::size_t>(axis) * 8),

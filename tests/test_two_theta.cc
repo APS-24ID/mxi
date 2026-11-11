@@ -2,6 +2,7 @@
 // the e.s.d.s the scatter of the answer over many trials.
 
 #include <cmath>
+#include <cstdint>
 #include <random>
 #include <vector>
 
@@ -26,13 +27,13 @@ std::vector<TwoThetaObservation> planted(const UnitCell &cell, double sigma,
                cell.a * cell.b * cg, cell.b * cell.b,      cell.b * cell.c * ca,
                cell.a * cell.c * cb, cell.b * cell.c * ca, cell.c * cell.c};
   const Mat3 S = G.inverse();
-  for (int h = -12; h <= 12; ++h)
-    for (int k = -12; k <= 12; ++k)
-      for (int l = 0; l <= 12; ++l) {
+  for (std::int32_t h = -12; h <= 12; ++h)
+    for (std::int32_t k = -12; k <= 12; ++k)
+      for (std::int32_t l = 0; l <= 12; ++l) {
         const double x[3] = {double(h), double(k), double(l)};
         double q = 0.0;
-        for (int i = 0; i < 3; ++i)
-          for (int j = 0; j < 3; ++j)
+        for (std::int32_t i = 0; i < 3; ++i)
+          for (std::int32_t j = 0; j < 3; ++j)
             q += x[i] * S(i, j) * x[j];
         if (q <= 0.0 || q > 0.25) // to 2 A
           continue;
@@ -54,7 +55,7 @@ TEST(a_planted_cubic_cell_is_recovered_and_its_esd_is_its_scatter) {
   const UnitCell truth{78.0, 78.0, 78.0, 90.0, 90.0, 90.0};
   const UnitCell start{78.3, 78.3, 78.3, 90.0, 90.0, 90.0};
   std::vector<double> a, esd;
-  for (int trial = 0; trial < 200; ++trial) {
+  for (std::int32_t trial = 0; trial < 200; ++trial) {
     const TwoThetaResult r = refine_two_theta(planted(truth, 2e-4, rng), start,
                                               CrystalSystem::cubic);
     check::is_true(r.valid, "refined");
@@ -93,7 +94,7 @@ TEST(a_planted_monoclinic_cell_is_recovered_with_its_unique_angle) {
   const double v[6] = {r.cell.a,     r.cell.b,    r.cell.c,
                        r.cell.alpha, r.cell.beta, r.cell.gamma};
   const double t[6] = {40.0, 50.0, 60.0, 90.0, 105.0, 90.0};
-  for (int k : {0, 1, 2, 4})
+  for (std::int32_t k : {0, 1, 2, 4})
     check::is_true(std::fabs(v[k] - t[k]) <
                        4.0 * r.esd[static_cast<std::size_t>(k)],
                    "parameter " + std::to_string(k) + " within four e.s.d.s");

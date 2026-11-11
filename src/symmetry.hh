@@ -7,6 +7,7 @@
 // rather than everywhere a Miller index is grouped.
 
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -17,7 +18,7 @@
 
 namespace mxi {
 
-using Miller = std::array<int, 3>;
+using Miller = std::array<std::int32_t, 3>;
 
 class SpaceGroup {
 public:
@@ -29,12 +30,12 @@ public:
   std::string name() const; //: Hermann-Mauguin, "I 2 3"
   std::string hall() const; //: as an .expt holds it
   std::string laue() const; //: the Laue class, "m-3"
-  int number() const;
+  std::int32_t number() const;
   //: Operations of the point group, without centring: 12 for I 2 3.
   std::size_t order() const;
   //: Those operations' rotations, integer matrices on fractional
   //: coordinates, row major: x' = R x.
-  std::vector<std::array<int, 9>> rotations() const;
+  std::vector<std::array<std::int32_t, 9>> rotations() const;
 
   //: The symmetry-unique index of hkl, Friedel mates merged: the index that
   //: groups every observation of one reflection for scaling.
@@ -74,7 +75,7 @@ void reindex(ExperimentList &experiments, Table &reflections,
 //: A rotation of the lattice, as an integer matrix acting on fractional
 //: coordinates, row major: x' = R x. On Miller indices it acts as its
 //: transpose, h' = R^T h.
-using Rotation = std::array<int, 9>;
+using Rotation = std::array<std::int32_t, 9>;
 
 //: The crystal's cell made to satisfy the group, as dials.symmetry leaves it:
 //: a = b = c and every angle 90 for cubic, and so on -- the real-space metric

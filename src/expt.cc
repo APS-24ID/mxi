@@ -164,12 +164,12 @@ Crystal read_crystal(const json::Value &v) {
   return c;
 }
 
-int model_index(const json::Value &e, const char *key) {
+std::int32_t model_index(const json::Value &e, const char *key) {
   const json::Value &v = e[key];
   if (!v.is_number())
     return -1;
   const double d = v.as_number();
-  return d < 0 ? -1 : static_cast<int>(d);
+  return d < 0 ? -1 : static_cast<std::int32_t>(d);
 }
 
 } // namespace
@@ -270,11 +270,11 @@ ExperimentList experiments_from_json(const json::Value &document) {
     Experiment x;
     x.identifier = e["identifier"].as_string();
 
-    const int b = model_index(e, "beam");
-    const int d = model_index(e, "detector");
-    const int g = model_index(e, "goniometer");
-    const int s = model_index(e, "scan");
-    const int c = model_index(e, "crystal");
+    const std::int32_t b = model_index(e, "beam");
+    const std::int32_t d = model_index(e, "detector");
+    const std::int32_t g = model_index(e, "goniometer");
+    const std::int32_t s = model_index(e, "scan");
+    const std::int32_t c = model_index(e, "crystal");
     if (b >= 0 && static_cast<std::size_t>(b) < beams.size())
       x.beam = beams[b];
     if (d >= 0 && static_cast<std::size_t>(d) < detectors.size())
@@ -330,7 +330,7 @@ ExperimentList experiments_from_json(const json::Value &document) {
 std::string new_identifier() {
   std::random_device rd;
   std::mt19937_64 gen((static_cast<std::uint64_t>(rd()) << 32) ^ rd());
-  std::uniform_int_distribution<int> hex(0, 15);
+  std::uniform_int_distribution<std::int32_t> hex(0, 15);
   const char *digits = "0123456789abcdef";
   std::string s = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
   for (char &c : s) {

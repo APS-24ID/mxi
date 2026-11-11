@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <numeric>
 #include <random>
@@ -17,17 +18,17 @@ namespace {
 
 Rotation multiply(const Rotation &a, const Rotation &b) {
   Rotation c{};
-  for (int i = 0; i < 3; ++i)
-    for (int j = 0; j < 3; ++j) {
-      int s = 0;
-      for (int k = 0; k < 3; ++k)
+  for (std::int32_t i = 0; i < 3; ++i)
+    for (std::int32_t j = 0; j < 3; ++j) {
+      std::int32_t s = 0;
+      for (std::int32_t k = 0; k < 3; ++k)
         s += a[i * 3 + k] * b[k * 3 + j];
       c[i * 3 + j] = s;
     }
   return c;
 }
 
-int determinant(const Rotation &r) {
+std::int32_t determinant(const Rotation &r) {
   return r[0] * (r[4] * r[8] - r[5] * r[7]) -
          r[1] * (r[3] * r[8] - r[5] * r[6]) +
          r[2] * (r[3] * r[7] - r[4] * r[6]);
@@ -54,9 +55,9 @@ Miller add(const Miller &a, const Miller &b) {
 
 // Chebyshev nodes as cctbx's chebyshev_nodes(n, low, high, include_limits=
 // True): -cos((2k - 1) pi / 2n), stretched to reach the limits.
-std::vector<double> chebyshev_nodes(int n, double low, double high) {
+std::vector<double> chebyshev_nodes(std::int32_t n, double low, double high) {
   std::vector<double> x(static_cast<std::size_t>(n));
-  for (int k = 0; k < n; ++k)
+  for (std::int32_t k = 0; k < n; ++k)
     x[k] = -std::cos((2.0 * (k + 1) - 1.0) / n * std::acos(-1.0) / 2.0);
   const double span = (x.back() - x.front()) / 2.0;
   for (double &v : x)
@@ -83,7 +84,7 @@ struct Chebyshev {
   }
 };
 
-Chebyshev chebyshev_fit(int terms, const std::vector<double> &x,
+Chebyshev chebyshev_fit(std::int32_t terms, const std::vector<double> &x,
                         const std::vector<double> &y, double low, double high) {
   Chebyshev f{low, high, {}};
   const std::size_t m = static_cast<std::size_t>(terms);
@@ -258,7 +259,7 @@ TriageData prepared(const TriageData &given, const UnitCell &cell,
                            double(m[2]) * m[2], 2.0 * m[0] * m[1],
                            2.0 * m[0] * m[2],   2.0 * m[1] * m[2]};
       double qb = 0.0;
-      for (int j = 0; j < 6; ++j)
+      for (std::int32_t j = 0; j < 6; ++j)
         qb += q[j] * fit.b[j];
       const double factor = std::exp(qb - fit.log_scale);
       window.intensity[r] *= factor;
@@ -300,8 +301,8 @@ TriageData prepared(const TriageData &given, const UnitCell &cell,
 
 } // namespace
 
-int epsilon(const SpaceGroup &group, const Miller &hkl) {
-  int n = 0;
+std::int32_t epsilon(const SpaceGroup &group, const Miller &hkl) {
+  std::int32_t n = 0;
   for (const Rotation &r : point_group(group))
     if (mxi::apply(r, hkl) == hkl)
       ++n;
@@ -312,10 +313,10 @@ std::string twin_law_text(const Rotation &r) {
   // h' = R^T h: component i of h' is sum_j R[j][i] h_j.
   const char *names = "hkl";
   std::string out;
-  for (int i = 0; i < 3; ++i) {
+  for (std::int32_t i = 0; i < 3; ++i) {
     std::string term;
-    for (int j = 0; j < 3; ++j) {
-      const int c = r[j * 3 + i];
+    for (std::int32_t j = 0; j < 3; ++j) {
+      const std::int32_t c = r[j * 3 + i];
       if (c == 0)
         continue;
       if (c < 0)
@@ -362,16 +363,16 @@ std::vector<TwinLaw> twin_laws(const UnitCell &cell, const SpaceGroup &group,
     law.text = twin_law_text(pick);
     // G' = R^T G R: the metric the twin law would make of the cell.
     std::array<double, 9> moved{};
-    for (int i = 0; i < 3; ++i)
-      for (int j = 0; j < 3; ++j) {
+    for (std::int32_t i = 0; i < 3; ++i)
+      for (std::int32_t j = 0; j < 3; ++j) {
         double s = 0.0;
-        for (int a = 0; a < 3; ++a)
-          for (int b = 0; b < 3; ++b)
+        for (std::int32_t a = 0; a < 3; ++a)
+          for (std::int32_t b = 0; b < 3; ++b)
             s += pick[a * 3 + i] * g[a * 3 + b] * pick[b * 3 + j];
         moved[i * 3 + j] = s;
       }
     double diff = 0.0;
-    for (int k = 0; k < 9; ++k)
+    for (std::int32_t k = 0; k < 9; ++k)
       diff += (moved[k] - g[k]) * (moved[k] - g[k]);
     law.r_metric = norm > 0 ? diff / norm : 0.0;
     law.merohedral = law.r_metric < 1e-8;
@@ -392,21 +393,21 @@ double twin_test_d_min(const TriageData &data, const UnitCell &cell,
   }
   // Shells of equal volume over the data's range, as cctbx's binner sets
   // them up for n bins: equal steps in d*^3.
-  const int bins = std::max(o.strength_bins, 2);
+  const std::int32_t bins = std::max(o.strength_bins, 2);
   const double lo = 1.0 / (d_lo * d_lo * d_lo), hi = 1.0 / (d_hi * d_hi * d_hi);
   auto bin_of = [&](double d) {
     const double v = 1.0 / (d * d * d);
-    return std::clamp(static_cast<int>((v - lo) / (hi - lo) * bins), 0,
+    return std::clamp(static_cast<std::int32_t>((v - lo) / (hi - lo) * bins), 0,
                       bins - 1);
   };
   std::vector<double> possible(bins, 0.0), strong(bins, 0.0);
-  const int hm = static_cast<int>(cell.a / d_hi) + 1,
-            km = static_cast<int>(cell.b / d_hi) + 1,
-            lm = static_cast<int>(cell.c / d_hi) + 1;
+  const std::int32_t hm = static_cast<std::int32_t>(cell.a / d_hi) + 1,
+                     km = static_cast<std::int32_t>(cell.b / d_hi) + 1,
+                     lm = static_cast<std::int32_t>(cell.c / d_hi) + 1;
   std::set<Miller> counted;
-  for (int h = -hm; h <= hm; ++h)
-    for (int k = -km; k <= km; ++k)
-      for (int l = -lm; l <= lm; ++l) {
+  for (std::int32_t h = -hm; h <= hm; ++h)
+    for (std::int32_t k = -km; k <= km; ++k)
+      for (std::int32_t l = -lm; l <= lm; ++l) {
         const Miller m{h, k, l};
         if (h == 0 && k == 0 && l == 0)
           continue;
@@ -424,7 +425,7 @@ double twin_test_d_min(const TriageData &data, const UnitCell &cell,
   // finest complete enough wherever it lies, a shell beyond a failing one by
   // chance, and its loop leaves the last shell out; here each counts.
   double cut = 4.0;
-  for (int b = 0; b < bins; ++b) {
+  for (std::int32_t b = 0; b < bins; ++b) {
     const double d_edge = std::cbrt(1.0 / (lo + (hi - lo) * (b + 1) / bins));
     if (d_edge >= o.resolution_at_least)
       continue;
@@ -452,7 +453,7 @@ Triage triage(const TriageData &given, const UnitCell &cell,
   t.centric_moments = moments(u, true);
 
   // N(z), z = 0.1 .. 1.0.
-  for (int k = 1; k <= 10; ++k) {
+  for (std::int32_t k = 1; k <= 10; ++k) {
     const double z = 0.1 * k;
     double na = 0, nc = 0;
     for (std::size_t i = 0; i < u.e2.size(); ++i)
@@ -482,10 +483,10 @@ Triage triage(const TriageData &given, const UnitCell &cell,
     if (!u.centric[i] && u.e2[i] > 0)
       acentric_at[data.hkl[u.rows[i]]] = i;
   std::vector<Miller> offsets;
-  for (int a = -8; a <= 8; ++a)
-    for (int b = -8; b <= 8; ++b)
-      for (int c = -8; c <= 8; ++c) {
-        const int s = std::abs(a) + std::abs(b) + std::abs(c);
+  for (std::int32_t a = -8; a <= 8; ++a)
+    for (std::int32_t b = -8; b <= 8; ++b)
+      for (std::int32_t c = -8; c <= 8; ++c) {
+        const std::int32_t s = std::abs(a) + std::abs(b) + std::abs(c);
         if (a % 2 == 0 && b % 2 == 0 && c % 2 == 0 && s >= 2 && s < 8)
           offsets.push_back({a, b, c});
       }

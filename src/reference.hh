@@ -48,18 +48,18 @@
 namespace mxi {
 
 struct GridSpec {
-  int n = 4;               //: so the side is 2n + 1
+  std::int32_t n = 4;      //: so the side is 2n + 1
   double sigma_d = 0.0;    //: degrees
   double sigma_m = 0.0;    //: degrees
   double half_width = 3.0; //: in sigmas
-  int subdivisions = 5;    //: per detector axis, as Kabsch uses
+  std::int32_t subdivisions = 5; //: per detector axis, as Kabsch uses
 
-  int side() const { return 2 * n + 1; }
+  std::int32_t side() const { return 2 * n + 1; }
   std::size_t size() const {
     const std::size_t s = static_cast<std::size_t>(side());
     return s * s * s;
   }
-  std::size_t at(int i1, int i2, int i3) const {
+  std::size_t at(std::int32_t i1, std::int32_t i2, std::int32_t i3) const {
     const std::size_t s = static_cast<std::size_t>(side());
     return (static_cast<std::size_t>(i3) * s + static_cast<std::size_t>(i2)) *
                s +
@@ -129,8 +129,8 @@ Transformed transform_shoebox_direct(const Experiment &e, const Shoebox &box,
 //: their positions warrant.
 struct ReferenceProfiles {
   GridSpec spec;
-  int divisions = 3; //: `divisions * divisions` regions across a panel
-  int blocks = 1;    //: divisions along the scan
+  std::int32_t divisions = 3; //: `divisions * divisions` regions across a panel
+  std::int32_t blocks = 1;    //: divisions along the scan
   std::size_t panels = 1;
   //: The range of images the blocks divide, which is the range being
   //: INTEGRATED and not the whole scan.
@@ -154,7 +154,8 @@ struct ReferenceProfiles {
   }
   std::size_t region_count() const { return panels * regions_per_panel(); }
   //: The index of one cell, by its position in the three divisions.
-  std::size_t index_of(std::size_t which_panel, int block, int j, int i) const;
+  std::size_t index_of(std::size_t which_panel, std::int32_t block,
+                       std::int32_t j, std::int32_t i) const;
   //: Which cell a reflection falls in, for LEARNING: a contribution goes to
   //: one cell, so that the profiles stay independent estimates.
   std::size_t region_of(const Panel &panel, std::size_t which_panel,
@@ -182,8 +183,8 @@ std::vector<double> profile_at(const ReferenceProfiles &reference,
                                const Panel &panel, std::size_t which_panel,
                                double px_fast, double px_slow, double z);
 
-ReferenceProfiles make_reference(const GridSpec &spec, int divisions,
-                                 int blocks, std::size_t panels,
+ReferenceProfiles make_reference(const GridSpec &spec, std::int32_t divisions,
+                                 std::int32_t blocks, std::size_t panels,
                                  double first_image, double last_image);
 
 //: Add one reflection's transformed shoebox to its region's profile.
@@ -205,16 +206,17 @@ bool add_reference(ReferenceProfiles *reference, std::size_t region,
 void finalise_reference(ReferenceProfiles *reference, std::size_t least = 10);
 
 //: The scan block a cell is in.
-int block_of_cell(const ReferenceProfiles &reference, std::size_t cell);
+std::int32_t block_of_cell(const ReferenceProfiles &reference,
+                           std::size_t cell);
 
 //: The pieces finalise_reference is made of, for finalising a block at a time:
 //: the average over one block's cells across the detector, normalised, before
 //: any of them is normalised (false if the block saw no spots); and one
 //: block's cells finalised against the average it borrows from.
-bool block_average(const ReferenceProfiles &reference, int block,
+bool block_average(const ReferenceProfiles &reference, std::int32_t block,
                    std::vector<double> *average);
-void finalise_block(ReferenceProfiles *reference, int block, std::size_t least,
-                    const std::vector<double> &average);
+void finalise_block(ReferenceProfiles *reference, std::int32_t block,
+                    std::size_t least, const std::vector<double> &average);
 
 //: The reference profile evaluated at each voxel of a shoebox.
 //:
@@ -250,7 +252,7 @@ profile_on_pixels_direct(const Experiment &e, const Shoebox &box,
 //: Why a profile fit failed, where it did: written to the table as
 //: profile.failure, 0 for a reflection fitted, so that where a data set's fits
 //: fail can be looked at rather than guessed.
-enum class FitFailure : int {
+enum class FitFailure : std::int32_t {
   none = 0,
   no_box = 1,       //: the box rejected before fitting
   no_reference = 2, //: no reference profile for its place and scan block
@@ -277,7 +279,7 @@ struct ProfileFit {
   //: background-subtracted grid. DIALS writes it as `profile.correlation` and
   //: it is the honest way to spot a reflection the profile does not describe.
   double correlation = 0.0;
-  int iterations = 0;
+  std::int32_t iterations = 0;
   //: From fit_together only: the neighbours' fitted counts inside this
   //: reflection's measured foreground, sum over l of s_l times l's profile
   //: there -- what its summed intensity holds of theirs, to subtract -- and
@@ -301,7 +303,7 @@ struct ProfileFit {
 //: iterated, as Kabsch does. Two or three rounds is plenty.
 ProfileFit fit_profile(const std::vector<double> &reference,
                        const Transformed &t, double gain = 1.0,
-                       int iterations = 3);
+                       std::int32_t iterations = 3);
 
 //: A pixel's least variance in the CPU fit, in counts: 0.001 by default (0.05
 //: before October). The device's fit keeps its own, 0.001.
@@ -317,7 +319,7 @@ double least_variance();
 //: voxels rather than the grid, so the variance counts each measurement once.
 ProfileFit fit_on_pixels(const Shoebox &box,
                          const std::vector<double> &pixel_profile,
-                         double gain = 1.0, int iterations = 3);
+                         double gain = 1.0, std::int32_t iterations = 3);
 
 //: One reflection of a group fitted together: its box, its background filled,
 //: and its profile on the box's pixels (profile_on_pixels).
@@ -344,6 +346,7 @@ struct OverlapMember {
 //: every member's fit is invalid with FitFailure::degenerate, and the caller
 //: keeps what each had alone.
 std::vector<ProfileFit> fit_together(const std::vector<OverlapMember> &members,
-                                     double gain = 1.0, int iterations = 3);
+                                     double gain = 1.0,
+                                     std::int32_t iterations = 3);
 
 } // namespace mxi

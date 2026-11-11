@@ -35,7 +35,7 @@ namespace {
 
 namespace {
 
-int failures = 0;
+std::int32_t failures = 0;
 
 void check(const std::string &what, std::uint64_t actual,
            std::uint64_t expected) {
@@ -69,8 +69,8 @@ std::vector<std::uint16_t> frame(std::size_t height, std::size_t width,
                                  double scale) {
   std::vector<std::uint16_t> pixels(height * width, 2);
   for (const Planted &spot : spots) {
-    for (int di = -3; di <= 3; di++) {
-      for (int dj = -3; dj <= 3; dj++) {
+    for (std::int32_t di = -3; di <= 3; di++) {
+      for (std::int32_t dj = -3; dj <= 3; dj++) {
         const std::int64_t i = static_cast<std::int64_t>(spot.slow) + di;
         const std::int64_t j = static_cast<std::int64_t>(spot.fast) + dj;
         if (i < 0 || j < 0 || i >= static_cast<std::int64_t>(height) ||
@@ -175,7 +175,7 @@ int run(int argc, char **argv) {
     // The rocking curve is symmetric about frame 2, whose pixel centre is 2.5.
     near(where + " in z", best->position[2], 2.5, 0.3);
     check(where + " spans three frames",
-          static_cast<unsigned>(best->bbox[5] - best->bbox[4]), 3);
+          static_cast<std::uint32_t>(best->bbox[5] - best->bbox[4]), 3);
     // The centroid has to sit inside its own bounding box, which is a weaker
     // claim than the ones above and would catch a bbox built from the wrong
     // axis.

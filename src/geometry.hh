@@ -345,7 +345,7 @@ struct Crystal {
   Vec3 real_b() const;
   Vec3 real_c() const;
   UnitCell cell() const;
-  double d_spacing(int h, int k, int l) const;
+  double d_spacing(std::int32_t h, std::int32_t k, std::int32_t l) const;
 };
 
 //: The crystal over its scan, at regular rotation angles: its setting matrix

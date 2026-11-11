@@ -11,6 +11,7 @@
 #define MXI_TWO_THETA_HH
 
 #include <array>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -32,7 +33,7 @@ enum class CrystalSystem {
 };
 
 //: From the space group's number, 1 to 230.
-CrystalSystem crystal_system_of(int space_group_number);
+CrystalSystem crystal_system_of(std::int32_t space_group_number);
 const char *name_of(CrystalSystem system);
 
 struct TwoThetaObservation {
@@ -50,7 +51,7 @@ struct TwoThetaResult {
   //: fixes or ties to another has its parent's or none.
   std::array<double, 6> esd{};
   std::size_t reflections = 0;
-  int parameters = 0;
+  std::int32_t parameters = 0;
   double rmsd_deg = 0.0; //: of two-theta, unweighted
   CrystalSystem system = CrystalSystem::triclinic;
 };

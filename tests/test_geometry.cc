@@ -132,7 +132,7 @@ TEST(spd_solver_recovers_a_known_solution) {
                  a[3] * x[0] + a[4] * x[1] + a[5] * x[2],
                  a[6] * x[0] + a[7] * x[1] + a[8] * x[2]};
   check::is_true(solve_spd(a, b, 3), "factorisation should succeed");
-  for (int i = 0; i < 3; ++i)
+  for (std::int32_t i = 0; i < 3; ++i)
     check::close(b[i], x[i], 1e-12, "solution");
 }
 
@@ -287,10 +287,10 @@ TEST(ewald_solutions_actually_lie_on_the_sphere) {
   Experiment e = insulin();
   e.crystal = tilted_crystal();
   const double radius = e.beam.s0().norm();
-  int tested = 0;
-  for (int h = -6; h <= 6; ++h) {
-    for (int k = -6; k <= 6; ++k) {
-      for (int l = -6; l <= 6; ++l) {
+  std::int32_t tested = 0;
+  for (std::int32_t h = -6; h <= 6; ++h) {
+    for (std::int32_t k = -6; k <= 6; ++k) {
+      for (std::int32_t l = -6; l <= 6; ++l) {
         if (!h && !k && !l)
           continue;
         const Vec3 r0 =
@@ -299,7 +299,7 @@ TEST(ewald_solutions_actually_lie_on_the_sphere) {
         const Intersections x = ewald_intersections(e, r0);
         if (!x.any)
           continue;
-        for (int i = 0; i < 2; ++i) {
+        for (std::int32_t i = 0; i < 2; ++i) {
           const Vec3 s1 = e.beam.s0() + e.goniometer.rotation_at(x.phi[i]) * r0;
           check::close(s1.norm(), radius, 1e-12 * radius,
                        "on the Ewald sphere");
@@ -314,10 +314,10 @@ TEST(ewald_solutions_actually_lie_on_the_sphere) {
 TEST(the_two_solutions_are_one_entering_and_one_exiting) {
   Experiment e = insulin();
   e.crystal = tilted_crystal();
-  int checked = 0;
-  for (int h = -5; h <= 5; ++h) {
-    for (int k = -5; k <= 5; ++k) {
-      for (int l = -5; l <= 5; ++l) {
+  std::int32_t checked = 0;
+  for (std::int32_t h = -5; h <= 5; ++h) {
+    for (std::int32_t k = -5; k <= 5; ++k) {
+      for (std::int32_t l = -5; l <= 5; ++l) {
         if (!h && !k && !l)
           continue;
         const Vec3 r0 =
@@ -399,14 +399,14 @@ TEST(a_finer_resolution_limit_predicts_strictly_more) {
 
 TEST(index_bounds_cover_the_requested_resolution) {
   const Crystal c = tilted_crystal();
-  const std::array<int, 3> bounds = index_bounds(c, 3.0, 500);
+  const std::array<std::int32_t, 3> bounds = index_bounds(c, 3.0, 500);
   // 78 / 3 = 26, plus the rounding margin.
-  for (int b : bounds)
+  for (std::int32_t b : bounds)
     check::is_true(b >= 26 && b <= 30, "bound near 78/d_min");
   // Nothing inside the resolution shell may fall outside the box.
-  for (int h = -40; h <= 40; ++h) {
-    for (int k = -40; k <= 40; ++k) {
-      for (int l = -40; l <= 40; ++l) {
+  for (std::int32_t h = -40; h <= 40; ++h) {
+    for (std::int32_t k = -40; k <= 40; ++k) {
+      for (std::int32_t l = -40; l <= 40; ++l) {
         if (!h && !k && !l)
           continue;
         if (c.d_spacing(h, k, l) < 3.0)
@@ -426,7 +426,7 @@ TEST(predict_indices_agrees_with_the_full_enumeration) {
   options.d_min = 5.0;
   const std::vector<Prediction> all = predict(e, options);
 
-  std::vector<std::array<int, 3>> asked;
+  std::vector<std::array<std::int32_t, 3>> asked;
   for (const Prediction &p : all)
     asked.push_back({p.h, p.k, p.l});
   const std::vector<Prediction> some = predict_indices(e, asked, options);
@@ -451,7 +451,7 @@ TEST(the_spline_passes_through_the_end_control_points) {
   // are the only places the curve can be pinned by inspection.
   Crystal c;
   c.A = Mat3::identity();
-  for (int i = 0; i < 5; ++i) {
+  for (std::int32_t i = 0; i < 5; ++i) {
     c.A_points.push_back(Mat3::identity() * (1.0 + 0.1 * i));
   }
   check::close(c.A_at(0.0).m[0], 1.0, 1e-12, "first control point");
@@ -477,7 +477,7 @@ TEST(the_spline_is_smooth_where_linear_interpolation_was_not) {
   // interior control point: for a cubic B-spline it is continuous, for linear
   // interpolation the FIRST derivative already jumps.
   Crystal c;
-  for (int i = 0; i < 6; ++i) {
+  for (std::int32_t i = 0; i < 6; ++i) {
     const double x = static_cast<double>(i);
     Mat3 m = Mat3::identity();
     m.m[0] = x * x; // a curve with genuine curvature
@@ -500,7 +500,7 @@ TEST(the_spline_is_smooth_where_linear_interpolation_was_not) {
 
 TEST(the_spline_does_not_extrapolate_beyond_the_scan) {
   Crystal c;
-  for (int i = 0; i < 4; ++i) {
+  for (std::int32_t i = 0; i < 4; ++i) {
     Mat3 m = Mat3::identity();
     m.m[0] = 1.0 + i;
     c.A_points.push_back(m);
@@ -605,7 +605,7 @@ TEST(pruning_predicts_exactly_what_the_full_search_does) {
     Experiment e = insulin();
     const Mat3 A = e.crystal->A;
     const Vec3 tilt = Vec3{0.3, 1.0, 0.2}.normalized();
-    for (int i = 0; i < 5; ++i)
+    for (std::int32_t i = 0; i < 5; ++i)
       e.crystal->A_points.push_back(
           rotation(tilt, (3.0 * i / 4.0) * 3.14159265358979 / 180.0) * A);
     const std::string d = pruned_against_full(e);

@@ -201,6 +201,19 @@ the same as `double`, so its reference there would lose its extra
 precision). On Linux and macOS no type changed -- `long` is `std::int64_t`
 there -- and the suites pass as before: 378 C++ tests, 745 Python.
 
+**Stage 2 done, 7 November**: `int` as `std::int32_t`, `unsigned` and
+`unsigned int` as `std::uint32_t`, `short` as `std::int16_t` -- 1402 in 147
+files, the same types on all three systems, so `%d` and `%u` stand and nothing
+changes at run time. Kept: `main` and the commands' entry functions, `int
+f(int argc, char **argv)` (48); `char` and `unsigned char`, characters and
+bytes. **Not yet converted**, this sandbox having no compiler for them and
+nothing changed here unbuilt: the Metal sources (`src/dext_metal.cc`,
+`src/fit_device_metal.cc`, `src/metal_device.*`), the CUDA ones
+(`src/*.cu`, `src/fit_device_cuda.cc`), `src/fft_fftw.cc` (FFTW, off by
+default) and the GPU spot finder's tests (`tests/spots/test_dext_gpu.cc`,
+`tests/spots/bench_dext_gpu.cc`) -- to do where each builds, the same script
+(the rule above). 378 C++ tests, 745 Python; no warnings.
+
 Done in stages, each committed alone and each a change of no behaviour on
 Linux and macOS: the `long` family first (`long` is `std::int64_t` there,
 the same type), then `int` and `unsigned`. On Windows the first stage is what

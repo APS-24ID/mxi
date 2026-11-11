@@ -47,6 +47,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -57,7 +58,7 @@ struct BackgroundResult {
   //: The fitted mean, in counts per pixel.
   double mean = 0.0;
   //: Iterations taken; `converged` is false if it ran out.
-  int iterations = 0;
+  std::int32_t iterations = 0;
   bool converged = false;
   //: How many pixels went in.
   std::size_t n = 0;
@@ -68,7 +69,7 @@ struct BackgroundOptions {
   //: distribution and is what Parkhurst uses; infinity would be the plain
   //: maximum likelihood estimate, which is the mean.
   double tuning = 1.345;
-  int max_iterations = 100;
+  std::int32_t max_iterations = 100;
   //: Convergence on theta, which is log(mu), so this is a relative tolerance
   //: on the background itself.
   double tolerance = 1e-10;

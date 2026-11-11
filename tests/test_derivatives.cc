@@ -52,7 +52,7 @@ Experiment real_experiment() {
 
   std::vector<Vec3> axes;
   std::vector<double> angles;
-  for (int i = 0; i < 3; ++i) {
+  for (std::int32_t i = 0; i < 3; ++i) {
     axes.push_back(v3(real::kGonioAxes[i]));
     angles.push_back(real::kGonioAngles[i]);
   }
@@ -74,7 +74,8 @@ struct Centroid {
   double X = 0.0, Y = 0.0, phi = 0.0;
 };
 
-Centroid centroid(const Experiment &e, int h, int k, int l, double z) {
+Centroid centroid(const Experiment &e, std::int32_t h, std::int32_t k,
+                  std::int32_t l, double z) {
   const PredictionState s = prediction_state(e, 0, h, k, l, z);
   Centroid c;
   if (!s.valid)
@@ -94,7 +95,7 @@ TEST(the_prediction_state_reproduces_the_predicted_position) {
   // prediction path produces for the same reflection.
   const Experiment e = real_experiment();
   double worst = 0.0;
-  int tested = 0;
+  std::int32_t tested = 0;
   for (const real::Row &r : real::rows()) {
     const Centroid c = centroid(e, r.h, r.k, r.l, r.px_z);
     if (!c.valid)
@@ -115,7 +116,7 @@ TEST(analytical_crystal_derivatives_match_finite_differences) {
     scale = std::fmax(scale, std::abs(m));
 
   std::vector<double> relative;
-  int tested = 0;
+  std::int32_t tested = 0;
   for (const real::Row &r : real::rows()) {
     const PredictionState s = prediction_state(e, 0, r.h, r.k, r.l, r.px_z);
     if (!s.valid)
@@ -143,7 +144,7 @@ TEST(analytical_crystal_derivatives_match_finite_differences) {
                                  (a.phi - b.phi) / (2 * step)};
       const double exact[3] = {analytic[p].dX, analytic[p].dY,
                                analytic[p].dphi};
-      for (int c = 0; c < 3; ++c) {
+      for (std::int32_t c = 0; c < 3; ++c) {
         const double size = std::fmax(std::abs(numeric[c]), std::abs(exact[c]));
         if (size < 1e-6)
           continue; // both essentially zero
@@ -264,7 +265,7 @@ TEST(only_four_control_points_are_ever_touched) {
 TEST(analytical_detector_derivatives_match_finite_differences) {
   const Experiment e = real_experiment();
   std::vector<double> relative;
-  int tested = 0;
+  std::int32_t tested = 0;
 
   for (const real::Row &r : real::rows()) {
     const PredictionState s = prediction_state(e, 0, r.h, r.k, r.l, r.px_z);
@@ -294,7 +295,7 @@ TEST(analytical_detector_derivatives_match_finite_differences) {
                                  (a.phi - b.phi) / (2 * step)};
       const double exact[3] = {analytic[p].dX, analytic[p].dY,
                                analytic[p].dphi};
-      for (int c = 0; c < 3; ++c) {
+      for (std::int32_t c = 0; c < 3; ++c) {
         const double size = std::fmax(std::abs(numeric[c]), std::abs(exact[c]));
         if (size < 1e-6)
           continue;
@@ -327,7 +328,7 @@ TEST(the_detector_cannot_move_the_rotation_angle) {
 TEST(analytical_beam_derivatives_match_finite_differences) {
   const Experiment e = real_experiment();
   std::vector<double> relative;
-  int tested = 0;
+  std::int32_t tested = 0;
 
   for (const real::Row &r : real::rows()) {
     const PredictionState s = prediction_state(e, 0, r.h, r.k, r.l, r.px_z);
@@ -356,7 +357,7 @@ TEST(analytical_beam_derivatives_match_finite_differences) {
                                  (a.phi - b.phi) / (2 * step)};
       const double exact[3] = {analytic[p].dX, analytic[p].dY,
                                analytic[p].dphi};
-      for (int c = 0; c < 3; ++c) {
+      for (std::int32_t c = 0; c < 3; ++c) {
         const double size = std::fmax(std::abs(numeric[c]), std::abs(exact[c]));
         if (size < 1e-6)
           continue;
@@ -387,7 +388,7 @@ TEST(the_shared_perturbation_is_what_refinement_applies) {
 
   Panel turned = p;
   const double turn[6] = {0, 0, 0, 1e-3, -5e-4, 2e-4};
-  for (int i = 0; i < 50; ++i)
+  for (std::int32_t i = 0; i < 50; ++i)
     turned = perturb_panel(turned, turn);
   check::close(turned.fast.norm(), 1.0, 1e-12, "fast stays a unit vector");
   check::close(turned.slow.norm(), 1.0, 1e-12, "slow stays a unit vector");
@@ -431,7 +432,7 @@ TEST(the_parallax_jacobian_matches_finite_differences) {
                                  (plus_s.first - minus_s.first) / (2 * step),
                                  (plus_f.second - minus_f.second) / (2 * step),
                                  (plus_s.second - minus_s.second) / (2 * step)};
-      for (int i = 0; i < 4; ++i) {
+      for (std::int32_t i = 0; i < 4; ++i) {
         // Scaled against the size of the Jacobian as a whole, not against each
         // element. The off-diagonal terms pass through zero near the beam
         // centre, and dividing by them turns an absolute agreement of 3e-10

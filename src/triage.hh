@@ -13,6 +13,7 @@
 #ifndef MXI_TRIAGE_HH
 #define MXI_TRIAGE_HH
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -33,9 +34,9 @@ struct TriageOptions {
   double isigi_cut = 3.0;     //: in that choice: I/sigma over this ...
   double completeness = 0.85; //: ... in over this fraction of a shell
   double resolution_at_least = 3.5; //: the choice never coarser than this
-  int strength_bins = 15;           //: shells of the choice, equal volume
+  std::int32_t strength_bins = 15;  //: shells of the choice, equal volume
   double max_delta = 3.0;           //: obliquity of twin laws (degrees)
-  unsigned seed = 1;                //: the L test's choice of neighbours
+  std::uint32_t seed = 1;           //: the L test's choice of neighbours
 };
 
 //: The moments of the normalised intensities, E^2 = I / (eps <I/eps>), every
@@ -107,7 +108,7 @@ struct Triage {
 };
 
 //: epsilon: how many of the point group's rotations leave h as it is.
-int epsilon(const SpaceGroup &group, const Miller &hkl);
+std::int32_t epsilon(const SpaceGroup &group, const Miller &hkl);
 
 //: The twin laws `cell`'s lattice allows within max_delta, beyond `group`.
 std::vector<TwinLaw> twin_laws(const UnitCell &cell, const SpaceGroup &group,

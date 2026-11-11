@@ -26,14 +26,15 @@ namespace {
 //: Merged intensities in an orthorhombic cell whose true group is `truth`:
 //: strong where it allows a reflection, noise of unit sigma where it forbids.
 void planted(const char *truth, std::vector<Miller> *hkl,
-             std::vector<double> *i, std::vector<double> *s, unsigned seed) {
+             std::vector<double> *i, std::vector<double> *s,
+             std::uint32_t seed) {
   const SpaceGroup g = SpaceGroup::from_name(truth);
   std::mt19937 rng(seed);
   std::exponential_distribution<double> wilson(1.0 / 400.0);
   std::normal_distribution<double> noise(0.0, 1.0);
-  for (int h = 0; h <= 10; ++h)
-    for (int k = 0; k <= 10; ++k)
-      for (int l = 0; l <= 10; ++l) {
+  for (std::int32_t h = 0; h <= 10; ++h)
+    for (std::int32_t k = 0; k <= 10; ++k)
+      for (std::int32_t l = 0; l <= 10; ++l) {
         if (h == 0 && k == 0 && l == 0)
           continue;
         const Miller m{h, k, l};
@@ -65,9 +66,9 @@ TEST(what_centring_hides_is_reported_as_indistinguishable) {
   std::vector<Miller> hkl;
   std::vector<double> i, s;
   const SpaceGroup i23 = SpaceGroup::from_name("I 2 3");
-  for (int h = 0; h <= 8; ++h)
-    for (int k = 0; k <= 8; ++k)
-      for (int l = 0; l <= 8; ++l) {
+  for (std::int32_t h = 0; h <= 8; ++h)
+    for (std::int32_t k = 0; k <= 8; ++k)
+      for (std::int32_t l = 0; l <= 8; ++l) {
         const Miller m{h, k, l};
         if ((h || k || l) && !i23.absent(m)) {
           hkl.push_back(m);

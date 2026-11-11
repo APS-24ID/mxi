@@ -55,7 +55,7 @@ public:
       draw(elapsed, false);
       return;
     }
-    const int tenth = static_cast<int>(10.0 * done_ / total_);
+    const std::int32_t tenth = static_cast<std::int32_t>(10.0 * done_ / total_);
     if (tenth > tenth_ && tenth < 10) {
       tenth_ = tenth;
       const double left =
@@ -102,12 +102,12 @@ private:
 
   // The terminal's width, asked each time it is drawn so that a window
   // resized while it runs is followed; COLUMNS, then 80, where it cannot say.
-  static int columns() {
+  static std::int32_t columns() {
     struct winsize w{};
     if (::ioctl(STDERR_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0)
       return w.ws_col;
     if (const char *c = std::getenv("COLUMNS"))
-      if (const int n = std::atoi(c); n > 0)
+      if (const std::int32_t n = std::atoi(c); n > 0)
         return n;
     return 80;
   }
@@ -135,12 +135,13 @@ private:
     // The bar takes what the terminal leaves, one column spare so the cursor
     // never wraps: a line wider than the terminal had wrapped on 80 columns
     // (Graeme, 23 October). Every character here is one column wide.
-    const int cols = columns();
+    const std::int32_t cols = columns();
     const char *tail = nullptr;
-    int width = 0;
+    std::int32_t width = 0;
     for (const char *t : tails) {
-      const int room = cols - 1 - static_cast<int>(std::strlen(head)) - 1 -
-                       static_cast<int>(std::strlen(t));
+      const std::int32_t room = cols - 1 -
+                                static_cast<std::int32_t>(std::strlen(head)) -
+                                1 - static_cast<std::int32_t>(std::strlen(t));
       if (room >= 10) {
         tail = t;
         width = std::min(60, room);
@@ -153,11 +154,12 @@ private:
       put(line);
       return;
     }
-    const int eighths = static_cast<int>(fraction * width * 8.0);
+    const std::int32_t eighths =
+        static_cast<std::int32_t>(fraction * width * 8.0);
     std::string bar;
-    for (int i = 0; i < eighths / 8; ++i)
+    for (std::int32_t i = 0; i < eighths / 8; ++i)
       bar += "█";
-    int drawn = eighths / 8;
+    std::int32_t drawn = eighths / 8;
     if (drawn < width && eighths % 8 != 0) {
       bar += kEighths[eighths % 8];
       ++drawn;
@@ -187,7 +189,7 @@ private:
   clock::time_point start_;
   bool terminal_;
   double drawn_at_ = -1.0;
-  int tenth_ = 0;
+  std::int32_t tenth_ = 0;
   bool finished_ = false;
 };
 

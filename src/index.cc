@@ -71,10 +71,10 @@ std::vector<Vec3> reciprocal_lattice_points(const ExperimentList &experiments,
   return out;
 }
 
-std::vector<int> observation_groups(const ExperimentList &experiments,
-                                    const Table &reflections,
-                                    double block_degrees) {
-  std::vector<int> groups(reflections.nrows, 0);
+std::vector<std::int32_t> observation_groups(const ExperimentList &experiments,
+                                             const Table &reflections,
+                                             double block_degrees) {
+  std::vector<std::int32_t> groups(reflections.nrows, 0);
   if (!reflections.has("xyzobs.px.value"))
     return groups;
   const Column &obs = reflections.at("xyzobs.px.value");
@@ -92,14 +92,15 @@ std::vector<int> observation_groups(const ExperimentList &experiments,
     // Which angular block, counted from zero. A sweep shorter than one block
     // puts everything in one group and nothing changes.
     const double width = block_degrees > 0.0 ? block_degrees : 30.0;
-    const int block = static_cast<int>(std::floor(phi / width));
-    groups[i] = static_cast<int>(which) * 100000 + block;
+    const std::int32_t block =
+        static_cast<std::int32_t>(std::floor(phi / width));
+    groups[i] = static_cast<std::int32_t>(which) * 100000 + block;
   }
   return groups;
 }
 
 double estimate_max_cell(const std::vector<Vec3> &points,
-                         const std::vector<int> &groups) {
+                         const std::vector<std::int32_t> &groups) {
   if (points.size() < 4)
     return 0.0;
   if (groups.size() != points.size())
@@ -224,12 +225,14 @@ std::vector<double> ice_rings(double d_min) {
   const double limit = 1.0 / (d_min * d_min) + half;
   const gemmi::GroupOps ops =
       gemmi::find_spacegroup_by_number(194)->operations();
-  const int hmax = static_cast<int>(std::ceil(a * std::sqrt(limit))) + 1;
-  const int lmax = static_cast<int>(std::ceil(c * std::sqrt(limit))) + 1;
+  const std::int32_t hmax =
+      static_cast<std::int32_t>(std::ceil(a * std::sqrt(limit))) + 1;
+  const std::int32_t lmax =
+      static_cast<std::int32_t>(std::ceil(c * std::sqrt(limit))) + 1;
   std::vector<double> rings;
-  for (int h = -hmax; h <= hmax; ++h)
-    for (int k = -hmax; k <= hmax; ++k)
-      for (int l = 0; l <= lmax; ++l) {
+  for (std::int32_t h = -hmax; h <= hmax; ++h)
+    for (std::int32_t k = -hmax; k <= hmax; ++k)
+      for (std::int32_t l = 0; l <= lmax; ++l) {
         if (h == 0 && k == 0 && l == 0)
           continue;
         const double ds2 = 4.0 / 3.0 * (h * h + h * k + k * k) / (a * a) +
@@ -468,7 +471,7 @@ double estimate_max_cell_as_dials(const ExperimentList &experiments,
   const Column &obs = reflections.at("xyzobs.px.value");
   std::vector<double> phi(n, 0.0);
   std::vector<double> first(experiments.size(), 1e300);
-  std::vector<int> entering(n, 0);
+  std::vector<std::int32_t> entering(n, 0);
   for (std::size_t i = 0; i < n; ++i) {
     if (!keep[i])
       continue;
@@ -480,7 +483,8 @@ double estimate_max_cell_as_dials(const ExperimentList &experiments,
     const Vec3 s0 = e.beam.direction * -1.0;
     entering[i] = s1.dot(e.goniometer.lab_axis().cross(s0)) < 0.0 ? 1 : 0;
   }
-  std::map<std::tuple<std::size_t, std::int64_t, int>, std::vector<std::size_t>>
+  std::map<std::tuple<std::size_t, std::int64_t, std::int32_t>,
+           std::vector<std::size_t>>
       groups;
   for (std::size_t i = 0; i < n; ++i)
     if (keep[i])
@@ -534,7 +538,7 @@ std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
     // is a different reflection.
     std::int64_t index[3];
     bool ok = true;
-    for (int k = 0; k < 3; ++k) {
+    for (std::int32_t k = 0; k < 3; ++k) {
       const std::int64_t g =
           std::lround(r[static_cast<std::size_t>(k)] / spacing);
       if (std::abs(g) > static_cast<std::int64_t>(n) / 2) {
@@ -729,7 +733,7 @@ Mat3 reduce_basis(const Mat3 &real_space_rows) {
   // setting, so it is a reduction and should not be described as more.
   Vec3 v[3] = {real_space_rows.row(0), real_space_rows.row(1),
                real_space_rows.row(2)};
-  for (int pass = 0; pass < 100; ++pass) {
+  for (std::int32_t pass = 0; pass < 100; ++pass) {
     bool changed = false;
     for (std::size_t i = 0; i < 3; ++i) {
       for (std::size_t j = 0; j < 3; ++j) {
@@ -766,10 +770,10 @@ Mat3 reduce_basis(const Mat3 &real_space_rows) {
   // 109.5 70.7 70.9, which describes the same lattice as all-obtuse 109.45 but
   // compares equal to nothing and looks wrong to every reader.
   Mat3 best = Mat3::from_rows(v[0], v[1], v[2]);
-  int best_score = -1;
-  for (int mask = 0; mask < 8; ++mask) {
+  std::int32_t best_score = -1;
+  for (std::int32_t mask = 0; mask < 8; ++mask) {
     Vec3 w[3] = {v[0], v[1], v[2]};
-    for (int k = 0; k < 3; ++k) {
+    for (std::int32_t k = 0; k < 3; ++k) {
       if (mask & (1 << k))
         w[static_cast<std::size_t>(k)] = -w[static_cast<std::size_t>(k)];
     }
@@ -781,10 +785,10 @@ Mat3 reduce_basis(const Mat3 &real_space_rows) {
     const double bc = w[1].dot(w[2]);
     const double ac = w[0].dot(w[2]);
     const double ab = w[0].dot(w[1]);
-    const int positive = (bc > 0) + (ac > 0) + (ab > 0);
+    const std::int32_t positive = (bc > 0) + (ac > 0) + (ab > 0);
     // Three of one kind is a proper reduced cell; two is worse than three and
     // better than a mixture with no majority.
-    const int score = positive == 3 || positive == 0 ? 2 : 0;
+    const std::int32_t score = positive == 3 || positive == 0 ? 2 : 0;
     if (score > best_score) {
       best_score = score;
       best = candidate;
@@ -906,7 +910,7 @@ bool cells_match(const UnitCell &cell, const UnitCell &target,
   double x[3] = {cell.a, cell.b, cell.c}, y[3] = {target.a, target.b, target.c};
   std::sort(x, x + 3);
   std::sort(y, y + 3);
-  for (int i = 0; i < 3; ++i)
+  for (std::int32_t i = 0; i < 3; ++i)
     if (std::fabs(x[i] - y[i]) > known.length_tolerance * y[i])
       return false;
   double p[3] = {std::fabs(cell.alpha - 90.0), std::fabs(cell.beta - 90.0),
@@ -915,7 +919,7 @@ bool cells_match(const UnitCell &cell, const UnitCell &target,
                  std::fabs(target.gamma - 90.0)};
   std::sort(p, p + 3);
   std::sort(q, q + 3);
-  for (int i = 0; i < 3; ++i)
+  for (std::int32_t i = 0; i < 3; ++i)
     if (std::fabs(p[i] - q[i]) > known.angle_tolerance)
       return false;
   return true;
@@ -1339,7 +1343,7 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
   // detector does, so they are recomputed every cycle rather than reused.
   result.timing.fit_and_reduce = now_seconds() - t_fit;
   const double t_cycles = now_seconds();
-  for (int cycle = 0; cycle < options.macrocycles; ++cycle) {
+  for (std::int32_t cycle = 0; cycle < options.macrocycles; ++cycle) {
     const double t_subset = now_seconds();
     Table subset = reflections;
     std::size_t n_strong = reflections.nrows;
@@ -1437,7 +1441,7 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
 bool same_lattice(const Crystal &a, const Crystal &b) {
   const Mat3 m = a.A.inverse() * b.A;
   Mat3 r;
-  for (int k = 0; k < 9; ++k) {
+  for (std::int32_t k = 0; k < 9; ++k) {
     r.m[k] = std::round(m.m[k]);
     if (std::fabs(m.m[k] - r.m[k]) > 0.1)
       return false;
@@ -1454,9 +1458,9 @@ bool same_lattice(const Crystal &a, const Crystal &b) {
 // lattice's experiment's; one no lattice indexes stays as mxi has it, its
 // Miller index 0 0 0, until sweeps are carried through (stage 2).
 LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
-                              const IndexOptions &options, int max_lattices,
-                              std::size_t min_spots, Ambiguous ambiguous,
-                              double ambiguity_sigma,
+                              const IndexOptions &options,
+                              std::int32_t max_lattices, std::size_t min_spots,
+                              Ambiguous ambiguous, double ambiguity_sigma,
                               const std::vector<Crystal> &known) {
   LatticesResult result;
   if (sweep.size() != 1)
@@ -1464,7 +1468,7 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
         "several lattices: one sweep at a time for now, not " +
         std::to_string(sweep.size()));
   const std::size_t n = reflections.nrows;
-  std::vector<int> lattice_of(n, -1);
+  std::vector<std::int32_t> lattice_of(n, -1);
   std::vector<std::int64_t> hkl(3 * n, 0);
   std::vector<Crystal> found;
   ExperimentList models = sweep; // as the latest lattice left them
@@ -1489,7 +1493,7 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
         double off = 0.0;
         bool zero = true;
         std::int64_t rounded[3];
-        for (int k = 0; k < 3; ++k) {
+        for (std::int32_t k = 0; k < 3; ++k) {
           rounded[k] = std::llround(hs[k]);
           off =
               std::max(off, std::fabs(hs[k] - static_cast<double>(rounded[k])));
@@ -1498,7 +1502,7 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
         if (zero || off > best)
           continue;
         best = off;
-        lattice_of[i] = static_cast<int>(l);
+        lattice_of[i] = static_cast<std::int32_t>(l);
         std::copy(rounded, rounded + 3,
                   hkl.begin() + static_cast<std::int64_t>(3 * i));
       }
@@ -1507,11 +1511,12 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
       found.push_back(known[l]);
       result.found_in.push_back(n);
       result.indexed_of.push_back(static_cast<std::size_t>(std::count(
-          lattice_of.begin(), lattice_of.end(), static_cast<int>(l))));
+          lattice_of.begin(), lattice_of.end(), static_cast<std::int32_t>(l))));
     }
     result.known = known.size();
   }
-  for (int l = static_cast<int>(found.size()); l < max_lattices; ++l) {
+  for (std::int32_t l = static_cast<std::int32_t>(found.size());
+       l < max_lattices; ++l) {
     std::vector<std::size_t> rows;
     for (std::size_t i = 0; i < n; ++i)
       if (lattice_of[i] < 0)
@@ -1591,7 +1596,7 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
   const bool has_panel = reflections.has("panel");
   RefineOptions refining;
   refining.shared_crystal = false; // each lattice its own
-  for (int cycle = 0; cycle < 3; ++cycle) {
+  for (std::int32_t cycle = 0; cycle < 3; ++cycle) {
     std::vector<Vec3> points(n);
     for (std::size_t i = 0; i < n; ++i) {
       const std::size_t panel =
@@ -1616,7 +1621,7 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
       const double hs[3] = {h.x, h.y, h.z};
       bool zero = true;
       f.index_off = 0.0;
-      for (int k = 0; k < 3; ++k) {
+      for (std::int32_t k = 0; k < 3; ++k) {
         f.h[k] = std::llround(hs[k]);
         f.index_off = std::max(f.index_off,
                                std::fabs(hs[k] - static_cast<double>(f.h[k])));
@@ -1639,7 +1644,7 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
         const Fit f = fit(l, points[i]);
         if (f.index_off <= best) {
           best = f.index_off;
-          lattice_of[i] = static_cast<int>(l);
+          lattice_of[i] = static_cast<std::int32_t>(l);
           std::copy(f.h, f.h + 3,
                     hkl.begin() + static_cast<std::int64_t>(3 * i));
         }
@@ -1673,7 +1678,7 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
       for (std::size_t i = 0; i < n; ++i) {
         if (lattice_of[i] < 0)
           continue;
-        int near = 0;
+        std::int32_t near = 0;
         for (std::size_t l = 0; l < joint.size(); ++l)
           if (scatter[l] > 0.0 &&
               fit(l, points[i]).distance <= ambiguity_sigma * scatter[l])

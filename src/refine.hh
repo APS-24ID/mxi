@@ -48,6 +48,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "expt.hh"
@@ -98,11 +99,11 @@ struct RefineOptions {
   //: which left it so free at its ends that one minimiser could not settle
   //: it, and stopped the others early with it.
   std::vector<std::size_t> scan_points_of;
-  int max_iterations = 30;
+  std::int32_t max_iterations = 30;
   //: Reject reflections whose residual exceeds this many times the robust
   //: spread, between macrocycles. Zero disables rejection entirely.
   double outlier_sigma = 4.0;
-  int macrocycles = 3;
+  std::int32_t macrocycles = 3;
   //: Stop when the weighted residual improves by less than this fraction.
   double convergence = 1e-6;
   //: Use analytical derivatives instead of finite differences.
@@ -177,7 +178,7 @@ struct RefineResult {
   double rmsd_x = 0.0;
   double rmsd_y = 0.0;
   double rmsd_z = 0.0;
-  int iterations = 0;
+  std::int32_t iterations = 0;
   bool converged = false;
   //: Free parameters, and the macrocycles that fitted them.
   std::size_t n_parameters = 0;
@@ -194,8 +195,9 @@ struct Residual {
 // Predict where a reflection with the given index would be seen, choosing the
 // Ewald root nearer the observed rotation angle. Exposed because it is the
 // heart of the target function and worth testing on its own.
-Residual centroid_residual(const Experiment &e, std::size_t panel, int h, int k,
-                           int l, double px_fast, double px_slow, double z);
+Residual centroid_residual(const Experiment &e, std::size_t panel,
+                           std::int32_t h, std::int32_t k, std::int32_t l,
+                           double px_fast, double px_slow, double z);
 
 RefineResult refine(ExperimentList &experiments, const Table &reflections,
                     const RefineOptions &options = {});

@@ -16,6 +16,7 @@
 // library, can use it too.
 
 #include <cerrno>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -28,11 +29,11 @@ namespace mxi {
 namespace log_detail {
 
 struct Sink {
-  int terminal = -1;
-  int log = -1;
+  std::int32_t terminal = -1;
+  std::int32_t log = -1;
 };
 
-inline void write_all(int fd, const char *p, std::size_t n) {
+inline void write_all(std::int32_t fd, const char *p, std::size_t n) {
   while (n > 0) {
     const ssize_t w = ::write(fd, p, n);
     if (w < 0) {
@@ -55,8 +56,10 @@ inline ssize_t sink_write(void *cookie, const char *buf, std::size_t n) {
 }
 
 #if defined(__APPLE__)
-inline int sink_write_bsd(void *cookie, const char *buf, int n) {
-  return static_cast<int>(sink_write(cookie, buf, static_cast<std::size_t>(n)));
+inline std::int32_t sink_write_bsd(void *cookie, const char *buf,
+                                   std::int32_t n) {
+  return static_cast<std::int32_t>(
+      sink_write(cookie, buf, static_cast<std::size_t>(n)));
 }
 inline std::FILE *open_sink(Sink *s) {
   return funopen(s, nullptr, sink_write_bsd, nullptr, nullptr);
@@ -74,7 +77,7 @@ inline std::FILE *open_sink(Sink *s) {
 //: True for a run that only prints help or a version. Such a run writes no
 //: log, since it would otherwise overwrite the log of the last real run.
 inline bool only_asks_for_help(int argc, char **argv) {
-  for (int i = 1; i < argc; ++i) {
+  for (std::int32_t i = 1; i < argc; ++i) {
     const std::string a = argv[i];
     if (a == "-h" || a == "--help" || a == "--version")
       return true;
@@ -88,7 +91,8 @@ inline bool only_asks_for_help(int argc, char **argv) {
 inline void mirror_to_log(const char *path) {
   std::fflush(stdout);
   std::fflush(stderr);
-  const int log = ::open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+  const std::int32_t log =
+      ::open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
   if (log < 0) {
     std::fprintf(stderr,
                  "cannot write the log %s: %s; carrying on without it\n", path,

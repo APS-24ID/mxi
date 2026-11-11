@@ -2,16 +2,17 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #include "derivatives.hh"
 
 namespace mxi {
 
-std::size_t harmonic_count(int lmax) {
+std::size_t harmonic_count(std::int32_t lmax) {
   return lmax > 0 ? static_cast<std::size_t>(lmax * (lmax + 2)) : 0;
 }
 
-void real_spherical_harmonics(int lmax, const Vec3 &u,
+void real_spherical_harmonics(std::int32_t lmax, const Vec3 &u,
                               std::vector<double> *out) {
   out->assign(harmonic_count(lmax), 0.0);
   if (lmax <= 0)
@@ -26,22 +27,22 @@ void real_spherical_harmonics(int lmax, const Vec3 &u,
       static_cast<std::size_t>(lmax + 1),
       std::vector<double>(static_cast<std::size_t>(lmax + 1), 0.0));
   P[0][0] = 1.0;
-  for (int m = 1; m <= lmax; ++m)
+  for (std::int32_t m = 1; m <= lmax; ++m)
     P[m][m] = P[m - 1][m - 1] * static_cast<double>(2 * m - 1) * s;
-  for (int m = 0; m < lmax; ++m)
+  for (std::int32_t m = 0; m < lmax; ++m)
     P[m + 1][m] = x * static_cast<double>(2 * m + 1) * P[m][m];
-  for (int m = 0; m <= lmax; ++m)
-    for (int l = m + 2; l <= lmax; ++l)
+  for (std::int32_t m = 0; m <= lmax; ++m)
+    for (std::int32_t l = m + 2; l <= lmax; ++l)
       P[l][m] = (static_cast<double>(2 * l - 1) * x * P[l - 1][m] -
                  static_cast<double>(l + m - 1) * P[l - 2][m]) /
                 static_cast<double>(l - m);
   std::size_t k = 0;
-  for (int l = 1; l <= lmax; ++l) {
-    for (int m = -l; m <= l; ++m, ++k) {
-      const int a = std::abs(m);
+  for (std::int32_t l = 1; l <= lmax; ++l) {
+    for (std::int32_t m = -l; m <= l; ++m, ++k) {
+      const std::int32_t a = std::abs(m);
       // N = sqrt((2l+1)/(4 pi) (l-|m|)!/(l+|m|)!), the ratio by a product.
       double ratio = 1.0;
-      for (int j = l - a + 1; j <= l + a; ++j)
+      for (std::int32_t j = l - a + 1; j <= l + a; ++j)
         ratio /= static_cast<double>(j);
       const double norm =
           std::sqrt(static_cast<double>(2 * l + 1) / (4.0 * pi) * ratio);

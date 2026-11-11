@@ -35,6 +35,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -106,7 +107,7 @@ struct IndexOptions {
   double min_cell = 3.0;
   //: Macrocycles of assign, refine, re-assign. One means assign once and
   //: stop, which is what this did originally and is not enough.
-  int macrocycles = 3;
+  std::int32_t macrocycles = 3;
   //: Refine the model on strong reflections only, then assign to all.
   //:
   //: This is the whole point of the macrocycle. A weak, marginally indexed
@@ -188,7 +189,7 @@ struct IndexResult {
   std::size_t grid = 0;
   //: Reflections used to refine the model, as opposed to indexed by it.
   std::size_t n_refined_on = 0;
-  int cycles_run = 0;
+  std::int32_t cycles_run = 0;
   std::vector<IndexCycle> cycles;
   IndexTiming timing;
 };
@@ -250,7 +251,7 @@ double estimate_max_cell_as_dials(const ExperimentList &experiments,
 //: works as long as repeated observations of one reflection get different
 //: labels.
 double estimate_max_cell(const std::vector<Vec3> &points,
-                         const std::vector<int> &groups);
+                         const std::vector<std::int32_t> &groups);
 
 //: Which sweep and angular block each reflection was measured in, for the
 //: above.
@@ -267,9 +268,9 @@ double estimate_max_cell(const std::vector<Vec3> &points,
 //: left the two, and the estimate was 811 Angstroms for a 90 Angstrom crystal.
 //: Thirty degrees is comfortably smaller than the separation between a
 //: reflection's two crossings, so a block holds each reflection once.
-std::vector<int> observation_groups(const ExperimentList &experiments,
-                                    const Table &reflections,
-                                    double block_degrees = 30.0);
+std::vector<std::int32_t> observation_groups(const ExperimentList &experiments,
+                                             const Table &reflections,
+                                             double block_degrees = 30.0);
 
 // Candidate real-space basis vectors, strongest first.
 std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
@@ -342,8 +343,8 @@ struct LatticesResult {
 //: lattice as `id`, its Miller index, its flags and the table's identifiers; a
 //: spot no lattice indexes keeps Miller index 0 0 0. One sweep for now.
 LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
-                              const IndexOptions &options, int max_lattices,
-                              std::size_t min_spots,
+                              const IndexOptions &options,
+                              std::int32_t max_lattices, std::size_t min_spots,
                               Ambiguous ambiguous = Ambiguous::Exclude,
                               double ambiguity_sigma = 3.0,
                               const std::vector<Crystal> &known = {});

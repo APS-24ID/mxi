@@ -55,9 +55,9 @@ double now() {
 //: Where one frame's chunk is: the file descriptor to pread it from, its
 //: address and size, and whether its filter was skipped.
 struct Place {
-  int fd = -1;
+  std::int32_t fd = -1;
   std::uint64_t address = 0, size = 0;
-  unsigned mask = 0;
+  std::uint32_t mask = 0;
 };
 
 //: Every frame's chunk, found through HDF5 before any frame is read: for each
@@ -66,7 +66,7 @@ struct Place {
 //: for pread.
 std::vector<Place>
 find_chunks(const std::vector<mxi::series::SourceBlock> &blocks,
-            std::uint64_t frames, std::vector<int> *descriptors) {
+            std::uint64_t frames, std::vector<std::int32_t> *descriptors) {
   std::vector<Place> places(frames);
   for (const mxi::series::SourceBlock &b : blocks) {
     const hid_t file = H5Fopen(b.filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -86,13 +86,13 @@ find_chunks(const std::vector<mxi::series::SourceBlock> &blocks,
     const hid_t fcpl = H5Fget_create_plist(own);
     H5Pget_userblock(fcpl, &user_block);
     H5Pclose(fcpl);
-    const int fd = ::open(name.c_str(), O_RDONLY);
+    const std::int32_t fd = ::open(name.c_str(), O_RDONLY);
     if (fd < 0)
       throw std::runtime_error("cannot open " + name + " for pread");
     descriptors->push_back(fd);
     for (std::uint64_t f = b.first; f <= b.last && f < frames; ++f) {
       hsize_t coord[3] = {static_cast<hsize_t>(b.offset + (f - b.first)), 0, 0};
-      unsigned mask = 0;
+      std::uint32_t mask = 0;
       haddr_t address = 0;
       hsize_t size = 0;
       if (H5Dget_chunk_info_by_coord(dataset, coord, &mask, &address, &size) <
@@ -110,7 +110,7 @@ find_chunks(const std::vector<mxi::series::SourceBlock> &blocks,
   return places;
 }
 
-bool pread_all(int fd, std::uint8_t *to, std::uint64_t size,
+bool pread_all(std::int32_t fd, std::uint8_t *to, std::uint64_t size,
                std::uint64_t address) {
   std::uint64_t done = 0;
   while (done < size) {
@@ -205,14 +205,14 @@ int mxi_readtest_main(int argc, char **argv) {
     mxi::series::Frame first;
     if (!s->reader()->read("0", &first))
       throw std::runtime_error("the first frame could not be read");
-    const unsigned bit_depth = first.bit_depth;
+    const std::uint32_t bit_depth = first.bit_depth;
     const std::size_t height = first.height, width = first.width;
     const std::string algorithm(first.algorithm);
     const std::size_t bytes =
         mxi::decompress::frame_bytes(height, width, bit_depth);
 
     std::vector<Place> places;
-    std::vector<int> descriptors;
+    std::vector<std::int32_t> descriptors;
     double t_find = 0.0;
     if (by_pread) {
       const double t0 = now();
@@ -285,7 +285,7 @@ int mxi_readtest_main(int argc, char **argv) {
     if (!failure.empty())
       throw std::runtime_error(failure);
     const double wall = now() - t_start;
-    for (int fd : descriptors)
+    for (std::int32_t fd : descriptors)
       ::close(fd);
 
     double fetch = 0.0, decomp = 0.0;

@@ -103,13 +103,13 @@ void Panel::mm_to_px_jacobian(double mm_fast, double mm_slow,
       -mu * thickness * thickness * transmitted / (c * c * c);
 
   const Vec3 axis[2] = {fast, slow};
-  for (int j = 0; j < 2; ++j) {
+  for (std::int32_t j = 0; j < 2; ++j) {
     // Derivative of a normalised vector: the component along u does not move
     // it, which is what the projection removes.
     const Vec3 du = (axis[j] - u * u.dot(axis[j])) / length;
     const double dc = (cosine >= 0.0 ? 1.0 : -1.0) * du.dot(n);
     const double ddepth = ddepth_dc * dc;
-    for (int i = 0; i < 2; ++i) {
+    for (std::int32_t i = 0; i < 2; ++i) {
       const double doffset = ddepth * u.dot(axis[i]) + depth * du.dot(axis[i]);
       out[i * 2 + j] += doffset / pixel_size[i];
     }
@@ -315,7 +315,8 @@ Mat3 Experiment::setting_at(double z) const {
   return crystal->A_at(scan.fraction(z));
 }
 
-double Crystal::d_spacing(int h, int k, int l) const {
+double Crystal::d_spacing(std::int32_t h, std::int32_t k,
+                          std::int32_t l) const {
   const Vec3 q = A * Vec3{static_cast<double>(h), static_cast<double>(k),
                           static_cast<double>(l)};
   const double n = q.norm();

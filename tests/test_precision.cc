@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "../src/derivatives.hh"
@@ -51,7 +52,7 @@ Experiment insulin_experiment() {
   e.detector.panels.push_back(p);
   std::vector<Vec3> axes;
   std::vector<double> angles;
-  for (int i = 0; i < 3; ++i) {
+  for (std::int32_t i = 0; i < 3; ++i) {
     axes.push_back(vec(real::kGonioAxes[i]));
     angles.push_back(real::kGonioAngles[i]);
   }
@@ -207,8 +208,9 @@ namespace {
 
 // Every derivative for one reflection, flattened, at precision T.
 template <typename T>
-std::vector<double> templated_derivatives(const Experiment &e, int h, int k,
-                                          int l, double z) {
+std::vector<double> templated_derivatives(const Experiment &e, std::int32_t h,
+                                          std::int32_t k, std::int32_t l,
+                                          double z) {
   std::vector<double> out;
   const auto model = narrow<T>(e, 0, e.setting_at(z));
   const auto state = target_state<T>(model, h, k, l, static_cast<T>(z));
@@ -233,8 +235,9 @@ std::vector<double> templated_derivatives(const Experiment &e, int h, int k,
 }
 
 std::vector<double> reference_derivatives(const Experiment &e,
-                                          const PredictionState &s, int h,
-                                          int k, int l) {
+                                          const PredictionState &s,
+                                          std::int32_t h, std::int32_t k,
+                                          std::int32_t l) {
   std::vector<double> out;
   const auto crystal = crystal_derivatives(s, h, k, l);
   const auto detector = detector_derivatives(s, e.detector[0]);

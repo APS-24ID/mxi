@@ -44,11 +44,11 @@
 
 namespace mxi::dext_fused {
 
-constexpr int kTile = 32;
-constexpr int kR2 = kTile + 2 * 5; // 42: stage 2's 11 x 11 window
-constexpr int kR1 = kR2 + 2 * 2;   // 46: stage 1's 5 x 5 window
-constexpr int kR0 = kR1 + 2 * 3;   // 52: stage 0's 7 x 7 window
-constexpr int kOrigin0 = -10, kOrigin1 = -7, kOrigin2 = -5;
+constexpr std::int32_t kTile = 32;
+constexpr std::int32_t kR2 = kTile + 2 * 5; // 42: stage 2's 11 x 11 window
+constexpr std::int32_t kR1 = kR2 + 2 * 2;   // 46: stage 1's 5 x 5 window
+constexpr std::int32_t kR0 = kR1 + 2 * 3;   // 52: stage 0's 7 x 7 window
+constexpr std::int32_t kOrigin0 = -10, kOrigin1 = -7, kOrigin2 = -5;
 
 template <typename T> DEXT_FUSED_HD constexpr T masked_value() {
   return static_cast<T>(~T(0) - 1);
@@ -91,9 +91,10 @@ template <typename T> struct Tile {
 
 //: Load R0's pixel (r, c), for a tile at (ti, tj) of a frame height x width.
 template <typename T>
-DEXT_FUSED_HD inline void load(Tile<T> &t, const T *frame, int height,
-                               int width, int ti, int tj, int r, int c) {
-  const int i = ti + kOrigin0 + r, j = tj + kOrigin0 + c;
+DEXT_FUSED_HD inline void
+load(Tile<T> &t, const T *frame, std::int32_t height, std::int32_t width,
+     std::int32_t ti, std::int32_t tj, std::int32_t r, std::int32_t c) {
+  const std::int32_t i = ti + kOrigin0 + r, j = tj + kOrigin0 + c;
   t.pixel[r][c] = (i >= 0 && i < height && j >= 0 && j < width)
                       ? frame[i * width + j]
                       : masked_value<T>();
@@ -102,16 +103,17 @@ DEXT_FUSED_HD inline void load(Tile<T> &t, const T *frame, int height,
 //: Stage 0 along a row: the count, sum and sum of squares of the valid pixels
 //: in R0's row r, columns c to c + 6; r < 52, c < 46.
 template <typename T>
-DEXT_FUSED_HD inline void stage0_row(Tile<T> &t, int r, int c) {
+DEXT_FUSED_HD inline void stage0_row(Tile<T> &t, std::int32_t r,
+                                     std::int32_t c) {
   using W = accumulator_t<T>;
   const T masked = masked_value<T>();
-  unsigned count = 0;
+  std::uint32_t count = 0;
   W sum = 0, sum2 = 0;
-  for (int d = 0; d < 7; ++d) {
+  for (std::int32_t d = 0; d < 7; ++d) {
     const T pixel = t.pixel[r][c + d];
     const W valid = pixel >= masked ? W(0) : W(1);
     const W p = valid * static_cast<W>(pixel);
-    count += static_cast<unsigned>(valid);
+    count += static_cast<std::uint32_t>(valid);
     sum += p;
     sum2 += p * p;
   }
@@ -123,12 +125,13 @@ DEXT_FUSED_HD inline void stage0_row(Tile<T> &t, int r, int c) {
 //: Stage 0's test at R1's (r, c), down the column of row sums: R0's rows r to
 //: r + 6 at column c are the 7 x 7 window around R0's (r + 3, c + 3).
 template <typename T>
-DEXT_FUSED_HD inline void stage0_test(Tile<T> &t, int r, int c) {
+DEXT_FUSED_HD inline void stage0_test(Tile<T> &t, std::int32_t r,
+                                      std::int32_t c) {
   using W = accumulator_t<T>;
   using R = real_t<T>;
   const R sigma_b = R(6.0);
   W m_sum = 0, i_sum = 0, i2_sum = 0;
-  for (int d = 0; d < 7; ++d) {
+  for (std::int32_t d = 0; d < 7; ++d) {
     m_sum += static_cast<W>(t.rows.s0.count[r + d][c]);
     i_sum += t.rows.s0.sum[r + d][c];
     i2_sum += t.rows.s0.sum2[r + d][c];
@@ -150,9 +153,10 @@ DEXT_FUSED_HD inline void stage0_test(Tile<T> &t, int r, int c) {
 //: Stage 1 along a row: whether R1's row r, columns c to c + 4, are all set;
 //: r < 46, c < 42.
 template <typename T>
-DEXT_FUSED_HD inline void stage1_row(Tile<T> &t, int r, int c) {
+DEXT_FUSED_HD inline void stage1_row(Tile<T> &t, std::int32_t r,
+                                     std::int32_t c) {
   std::uint8_t all = 1;
-  for (int d = 0; d < 5; ++d)
+  for (std::int32_t d = 0; d < 5; ++d)
     all &= t.mask0[r][c + d];
   t.erode_row[r][c] = all;
 }
@@ -161,13 +165,14 @@ DEXT_FUSED_HD inline void stage1_row(Tile<T> &t, int r, int c) {
 //: neighbourhood of R1's (r + 2, c + 2) must all be set -- which includes the
 //: centre, so a centre of 0 gives 0, as stage1 has it.
 template <typename T>
-DEXT_FUSED_HD inline void stage1_erode(Tile<T> &t, int r, int c) {
+DEXT_FUSED_HD inline void stage1_erode(Tile<T> &t, std::int32_t r,
+                                       std::int32_t c) {
   if (t.pixel[r + 5][c + 5] >= masked_value<T>()) {
     t.mask1[r][c] = 1;
     return;
   }
   std::uint8_t all = 1;
-  for (int d = 0; d < 5; ++d)
+  for (std::int32_t d = 0; d < 5; ++d)
     all &= t.erode_row[r + d][c];
   t.mask1[r][c] = all;
 }
@@ -176,15 +181,16 @@ DEXT_FUSED_HD inline void stage1_erode(Tile<T> &t, int r, int c) {
 //: and not flagged by stage 1 -- in R2's row r, columns c to c + 10; r < 42,
 //: c < 32.
 template <typename T>
-DEXT_FUSED_HD inline void stage2_row(Tile<T> &t, int r, int c) {
+DEXT_FUSED_HD inline void stage2_row(Tile<T> &t, std::int32_t r,
+                                     std::int32_t c) {
   using W = accumulator_t<T>;
   const T masked = masked_value<T>();
-  unsigned count = 0;
+  std::uint32_t count = 0;
   W sum = 0;
-  for (int d = 0; d < 11; ++d) {
+  for (std::int32_t d = 0; d < 11; ++d) {
     const T pixel = t.pixel[r + 5][c + d + 5];
     const W valid = (pixel >= masked) || t.mask1[r][c + d] ? W(0) : W(1);
-    count += static_cast<unsigned>(valid);
+    count += static_cast<std::uint32_t>(valid);
     sum += valid * static_cast<W>(pixel);
   }
   t.rows.s2.count[r][c] = static_cast<std::uint8_t>(count);
@@ -203,13 +209,13 @@ struct Decision {
 //: column of row sums: R2's rows r to r + 10 at column c. `in_frame` is
 //: whether that pixel is in the frame at all.
 template <typename T>
-DEXT_FUSED_HD inline Decision stage2_test(const Tile<T> &t, int r, int c,
-                                          bool in_frame) {
+DEXT_FUSED_HD inline Decision stage2_test(const Tile<T> &t, std::int32_t r,
+                                          std::int32_t c, bool in_frame) {
   using W = accumulator_t<T>;
   using R = real_t<T>;
   const R sigma_s = R(3.0);
   W m_sum = 0, i_sum = 0;
-  for (int d = 0; d < 11; ++d) {
+  for (std::int32_t d = 0; d < 11; ++d) {
     m_sum += static_cast<W>(t.rows.s2.count[r + d][c]);
     i_sum += t.rows.s2.sum[r + d][c];
   }
@@ -233,38 +239,39 @@ DEXT_FUSED_HD inline Decision stage2_test(const Tile<T> &t, int r, int c,
 //: the kernel runs it: for testing the tile arithmetic against dext(), not for
 //: speed. Returns what dext() returns, the survivors ascending by index.
 template <typename T>
-int dext_fused_emulated(const T *frame, std::vector<SignalPixel> &out,
-                        std::size_t height, std::size_t width) {
+std::int32_t dext_fused_emulated(const T *frame, std::vector<SignalPixel> &out,
+                                 std::size_t height, std::size_t width) {
   out.clear();
   if (frame == nullptr || height == 0 || width == 0 ||
       height > 0x7fffffffu / width)
     return -1;
-  const int h = static_cast<int>(height), w = static_cast<int>(width);
+  const std::int32_t h = static_cast<std::int32_t>(height),
+                     w = static_cast<std::int32_t>(width);
   const auto tile = std::make_unique<Tile<T>>();
   Tile<T> &t = *tile;
-  for (int ti = 0; ti < h; ti += kTile)
-    for (int tj = 0; tj < w; tj += kTile) {
-      for (int r = 0; r < kR0; ++r)
-        for (int c = 0; c < kR0; ++c)
+  for (std::int32_t ti = 0; ti < h; ti += kTile)
+    for (std::int32_t tj = 0; tj < w; tj += kTile) {
+      for (std::int32_t r = 0; r < kR0; ++r)
+        for (std::int32_t c = 0; c < kR0; ++c)
           load(t, frame, h, w, ti, tj, r, c);
-      for (int r = 0; r < kR0; ++r)
-        for (int c = 0; c < kR1; ++c)
+      for (std::int32_t r = 0; r < kR0; ++r)
+        for (std::int32_t c = 0; c < kR1; ++c)
           stage0_row(t, r, c);
-      for (int r = 0; r < kR1; ++r)
-        for (int c = 0; c < kR1; ++c)
+      for (std::int32_t r = 0; r < kR1; ++r)
+        for (std::int32_t c = 0; c < kR1; ++c)
           stage0_test(t, r, c);
-      for (int r = 0; r < kR1; ++r)
-        for (int c = 0; c < kR2; ++c)
+      for (std::int32_t r = 0; r < kR1; ++r)
+        for (std::int32_t c = 0; c < kR2; ++c)
           stage1_row(t, r, c);
-      for (int r = 0; r < kR2; ++r)
-        for (int c = 0; c < kR2; ++c)
+      for (std::int32_t r = 0; r < kR2; ++r)
+        for (std::int32_t c = 0; c < kR2; ++c)
           stage1_erode(t, r, c);
-      for (int r = 0; r < kR2; ++r)
-        for (int c = 0; c < kTile; ++c)
+      for (std::int32_t r = 0; r < kR2; ++r)
+        for (std::int32_t c = 0; c < kTile; ++c)
           stage2_row(t, r, c);
-      for (int r = 0; r < kTile; ++r)
-        for (int c = 0; c < kTile; ++c) {
-          const int i = ti + r, j = tj + c;
+      for (std::int32_t r = 0; r < kTile; ++r)
+        for (std::int32_t c = 0; c < kTile; ++c) {
+          const std::int32_t i = ti + r, j = tj + c;
           const Decision d = stage2_test(t, r, c, i < h && j < w);
           if (d.signal) {
             SignalPixel pixel;

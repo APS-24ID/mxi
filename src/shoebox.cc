@@ -1,5 +1,6 @@
 #include "shoebox.hh"
 
+#include <cstdint>
 #include <cstring>
 
 namespace mxi {
@@ -47,7 +48,7 @@ std::vector<Shoebox> decode_shoeboxes(const Table &table) {
     const std::size_t n = box.size();
     if (box.flag != 1 && box.flag != 2) {
       throw ReflError("a shoebox record is of version " +
-                      std::to_string(static_cast<int>(box.flag)) +
+                      std::to_string(static_cast<std::int32_t>(box.flag)) +
                       ", where 1 and 2 are known");
     }
     const std::size_t mask_bytes = box.flag == 1 ? 4 : 1;

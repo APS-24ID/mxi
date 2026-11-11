@@ -60,9 +60,9 @@ std::vector<MergedSet> merged_by_experiment(const ExperimentList &experiments,
     const double v = V.reals[r];
     if (!(v > 0.0) || !std::isfinite(I.reals[r]))
       continue;
-    const Miller m{static_cast<int>(hkl.ints[r * 3]),
-                   static_cast<int>(hkl.ints[r * 3 + 1]),
-                   static_cast<int>(hkl.ints[r * 3 + 2])};
+    const Miller m{static_cast<std::int32_t>(hkl.ints[r * 3]),
+                   static_cast<std::int32_t>(hkl.ints[r * 3 + 1]),
+                   static_cast<std::int32_t>(hkl.ints[r * 3 + 2])};
     groups[static_cast<std::size_t>(slot[e])][group.unique(m)].push_back(
         {I.reals[r], std::sqrt(v)});
   }
@@ -191,7 +191,7 @@ namespace {
 // numpy's np.random.seed(seed); np.random.rand(count): its legacy seeding is
 // the Mersenne twister's init_genrand, and each double is two draws, 53 bits:
 // (a >> 5, b >> 6) -> (a 2^26 + b) / 2^53.
-std::vector<double> numpy_rand(unsigned seed, std::size_t count) {
+std::vector<double> numpy_rand(std::uint32_t seed, std::size_t count) {
   std::mt19937 twister(seed);
   std::vector<double> out(count);
   for (double &v : out) {
@@ -251,7 +251,7 @@ void symmetric_eigen(std::vector<double> a, std::size_t d,
   v->assign(d * d, 0.0);
   for (std::size_t i = 0; i < d; ++i)
     (*v)[i * d + i] = 1.0;
-  for (int sweep = 0; sweep < 100; ++sweep) {
+  for (std::int32_t sweep = 0; sweep < 100; ++sweep) {
     double off = 0.0;
     for (std::size_t p = 0; p < d; ++p)
       for (std::size_t q = p + 1; q < d; ++q)
@@ -307,12 +307,13 @@ double cosym_functional(const CorrelationMatrix &m,
 }
 
 std::vector<double> minimise_cosym(const CorrelationMatrix &m, std::size_t dim,
-                                   int max_iterations, int max_calls,
-                                   unsigned seed, double *functional) {
+                                   std::int32_t max_iterations,
+                                   std::int32_t max_calls, std::uint32_t seed,
+                                   double *functional) {
   const std::size_t n = m.n, size = dim * n;
   std::vector<double> x = numpy_rand(seed, size), g, x_new, g_new;
   double f = value_and_gradient(m, x, dim, &g);
-  int calls = 1;
+  std::int32_t calls = 1;
   // L-BFGS, ten pairs remembered, a backtracking line search to Armijo's
   // condition; stopped at scitbx's test, |g| below 1e-5 of max(1, |x|), or at
   // the iterations or calls allowed.
@@ -326,7 +327,7 @@ std::vector<double> minimise_cosym(const CorrelationMatrix &m, std::size_t dim,
       v += a[k] * b[k];
     return v;
   };
-  for (int it = 0; it < max_iterations; ++it) {
+  for (std::int32_t it = 0; it < max_iterations; ++it) {
     const double gnorm = std::sqrt(dot(g, g));
     if (gnorm <= 1e-5 * std::max(1.0, std::sqrt(dot(x, x))))
       break;
@@ -368,7 +369,7 @@ std::vector<double> minimise_cosym(const CorrelationMatrix &m, std::size_t dim,
     }
     double step = 1.0, f_new = f;
     bool moved = false;
-    for (int tries = 0; tries < 30; ++tries) {
+    for (std::int32_t tries = 0; tries < 30; ++tries) {
       if (max_calls > 0 && calls >= max_calls)
         break;
       x_new = x;
@@ -775,8 +776,8 @@ OpticsResult optics(const std::vector<double> &points, std::size_t n,
                             min_samples, min_samples);
   // scikit-learn's _extract_xi_labels: the clusters in order, each labelled
   // where none of it is yet.
-  std::vector<int> in_order(n, -1);
-  int label = 0;
+  std::vector<std::int32_t> in_order(n, -1);
+  std::int32_t label = 0;
   for (const auto &[a, b] : out.clusters) {
     bool free = true;
     for (std::size_t k = a; k <= b; ++k)
@@ -793,10 +794,10 @@ OpticsResult optics(const std::vector<double> &points, std::size_t n,
 }
 
 double silhouette(const std::vector<double> &points, std::size_t d,
-                  const std::vector<int> &labels) {
+                  const std::vector<std::int32_t> &labels) {
   const std::size_t n = labels.size();
-  std::map<int, std::size_t> sizes;
-  for (int l : labels)
+  std::map<std::int32_t, std::size_t> sizes;
+  for (std::int32_t l : labels)
     if (l != -1)
       ++sizes[l];
   if (sizes.size() < 2)
@@ -806,7 +807,7 @@ double silhouette(const std::vector<double> &points, std::size_t d,
   for (std::size_t i = 0; i < n; ++i) {
     if (labels[i] == -1)
       continue;
-    std::map<int, double> sums;
+    std::map<std::int32_t, double> sums;
     for (std::size_t j = 0; j < n; ++j)
       if (labels[j] != -1 && j != i)
         sums[labels[j]] += distance(points, d, i, j);
@@ -836,9 +837,9 @@ SignificantClusters significant_clusters(const CosymCoordinates &c,
   for (std::size_t i = 0; i < n; ++i)
     for (std::size_t k = 0; k < d; ++k)
       points[i * d + k] = c.x[k * n + i];
-  const auto clusters_in = [](const std::vector<int> &labels) {
-    std::set<int> s;
-    for (int l : labels)
+  const auto clusters_in = [](const std::vector<std::int32_t> &labels) {
+    std::set<std::int32_t> s;
+    for (std::int32_t l : labels)
       if (l != -1)
         s.insert(l);
     return s.size();
@@ -878,7 +879,7 @@ SignificantClusters significant_clusters(const CosymCoordinates &c,
       continue; // pruned
     any = true;
     std::size_t noise = 0;
-    for (int l : model.labels)
+    for (std::int32_t l : model.labels)
       noise += l == -1;
     const double fraction = static_cast<double>(noise) / static_cast<double>(n);
     const double penalty =
@@ -886,7 +887,7 @@ SignificantClusters significant_clusters(const CosymCoordinates &c,
     double score = -1.0, sil = 0.0;
     if (clusters_in(model.labels) > 1) {
       std::vector<double> kept;
-      std::vector<int> kept_labels;
+      std::vector<std::int32_t> kept_labels;
       for (std::size_t i = 0; i < n; ++i)
         if (model.labels[i] != -1) {
           kept_labels.push_back(model.labels[i]);
@@ -957,7 +958,7 @@ SignificantClusters significant_clusters(const CosymCoordinates &c,
   if (end_truthy && start > end)
     start = 0;
   start = start > 2 ? start - 2 : 0;
-  std::vector<int> labels(n);
+  std::vector<std::int32_t> labels(n);
   for (std::size_t k = 0; k < n; ++k)
     labels[k] = model.labels[model.ordering[k]];
   for (std::int64_t k = 0; k < start; ++k)

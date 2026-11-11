@@ -78,7 +78,7 @@ std::string shown(const Step &s) {
 
 // Runs this program as `mxi STEP ARGS...`, its output to ours; its exit code,
 // or 128 + the signal that ended it, or -1 where it could not be started.
-int run(const std::string &self, const Step &s) {
+std::int32_t run(const std::string &self, const Step &s) {
   std::vector<std::string> words = {self, s.name};
   words.insert(words.end(), s.args.begin(), s.args.end());
   std::vector<char *> argv;
@@ -91,7 +91,7 @@ int run(const std::string &self, const Step &s) {
   if (posix_spawn(&pid, self.c_str(), nullptr, nullptr, argv.data(), environ) !=
       0)
     return -1;
-  int status = 0;
+  std::int32_t status = 0;
   if (waitpid(pid, &status, 0) < 0)
     return -1;
   if (WIFEXITED(status))
@@ -316,7 +316,7 @@ int mxi_process_main(int argc, char **argv) {
     const Step &s = steps[i];
     std::printf("\n== mxi process: step %zu of %zu: %s\n\n", i + 1, n,
                 shown(s).c_str());
-    const int code = run(self, s);
+    const std::int32_t code = run(self, s);
     if (code != 0) {
       std::printf("\n");
       if (code < 0)

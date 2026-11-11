@@ -16,8 +16,8 @@ TEST(both_densities_of_cc_integrate_to_one) {
   // and the same averaged over the true CC. Each must integrate to one.
   for (double sigma : {0.1, 0.3}) {
     double present = 0.0, absent = 0.0;
-    const int n = 4000;
-    for (int k = 0; k < n; ++k) {
+    const std::int32_t n = 4000;
+    for (std::int32_t k = 0; k < n; ++k) {
       const double cc = -1.0 + (k + 0.5) * 2.0 / n;
       present += p_cc_given_present(cc, sigma, 0.9) * 2.0 / n;
       absent += p_cc_given_absent(cc, sigma) * 2.0 / n;
@@ -49,7 +49,7 @@ namespace {
 //: Intensities in the insulin cell's primitive basis whose true symmetry is
 //: `truth`, in the conventional setting b+c,a+c,a+b: exponential E^2 for each
 //: unique reflection of it, five per cent noise on each P1 one.
-P1Intensities planted(const char *truth, unsigned seed) {
+P1Intensities planted(const char *truth, std::uint32_t seed) {
   const UnitCell cell{67.42, 67.46, 67.46, 109.44, 109.47, 109.46};
   const SpaceGroup group = SpaceGroup::from_name(truth);
   const ChangeOfBasis cb = ChangeOfBasis::parse("b+c,a+c,a+b");
@@ -58,9 +58,9 @@ P1Intensities planted(const char *truth, unsigned seed) {
   std::normal_distribution<double> noise(0.0, 1.0);
   std::map<Miller, double> value;
   P1Intensities out;
-  for (int h = -14; h <= 14; ++h)
-    for (int k = -14; k <= 14; ++k)
-      for (int l = 0; l <= 14; ++l) {
+  for (std::int32_t h = -14; h <= 14; ++h)
+    for (std::int32_t k = -14; k <= 14; ++k)
+      for (std::int32_t l = 0; l <= 14; ++l) {
         const Miller m{h, k, l};
         if (m == Miller{0, 0, 0} || (l == 0 && (k < 0 || (k == 0 && h < 0))))
           continue; // one of each Friedel pair
@@ -93,7 +93,7 @@ namespace {
 
 //: A small molecule's P 21 21 21 intensities, 5.42 8.13 12.02 A, as they come
 //: indexed in the order 12.02 5.42 8.13 -- the true axes b,c,a of these.
-P1Intensities planted_out_of_order(const UnitCell &given, unsigned seed) {
+P1Intensities planted_out_of_order(const UnitCell &given, std::uint32_t seed) {
   const SpaceGroup group = SpaceGroup::from_name("P 21 21 21");
   const ChangeOfBasis to_true = ChangeOfBasis::parse("b,c,a");
   std::mt19937 rng(seed);
@@ -101,9 +101,9 @@ P1Intensities planted_out_of_order(const UnitCell &given, unsigned seed) {
   std::normal_distribution<double> noise(0.0, 1.0);
   std::map<Miller, double> value;
   P1Intensities out;
-  for (int h = -15; h <= 15; ++h)
-    for (int k = -7; k <= 7; ++k)
-      for (int l = 0; l <= 10; ++l) {
+  for (std::int32_t h = -15; h <= 15; ++h)
+    for (std::int32_t k = -7; k <= 7; ++k)
+      for (std::int32_t l = 0; l <= 10; ++l) {
         const Miller m{h, k, l};
         if (m == Miller{0, 0, 0} || (l == 0 && (k < 0 || (k == 0 && h < 0))))
           continue;
@@ -163,7 +163,7 @@ namespace {
 //: The failure seen on a dataset measured to the detector's corner: true m-3
 //: symmetry in the strong low-resolution reflections, and a majority of pure
 //: noise beyond. Friedel mates both present, as observations come.
-P1Intensities noisy_beyond(double strong_to, unsigned seed) {
+P1Intensities noisy_beyond(double strong_to, std::uint32_t seed) {
   const UnitCell cell{67.42, 67.46, 67.46, 109.44, 109.47, 109.46};
   const SpaceGroup group = SpaceGroup::from_name("I 2 3");
   const ChangeOfBasis cb = ChangeOfBasis::parse("b+c,a+c,a+b");
@@ -172,9 +172,9 @@ P1Intensities noisy_beyond(double strong_to, unsigned seed) {
   std::normal_distribution<double> noise(0.0, 1.0);
   std::map<Miller, double> value;
   P1Intensities out;
-  for (int h = -18; h <= 18; ++h)
-    for (int k = -18; k <= 18; ++k)
-      for (int l = -18; l <= 18; ++l) {
+  for (std::int32_t h = -18; h <= 18; ++h)
+    for (std::int32_t k = -18; k <= 18; ++k)
+      for (std::int32_t l = -18; l <= 18; ++l) {
         const Miller m{h, k, l};
         if (m == Miller{0, 0, 0})
           continue;
@@ -267,9 +267,9 @@ TEST(the_wilson_model_recovers_an_anisotropic_b) {
   std::mt19937 rng(11);
   std::exponential_distribution<double> wilson(1.0);
   P1Intensities data;
-  for (int h = -14; h <= 14; ++h)
-    for (int k = -14; k <= 14; ++k)
-      for (int l = -70; l <= 70; ++l) {
+  for (std::int32_t h = -14; h <= 14; ++h)
+    for (std::int32_t k = -14; k <= 14; ++k)
+      for (std::int32_t l = -70; l <= 70; ++l) {
         if (h == 0 && k == 0 && l == 0)
           continue;
         const double ds2 = (h * h + k * k) / (a * a) + l * l / (c * c);

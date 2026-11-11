@@ -10,6 +10,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <set>
 #include <string>
@@ -212,7 +213,7 @@ int run_foreground(int argc, char **argv) {
       // encoding at once doubles the peak for no reason.
       blob += encode_shoeboxes({box});
       std::array<std::int32_t, 6> b;
-      for (int k = 0; k < 6; ++k)
+      for (std::int32_t k = 0; k < 6; ++k)
         b[k] = box.bbox[k];
       bboxes.push_back(b);
       kept.push_back(&p);
@@ -252,7 +253,7 @@ int run_foreground(int argc, char **argv) {
       // Predicted, not observed: nothing here has seen an image.
       flags.ints[i] = flag::kPredicted | flag::kIndexed;
       entering.ints[i] = p.s1.dot(axis.cross(s0)) > 0.0 ? 1 : 0;
-      for (int k = 0; k < 6; ++k)
+      for (std::int32_t k = 0; k < 6; ++k)
         bbox.ints[i * 6 + k] = bboxes[i][k];
       cal_px.reals[i * 3 + 0] = p.px_fast;
       cal_px.reals[i * 3 + 1] = p.px_slow;
@@ -262,7 +263,7 @@ int run_foreground(int argc, char **argv) {
       cal_mm.reals[i * 3 + 0] = mm.first;
       cal_mm.reals[i * 3 + 1] = mm.second;
       cal_mm.reals[i * 3 + 2] = p.phi;
-      for (int k = 0; k < 3; ++k)
+      for (std::int32_t k = 0; k < 3; ++k)
         s1.reals[i * 3 + k] = p.s1[k];
     }
 

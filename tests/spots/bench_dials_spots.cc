@@ -50,7 +50,7 @@ using Clock = std::chrono::steady_clock;
 // they are matters.
 constexpr std::size_t kHeight = 4362;
 constexpr std::size_t kWidth = 4148;
-constexpr int kFrames = 40;
+constexpr std::int32_t kFrames = 40;
 
 struct Result {
   std::size_t pixels_a_frame = 0;
@@ -67,7 +67,8 @@ struct Result {
 // Flat blobs put the peak in a corner, the peak-centroid filter then rejects
 // almost everything, and the timing measures the filter instead of the emit
 // path it is supposed to include.
-Result run(std::size_t pixels_a_frame, int span, int repeats) {
+Result run(std::size_t pixels_a_frame, std::int32_t span,
+           std::int32_t repeats) {
   const std::size_t blobs = pixels_a_frame * kFrames / (19 * span);
   std::mt19937 rng(7);
   std::uniform_int_distribution<std::size_t> slow(8, kHeight - 9);
@@ -76,14 +77,15 @@ Result run(std::size_t pixels_a_frame, int span, int repeats) {
   std::vector<std::vector<SignalPixel>> frames(kFrames);
   for (std::size_t blob = 0; blob < blobs; blob++) {
     const std::size_t y = slow(rng), x = fast(rng);
-    const int first = static_cast<int>(blob % (kFrames - span));
-    for (int step = 0; step < span; step++) {
+    const std::int32_t first =
+        static_cast<std::int32_t>(blob % (kFrames - span));
+    for (std::int32_t step = 0; step < span; step++) {
       // Symmetric about the middle of the span, so the z centroid lands on the
       // brightest frame.
       const double from_middle = static_cast<double>(step) - (span - 1) / 2.0;
       const double rocking = std::exp(-from_middle * from_middle / 4.0);
-      for (int dy = -2; dy <= 2; dy++) {
-        for (int dx = -2; dx <= 2; dx++) {
+      for (std::int32_t dy = -2; dy <= 2; dy++) {
+        for (std::int32_t dx = -2; dx <= 2; dx++) {
           if (dy * dy + dx * dx > 5)
             continue;
           const double radial =
@@ -119,11 +121,11 @@ Result run(std::size_t pixels_a_frame, int span, int repeats) {
   // the fastest run is the one least interfered with. Taking means here had me
   // reading a 20% variance as a real difference between two implementations.
   double best = 0.0;
-  for (int repeat = 0; repeat < repeats; repeat++) {
+  for (std::int32_t repeat = 0; repeat < repeats; repeat++) {
     mxi::spots::Labeller labeller(kHeight, kWidth, mxi::spots::Options{});
     std::size_t high = 0;
     const Clock::time_point began = Clock::now();
-    for (int frame = 0; frame < kFrames; frame++) {
+    for (std::int32_t frame = 0; frame < kFrames; frame++) {
       labeller.add(frame, frames[frame]);
       high = labeller.live() > high ? labeller.live() : high;
     }
@@ -142,7 +144,7 @@ Result run(std::size_t pixels_a_frame, int span, int repeats) {
 } // namespace
 
 int main(int argc, char **argv) {
-  const int repeats = argc > 1 ? std::atoi(argv[1]) : 5;
+  const std::int32_t repeats = argc > 1 ? std::atoi(argv[1]) : 5;
 
   std::printf("%zu x %zu, %d frames, best of %d\n\n", kHeight, kWidth, kFrames,
               repeats);
@@ -150,7 +152,7 @@ int main(int argc, char **argv) {
               "ms/frame", "Mpixel/s", "live pixels", "spots");
 
   for (const std::size_t density : {1000u, 6000u, 30000u, 130000u}) {
-    for (const int span : {1, 3, 10}) {
+    for (const std::int32_t span : {1, 3, 10}) {
       const Result result = run(density, span, repeats);
       std::printf("%12zu %6d %10.3f %9.1f %12zu %8zu\n", result.pixels_a_frame,
                   span, result.milliseconds,

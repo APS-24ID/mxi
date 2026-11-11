@@ -40,7 +40,7 @@ std::mutex &lock() {
 #ifdef MXI_HAVE_BITSHUFFLE
   // bitshuffle-LZ4, HDF5 filter 32008, registered once: written for integer
   // datasets, and read back the same way.
-  static const int registered = bshuf_register_h5filter();
+  static const std::int32_t registered = bshuf_register_h5filter();
   (void)registered;
 #endif
   return m;
@@ -232,8 +232,8 @@ void write_leaf(hid_t parent, const std::string &name, const json::Value &v,
   else if (s.dims.empty())
     space = H5Screate(H5S_SCALAR);
   else
-    space = H5Screate_simple(static_cast<int>(s.dims.size()), s.dims.data(),
-                             nullptr);
+    space = H5Screate_simple(static_cast<std::int32_t>(s.dims.size()),
+                             s.dims.data(), nullptr);
   H sp(space, H5Sclose);
   // An empty array: shape (0,) of int64, its dtype not significant.
   const Leaf leaf =
@@ -449,7 +449,7 @@ json::Value read_leaf(hid_t object, bool attribute) {
   if (H5Sget_simple_extent_type(space.get()) == H5S_NULL)
     return json::Value();
   const H5T_class_t cls = H5Tget_class(type.get());
-  const int rank = H5Sget_simple_extent_ndims(space.get());
+  const std::int32_t rank = H5Sget_simple_extent_ndims(space.get());
   std::vector<hsize_t> dims(static_cast<std::size_t>(std::max(rank, 0)));
   if (rank > 0)
     H5Sget_simple_extent_dims(space.get(), dims.data(), nullptr);
@@ -717,14 +717,14 @@ hid_t creation(const std::vector<hsize_t> &dims, hid_t type) {
     const std::size_t rows =
         std::max<std::size_t>(1, 65536 / std::max<std::size_t>(row, 1));
     chunk[0] = std::min<hsize_t>(dims[0], rows);
-    H5Pset_chunk(dcpl, static_cast<int>(chunk.size()), chunk.data());
+    H5Pset_chunk(dcpl, static_cast<std::int32_t>(chunk.size()), chunk.data());
   };
 #ifdef MXI_HAVE_BITSHUFFLE
   const H5T_class_t kind = H5Tget_class(type);
   if (kind == H5T_INTEGER || kind == H5T_FLOAT) {
     chunked();
     // Block size chosen by bitshuffle, LZ4 after the shuffle.
-    const unsigned options[2] = {0, BSHUF_H5_COMPRESS_LZ4};
+    const std::uint32_t options[2] = {0, BSHUF_H5_COMPRESS_LZ4};
     H5Pset_filter(dcpl, BSHUF_H5FILTER, H5Z_FLAG_MANDATORY, 2, options);
     return dcpl;
   }
@@ -742,7 +742,8 @@ hid_t creation(const std::vector<hsize_t> &dims, hid_t type) {
 void write_dataset(hid_t group, const std::string &name,
                    const std::vector<hsize_t> &dims, hid_t file_type,
                    hid_t memory_type, const void *data) {
-  H space(H5Screate_simple(static_cast<int>(dims.size()), dims.data(), nullptr),
+  H space(H5Screate_simple(static_cast<std::int32_t>(dims.size()), dims.data(),
+                           nullptr),
           H5Sclose);
   H dcpl(creation(dims, file_type), H5Pclose);
   H d(checked(H5Dcreate2(group, name.c_str(), file_type, space.get(),
@@ -876,7 +877,7 @@ void write_table(hid_t file, const Table &table) {
 
 // Reading a table group: each dataset's type by dials_type where given, else
 // by dtype and shape (HANDOVER 3.3).
-std::string type_of(hid_t d, std::size_t width, int rank) {
+std::string type_of(hid_t d, std::size_t width, std::int32_t rank) {
   const std::string tag = string_attribute(d, "dials_type");
   if (!tag.empty()) {
     static const std::map<std::string, std::string> names = {
@@ -922,7 +923,7 @@ std::string type_of(hid_t d, std::size_t width, int rank) {
   return ""; // float32, uint8, strings: no type in mxi's tables
 }
 
-std::size_t rows_of(hid_t d, std::size_t *width, int *rank) {
+std::size_t rows_of(hid_t d, std::size_t *width, std::int32_t *rank) {
   H space(H5Dget_space(d), H5Sclose);
   *rank = H5Sget_simple_extent_ndims(space.get());
   if (*rank < 1 || *rank > 3)
@@ -930,7 +931,7 @@ std::size_t rows_of(hid_t d, std::size_t *width, int *rank) {
   hsize_t dims[3] = {0, 1, 1};
   H5Sget_simple_extent_dims(space.get(), dims, nullptr);
   *width = 1;
-  for (int k = 1; k < *rank; ++k)
+  for (std::int32_t k = 1; k < *rank; ++k)
     *width *= static_cast<std::size_t>(dims[k]);
   return static_cast<std::size_t>(dims[0]);
 }
@@ -979,7 +980,7 @@ void read_shoeboxes(hid_t g, std::vector<Shoebox> *out) {
       background_d(open("shoebox_background"), H5Dclose),
       mask_d(open("shoebox_mask"), H5Dclose);
   std::size_t width = 0;
-  int rank = 0;
+  std::int32_t rank = 0;
   const std::size_t n = rows_of(bbox_d.get(), &width, &rank);
   if (width != 6)
     throw Error("a shoebox group's bbox is not six a row");
@@ -1215,7 +1216,7 @@ std::optional<Table> read_reflections(const std::string &path,
       if (!d.ok())
         continue;
       std::size_t width = 0;
-      int rank = 0;
+      std::int32_t rank = 0;
       const std::size_t n = rows_of(d.get(), &width, &rank);
       if (known && n != rows)
         throw Error("the column " + name + " has " + std::to_string(n) +

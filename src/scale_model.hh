@@ -7,6 +7,7 @@
 // the absorption surface S.
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "linalg.hh"
@@ -17,9 +18,9 @@ namespace mxi {
 //: on the sphere, in the order l = 1..lmax and m = -l..l: lmax (lmax + 2) of
 //: them. Without the Condon-Shortley sign, which would only flip the sign of a
 //: fitted coefficient: degree 1 is sqrt(3 / 4 pi) (y, z, x) for m = -1, 0, 1.
-void real_spherical_harmonics(int lmax, const Vec3 &unit,
+void real_spherical_harmonics(std::int32_t lmax, const Vec3 &unit,
                               std::vector<double> *out);
-std::size_t harmonic_count(int lmax);
+std::size_t harmonic_count(std::int32_t lmax);
 
 //: What the model needs of one observation.
 struct ScaleObservation {
@@ -35,7 +36,7 @@ struct ScaleObservation {
 struct ScaleModelShape {
   std::size_t scale_points = 1;
   std::size_t decay_points = 0; //: none: no decay term
-  int lmax = 0;                 //: 0: no absorption term
+  std::int32_t lmax = 0;        //: 0: no absorption term
 };
 
 //: The number of control points DIALS' physical model uses for a sweep, in

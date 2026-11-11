@@ -11,6 +11,7 @@
 #ifndef MXI_PROCESSING_HH
 #define MXI_PROCESSING_HH
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -31,7 +32,7 @@ GeometryFigures geometry_figures(const Experiment &e);
 //: A value with its e.s.d. as crystallographers write it, "67.4634(12)": the
 //: e.s.d. to one significant figure, two if its first is 1, and the value to
 //: the same place. Without an e.s.d. (zero or less), `plain` places.
-std::string with_esd(double value, double esd, int plain = 4);
+std::string with_esd(double value, double esd, std::int32_t plain = 4);
 json::Value to_json(const GeometryFigures &g);
 
 class Summary {

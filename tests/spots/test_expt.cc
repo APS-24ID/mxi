@@ -20,7 +20,7 @@ namespace {
 
 namespace {
 
-int failures = 0;
+std::int32_t failures = 0;
 
 void check(const std::string &what, std::uint64_t actual,
            std::uint64_t expected) {
@@ -195,7 +195,7 @@ const char *kMismatchedImageset = R"({
 
 } // namespace
 
-int run() {
+std::int32_t run() {
   {
     put(kSweep);
     const mxi::ExperimentImages info = mxi::experiment_images(kPath);

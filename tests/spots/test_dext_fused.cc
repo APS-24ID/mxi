@@ -22,20 +22,21 @@ namespace {
 
 namespace {
 
-int failures = 0;
-int frames = 0;
+std::int32_t failures = 0;
+std::int32_t frames = 0;
 
 template <typename T>
-std::vector<T> make(std::size_t h, std::size_t w, unsigned seed, double mean) {
+std::vector<T> make(std::size_t h, std::size_t w, std::uint32_t seed,
+                    double mean) {
   std::mt19937 rng(seed);
-  std::poisson_distribution<int> background(mean);
+  std::poisson_distribution<std::int32_t> background(mean);
   std::uniform_real_distribution<double> u(0.0, 1.0);
   std::vector<T> f(h * w);
   for (auto &p : f)
     p = static_cast<T>(background(rng));
   // Spots, some on the edges and corners.
-  const int spots = static_cast<int>(h * w / 400) + 3;
-  for (int s = 0; s < spots; ++s) {
+  const std::int32_t spots = static_cast<std::int32_t>(h * w / 400) + 3;
+  for (std::int32_t s = 0; s < spots; ++s) {
     const double ci = s == 0   ? 0.0
                       : s == 1 ? static_cast<double>(h - 1)
                                : u(rng) * static_cast<double>(h);
@@ -43,8 +44,8 @@ std::vector<T> make(std::size_t h, std::size_t w, unsigned seed, double mean) {
                       : s == 1 ? static_cast<double>(w - 1)
                                : u(rng) * static_cast<double>(w);
     const double peak = 20.0 + 500.0 * u(rng);
-    for (int di = -4; di <= 4; ++di)
-      for (int dj = -4; dj <= 4; ++dj) {
+    for (std::int32_t di = -4; di <= 4; ++di)
+      for (std::int32_t dj = -4; dj <= 4; ++dj) {
         const std::int64_t i = static_cast<std::int64_t>(ci) + di,
                            j = static_cast<std::int64_t>(cj) + dj;
         if (i < 0 || j < 0 || i >= static_cast<std::int64_t>(h) ||
@@ -78,11 +79,12 @@ std::vector<T> make(std::size_t h, std::size_t w, unsigned seed, double mean) {
 }
 
 template <typename T>
-void compare(std::size_t h, std::size_t w, unsigned seed, double mean) {
+void compare(std::size_t h, std::size_t w, std::uint32_t seed, double mean) {
   const std::vector<T> f = make<T>(h, w, seed, mean);
   std::vector<SignalPixel> a, b;
-  const int ra = dext<T>(f.data(), a, h, w);
-  const int rb = mxi::dext_fused::dext_fused_emulated<T>(f.data(), b, h, w);
+  const std::int32_t ra = dext<T>(f.data(), a, h, w);
+  const std::int32_t rb =
+      mxi::dext_fused::dext_fused_emulated<T>(f.data(), b, h, w);
   ++frames;
   const std::string what = std::to_string(h) + " x " + std::to_string(w) +
                            ", " + std::to_string(8 * sizeof(T)) +
@@ -109,10 +111,10 @@ void compare(std::size_t h, std::size_t w, unsigned seed, double mean) {
 
 } // namespace
 
-int run() {
+std::int32_t run() {
   const std::size_t sizes[][2] = {{1, 1},    {5, 7},    {32, 32},   {33, 65},
                                   {100, 37}, {67, 300}, {257, 511}, {64, 96}};
-  unsigned seed = 1;
+  std::uint32_t seed = 1;
   std::size_t signal = 0;
   for (const auto &s : sizes)
     for (double mean : {0.3, 2.0, 12.0}) {

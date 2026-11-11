@@ -106,14 +106,15 @@ void say_geometry(const char *now, const GeometryFigures &before,
 }
 
 // The several lattices index_lattices found, said and written.
-int report_lattices(const ExperimentList &sweep, Table &reflections,
-                    const IndexOptions &options, int max_lattices,
-                    std::size_t min_spots, Ambiguous ambiguous,
-                    double ambiguity_sigma, bool keep_sweeps,
-                    const rflx::Outputs &out, Summary &summary,
-                    const std::vector<Crystal> &known = {},
-                    const std::vector<std::string> &known_ids = {},
-                    const ExperimentList *carried = nullptr) {
+std::int32_t report_lattices(const ExperimentList &sweep, Table &reflections,
+                             const IndexOptions &options,
+                             std::int32_t max_lattices, std::size_t min_spots,
+                             Ambiguous ambiguous, double ambiguity_sigma,
+                             bool keep_sweeps, const rflx::Outputs &out,
+                             Summary &summary,
+                             const std::vector<Crystal> &known = {},
+                             const std::vector<std::string> &known_ids = {},
+                             const ExperimentList *carried = nullptr) {
   if (sweep.size() != 1) {
     std::fprintf(stderr,
                  "mxi index: --max-lattices takes one sweep for now, not %zu\n",
@@ -229,8 +230,8 @@ int run_index(int argc, char **argv);
 // index is carried without a crystal, its spots unindexed, the others going on.
 // Each sweep run through this program again, on files of its own, as
 // mxi_integrate runs several.
-int index_apart(const Arguments &args,
-                const std::set<std::string> &takes_value) {
+std::int32_t index_apart(const Arguments &args,
+                         const std::set<std::string> &takes_value) {
   const rflx::Outputs outputs = rflx::outputs(args, "indexed");
   const std::string base = outputs.rflx.empty() ? outputs.refl : outputs.rflx;
   const json::Value document = read_experiment_document(args.positional[0]);
@@ -270,7 +271,7 @@ int index_apart(const Arguments &args,
     for (std::string &w : words)
       argv.push_back(w.data());
     argv.push_back(nullptr);
-    return run_index(static_cast<int>(words.size()), argv.data());
+    return run_index(static_cast<std::int32_t>(words.size()), argv.data());
   };
   std::printf("Indexing %zu sweeps apart (--no-joint), each its own crystal\n",
               n);
@@ -494,7 +495,8 @@ int run_index(int argc, char **argv) {
   options.tolerance = args.number("--tolerance", 0.3);
   options.n_candidates =
       static_cast<std::size_t>(args.number("--candidates", 30));
-  options.macrocycles = static_cast<int>(args.number("--macrocycles", 3));
+  options.macrocycles =
+      static_cast<std::int32_t>(args.number("--macrocycles", 3));
   options.split_sweeps = !args.has("--shared-crystal");
   options.refine_on_strong = !args.has("--all-reflections");
   const rflx::Outputs out = rflx::outputs(args, "indexed");
@@ -526,7 +528,8 @@ int run_index(int argc, char **argv) {
     // used as a join key between two runs.
     add_observed_columns(experiments, reflections);
 
-    const int max_lattices = static_cast<int>(args.number("--max-lattices", 1));
+    const std::int32_t max_lattices =
+        static_cast<std::int32_t>(args.number("--max-lattices", 1));
     const std::string ambiguous = args.value("--ambiguous", "exclude");
     if (ambiguous != "exclude" && ambiguous != "closest") {
       std::fprintf(stderr,
@@ -541,7 +544,7 @@ int run_index(int argc, char **argv) {
     {
       const Lattices views = lattices_of(experiments);
       if (!views.list.empty()) {
-        if (max_lattices <= static_cast<int>(views.list.size())) {
+        if (max_lattices <= static_cast<std::int32_t>(views.list.size())) {
           std::fprintf(stderr,
                        "mxi index: the list has %zu lattice%s already: "
                        "--max-lattices more than that to look for more\n",

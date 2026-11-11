@@ -22,7 +22,7 @@ TEST(a_table_survives_a_read_and_a_write_byte_for_byte) {
   t.nrows = 7;
   Column &m = t.int_column("miller_index", "cctbx::miller::index<>", 3);
   for (std::size_t i = 0; i < t.nrows * 3; ++i)
-    m.ints[i] = static_cast<int>(i) - 10;
+    m.ints[i] = static_cast<std::int32_t>(i) - 10;
   Column &x = t.real_column("xyzobs.px.value", "vec3<double>", 3);
   for (std::size_t i = 0; i < t.nrows * 3; ++i)
     x.reals[i] = 0.5 * static_cast<double>(i);

@@ -420,7 +420,8 @@ TEST(indexing_sets_the_indexed_bit_and_keeps_the_strong_one) {
   Column &flags = t.int_column("flags", "std::size_t", 1);
   for (std::size_t i = 0; i < t.nrows; ++i)
     flags.ints[i] = flag::kStrong;
-  const int indices[4][3] = {{1, 2, 3}, {0, 0, 0}, {-4, 5, 0}, {0, 0, 0}};
+  const std::int32_t indices[4][3] = {
+      {1, 2, 3}, {0, 0, 0}, {-4, 5, 0}, {0, 0, 0}};
   for (std::size_t i = 0; i < t.nrows; ++i) {
     for (std::size_t k = 0; k < 3; ++k)
       miller.ints[i * 3 + k] = indices[i][k];

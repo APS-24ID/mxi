@@ -24,6 +24,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "profile_model.hh"
@@ -35,10 +36,10 @@ struct ForwardOptions {
   double sigma_d = 0.0; //: degrees
   double sigma_m = 0.0; //: degrees
   //: Subdivisions of each pixel per axis when integrating the model over it.
-  int subdivisions = 5;
+  std::int32_t subdivisions = 5;
   //: Samples through the sensor depth. One puts every photon at the mean
   //: depth, which is the parallax correction and no smear.
-  int depth_samples = 8;
+  std::int32_t depth_samples = 8;
   //: Whether to model the sensor at all.
   bool sensor = true;
 };

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <stdexcept>
 #include <unordered_map>
@@ -15,13 +16,13 @@ namespace mxi {
 
 namespace {
 
-using Key = std::array<int, 3>;
+using Key = std::array<std::int32_t, 3>;
 
 // A reflection and its Friedel mate one: the one whose first non-zero index
 // is positive.
 Key friedel(const Miller &h) {
   Key k{h[0], h[1], h[2]};
-  for (int x : k) {
+  for (std::int32_t x : k) {
     if (x > 0)
       break;
     if (x < 0) {
@@ -33,7 +34,7 @@ Key friedel(const Miller &h) {
 }
 
 std::map<Key, double> by_reflection(const P1Intensities &d) {
-  std::map<Key, std::pair<double, int>> sum;
+  std::map<Key, std::pair<double, std::int32_t>> sum;
   for (std::size_t i = 0; i < d.size(); ++i) {
     auto &s = sum[friedel(d.hkl[i])];
     s.first += d.i[i];
@@ -47,10 +48,10 @@ std::map<Key, double> by_reflection(const P1Intensities &d) {
 
 Rotation multiply(const Rotation &a, const Rotation &b) {
   Rotation c{};
-  for (int i = 0; i < 3; ++i)
-    for (int j = 0; j < 3; ++j) {
-      int v = 0;
-      for (int k = 0; k < 3; ++k)
+  for (std::int32_t i = 0; i < 3; ++i)
+    for (std::int32_t j = 0; j < 3; ++j) {
+      std::int32_t v = 0;
+      for (std::int32_t k = 0; k < 3; ++k)
         v += a[3 * i + k] * b[3 * k + j];
       c[3 * i + j] = v;
     }
@@ -92,7 +93,7 @@ std::pair<double, std::size_t> correlation(const std::map<Key, double> &a,
 // correlations of 20000 reflections for 36 crystals, took two minutes of
 // mxi_symmetry's time on Graeme's cows, pigs and people.
 std::uint64_t pack(const Key &k) {
-  const auto field = [](int v) {
+  const auto field = [](std::int32_t v) {
     return static_cast<std::uint64_t>(static_cast<std::int64_t>(v) +
                                       (1 << 20)) &
            ((std::uint64_t{1u} << 21) - 1);
@@ -260,7 +261,7 @@ void eigen(std::vector<double> a, std::size_t n, std::vector<double> *values,
     if (m == n)
       m = n - 1; // e[n - 1] is zero: not reached
     if (m > l) {
-      int iterations = 0;
+      std::int32_t iterations = 0;
       do {
         if (++iterations > 300)
           throw std::runtime_error("cosym: the eigen-decomposition did not "

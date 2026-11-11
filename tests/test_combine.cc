@@ -228,9 +228,9 @@ TEST(the_real_space_grid_search_finds_a_planted_lattice) {
   const Mat3 real = Mat3::from_rows(a, b, c);
   const Mat3 recip = real.inverse(); // columns a*, b*, c*
   std::vector<Vec3> points;
-  for (int h = -6; h <= 6; ++h)
-    for (int k = -9; k <= 9; ++k)
-      for (int l = -12; l <= 12; ++l) {
+  for (std::int32_t h = -6; h <= 6; ++h)
+    for (std::int32_t k = -9; k <= 9; ++k)
+      for (std::int32_t l = -12; l <= 12; ++l) {
         const Vec3 r = recip * Vec3{double(h), double(k), double(l)};
         if ((h || k || l) && r.norm() < 0.5)
           points.push_back(r);
@@ -340,7 +340,8 @@ TEST(the_crystal_over_its_scan_is_sampled_by_angle_over_all_of_it) {
   scan.osc_width = 0.1;
   Crystal c;
   c.A = Mat3::identity() * 0.0125;
-  for (int k = 0; k < 37; ++k) // control points, a cell growing 1% over 360
+  for (std::int32_t k = 0; k < 37;
+       ++k) // control points, a cell growing 1% over 360
     c.A_points.push_back(Mat3::identity() * (0.0125 / (1.0 + 0.01 * k / 36.0)));
   const std::vector<ScanSample> s = crystal_over_scan(c, scan);
   check::equal(static_cast<std::int64_t>(s.size()), 361,

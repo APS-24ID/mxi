@@ -3,6 +3,7 @@
 // 0.3 and perfectly, and a symmetry missed (P 4 2 2 data taken as P 4).
 
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <random>
 #include <set>
@@ -83,13 +84,13 @@ TEST(triage_twin_law_text_and_epsilon) {
   check::equal(epsilon(p4, {0, 0, 4}), 4, "00l on the four-fold");
   check::equal(epsilon(p4, {3, 2, 0}), 1, "a general reflection");
   const std::vector<TwinLaw> laws = twin_laws(kCell, p4, 3.0);
-  check::equal(static_cast<long long>(laws.size()), 1LL,
+  check::equal(static_cast<std::int64_t>(laws.size()), std::int64_t{1},
                "P 4 in a P 4 2 2 lattice: one law");
   check::is_true(laws[0].merohedral, "merohedral");
   check::equal(
-      static_cast<long long>(
+      static_cast<std::int64_t>(
           twin_laws(kCell, SpaceGroup::from_name("P 4 2 2"), 3.0).size()),
-      0LL, "the lattice's own group: none");
+      std::int64_t{0}, "the lattice's own group: none");
 }
 
 TEST(triage_untwinned_data_are_as_wilson_says) {

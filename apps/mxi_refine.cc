@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <map>
@@ -233,9 +234,9 @@ int refine_apart(const Arguments &args,
          {"beam", "detector", "goniometer", "scan", "imageset"})
       share_identical(&own, kind);
     json::dump_file(in_expt, own);
-    std::vector<long> local(n, -1);
+    std::vector<std::int64_t> local(n, -1);
     for (std::size_t k = 0; k < members.size(); ++k)
-      local[members[k]] = static_cast<long>(k);
+      local[members[k]] = static_cast<std::int64_t>(k);
     std::vector<std::size_t> rows;
     for (std::size_t r = 0; r < indexed.nrows; ++r) {
       const std::int64_t i = id.integer(r);
@@ -276,7 +277,7 @@ int refine_apart(const Arguments &args,
         json::Object entry = theirs.back().as_object();
         json::Array which;
         for (std::size_t i : members)
-          which.push_back(json::Value(static_cast<long>(i)));
+          which.push_back(json::Value(static_cast<std::int64_t>(i)));
         entry["experiments"] = json::Value(std::move(which));
         steps.push_back(json::Value(std::move(entry)));
       }
@@ -307,7 +308,7 @@ int refine_apart(const Arguments &args,
     if (all[k]["identifier"].is_string())
       joined.identifiers[k] = all[k]["identifier"].as_string();
   Summary step("mxi_refine", args.positional[0]);
-  step.set("apart", json::Value(static_cast<long>(groups.size())));
+  step.set("apart", json::Value(static_cast<std::int64_t>(groups.size())));
   step.set("groups", json::Value(std::move(steps)));
   const json::Value summary_document = step.document();
   rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_refine",
@@ -607,7 +608,7 @@ int run_refine(int argc, char **argv) {
           }
         }
         json::Object scan_cell;
-        scan_cell["experiment"] = json::Value(static_cast<long>(i));
+        scan_cell["experiment"] = json::Value(static_cast<std::int64_t>(i));
         scan_cell["angle"] = json::Value(std::move(s_angle));
         scan_cell["image"] = json::Value(std::move(s_image));
         scan_cell["a"] = json::Value(std::move(s_a));
@@ -662,7 +663,7 @@ int run_refine(int argc, char **argv) {
           jhi.push_back(json::Value(hi[k]));
         }
       }
-      t_exp.push_back(json::Value(static_cast<long>(i)));
+      t_exp.push_back(json::Value(static_cast<std::int64_t>(i)));
       t_cell.push_back(json::Value(std::move(jc)));
       t_lo.push_back(json::Value(std::move(jlo)));
       t_hi.push_back(json::Value(std::move(jhi)));
@@ -692,14 +693,17 @@ int run_refine(int argc, char **argv) {
       }
     }
     summary.set("reflections",
-                json::Value(static_cast<long>(reflections.nrows)));
-    summary.set("refined_on", json::Value(static_cast<long>(result.n_used)));
-    summary.set("rejected", json::Value(static_cast<long>(result.n_rejected)));
+                json::Value(static_cast<std::int64_t>(reflections.nrows)));
+    summary.set("refined_on",
+                json::Value(static_cast<std::int64_t>(result.n_used)));
+    summary.set("rejected",
+                json::Value(static_cast<std::int64_t>(result.n_rejected)));
     summary.set("rmsd_px_px_images",
                 json::Value(json::Array{json::Value(result.rmsd_x),
                                         json::Value(result.rmsd_y),
                                         json::Value(result.rmsd_z)}));
-    summary.set("scan_varying", json::Value(two.varied ? 1L : 0L));
+    summary.set("scan_varying",
+                json::Value(two.varied ? std::int64_t{1} : std::int64_t{0}));
     if (!over_scan.empty())
       summary.set("cell_over_scan", json::Value(std::move(over_scan)));
     summary.table(
@@ -712,9 +716,9 @@ int run_refine(int argc, char **argv) {
         for (std::size_t c = 0; c < r.cycles.size(); ++c) {
           const RefineCycle &k = r.cycles[c];
           p_pass.push_back(json::Value(std::string(pass)));
-          p_cycle.push_back(json::Value(static_cast<long>(c + 1)));
-          p_n.push_back(json::Value(static_cast<long>(k.reflections)));
-          p_rej.push_back(json::Value(static_cast<long>(k.rejected)));
+          p_cycle.push_back(json::Value(static_cast<std::int64_t>(c + 1)));
+          p_n.push_back(json::Value(static_cast<std::int64_t>(k.reflections)));
+          p_rej.push_back(json::Value(static_cast<std::int64_t>(k.rejected)));
           p_x.push_back(json::Value(k.rmsd_x));
           p_y.push_back(json::Value(k.rmsd_y));
           p_z.push_back(json::Value(k.rmsd_z));

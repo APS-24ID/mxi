@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include <cinttypes>
+#include <cstdint>
 #include <sys/ioctl.h>
 #include <unistd.h>
 
@@ -86,13 +88,15 @@ private:
   }
 
   static std::string clock_text(double s) {
-    const long t = static_cast<long>(s + 0.5);
+    const std::int64_t t = static_cast<std::int64_t>(s + 0.5);
     char buffer[32];
     if (t >= 3600)
-      std::snprintf(buffer, sizeof buffer, "%ld:%02ld:%02ld", t / 3600,
+      std::snprintf(buffer, sizeof buffer,
+                    "%" PRId64 ":%02" PRId64 ":%02" PRId64, t / 3600,
                     (t / 60) % 60, t % 60);
     else
-      std::snprintf(buffer, sizeof buffer, "%02ld:%02ld", t / 60, t % 60);
+      std::snprintf(buffer, sizeof buffer, "%02" PRId64 ":%02" PRId64, t / 60,
+                    t % 60);
     return buffer;
   }
 

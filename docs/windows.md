@@ -166,27 +166,45 @@ code's `unsigned long` (`src/metal_device.*`, `src/fit_device_metal.cc`,
 
 ## Sized types: a rule for mxi, Windows or not
 
-Graeme asked whether explicitly sized integer types are a good idea anyway.
-They are: a type whose size is the same on every system cannot behave
-differently on one of them, and saying how large a value can be is part of
-saying what it is. A rule:
+Graeme asked whether explicitly sized integer types are a good idea anyway,
+and then decided (7 November): explicit everywhere, for consistency -- a
+reader then sees the range each value is meant to hold, and one rule with no
+judgement in it is the easier kept. `int` is 32 bits on all three systems, so
+for it the change is of what the code says, not what it does.
 
-* **`std::int64_t`** for anything that counts or indexes data that grows with
-  the data -- rows, voxels, pixels, offsets into flat arrays, hash keys, running
-  totals; and for the summary's integers (`json::Value(std::int64_t)`, the
-  `long` constructor gone, so that a stray `long` does not compile into it).
-* **`std::size_t`** for sizes and indices of containers, as most of mxi has.
-* **`std::ptrdiff_t`** (or `std::next`) for iterator offsets.
-* **`std::int32_t` and the like** where a file format fixes the width.
-* **`int`** for what is small by its nature -- a Miller index, a loop over three
-  axes, an exit code.
-* **Never `long` or `unsigned long`**, outside an API that demands it (Metal's).
+* **`std::int64_t` / `std::uint64_t`** for what grows with the data -- rows,
+  voxels, pixels, offsets into flat arrays, keys, running totals -- and where
+  `long` or `long long` was.
+* **`std::int32_t` / `std::uint32_t`** where `int` or `unsigned` was; the
+  narrower ones (`std::int16_t`, `std::uint8_t`) where a value or a format is
+  that narrow.
+* **`std::size_t`** for container sizes and indices, as most of mxi has: it
+  says what it is. **`std::ptrdiff_t`** for iterator offsets.
+* **The summary's integers**: one `json::Value` constructor for every integer
+  type (a template), where a list of `int`, `long`, `long long` and `size_t`
+  was a different list on each system.
+* **Left as an outside interface fixes them**: `main(int argc, char **argv)`;
+  `printf`'s `%*d` widths; HDF5's `hid_t`, `herr_t` and the like; gemmi's,
+  Metal's (`unsigned long`) and the C library's own types, `std::lround`'s
+  `long` among them, converted where their values enter mxi's.
+* **Formats** by `<cinttypes>`' macros (`PRId64`) where a 64-bit value is
+  printed or scanned.
 
-Done as one change, before any Windows work: the four wrong-on-Windows cases
-first, then the rest. On Linux and macOS it changes nothing a test can see --
-every value already fits -- so the suites passing unchanged is the check, with
-a test for each of the four at a size past 2^31 where that can be made cheaply
-(the shoebox offset by a synthetic offset, the doubling loop by its bound).
+**Stage 1 done, 7 November**: every `long`, `long long`, `unsigned long` and
+`unsigned long long` in src, apps and tests now `std::int64_t` or
+`std::uint64_t` (862, by a script that reads past comments and strings), the
+literals' suffixes with them (`std::int64_t{0}`, unsigned ones keeping their
+`u`), 92 formats by `<cinttypes>`' macros -- `SCNd64` in the two `sscanf`
+calls -- and `json::Value`'s integer constructors one template. What is left
+of `long` in the code is Metal's API and one test's `long double` (on Windows
+the same as `double`, so its reference there would lose its extra
+precision). On Linux and macOS no type changed -- `long` is `std::int64_t`
+there -- and the suites pass as before: 378 C++ tests, 745 Python.
+
+Done in stages, each committed alone and each a change of no behaviour on
+Linux and macOS: the `long` family first (`long` is `std::int64_t` there,
+the same type), then `int` and `unsigned`. On Windows the first stage is what
+makes the four cases above right.
 
 ## The build
 

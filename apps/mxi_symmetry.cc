@@ -5,7 +5,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cinttypes>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <map>
 #include <numeric>
@@ -35,16 +37,16 @@ namespace {
 // cross product of two independent rows of R - 1, divided by their common
 // factor, its first non-zero component positive.
 std::string describe_element(const Rotation &r, int order) {
-  long m[3][3];
+  std::int64_t m[3][3];
   for (int i = 0; i < 3; ++i)
     for (int j = 0; j < 3; ++j)
       m[i][j] = r[static_cast<std::size_t>(i * 3 + j)] - (i == j ? 1 : 0);
-  long axis[3] = {0, 0, 0};
+  std::int64_t axis[3] = {0, 0, 0};
   for (int a = 0; a < 3 && axis[0] == 0 && axis[1] == 0 && axis[2] == 0; ++a)
     for (int b = a + 1; b < 3; ++b) {
-      const long u[3] = {m[a][1] * m[b][2] - m[a][2] * m[b][1],
-                         m[a][2] * m[b][0] - m[a][0] * m[b][2],
-                         m[a][0] * m[b][1] - m[a][1] * m[b][0]};
+      const std::int64_t u[3] = {m[a][1] * m[b][2] - m[a][2] * m[b][1],
+                                 m[a][2] * m[b][0] - m[a][0] * m[b][2],
+                                 m[a][0] * m[b][1] - m[a][1] * m[b][0]};
       if (u[0] != 0 || u[1] != 0 || u[2] != 0) {
         axis[0] = u[0];
         axis[1] = u[1];
@@ -52,22 +54,22 @@ std::string describe_element(const Rotation &r, int order) {
         break;
       }
     }
-  long g = 0;
-  for (long v : axis)
+  std::int64_t g = 0;
+  for (std::int64_t v : axis)
     g = std::gcd(g, std::labs(v));
   if (g > 1)
-    for (long &v : axis)
+    for (std::int64_t &v : axis)
       v /= g;
-  for (long v : axis)
+  for (std::int64_t v : axis)
     if (v != 0) {
       if (v < 0)
-        for (long &w : axis)
+        for (std::int64_t &w : axis)
           w = -w;
       break;
     }
   char text[64];
-  std::snprintf(text, sizeof text, "%d |(%ld,%ld,%ld)", order, axis[0], axis[1],
-                axis[2]);
+  std::snprintf(text, sizeof text, "%d |(%" PRId64 ",%" PRId64 ",%" PRId64 ")",
+                order, axis[0], axis[1], axis[2]);
   return text;
 }
 
@@ -500,7 +502,7 @@ int run_symmetry(int argc, char **argv) {
         e_name.push_back(
             json::Value(std::string(1, static_cast<char>('a' + k))));
         e_op.push_back(json::Value(describe_element(e.rotation, e.order)));
-        e_pairs.push_back(json::Value(static_cast<long>(e.pairs)));
+        e_pairs.push_back(json::Value(static_cast<std::int64_t>(e.pairs)));
         e_cc.push_back(json::Value(e.cc));
         e_z.push_back(json::Value(e.z));
         e_l.push_back(json::Value(e.likelihood));

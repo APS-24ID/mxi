@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <tuple>
 
 namespace mxi {
@@ -269,8 +270,9 @@ Mat3 Crystal::A_at(double t) const {
   // clamps the curve so that it passes through the first and last exactly.
   // With Q[k] = P[clamp(k - 2, 0, n - 1)] the padded sequence has n + 4 entries
   // and n + 1 cubic segments.
-  const auto Q = [&](long k) -> const Mat3 & {
-    const long j = std::max(0L, std::min(k - 2, static_cast<long>(n) - 1));
+  const auto Q = [&](std::int64_t k) -> const Mat3 & {
+    const std::int64_t j = std::max(
+        std::int64_t{0}, std::min(k - 2, static_cast<std::int64_t>(n) - 1));
     return A_points[static_cast<std::size_t>(j)];
   };
 
@@ -280,7 +282,8 @@ Mat3 Crystal::A_at(double t) const {
   // continuation of whatever the crystal was doing when the scan stopped --
   // and a cubic extrapolates far more violently than a line.
   const double u = std::fmax(0.0, std::fmin(1.0, t)) * segments;
-  const auto i = static_cast<long>(std::fmin(std::floor(u), segments - 1.0));
+  const auto i =
+      static_cast<std::int64_t>(std::fmin(std::floor(u), segments - 1.0));
   const double f = u - static_cast<double>(i);
 
   // Uniform cubic B-spline basis. The four weights sum to one at every f, so a

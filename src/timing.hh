@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <string>
 #include <utility>
@@ -110,7 +111,7 @@ private:
 class ThreadSeconds {
 public:
   void add(double seconds) {
-    nanoseconds_.fetch_add(static_cast<long long>(seconds * 1e9),
+    nanoseconds_.fetch_add(static_cast<std::int64_t>(seconds * 1e9),
                            std::memory_order_relaxed);
   }
   double seconds() const {
@@ -119,7 +120,7 @@ public:
   }
 
 private:
-  std::atomic<long long> nanoseconds_{0};
+  std::atomic<std::int64_t> nanoseconds_{0};
 };
 
 } // namespace mxi

@@ -9,6 +9,7 @@
 // tests/check_refl.py does the same job again from Python, and is the one to
 // run against a file dials.find_spots wrote.
 
+#include <cinttypes>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -27,11 +28,12 @@ namespace {
 
 int failures = 0;
 
-void check(const std::string &what, unsigned long long actual,
-           unsigned long long expected) {
+void check(const std::string &what, std::uint64_t actual,
+           std::uint64_t expected) {
   if (actual == expected)
     return;
-  std::printf("FAIL %s: %llu, expected %llu\n", what.c_str(), actual, expected);
+  std::printf("FAIL %s: %" PRIu64 ", expected %" PRIu64 "\n", what.c_str(),
+              actual, expected);
   failures++;
 }
 
@@ -467,5 +469,6 @@ int run() {
 // In mxi_tests: every check above, through the file's own count of
 // failures, which must be none.
 TEST(spots_table_format) {
-  check::equal(static_cast<long long>(run()), 0LL, "test_refl: its checks");
+  check::equal(static_cast<std::int64_t>(run()), std::int64_t{0},
+               "test_refl: its checks");
 }

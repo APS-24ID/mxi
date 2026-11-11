@@ -3,8 +3,10 @@
 #include "processing.hh"
 
 #include <algorithm>
+#include <cinttypes>
 #include <cmath>
 #include <cstdarg>
+#include <cstdint>
 #include <cstdio>
 #include <ctime>
 #include <stdexcept>
@@ -56,8 +58,8 @@ std::string with_esd(double value, double esd, int plain) {
   if (esd * std::pow(10.0, places) < 2.0)
     ++places;
   places = std::max(0, std::min(places, 8));
-  const long digits = std::lround(esd * std::pow(10.0, places));
-  std::snprintf(text, sizeof text, "%.*f(%ld)", places, value, digits);
+  const std::int64_t digits = std::lround(esd * std::pow(10.0, places));
+  std::snprintf(text, sizeof text, "%.*f(%" PRId64 ")", places, value, digits);
   return text;
 }
 

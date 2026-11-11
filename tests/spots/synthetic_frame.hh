@@ -23,10 +23,11 @@ namespace synthetic {
 class Random {
 public:
   explicit Random(std::uint64_t seed)
-      : state_(seed * 6364136223846793005ull + 1) {}
+      : state_(seed * std::uint64_t{6364136223846793005u} + 1) {}
 
   std::uint32_t next() {
-    state_ = state_ * 6364136223846793005ull + 1442695040888963407ull;
+    state_ = state_ * std::uint64_t{6364136223846793005u} +
+             std::uint64_t{1442695040888963407u};
     return static_cast<std::uint32_t>(state_ >> 33);
   }
 
@@ -71,10 +72,10 @@ inline void plant(Frame *frame, std::size_t i, std::size_t j,
                                    {0, 1, 2, 1, 0}};
   for (int di = -2; di <= 2; di++) {
     for (int dj = -2; dj <= 2; dj++) {
-      const long _i = static_cast<long>(i) + di;
-      const long _j = static_cast<long>(j) + dj;
-      if (_i < 0 || _j < 0 || _i >= static_cast<long>(frame->height) ||
-          _j >= static_cast<long>(frame->width))
+      const std::int64_t _i = static_cast<std::int64_t>(i) + di;
+      const std::int64_t _j = static_cast<std::int64_t>(j) + dj;
+      if (_i < 0 || _j < 0 || _i >= static_cast<std::int64_t>(frame->height) ||
+          _j >= static_cast<std::int64_t>(frame->width))
         continue;
       const std::size_t k = static_cast<std::size_t>(_i) * frame->width +
                             static_cast<std::size_t>(_j);

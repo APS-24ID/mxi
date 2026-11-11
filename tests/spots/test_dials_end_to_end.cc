@@ -18,6 +18,7 @@
 // tests/check_refl.py can be run over it; defaults to a temporary name that it
 // then removes.
 
+#include <cinttypes>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -36,11 +37,12 @@ namespace {
 
 int failures = 0;
 
-void check(const std::string &what, unsigned long long actual,
-           unsigned long long expected) {
+void check(const std::string &what, std::uint64_t actual,
+           std::uint64_t expected) {
   if (actual == expected)
     return;
-  std::printf("FAIL %s: %llu, expected %llu\n", what.c_str(), actual, expected);
+  std::printf("FAIL %s: %" PRIu64 ", expected %" PRIu64 "\n", what.c_str(),
+              actual, expected);
   failures++;
 }
 
@@ -69,10 +71,10 @@ std::vector<std::uint16_t> frame(std::size_t height, std::size_t width,
   for (const Planted &spot : spots) {
     for (int di = -3; di <= 3; di++) {
       for (int dj = -3; dj <= 3; dj++) {
-        const long i = static_cast<long>(spot.slow) + di;
-        const long j = static_cast<long>(spot.fast) + dj;
-        if (i < 0 || j < 0 || i >= static_cast<long>(height) ||
-            j >= static_cast<long>(width))
+        const std::int64_t i = static_cast<std::int64_t>(spot.slow) + di;
+        const std::int64_t j = static_cast<std::int64_t>(spot.fast) + dj;
+        if (i < 0 || j < 0 || i >= static_cast<std::int64_t>(height) ||
+            j >= static_cast<std::int64_t>(width))
           continue;
         const double radius = static_cast<double>(di * di + dj * dj);
         const double value =
@@ -131,10 +133,11 @@ int run(int argc, char **argv) {
   labeller.finish();
 
   const std::vector<mxi::spots::Spot> &spots = labeller.spots();
-  std::printf("  %llu signal pixels over five frames, %zu spots kept of %llu "
+  std::printf("  %" PRIu64
+              " signal pixels over five frames, %zu spots kept of %" PRIu64 " "
               "groups\n",
-              static_cast<unsigned long long>(pixels_found), spots.size(),
-              static_cast<unsigned long long>(labeller.counts().groups));
+              static_cast<std::uint64_t>(pixels_found), spots.size(),
+              static_cast<std::uint64_t>(labeller.counts().groups));
 
   check("one spot per reflection planted", spots.size(), planted.size());
 
@@ -222,6 +225,6 @@ int run(int argc, char **argv) {
 // In mxi_tests: every check above, through the file's own count of
 // failures, which must be none.
 TEST(spots_end_to_end) {
-  check::equal(static_cast<long long>(run(1, nullptr)), 0LL,
+  check::equal(static_cast<std::int64_t>(run(1, nullptr)), std::int64_t{0},
                "test_dials_end_to_end: its checks");
 }

@@ -20,9 +20,10 @@ std::vector<double> poisson_sample(double mu, std::size_t n,
   out.reserve(n);
   std::uint64_t state = seed;
   const auto uniform = [&state]() {
-    state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-    return static_cast<double>((state >> 11) & ((1ULL << 53) - 1)) /
-           static_cast<double>(1ULL << 53);
+    state = state * std::uint64_t{6364136223846793005u} +
+            std::uint64_t{1442695040888963407u};
+    return static_cast<double>((state >> 11) & ((std::uint64_t{1u} << 53) - 1)) /
+           static_cast<double>(std::uint64_t{1u} << 53);
   };
   for (std::size_t i = 0; i < n; ++i) {
     // Knuth: multiply uniforms until the product falls below exp(-mu).
@@ -72,8 +73,9 @@ TEST(the_counted_fit_is_the_pixel_fit_to_rounding) {
         std::fabs(a.mean - b.mean) <= 1e-9 * std::fmax(a.mean, 1e-12),
         "the same mean at " + std::to_string(level) + ": " +
             std::to_string(a.mean) + " and " + std::to_string(b.mean));
-    check::equal(static_cast<long long>(b.n),
-                 static_cast<long long>(pixels.size()), "every pixel counted");
+    check::equal(static_cast<std::int64_t>(b.n),
+                 static_cast<std::int64_t>(pixels.size()),
+                 "every pixel counted");
   }
 }
 

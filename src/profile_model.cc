@@ -3,7 +3,9 @@
 #include "parallel.hh"
 
 #include <algorithm>
+#include <cinttypes>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <map>
 #include <memory>
@@ -253,11 +255,12 @@ const std::vector<std::pair<double, double>> &pixel_mm_table(const Panel &p) {
   // The geometry px_to_mm depends on, exactly (hexadecimal floats).
   char key[512];
   std::snprintf(key, sizeof key,
-                "%a %a %a|%a %a %a|%a %a %a|%a %a|%lld %lld|%d %a %a",
+                "%a %a %a|%a %a %a|%a %a %a|%a %a|%" PRId64 " %" PRId64
+                "|%d %a %a",
                 p.origin.x, p.origin.y, p.origin.z, p.fast.x, p.fast.y,
                 p.fast.z, p.slow.x, p.slow.y, p.slow.z, p.pixel_size[0],
-                p.pixel_size[1], static_cast<long long>(p.image_size[0]),
-                static_cast<long long>(p.image_size[1]), p.parallax ? 1 : 0,
+                p.pixel_size[1], static_cast<std::int64_t>(p.image_size[0]),
+                static_cast<std::int64_t>(p.image_size[1]), p.parallax ? 1 : 0,
                 p.mu, p.thickness);
   const std::lock_guard<std::mutex> held(lock);
   auto &slot = tables[key];

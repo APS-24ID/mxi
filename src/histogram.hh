@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -23,8 +24,9 @@ namespace mxi::spots {
 //: a 300 image insulin sweep. The column heights are rounded as DIALS rounds
 //: them.
 inline std::vector<std::string>
-spot_histogram(const std::vector<std::size_t> &per_image, long long first_image,
-               std::size_t width = 60, std::size_t height = 10) {
+spot_histogram(const std::vector<std::size_t> &per_image,
+               std::int64_t first_image, std::size_t width = 60,
+               std::size_t height = 10) {
   std::vector<std::string> out;
   const std::size_t images = per_image.size();
   if (images == 0 || width == 0 || height == 0)
@@ -60,7 +62,7 @@ spot_histogram(const std::vector<std::size_t> &per_image, long long first_image,
   // The axis: first image at the left, last at the right, "image" between.
   const std::string left = std::to_string(first_image);
   const std::string right =
-      std::to_string(first_image + static_cast<long long>(images) - 1);
+      std::to_string(first_image + static_cast<std::int64_t>(images) - 1);
   std::string axis(columns, ' ');
   if (left.size() + right.size() + 1 <= columns) {
     axis.replace(0, left.size(), left);

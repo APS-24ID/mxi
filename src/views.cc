@@ -5,6 +5,7 @@
 #include "shoebox.hh"
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -49,12 +50,12 @@ Lattices lattices_of(const ExperimentList &whole) {
 Table lattice_rows(Table table, const Lattices &lattices) {
   if (!lattices.any_crystal_less())
     return table;
-  std::vector<long> renumber;
+  std::vector<std::int64_t> renumber;
   for (std::size_t k = 0; k < lattices.position.size(); ++k) {
     const std::size_t at = lattices.position[k];
     if (renumber.size() <= at)
       renumber.resize(at + 1, -1);
-    renumber[at] = static_cast<long>(k);
+    renumber[at] = static_cast<std::int64_t>(k);
   }
   const Column &id = table.at("id");
   std::vector<std::size_t> rows;
@@ -211,10 +212,10 @@ ExperimentList add_sweeps(const ExperimentList &given,
   ExperimentList whole;
   whole.image_template = given.image_template;
   // The sweeps: as given, crystal-less, with their first lattice's models.
-  std::vector<long> first_lattice(n_sweeps, -1);
+  std::vector<std::int64_t> first_lattice(n_sweeps, -1);
   for (std::size_t k = 0; k < n_lattices; ++k)
     if (first_lattice[sweep_of_lattice[k]] < 0)
-      first_lattice[sweep_of_lattice[k]] = static_cast<long>(k);
+      first_lattice[sweep_of_lattice[k]] = static_cast<std::int64_t>(k);
   std::vector<std::string> taken;
   for (std::size_t s = 0; s < n_sweeps; ++s) {
     Experiment e = given[s];
@@ -244,7 +245,7 @@ ExperimentList add_sweeps(const ExperimentList &given,
   // each sweep its own sweep, each lattice its sweep's.
   const std::size_t apart = 1000000;
   for (std::size_t s = 0; s < n_sweeps; ++s) {
-    const long k = first_lattice[s];
+    const std::int64_t k = first_lattice[s];
     whole.beam_of.push_back(
         k >= 0 ? lattices.beam_group(static_cast<std::size_t>(k)) : apart + s);
     whole.detector_of.push_back(
@@ -308,11 +309,11 @@ json::Value keep_experiments(const json::Value &document,
   if (!document.is_object() || !document["experiment"].is_array())
     return document;
   const json::Array &all = document["experiment"].as_array();
-  std::vector<long> renumber(all.size(), -1);
+  std::vector<std::int64_t> renumber(all.size(), -1);
   json::Array kept;
   for (std::size_t i = 0; i < all.size(); ++i)
     if (i < keep.size() && keep[i]) {
-      renumber[i] = static_cast<long>(kept.size());
+      renumber[i] = static_cast<std::int64_t>(kept.size());
       kept.push_back(all[i]);
     }
   // Nothing to leave out; or nothing but crystal-less experiments -- an

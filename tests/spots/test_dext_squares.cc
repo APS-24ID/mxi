@@ -36,6 +36,7 @@
 // pixels, since those are the only ones in a real frame that carry values near
 // the top of the range. Both would fail here.
 
+#include <cinttypes>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -52,11 +53,12 @@ namespace {
 
 int failures = 0;
 
-void check(const std::string &what, unsigned long long actual,
-           unsigned long long expected) {
+void check(const std::string &what, std::uint64_t actual,
+           std::uint64_t expected) {
   if (actual == expected)
     return;
-  std::printf("FAIL %s: %llu, expected %llu\n", what.c_str(), actual, expected);
+  std::printf("FAIL %s: %" PRIu64 ", expected %" PRIu64 "\n", what.c_str(),
+              actual, expected);
   failures++;
 }
 
@@ -101,10 +103,10 @@ void plant(std::vector<std::uint16_t> *frame, std::size_t slow,
            std::size_t fast, double peak) {
   for (int di = -3; di <= 3; di++) {
     for (int dj = -3; dj <= 3; dj++) {
-      const long i = static_cast<long>(slow) + di;
-      const long j = static_cast<long>(fast) + dj;
-      if (i < 0 || j < 0 || i >= static_cast<long>(kHeight) ||
-          j >= static_cast<long>(kWidth))
+      const std::int64_t i = static_cast<std::int64_t>(slow) + di;
+      const std::int64_t j = static_cast<std::int64_t>(fast) + dj;
+      if (i < 0 || j < 0 || i >= static_cast<std::int64_t>(kHeight) ||
+          j >= static_cast<std::int64_t>(kWidth))
         continue;
       const double radius = static_cast<double>(di * di + dj * dj);
       const double value = peak * std::exp(-radius / (2.0 * 1.5 * 1.5));
@@ -122,7 +124,7 @@ void plant(std::vector<std::uint16_t> *frame, std::size_t slow,
 int run() {
   // The three ways to reach 2^32, as arithmetic rather than as prose. If the
   // kernel size ever changes, the third of these changes with it.
-  const std::uint64_t limit = 1ull << 32;
+  const std::uint64_t limit = std::uint64_t{1u} << 32;
   const std::uint64_t window = static_cast<std::uint64_t>(2 * kKernel + 1) *
                                static_cast<std::uint64_t>(2 * kKernel + 1);
   const std::uint64_t brightest = 65533; // the largest unmasked value
@@ -130,10 +132,11 @@ int run() {
         brightest * brightest < limit ? 1 : 0, 1);
   const std::uint64_t uniform = static_cast<std::uint64_t>(
       std::sqrt(static_cast<double>(limit / window)));
-  std::printf("  a uniform %llu-pixel window reaches 2^32 at %llu counts a "
+  std::printf("  a uniform %" PRIu64 "-pixel window reaches 2^32 at %" PRIu64
+              " counts a "
               "pixel\n",
-              static_cast<unsigned long long>(window),
-              static_cast<unsigned long long>(uniform));
+              static_cast<std::uint64_t>(window),
+              static_cast<std::uint64_t>(uniform));
   check("which is far above anything a detector records for a reflection",
         uniform > 5000 ? 1 : 0, 1);
 
@@ -154,9 +157,10 @@ int run() {
     plant(&frame, 60, 102, 2500.0);
 
     const std::uint64_t largest = largest_window_square(frame);
-    std::printf("  the busiest window of a realistic frame reaches %llu, which "
+    std::printf("  the busiest window of a realistic frame reaches %" PRIu64
+                ", which "
                 "is 2^32 / %.0f\n",
-                static_cast<unsigned long long>(largest),
+                static_cast<std::uint64_t>(largest),
                 static_cast<double>(limit) / static_cast<double>(largest));
     // An order of magnitude, with the factor itself printed above: the busiest
     // realistic window measures about 30x short of the limit, and the bar is
@@ -201,6 +205,6 @@ int run() {
 // In mxi_tests: every check above, through the file's own count of
 // failures, which must be none.
 TEST(spots_dext_squares) {
-  check::equal(static_cast<long long>(run()), 0LL,
+  check::equal(static_cast<std::int64_t>(run()), std::int64_t{0},
                "test_dext_squares: its checks");
 }

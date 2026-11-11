@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "../src/derivatives.hh"
@@ -241,7 +242,7 @@ TEST(only_four_control_points_are_ever_touched) {
   e.crystal->A_points.assign(12, e.crystal->A);
   for (double z = 0.0; z <= 300.0; z += 3.0) {
     const SplineWeights w = spline_weights(e, z);
-    check::equal(static_cast<long long>(w.count), 4, "four control points");
+    check::equal(static_cast<std::int64_t>(w.count), 4, "four control points");
     std::size_t distinct[4];
     std::size_t n = 0;
     for (std::size_t i = 0; i < 4; ++i) {
@@ -689,8 +690,8 @@ TEST(every_prediction_seen_is_every_one) {
   o.d_min = 3.5;
   const VerifyResult r = verify_lattice(one(e), 0, t, o);
   check::is_true(r.all.predicted > 1000, "enough predicted");
-  check::equal(static_cast<long long>(r.all.observed),
-               static_cast<long long>(r.all.predicted), "every one seen");
+  check::equal(static_cast<std::int64_t>(r.all.observed),
+               static_cast<std::int64_t>(r.all.predicted), "every one seen");
   check::is_true(!r.d_min_from_spots && r.d_min == 3.5, "the limit given");
   for (const VerifyShell &s : r.shells)
     check::is_true(s.predicted == 0 || s.fraction() == 1.0, "every shell full");
@@ -779,7 +780,8 @@ TEST(a_spot_in_place_but_not_indexed_is_observed_all_the_same) {
   o.d_min = 3.5;
   const VerifyResult r = verify_lattice(one(e), 0, t, o);
   check::equal(r.all.fraction(), 1.0, "all observed");
-  check::equal(static_cast<long long>(r.all.indexed), 0LL, "none indexed");
+  check::equal(static_cast<std::int64_t>(r.all.indexed), std::int64_t{0},
+               "none indexed");
 }
 
 TEST(a_spot_counts_only_near_its_prediction_and_only_if_observed) {
@@ -814,9 +816,9 @@ TEST(a_spot_counts_only_near_its_prediction_and_only_if_observed) {
   for (std::size_t r = 0; r < unflagged.nrows; ++r)
     flags.ints[r] = flag::kPredicted;
   unflagged.set("flags", flags);
-  check::equal(
-      static_cast<long long>(verify_lattice(one(e), 0, unflagged, o).indexed),
-      0LL, "predictions are not spots");
+  check::equal(static_cast<std::int64_t>(
+                   verify_lattice(one(e), 0, unflagged, o).indexed),
+               std::int64_t{0}, "predictions are not spots");
 }
 
 } // namespace mxi

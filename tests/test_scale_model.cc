@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdint>
 
 #include "../src/scale_model.hh"
 #include "check.hh"
@@ -42,7 +43,7 @@ TEST(degree_one_harmonics_are_the_coordinates) {
   const Vec3 u = Vec3{0.3, -0.5, 0.81}.normalized();
   std::vector<double> y;
   real_spherical_harmonics(1, u, &y);
-  check::equal(static_cast<long long>(y.size()), 3, "three of degree one");
+  check::equal(static_cast<std::int64_t>(y.size()), 3, "three of degree one");
   check::close(y[0], k * u.y, 1e-15, "m = -1 is y");
   check::close(y[1], k * u.z, 1e-15, "m = 0 is z");
   check::close(y[2], k * u.x, 1e-15, "m = 1 is x");
@@ -55,7 +56,7 @@ TEST(the_harmonics_to_degree_four_are_orthonormal) {
   // term shows as an entry off by far more.
   const int lmax = 4;
   const std::size_t n = harmonic_count(lmax);
-  check::equal(static_cast<long long>(n), 24,
+  check::equal(static_cast<std::int64_t>(n), 24,
                "24 to degree four, as the paper counts");
   std::vector<double> xs, ws;
   gauss_legendre(16, &xs, &ws);
@@ -117,15 +118,15 @@ TEST(the_default_shape_follows_dials) {
   // 30 degrees: six and five, as dials.scale's log for such a sweep shows, and
   // no absorption surface. 360: the paper's 26, 20 and 24 -- 70 parameters.
   const ScaleModelShape narrow = default_shape(30.0);
-  check::equal(static_cast<long long>(narrow.scale_points), 6,
+  check::equal(static_cast<std::int64_t>(narrow.scale_points), 6,
                "30 degrees: six scale");
-  check::equal(static_cast<long long>(narrow.decay_points), 5, "five decay");
-  check::equal(static_cast<long long>(narrow.lmax), 0, "no absorption");
+  check::equal(static_cast<std::int64_t>(narrow.decay_points), 5, "five decay");
+  check::equal(static_cast<std::int64_t>(narrow.lmax), 0, "no absorption");
   const ScaleModelShape full = default_shape(360.0);
-  check::equal(static_cast<long long>(ScaleModel(full).size()), 70,
+  check::equal(static_cast<std::int64_t>(ScaleModel(full).size()), 70,
                "360 degrees: 70");
-  check::equal(static_cast<long long>(full.scale_points), 26, "26 scale");
-  check::equal(static_cast<long long>(full.decay_points), 20, "20 decay");
+  check::equal(static_cast<std::int64_t>(full.scale_points), 26, "26 scale");
+  check::equal(static_cast<std::int64_t>(full.decay_points), 20, "20 decay");
 }
 
 TEST(normalising_the_scale_changes_no_ratio_between_observations) {
@@ -163,8 +164,8 @@ TEST(the_harmonics_to_degrees_six_and_eight_are_orthonormal) {
   // order 16 in phi against 31 for thirty-two steps.
   for (const int lmax : {6, 8}) {
     const std::size_t n = harmonic_count(lmax);
-    check::equal(static_cast<long long>(n),
-                 static_cast<long long>(lmax * (lmax + 2)),
+    check::equal(static_cast<std::int64_t>(n),
+                 static_cast<std::int64_t>(lmax * (lmax + 2)),
                  "lmax (lmax + 2) terms");
     std::vector<double> xs, ws;
     gauss_legendre(16, &xs, &ws);
@@ -202,12 +203,12 @@ TEST(several_sweeps_each_have_a_block_and_keep_their_relative_scale) {
   // are its own sweep's; and normalising keeps the sweeps' relative scale --
   // the scale's mean over every point made one, not each sweep's.
   ScaleModel model(std::vector<ScaleModelShape>{{3, 2, 0}, {4, 0, 0}});
-  check::equal(static_cast<long long>(model.sweeps()), 2, "two sweeps");
-  check::equal(static_cast<long long>(model.size()), 3 + 2 + 4,
+  check::equal(static_cast<std::int64_t>(model.sweeps()), 2, "two sweeps");
+  check::equal(static_cast<std::int64_t>(model.size()), 3 + 2 + 4,
                "nine parameters");
-  check::equal(static_cast<long long>(model.first_scale(1)), 5,
+  check::equal(static_cast<std::int64_t>(model.first_scale(1)), 5,
                "the second's block after the first's");
-  check::equal(static_cast<long long>(model.first_decay(0)), 3,
+  check::equal(static_cast<std::int64_t>(model.first_decay(0)), 3,
                "the first's decay after its scale");
   for (std::size_t i = 0; i < 4; ++i)
     model.parameters[model.first_scale(1) + i] = 2.0;

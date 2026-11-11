@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <bit>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <sstream>
@@ -261,7 +262,7 @@ void put_uint(std::string &out, std::uint64_t v) {
   } else if (v < 65536) {
     put(out, 0xCD);
     put_big_endian(out, v, 2);
-  } else if (v < 4294967296ULL) {
+  } else if (v < std::uint64_t{4294967296u}) {
     put(out, 0xCE);
     put_big_endian(out, v, 4);
   } else {
@@ -279,7 +280,7 @@ void put_uint(std::string &out, std::uint64_t v) {
 //: There is no bin64 to reach for, so this cannot be fixed by writing it
 //: differently -- the column has to be smaller. Shoeboxes are the only thing
 //: that gets near it, at about 34 kB a reflection.
-constexpr std::uint64_t kBlobLimit = 0xFFFFFFFFull;
+constexpr std::uint64_t kBlobLimit = std::uint64_t{0xFFFFFFFFu};
 
 } // namespace
 

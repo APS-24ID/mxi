@@ -8,6 +8,7 @@
 // them, so the compressed bytes reach the threshold without HDF5's filter
 // pipeline ever running -- the same path the data took in, in reverse.
 
+#include <cinttypes>
 #include <fcntl.h>
 #include <hdf5.h>
 #include <unistd.h>
@@ -443,7 +444,8 @@ bool looks_like_hdf5(const std::string &path) {
   if (file == nullptr)
     return false;
   bool found = false;
-  for (long at = 0; !found && at <= (1L << 30); at = at == 0 ? 512 : at * 2) {
+  for (std::int64_t at = 0; !found && at <= (std::int64_t{1} << 30);
+       at = at == 0 ? 512 : at * 2) {
     unsigned char got[8];
     if (std::fseek(file, at, SEEK_SET) != 0 || std::fread(got, 1, 8, file) != 8)
       break;
@@ -514,9 +516,9 @@ read_pixel_mask(hid_t file, std::uint64_t height, std::uint64_t width) {
     if (rank != 2 || dims[0] != height || dims[1] != width) {
       std::fprintf(stderr,
                    "the detector's pixel_mask at %s is not the frame's shape, "
-                   "%llu by %llu: not used\n",
-                   path, static_cast<unsigned long long>(height),
-                   static_cast<unsigned long long>(width));
+                   "%" PRIu64 " by %" PRIu64 ": not used\n",
+                   path, static_cast<std::uint64_t>(height),
+                   static_cast<std::uint64_t>(width));
       H5Dclose(dataset);
       continue;
     }
@@ -622,8 +624,8 @@ public:
       if (i < first_frame_ || i > last_frame_)
         continue;
       char key[24];
-      std::snprintf(key, sizeof(key), "%06llu",
-                    static_cast<unsigned long long>(i));
+      std::snprintf(key, sizeof(key), "%06" PRIu64,
+                    static_cast<std::uint64_t>(i));
       keys.emplace_back(key);
     }
     return keys;

@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <string>
@@ -218,7 +219,7 @@ TEST(blocks_we_do_not_model_survive_a_read_and_a_write) {
   // images; profile, scaling_model and history are equally not ours to throw
   // away.
   const ExperimentList list = experiments_from_json(json::parse(kImported));
-  check::equal(static_cast<long long>(list.size()), 1, "one experiment");
+  check::equal(static_cast<std::int64_t>(list.size()), 1, "one experiment");
 
   const json::Value written = experiments_to_json(list);
   for (const char *block :
@@ -553,12 +554,13 @@ TEST(a_column_we_cannot_decode_survives_a_read_and_a_write_byte_for_byte) {
   const Table back = read_reflections(path);
   std::remove(path.c_str());
 
-  check::equal(static_cast<long long>(back.opaque().count("shoebox")), 1,
+  check::equal(static_cast<std::int64_t>(back.opaque().count("shoebox")), 1,
                "the column is still there");
   const Table::Opaque &kept = back.opaque().at("shoebox");
   check::is_true(kept.type == "Shoebox<>", "with its type");
   check::is_true(kept.bytes == shoebox.bytes, "and its bytes unchanged");
-  check::equal(static_cast<long long>(back.nrows), 3, "and the table intact");
+  check::equal(static_cast<std::int64_t>(back.nrows), 3,
+               "and the table intact");
   check::is_true(back.has("xyzobs.px.value"), "alongside the decoded columns");
 }
 
@@ -613,8 +615,8 @@ TEST(a_scan_varying_model_is_written_at_every_image_boundary) {
       written["crystal"].as_array()[0]["A_at_scan_points"];
   check::is_true(points.is_array(), "the samples are written");
   const std::int64_t images = list[0].scan.num_images();
-  check::equal(static_cast<long long>(points.as_array().size()),
-               static_cast<long long>(images + 1),
+  check::equal(static_cast<std::int64_t>(points.as_array().size()),
+               static_cast<std::int64_t>(images + 1),
                "one per image boundary, not one per image");
 
   // The first and last must be the ends of the scan, not the ends of the
@@ -644,13 +646,14 @@ TEST(samples_read_from_a_file_are_written_back_unchanged) {
   check::is_true(once[0].crystal->A_points_are_samples,
                  "a model read from a document is samples, not control points");
   const std::size_t n = once[0].crystal->A_points.size();
-  check::equal(static_cast<long long>(n),
-               static_cast<long long>(list[0].scan.num_images() + 1), "count");
+  check::equal(static_cast<std::int64_t>(n),
+               static_cast<std::int64_t>(list[0].scan.num_images() + 1),
+               "count");
 
   // And again, which must be a no-op.
   const ExperimentList twice = experiments_from_json(experiments_to_json(once));
-  check::equal(static_cast<long long>(twice[0].crystal->A_points.size()),
-               static_cast<long long>(n), "the count does not drift");
+  check::equal(static_cast<std::int64_t>(twice[0].crystal->A_points.size()),
+               static_cast<std::int64_t>(n), "the count does not drift");
   double worst = 0.0;
   for (std::size_t i = 0; i < n; ++i) {
     for (std::size_t k = 0; k < 9; ++k) {
@@ -670,14 +673,14 @@ TEST(writing_a_scan_varying_model_keeps_the_experiment) {
   ExperimentList list = one_experiment(0.0);
   list[0].crystal->A_points.assign(4, list[0].crystal->A);
   const ExperimentList back = experiments_from_json(experiments_to_json(list));
-  check::equal(static_cast<long long>(back.size()), 1,
+  check::equal(static_cast<std::int64_t>(back.size()), 1,
                "the experiment survives");
   check::is_true(back[0].crystal.has_value(), "and so does its crystal");
   check::is_true(back[0].crystal->scan_varying(), "still scan-varying");
 
   // Twice over, since the second pass takes the other branch.
   const ExperimentList again = experiments_from_json(experiments_to_json(back));
-  check::equal(static_cast<long long>(again.size()), 1,
+  check::equal(static_cast<std::int64_t>(again.size()), 1,
                "on the sample path too");
   check::is_true(again[0].crystal.has_value(), "with its crystal");
 }
@@ -716,18 +719,19 @@ TEST(sweeps_sliced_apart_and_joined_again_are_what_they_were) {
   const json::Value whole = two_sweeps(true);
   const json::Value second = slice_experiment_list(whole, 1);
   const auto &e = second["experiment"].as_array();
-  check::equal(static_cast<long long>(e.size()), 1LL, "one experiment");
+  check::equal(static_cast<std::int64_t>(e.size()), std::int64_t{1},
+               "one experiment");
   check::is_true(e[0]["identifier"].as_string() == "b", "the second's");
-  check::equal(static_cast<long long>(e[0]["beam"].as_number()), 0LL,
-               "its beam renumbered to the first");
+  check::equal(static_cast<std::int64_t>(e[0]["beam"].as_number()),
+               std::int64_t{0}, "its beam renumbered to the first");
   check::close(second["beam"].as_array()[0]["w"].as_number(), 2.0, 0.0,
                "and its own beam kept");
-  check::equal(static_cast<long long>(second["beam"].as_array().size()), 1LL,
-               "and only its own");
+  check::equal(static_cast<std::int64_t>(second["beam"].as_array().size()),
+               std::int64_t{1}, "and only its own");
   json::Value joined = join_experiment_lists(
       {slice_experiment_list(whole, 0), slice_experiment_list(whole, 1)});
-  check::equal(static_cast<long long>(joined["crystal"].as_array().size()), 2LL,
-               "joined, each sweep's copy of the crystal");
+  check::equal(static_cast<std::int64_t>(joined["crystal"].as_array().size()),
+               std::int64_t{2}, "joined, each sweep's copy of the crystal");
   share_identical(&joined, "crystal");
   check::is_true(json::dump(joined) == json::dump(whole),
                  "shared again, the list as it was");
@@ -760,14 +764,14 @@ TEST(each_experiments_own_profile_model_is_written_and_read_back) {
   b.sigma_m = 0.04;
   list.profiles = {a, b, a};
   const json::Value doc = experiments_to_json(list);
-  check::equal(static_cast<long long>(doc["profile"].as_array().size()), 2,
+  check::equal(static_cast<std::int64_t>(doc["profile"].as_array().size()), 2,
                "two blocks, the same one once");
   const json::Array &x = doc["experiment"].as_array();
   check::is_true(x[0]["profile"].as_number() == x[2]["profile"].as_number() &&
                      x[0]["profile"].as_number() != x[1]["profile"].as_number(),
                  "each experiment its own");
   const ExperimentList back = experiments_from_json(doc);
-  check::equal(static_cast<long long>(back.profiles.size()), 3, "read back");
+  check::equal(static_cast<std::int64_t>(back.profiles.size()), 3, "read back");
   check::close(back.profiles[1].sigma_b, 0.03, 1e-12, "the second's");
   check::close(back.profiles[2].sigma_m, 0.05, 1e-12, "the third's");
   check::close(back.profile.sigma_b, 0.02, 1e-12, "the first as the list's");
@@ -776,8 +780,9 @@ TEST(each_experiments_own_profile_model_is_written_and_read_back) {
   plain.profiles.clear();
   plain.profile = b;
   const json::Value one_block = experiments_to_json(plain);
-  check::equal(static_cast<long long>(one_block["profile"].as_array().size()),
-               1, "without them, one block");
+  check::equal(
+      static_cast<std::int64_t>(one_block["profile"].as_array().size()), 1,
+      "without them, one block");
   check::is_true(experiments_from_json(one_block).profiles.empty(),
                  "and none an experiment read back");
 }

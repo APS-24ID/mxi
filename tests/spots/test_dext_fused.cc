@@ -45,10 +45,10 @@ std::vector<T> make(std::size_t h, std::size_t w, unsigned seed, double mean) {
     const double peak = 20.0 + 500.0 * u(rng);
     for (int di = -4; di <= 4; ++di)
       for (int dj = -4; dj <= 4; ++dj) {
-        const long i = static_cast<long>(ci) + di,
-                   j = static_cast<long>(cj) + dj;
-        if (i < 0 || j < 0 || i >= static_cast<long>(h) ||
-            j >= static_cast<long>(w))
+        const std::int64_t i = static_cast<std::int64_t>(ci) + di,
+                           j = static_cast<std::int64_t>(cj) + dj;
+        if (i < 0 || j < 0 || i >= static_cast<std::int64_t>(h) ||
+            j >= static_cast<std::int64_t>(w))
           continue;
         const double v = peak * std::exp(-(di * di + dj * dj) / 3.0);
         T &p = f[static_cast<std::size_t>(i) * w + static_cast<std::size_t>(j)];
@@ -150,6 +150,6 @@ int run() {
 // In mxi_tests: every check above, through the file's own count of
 // failures, which must be none.
 TEST(spots_dext_fused) {
-  check::equal(static_cast<long long>(run()), 0LL,
+  check::equal(static_cast<std::int64_t>(run()), std::int64_t{0},
                "test_dext_fused: its checks");
 }

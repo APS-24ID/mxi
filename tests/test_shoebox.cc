@@ -1,6 +1,7 @@
 // The shoebox column, which this package skipped for a long time while saying
 // it had no pixels. It has 13.6 MB of them for insulin.
 
+#include <cstdint>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -52,15 +53,16 @@ TEST(shoeboxes_survive_an_encode_and_a_decode) {
                                       made(1775, 4, 5, 2)};
   const std::vector<Shoebox> back = decode_shoeboxes(table_with(boxes));
 
-  check::equal(static_cast<long long>(back.size()), 3, "all three");
+  check::equal(static_cast<std::int64_t>(back.size()), 3, "all three");
   for (std::size_t i = 0; i < boxes.size(); ++i) {
-    check::equal(static_cast<long long>(back[i].panel), boxes[i].panel,
+    check::equal(static_cast<std::int64_t>(back[i].panel), boxes[i].panel,
                  "panel");
     for (int k = 0; k < 6; ++k) {
-      check::equal(static_cast<long long>(back[i].bbox[k]),
-                   static_cast<long long>(boxes[i].bbox[k]), "bbox");
+      check::equal(static_cast<std::int64_t>(back[i].bbox[k]),
+                   static_cast<std::int64_t>(boxes[i].bbox[k]), "bbox");
     }
-    check::equal(static_cast<long long>(back[i].flag), boxes[i].flag, "flag");
+    check::equal(static_cast<std::int64_t>(back[i].flag), boxes[i].flag,
+                 "flag");
     check::is_true(back[i].data == boxes[i].data, "data");
     check::is_true(back[i].mask == boxes[i].mask, "mask");
     check::is_true(back[i].background == boxes[i].background, "background");
@@ -79,7 +81,7 @@ TEST(the_voxel_order_is_z_then_y_then_x) {
   check::close(box.data[box.at(1, 0, 0)], 1.0, 0.0, "x is fastest");
   check::close(box.data[box.at(0, 1, 0)], 4.0, 0.0, "then y, by nx");
   check::close(box.data[box.at(0, 0, 1)], 12.0, 0.0, "then z, by nx * ny");
-  check::equal(static_cast<long long>(box.size()), 24,
+  check::equal(static_cast<std::int64_t>(box.size()), 24,
                "and the size is nx ny nz");
 }
 
@@ -136,15 +138,20 @@ TEST(selecting_rows_keeps_each_rows_own_shoebox) {
   Column &x = t.real_column("intensity.sum.value", "double", 1);
   x.reals = {1.0, 2.0, 3.0};
   const Table s = select_rows_with_shoeboxes(t, {2, 0});
-  check::equal(static_cast<long long>(s.nrows), 2LL, "two rows");
+  check::equal(static_cast<std::int64_t>(s.nrows), std::int64_t{2}, "two rows");
   check::close(s.at("intensity.sum.value").real(0), 3.0, 0.0, "row 2 first");
   check::close(s.at("intensity.sum.value").real(1), 1.0, 0.0, "row 0 second");
   const std::vector<Shoebox> boxes = decode_shoeboxes(s);
-  check::equal(static_cast<long long>(boxes.size()), 2LL, "two shoeboxes");
-  check::equal(static_cast<long long>(boxes[0].bbox[0]), 30LL, "row 2's box");
-  check::equal(static_cast<long long>(boxes[0].nx()), 5LL, "row 2's width");
-  check::equal(static_cast<long long>(boxes[1].bbox[0]), 10LL, "row 0's box");
-  check::equal(static_cast<long long>(boxes[1].nx()), 3LL, "row 0's width");
+  check::equal(static_cast<std::int64_t>(boxes.size()), std::int64_t{2},
+               "two shoeboxes");
+  check::equal(static_cast<std::int64_t>(boxes[0].bbox[0]), std::int64_t{30},
+               "row 2's box");
+  check::equal(static_cast<std::int64_t>(boxes[0].nx()), std::int64_t{5},
+               "row 2's width");
+  check::equal(static_cast<std::int64_t>(boxes[1].bbox[0]), std::int64_t{10},
+               "row 0's box");
+  check::equal(static_cast<std::int64_t>(boxes[1].nx()), std::int64_t{3},
+               "row 0's width");
 }
 
 } // namespace mxi
@@ -160,14 +167,16 @@ TEST(tables_join_with_their_shoeboxes_each_rows_own) {
   Table b = table_with({made(30, 5, 3, 1)});
   b.real_column("intensity.sum.value", "double", 1).reals = {3.0};
   const Table joined = concat_rows_with_shoeboxes({a, b});
-  check::equal(static_cast<long long>(joined.nrows), 3LL, "three rows");
+  check::equal(static_cast<std::int64_t>(joined.nrows), std::int64_t{3},
+               "three rows");
   const std::vector<Shoebox> boxes = decode_shoeboxes(joined);
-  check::equal(static_cast<long long>(boxes.size()), 3LL, "three shoeboxes");
-  const long long first[3] = {10, 20, 30}, width[3] = {3, 4, 5};
+  check::equal(static_cast<std::int64_t>(boxes.size()), std::int64_t{3},
+               "three shoeboxes");
+  const std::int64_t first[3] = {10, 20, 30}, width[3] = {3, 4, 5};
   for (std::size_t i = 0; i < 3; ++i) {
-    check::equal(static_cast<long long>(boxes[i].bbox[0]), first[i],
+    check::equal(static_cast<std::int64_t>(boxes[i].bbox[0]), first[i],
                  "each its own box");
-    check::equal(static_cast<long long>(boxes[i].nx()), width[i],
+    check::equal(static_cast<std::int64_t>(boxes[i].nx()), width[i],
                  "each its own width");
     check::close(joined.at("intensity.sum.value").real(i),
                  static_cast<double>(i + 1), 0.0, "and its own row");
@@ -231,11 +240,13 @@ TEST(dials_version_1_shoeboxes_with_their_4_byte_masks_are_read) {
   const Table t =
       with_column(version_1_record(10, 1, 5) + version_1_record(20, 1, 37), 2);
   const std::vector<Shoebox> boxes = decode_shoeboxes(t);
-  check::equal(static_cast<long long>(boxes.size()), 2LL, "two boxes");
-  check::equal(static_cast<long long>(boxes[1].bbox[0]), 20LL,
+  check::equal(static_cast<std::int64_t>(boxes.size()), std::int64_t{2},
+               "two boxes");
+  check::equal(static_cast<std::int64_t>(boxes[1].bbox[0]), std::int64_t{20},
                "the second where it is");
-  check::equal(static_cast<long long>(boxes[0].mask[0]), 5LL, "its mask");
-  check::equal(static_cast<long long>(boxes[1].mask[0]), 37LL,
+  check::equal(static_cast<std::int64_t>(boxes[0].mask[0]), std::int64_t{5},
+               "its mask");
+  check::equal(static_cast<std::int64_t>(boxes[1].mask[0]), std::int64_t{37},
                "and the second's");
   check::close(boxes[1].data[1], 8.0, 0.0, "its data");
   check::close(boxes[1].background[1], 0.25, 0.0, "its background");
@@ -243,10 +254,10 @@ TEST(dials_version_1_shoeboxes_with_their_4_byte_masks_are_read) {
   // Written again, as version 2 -- the layout it now has -- and read back the
   // same.
   const std::string again = encode_shoeboxes(boxes);
-  check::equal(static_cast<long long>(static_cast<unsigned char>(again[28])),
-               2LL, "written as version 2");
+  check::equal(static_cast<std::int64_t>(static_cast<unsigned char>(again[28])),
+               std::int64_t{2}, "written as version 2");
   const std::vector<Shoebox> back = decode_shoeboxes(with_column(again, 2));
-  check::equal(static_cast<long long>(back[1].mask[0]), 37LL,
+  check::equal(static_cast<std::int64_t>(back[1].mask[0]), std::int64_t{37},
                "read back the same");
 
   const auto refused = [](const Table &bad) {

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <ctime>
 #include <fstream>
@@ -74,8 +75,8 @@ std::string figure(int number, const mxi::json::Array &traces,
                    const mxi::json::Object &layout, int height = 420) {
   using namespace mxi;
   json::Object l = layout;
-  l["height"] = json::Value(static_cast<long>(height));
-  l["margin"] = json::Value(json::Object{{"t", json::Value(40L)}});
+  l["height"] = json::Value(static_cast<std::int64_t>(height));
+  l["margin"] = json::Value(json::Object{{"t", json::Value(std::int64_t{40})}});
   std::ostringstream o;
   o << "<div class=\"plot\" id=\"plot" << number
     << "\"></div><script>Plotly.newPlot('plot" << number << "', "
@@ -133,8 +134,9 @@ std::string matrix_figure(int number, const std::string &title,
         {"mode", text("lines")},
         {"x", json::Value(std::move(xs))},
         {"y", json::Value(std::move(ys))},
-        {"line", json::Value(json::Object{{"color", text("#444")},
-                                          {"width", json::Value(1L)}})},
+        {"line",
+         json::Value(json::Object{{"color", text("#444")},
+                                  {"width", json::Value(std::int64_t{1})}})},
         {"hoverinfo", text("skip")},
         {"showlegend", json::Value(false)},
         {"xaxis", text("x")},
@@ -143,7 +145,8 @@ std::string matrix_figure(int number, const std::string &title,
   const json::Object ticks{
       {"tickvals", json::Value(places)},
       {"ticktext", json::Value(labels)},
-      {"tickfont", json::Value(json::Object{{"size", json::Value(9L)}})}};
+      {"tickfont",
+       json::Value(json::Object{{"size", json::Value(std::int64_t{9})}})}};
   json::Object x = ticks, y = ticks;
   x["title"] = text("data set (experiment), in the dendrogram's order");
   y["domain"] = json::Value(json::Array{json::Value(0.0), json::Value(0.72)});
@@ -542,7 +545,7 @@ int mxi_correlation_main(int argc, char **argv) {
             {"mode", text("markers")},
             {"name", text("chosen")},
             {"marker",
-             json::Value(json::Object{{"size", json::Value(14L)},
+             json::Value(json::Object{{"size", json::Value(std::int64_t{14})},
                                       {"symbol", text("circle-open")}})},
             {"x",
              json::Value(json::Array{json::Value(static_cast<double>(c.dim))})},
@@ -607,12 +610,13 @@ int mxi_correlation_main(int argc, char **argv) {
           std::strftime(stamp, sizeof stamp, "%Y-%m-%dT%H:%M:%SZ",
                         std::gmtime(&now));
           own["time"] = json::Value(std::string(stamp));
-          own["cluster"] = json::Value(static_cast<long>(label));
-          own["clusters"] = json::Value(static_cast<long>(labels.size()));
+          own["cluster"] = json::Value(static_cast<std::int64_t>(label));
+          own["clusters"] =
+              json::Value(static_cast<std::int64_t>(labels.size()));
           own["data_sets"] = json::Value(
-              static_cast<long>(members_count(clusters.labels, label)));
+              static_cast<std::int64_t>(members_count(clusters.labels, label)));
           own["of_data_sets"] =
-              json::Value(static_cast<long>(clusters.labels.size()));
+              json::Value(static_cast<std::int64_t>(clusters.labels.size()));
           own["cut_from"] = json::Value(args.positional[0]);
           const json::Value record(std::move(own));
           cut = cut_summary(*summary, document, keep, &record);
@@ -627,8 +631,8 @@ int mxi_correlation_main(int argc, char **argv) {
     if (args.has("--json")) {
       json::Array exps, r_rows, w_rows, merged;
       for (std::size_t i = 0; i < n; ++i) {
-        exps.push_back(json::Value(static_cast<long>(which[i])));
-        merged.push_back(json::Value(static_cast<long>(sizes[i])));
+        exps.push_back(json::Value(static_cast<std::int64_t>(which[i])));
+        merged.push_back(json::Value(static_cast<std::int64_t>(sizes[i])));
         json::Array rr, ww;
         for (std::size_t j = 0; j < n; ++j) {
           rr.push_back(json::Value(m.r[i * n + j]));
@@ -658,7 +662,7 @@ int mxi_correlation_main(int argc, char **argv) {
       json::Array coords;
       for (double v : c.x)
         coords.push_back(json::Value(v));
-      doc["dimension"] = json::Value(static_cast<long>(c.dim));
+      doc["dimension"] = json::Value(static_cast<std::int64_t>(c.dim));
       doc["scan_dimensions"] = json::Value(std::move(dims));
       doc["scan_functional"] = json::Value(std::move(func));
       doc["coordinates"] = json::Value(std::move(coords));
@@ -667,21 +671,22 @@ int mxi_correlation_main(int argc, char **argv) {
       doc["functional"] = json::Value(c.final_functional);
       json::Array labels, order, reach, search;
       for (int l : clusters.labels)
-        labels.push_back(json::Value(static_cast<long>(l)));
+        labels.push_back(json::Value(static_cast<std::int64_t>(l)));
       for (std::size_t k : clusters.model.ordering) {
-        order.push_back(json::Value(static_cast<long>(k)));
+        order.push_back(json::Value(static_cast<std::int64_t>(k)));
         reach.push_back(json::Value(clusters.model.reachability[k]));
       }
       for (const auto &[ms, score] : clusters.scores) {
         json::Array pair;
-        pair.push_back(json::Value(static_cast<long>(ms)));
+        pair.push_back(json::Value(static_cast<std::int64_t>(ms)));
         pair.push_back(json::Value(score));
         search.push_back(json::Value(std::move(pair)));
       }
       doc["labels"] = json::Value(std::move(labels));
       doc["ordering"] = json::Value(std::move(order));
       doc["reachability_in_order"] = json::Value(std::move(reach));
-      doc["min_samples"] = json::Value(static_cast<long>(clusters.min_samples));
+      doc["min_samples"] =
+          json::Value(static_cast<std::int64_t>(clusters.min_samples));
       doc["min_samples_scores"] = json::Value(std::move(search));
       json::dump_file(args.value("--json", "correlation.json"),
                       json::Value(std::move(doc)));

@@ -1,6 +1,7 @@
 // Summation integration and the quantum efficiency.
 
 #include <cmath>
+#include <cstdint>
 #include <random>
 #include <vector>
 
@@ -102,7 +103,7 @@ TEST(a_planted_intensity_comes_back) {
   options.background.tuning = 1e6;
   const IntegratedReflection r = integrate_shoebox(&box, options);
   check::is_true(r.valid, "integrated");
-  check::equal(static_cast<long long>(r.n_foreground), pixels,
+  check::equal(static_cast<std::int64_t>(r.n_foreground), pixels,
                "foreground count");
   check::close(r.background_mean, background, 1e-6, "background recovered");
   check::close(r.intensity, excess * pixels, 1e-4 * excess * pixels,
@@ -499,7 +500,7 @@ TEST(an_undetected_reflection_has_no_centre_rather_than_a_wild_one) {
   // At three sigma a pure-noise box claims a centre about one time in seven
   // hundred; far fewer than the half of them that W > 0 alone admits.
   check::is_true(claimed < 20, "noise is not given a centre");
-  check::equal(static_cast<long long>(outside), 0,
+  check::equal(static_cast<std::int64_t>(outside), 0,
                "and a centre that is claimed lies inside its own box");
 }
 
@@ -550,7 +551,7 @@ TEST(a_reflection_reaching_a_masked_pixel_is_not_flagged_as_summed) {
   Shoebox gap = box(true, false);
   const IntegratedReflection rg = integrate_shoebox(&gap, o);
   const std::int64_t fg = summation_flags(rg);
-  check::equal(static_cast<long long>(rg.n_foreground_bad), 1,
+  check::equal(static_cast<std::int64_t>(rg.n_foreground_bad), 1,
                "one foreground voxel lost");
   check::is_true((fg & flag::kIntegratedSum) == 0,
                  "a foreground with a pixel missing is NOT flagged as summed");
@@ -604,8 +605,9 @@ TEST(the_backgrounds_dispersion_is_one_when_flat_and_more_on_a_ramp) {
   check::is_true(f.background_dispersion_trimmed > 0.85 &&
                      f.background_dispersion_trimmed < 1.15,
                  "flat: about 1, trimmed");
-  check::equal(static_cast<long long>(f.n_background_trimmed),
-               static_cast<long long>(f.n_background), "flat: nothing trimmed");
+  check::equal(static_cast<std::int64_t>(f.n_background_trimmed),
+               static_cast<std::int64_t>(f.n_background),
+               "flat: nothing trimmed");
 
   Shoebox ramp =
       poisson_background([](std::int32_t x) { return 25.0 * x / 14.0; }, 2);
@@ -624,8 +626,8 @@ TEST(the_backgrounds_dispersion_is_one_when_flat_and_more_on_a_ramp) {
   check::is_true(s.background_dispersion_trimmed > 0.85 &&
                      s.background_dispersion_trimmed < 1.15,
                  "a neighbour: about 1, trimmed");
-  check::equal(static_cast<long long>(s.n_background_trimmed),
-               static_cast<long long>(s.n_background) - 1,
+  check::equal(static_cast<std::int64_t>(s.n_background_trimmed),
+               static_cast<std::int64_t>(s.n_background) - 1,
                "a neighbour: its one pixel trimmed");
 }
 

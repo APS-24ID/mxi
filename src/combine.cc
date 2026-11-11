@@ -3,6 +3,7 @@
 #include "combine.hh"
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -49,20 +50,20 @@ ExperimentsAndReflections select_experiments(const json::Value &document,
                                              const std::vector<bool> &keep) {
   const json::Array &all = document["experiment"].as_array();
   std::vector<bool> chosen(all.size(), false);
-  std::set<std::pair<long, long>> sweeps; // image set, scan
+  std::set<std::pair<std::int64_t, std::int64_t>> sweeps; // image set, scan
   for (std::size_t e = 0; e < all.size() && e < keep.size(); ++e)
     if (keep[e]) {
       chosen[e] = true;
       const json::Value &x = all[e];
       if (x["imageset"].is_number() && x["scan"].is_number())
-        sweeps.insert({static_cast<long>(x["imageset"].as_number()),
-                       static_cast<long>(x["scan"].as_number())});
+        sweeps.insert({static_cast<std::int64_t>(x["imageset"].as_number()),
+                       static_cast<std::int64_t>(x["scan"].as_number())});
     }
   for (std::size_t e = 0; e < all.size(); ++e)
     if (!all[e]["crystal"].is_number() && all[e]["imageset"].is_number() &&
         all[e]["scan"].is_number() &&
-        sweeps.count({static_cast<long>(all[e]["imageset"].as_number()),
-                      static_cast<long>(all[e]["scan"].as_number())}))
+        sweeps.count({static_cast<std::int64_t>(all[e]["imageset"].as_number()),
+                      static_cast<std::int64_t>(all[e]["scan"].as_number())}))
       chosen[e] = true;
   std::vector<std::size_t> rows;
   if (reflections.has("id")) {
@@ -127,19 +128,19 @@ Combined combine_experiments(const std::vector<json::Value> &documents,
     if (!document.is_object() || !document["experiment"].is_array())
       throw std::runtime_error("combine: input " + std::to_string(k) +
                                " has no experiment list");
-    std::map<std::string, long> offset;
+    std::map<std::string, std::int64_t> offset;
     for (const char *key : kModels) {
-      offset[key] = static_cast<long>(models[key].size());
+      offset[key] = static_cast<std::int64_t>(models[key].size());
       for (std::size_t i = 0; i < array_size(document, key); ++i)
         models[key].push_back(document[key].as_array()[i]);
     }
-    const long first = static_cast<long>(experiments.size());
+    const std::int64_t first = static_cast<std::int64_t>(experiments.size());
     for (const json::Value &e : document["experiment"].as_array()) {
       json::Object x = e.as_object();
       for (const char *key : kModels)
         if (x.count(key) && x[key].is_number())
-          x[key] =
-              json::Value(static_cast<long>(x[key].as_number()) + offset[key]);
+          x[key] = json::Value(static_cast<std::int64_t>(x[key].as_number()) +
+                               offset[key]);
       if (x.count("identifier") && x["identifier"].is_string()) {
         const std::string id = x["identifier"].as_string();
         if (!id.empty()) {
@@ -201,11 +202,11 @@ std::vector<std::vector<std::size_t>> independent_groups(const json::Value &doc,
     parent[find(a)] = find(b);
   };
   const auto index_of = [](const json::Value &e, const char *key) {
-    return e[key].is_number() ? static_cast<long long>(e[key].as_number())
-                              : -1LL;
+    return e[key].is_number() ? static_cast<std::int64_t>(e[key].as_number())
+                              : -std::int64_t{1};
   };
-  std::map<std::pair<long long, long long>, std::size_t> sweep_first;
-  std::map<std::pair<std::string, long long>, std::size_t> model_first;
+  std::map<std::pair<std::int64_t, std::int64_t>, std::size_t> sweep_first;
+  std::map<std::pair<std::string, std::int64_t>, std::size_t> model_first;
   for (std::size_t i = 0; i < n; ++i) {
     const json::Value &e = all[i];
     const auto sweep =
@@ -218,7 +219,7 @@ std::vector<std::vector<std::size_t>> independent_groups(const json::Value &doc,
     if (!by_models)
       continue;
     for (const char *key : {"detector", "beam", "crystal"}) {
-      const long long m = index_of(e, key);
+      const std::int64_t m = index_of(e, key);
       if (m < 0)
         continue;
       const auto [at, fresh] = model_first.emplace(std::make_pair(key, m), i);

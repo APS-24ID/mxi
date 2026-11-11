@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <random>
 
@@ -28,17 +29,17 @@ TEST(both_densities_of_cc_integrate_to_one) {
 
 TEST(symmetry_elements_are_counted_as_dials_counts_them) {
   const UnitCell cubic{67.42, 67.46, 67.46, 109.44, 109.47, 109.46};
-  check::equal(
-      static_cast<long long>(symmetry_elements(lattice_symmetry(cubic)).size()),
-      17,
-      "17 for m-3m: the identity, 3 four-folds, their 3 squares, 4 "
-      "three-folds, 6 two-folds");
+  check::equal(static_cast<std::int64_t>(
+                   symmetry_elements(lattice_symmetry(cubic)).size()),
+               17,
+               "17 for m-3m: the identity, 3 four-folds, their 3 squares, 4 "
+               "three-folds, 6 two-folds");
   const UnitCell tetragonal{50.0, 50.0, 80.0, 90.0, 90.0, 90.0};
-  check::equal(static_cast<long long>(
+  check::equal(static_cast<std::int64_t>(
                    symmetry_elements(lattice_symmetry(tetragonal)).size()),
                7, "7 for 4/mmm");
   const UnitCell triclinic{51.0, 62.0, 73.0, 81.0, 76.0, 69.0};
-  check::equal(static_cast<long long>(
+  check::equal(static_cast<std::int64_t>(
                    symmetry_elements(lattice_symmetry(triclinic)).size()),
                1, "1 for -1");
 }
@@ -227,8 +228,8 @@ TEST(the_laue_scores_are_the_same_on_any_number_of_threads) {
   set_parallel_threads(8);
   const LaueScores eight = score_laue_groups(data, lattice);
   set_parallel_threads(0);
-  check::equal(static_cast<long long>(one.elements.size()),
-               static_cast<long long>(eight.elements.size()),
+  check::equal(static_cast<std::int64_t>(one.elements.size()),
+               static_cast<std::int64_t>(eight.elements.size()),
                "the same elements");
   check::is_true(one.elements.size() > 4, "a cubic lattice's many elements");
   for (std::size_t k = 0; k < one.elements.size(); ++k) {
@@ -239,8 +240,8 @@ TEST(the_laue_scores_are_the_same_on_any_number_of_threads) {
                        a.likelihood == b.likelihood,
                    "element " + std::to_string(k) + " the same");
   }
-  check::equal(static_cast<long long>(one.groups.size()),
-               static_cast<long long>(eight.groups.size()),
+  check::equal(static_cast<std::int64_t>(one.groups.size()),
+               static_cast<std::int64_t>(eight.groups.size()),
                "the same subgroups");
   for (std::size_t k = 0; k < one.groups.size(); ++k)
     check::is_true(one.groups[k].likelihood == eight.groups[k].likelihood &&

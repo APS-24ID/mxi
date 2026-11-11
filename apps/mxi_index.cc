@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -180,17 +181,19 @@ int report_lattices(const ExperimentList &sweep, Table &reflections,
                 "deg; scatter %.5f 1/A\n",
                 l + 1, own[l], c.a, c.b, c.c, c.alpha, c.beta, c.gamma,
                 scatter);
-    t_lattice.push_back(json::Value(static_cast<long>(l + 1)));
-    t_spots.push_back(json::Value(static_cast<long>(own[l])));
+    t_lattice.push_back(json::Value(static_cast<std::int64_t>(l + 1)));
+    t_spots.push_back(json::Value(static_cast<std::int64_t>(own[l])));
     t_cell.push_back(cell_json(c));
     t_scatter.push_back(json::Value(scatter));
   }
   say_geometry("refined together", geometry_figures(sweep[0]),
                geometry_figures(joint[0]));
-  summary.set("reflections", json::Value(static_cast<long>(reflections.nrows)));
-  summary.set("indexed", json::Value(static_cast<long>(r.n_indexed)));
-  summary.set("lattices", json::Value(static_cast<long>(joint.size())));
-  summary.set("ambiguous", json::Value(static_cast<long>(r.n_ambiguous)));
+  summary.set("reflections",
+              json::Value(static_cast<std::int64_t>(reflections.nrows)));
+  summary.set("indexed", json::Value(static_cast<std::int64_t>(r.n_indexed)));
+  summary.set("lattices", json::Value(static_cast<std::int64_t>(joint.size())));
+  summary.set("ambiguous",
+              json::Value(static_cast<std::int64_t>(r.n_ambiguous)));
   summary.set("rmsd_px_px_images",
               json::Value(json::Array{json::Value(r.refined.rmsd_x),
                                       json::Value(r.refined.rmsd_y),
@@ -234,14 +237,15 @@ int index_apart(const Arguments &args,
   const json::Array &experiments = document["experiment"].as_array();
   const std::size_t n = experiments.size();
   {
-    std::set<std::pair<long long, long long>> seen;
+    std::set<std::pair<std::int64_t, std::int64_t>> seen;
     for (const json::Value &e : experiments) {
       const auto key = std::make_pair(
           e["imageset"].is_number()
-              ? static_cast<long long>(e["imageset"].as_number())
+              ? static_cast<std::int64_t>(e["imageset"].as_number())
               : -1,
-          e["scan"].is_number() ? static_cast<long long>(e["scan"].as_number())
-                                : -1);
+          e["scan"].is_number()
+              ? static_cast<std::int64_t>(e["scan"].as_number())
+              : -1);
       if (!seen.insert(key).second) {
         std::fprintf(stderr,
                      "mxi index: --no-joint wants a list of sweeps, one "
@@ -342,10 +346,10 @@ int index_apart(const Arguments &args,
       ++crystals;
   }
   Summary step("mxi_index", args.positional[0]);
-  step.set("apart", json::Value(1L));
-  step.set("sweeps", json::Value(static_cast<long>(n)));
-  step.set("lattices", json::Value(static_cast<long>(crystals)));
-  step.set("not_indexed", json::Value(static_cast<long>(failed)));
+  step.set("apart", json::Value(std::int64_t{1}));
+  step.set("sweeps", json::Value(static_cast<std::int64_t>(n)));
+  step.set("lattices", json::Value(static_cast<std::int64_t>(crystals)));
+  step.set("not_indexed", json::Value(static_cast<std::int64_t>(failed)));
   const json::Value summary_document = step.document();
   rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_index",
                       &summary_document);
@@ -692,8 +696,10 @@ int run_index(int argc, char **argv) {
                     : experiments;
     const json::Value document = experiments_to_json(written);
     // The summary: the search, the solutions weighed, the cycles, the result.
-    summary.set("reflections", json::Value(static_cast<long>(result.n_total)));
-    summary.set("indexed", json::Value(static_cast<long>(result.n_indexed)));
+    summary.set("reflections",
+                json::Value(static_cast<std::int64_t>(result.n_total)));
+    summary.set("indexed",
+                json::Value(static_cast<std::int64_t>(result.n_indexed)));
     summary.set("indexed_fraction", json::Value(result.fraction_indexed()));
     summary.set("d_min", json::Value(result.d_min));
     summary.set("max_cell", json::Value(result.max_cell));
@@ -706,18 +712,19 @@ int run_index(int argc, char **argv) {
       for (const BasisCandidate &b : result.considered) {
         c_cell.push_back(cell_json(b.cell));
         c_volume.push_back(json::Value(b.volume));
-        c_indexed.push_back(json::Value(static_cast<long>(b.indexed)));
-        c_chosen.push_back(json::Value(b.chosen ? 1L : 0L));
+        c_indexed.push_back(json::Value(static_cast<std::int64_t>(b.indexed)));
+        c_chosen.push_back(
+            json::Value(b.chosen ? std::int64_t{1} : std::int64_t{0}));
       }
       summary.table("candidates", {"cell", "volume", "indexed", "chosen"},
                     {c_cell, c_volume, c_indexed, c_chosen});
       std::vector<json::Value> k_cycle, k_on, k_rej, k_ind, k_x, k_y, k_z;
       for (std::size_t c = 0; c < result.cycles.size(); ++c) {
         const IndexCycle &k = result.cycles[c];
-        k_cycle.push_back(json::Value(static_cast<long>(c + 1)));
-        k_on.push_back(json::Value(static_cast<long>(k.refined_on)));
-        k_rej.push_back(json::Value(static_cast<long>(k.rejected)));
-        k_ind.push_back(json::Value(static_cast<long>(k.indexed)));
+        k_cycle.push_back(json::Value(static_cast<std::int64_t>(c + 1)));
+        k_on.push_back(json::Value(static_cast<std::int64_t>(k.refined_on)));
+        k_rej.push_back(json::Value(static_cast<std::int64_t>(k.rejected)));
+        k_ind.push_back(json::Value(static_cast<std::int64_t>(k.indexed)));
         k_x.push_back(json::Value(k.rmsd_x));
         k_y.push_back(json::Value(k.rmsd_y));
         k_z.push_back(json::Value(k.rmsd_z));

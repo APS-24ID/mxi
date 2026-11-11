@@ -2,6 +2,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <vector>
 
 namespace cysteine {
@@ -26,13 +27,13 @@ struct Sweep {
   std::array<double, 3> fast, slow, origin;
   std::array<double, 2> pixel_size;
   double mu, thickness;
-  std::array<long, 2> image_size;
+  std::array<std::int64_t, 2> image_size;
   // goniometer, axes ordered from the sample outwards to the laboratory
   std::vector<std::array<double, 3>> axes;
   std::vector<double> angles;
   int scan_axis;
   // scan
-  std::array<long, 2> image_range;
+  std::array<std::int64_t, 2> image_range;
   double osc_start, osc_width;
   std::vector<Row> rows;
 };

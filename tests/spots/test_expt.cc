@@ -7,6 +7,8 @@
 // image_range does not start at one, a segmented detector, and a file that is
 // not an experiment list because someone passed the reflections by mistake.
 
+#include <cinttypes>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -20,11 +22,12 @@ namespace {
 
 int failures = 0;
 
-void check(const std::string &what, unsigned long long actual,
-           unsigned long long expected) {
+void check(const std::string &what, std::uint64_t actual,
+           std::uint64_t expected) {
   if (actual == expected)
     return;
-  std::printf("FAIL %s: %llu, expected %llu\n", what.c_str(), actual, expected);
+  std::printf("FAIL %s: %" PRIu64 ", expected %" PRIu64 "\n", what.c_str(),
+              actual, expected);
   failures++;
 }
 
@@ -200,11 +203,9 @@ int run() {
     check_text("the identifier", info.identifier,
                "f2d0a1c4-6b3e-4a11-9e77-0c5f1b2d3e4f");
     check("it has a scan", info.has_scan ? 1 : 0, 1);
-    check("the first image", static_cast<unsigned long long>(info.first_image),
-          1);
-    check("the last image", static_cast<unsigned long long>(info.last_image),
-          600);
-    check("so 600 images", static_cast<unsigned long long>(info.images()), 600);
+    check("the first image", static_cast<std::uint64_t>(info.first_image), 1);
+    check("the last image", static_cast<std::uint64_t>(info.last_image), 600);
+    check("so 600 images", static_cast<std::uint64_t>(info.images()), 600);
     check("it has a detector", info.has_detector ? 1 : 0, 1);
     check("of one panel", info.panels, 1);
     // dxtbx writes image_size fast then slow, which is the other way round
@@ -229,9 +230,8 @@ int run() {
       put(text);
       const mxi::ExperimentImages info = mxi::experiment_images(kPath);
       check("the first image of a slice",
-            static_cast<unsigned long long>(info.first_image), 501);
-      check("and its length", static_cast<unsigned long long>(info.images()),
-            100);
+            static_cast<std::uint64_t>(info.first_image), 501);
+      check("and its length", static_cast<std::uint64_t>(info.images()), 100);
     }
   }
 
@@ -245,7 +245,7 @@ int run() {
     const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check("a still has no scan", info.has_scan ? 1 : 0, 0);
     check("and no images to speak of",
-          static_cast<unsigned long long>(info.images()), 0);
+          static_cast<std::uint64_t>(info.images()), 0);
     check("but still a detector", info.panels, 1);
   }
 
@@ -338,11 +338,11 @@ int run() {
     // those is the off-by-one this field exists to make visible rather than
     // to hide.
     check("the first image is one",
-          static_cast<unsigned long long>(info.first_image), 1);
+          static_cast<std::uint64_t>(info.first_image), 1);
     check("the first index is zero",
-          static_cast<unsigned long long>(info.first_index), 0);
-    check("the last index is four",
-          static_cast<unsigned long long>(info.last_index), 4);
+          static_cast<std::uint64_t>(info.first_index), 0);
+    check("the last index is four", static_cast<std::uint64_t>(info.last_index),
+          4);
     check("imageset and scan agree", info.imageset_matches_scan() ? 1 : 0, 1);
   }
 
@@ -361,8 +361,8 @@ int run() {
     put(kGappyImageset);
     const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check("four frames", info.frames, 4);
-    check("first index", static_cast<unsigned long long>(info.first_index), 0);
-    check("last index", static_cast<unsigned long long>(info.last_index), 5);
+    check("first index", static_cast<std::uint64_t>(info.first_index), 0);
+    check("last index", static_cast<std::uint64_t>(info.last_index), 5);
     check("the gap is noticed", info.contiguous_indices ? 1 : 0, 0);
   }
 
@@ -370,8 +370,8 @@ int run() {
     put(kMismatchedImageset);
     const mxi::ExperimentImages info = mxi::experiment_images(kPath);
     check("ten frames", info.frames, 10);
-    check("five images in the scan",
-          static_cast<unsigned long long>(info.images()), 5);
+    check("five images in the scan", static_cast<std::uint64_t>(info.images()),
+          5);
     check("the disagreement is noticed", info.imageset_matches_scan() ? 1 : 0,
           0);
   }
@@ -396,8 +396,8 @@ int run() {
     check("no frames", info.frames, 0);
     check("contiguous by default", info.contiguous_indices ? 1 : 0, 1);
     check("matches vacuously", info.imageset_matches_scan() ? 1 : 0, 1);
-    check("the scan is still read",
-          static_cast<unsigned long long>(info.images()), 5);
+    check("the scan is still read", static_cast<std::uint64_t>(info.images()),
+          5);
   }
 
   std::remove(kPath);
@@ -412,5 +412,6 @@ int run() {
 // In mxi_tests: every check above, through the file's own count of
 // failures, which must be none.
 TEST(spots_experiment_images) {
-  check::equal(static_cast<long long>(run()), 0LL, "test_expt: its checks");
+  check::equal(static_cast<std::int64_t>(run()), std::int64_t{0},
+               "test_expt: its checks");
 }

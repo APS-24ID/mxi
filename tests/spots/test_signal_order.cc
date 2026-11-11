@@ -205,6 +205,6 @@ int run() {
 // In mxi_tests: every check above, through the file's own count of
 // failures, which must be none.
 TEST(spots_signal_order) {
-  check::equal(static_cast<long long>(run()), 0LL,
+  check::equal(static_cast<std::int64_t>(run()), std::int64_t{0},
                "test_signal_order: its checks");
 }

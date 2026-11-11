@@ -4,6 +4,7 @@
 // calls it to save; on its own it applies a mask kept from before to another
 // run's sweeps, with no window.
 
+#include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <optional>
@@ -124,7 +125,7 @@ int mxi_untrusted_main(int argc, char **argv) {
     std::vector<std::string> skipped;
     const std::optional<Table> table = rflx::read_reflections(in, &skipped);
     Summary step("mxi_untrusted", in);
-    step.set("imagesets", json::Value(static_cast<long>(sets.size())));
+    step.set("imagesets", json::Value(static_cast<std::int64_t>(sets.size())));
     const json::Value steps = step.document();
     const std::string temporary = out + ".mxi_untrusted.tmp";
     rflx::write(temporary, &*document, table ? &*table : nullptr,

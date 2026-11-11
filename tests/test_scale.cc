@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <random>
 #include <set>
@@ -199,7 +200,7 @@ TEST(the_outliers_planted_are_the_outliers_found) {
     data.intensity[i] *= 3.0;
   const std::vector<double> g(data.size(), 1.0);
   const std::size_t n = reject_outliers(data, g);
-  check::equal(static_cast<long long>(n), 5, "five flagged");
+  check::equal(static_cast<std::int64_t>(n), 5, "five flagged");
   for (std::size_t i : planted_at)
     check::is_true(data.outlier[i], "each planted one: " + std::to_string(i));
 }
@@ -496,8 +497,9 @@ TEST(merging_statistics_with_friedel_mates_apart_are_what_the_hand_says) {
   data.observation.resize(6);
   const MergingShell m =
       merge_groups(data, std::vector<double>(6, 1.0), {0, 1});
-  check::equal(static_cast<long long>(m.observations), 6, "six observations");
-  check::equal(static_cast<long long>(m.unique), 2, "of two reflections");
+  check::equal(static_cast<std::int64_t>(m.observations), 6,
+               "six observations");
+  check::equal(static_cast<std::int64_t>(m.unique), 2, "of two reflections");
   // Merged: means 16 and 6. Deviations 6+4+4+6 = 20 and 1+1 = 2, over 64 + 12.
   check::close(m.rmerge, 22.0 / 76.0, 1e-14, "Rmerge(I) = 22/76");
   // Apart: 1+1 and 1+1 for the pair, the centric's 2 unchanged.
@@ -507,7 +509,7 @@ TEST(merging_statistics_with_friedel_mates_apart_are_what_the_hand_says) {
                "Rmeas(I+/-), sqrt(n/(n-1)) = sqrt 2 for each pair");
   check::close(m.anom_multiplicity, 2.0, 1e-14,
                "six observations over three groups apart");
-  check::equal(static_cast<long long>(m.anomalous_pairs), 1,
+  check::equal(static_cast<std::int64_t>(m.anomalous_pairs), 1,
                "one acentric pair");
   // dI = 11 - 21, sigma(dI) = sqrt(1/2 + 1/2) = 1.
   check::close(m.di_over_sig_di, 10.0, 1e-14, "dI / sigma(dI) = 10");
@@ -662,9 +664,9 @@ TEST(with_anomalous_acentric_mates_are_apart_and_centric_ones_together) {
       build_scale_data(experiments, t, group, shape, plain_options);
   const ScaleData apart =
       build_scale_data(experiments, t, group, shape, anomalous_options);
-  check::equal(static_cast<long long>(together.unique.size()), 6,
+  check::equal(static_cast<std::int64_t>(together.unique.size()), 6,
                "six groups without");
-  check::equal(static_cast<long long>(apart.unique.size()), 9,
+  check::equal(static_cast<std::int64_t>(apart.unique.size()), 9,
                "nine with: each acentric reflection's mates apart, the centric "
                "ones not");
   check::is_true(apart.pair == together.group,
@@ -684,9 +686,9 @@ TEST(with_anomalous_acentric_mates_are_apart_and_centric_ones_together) {
       check::is_true(sides.size() == 1, "an acentric group holds one mate");
     }
   }
-  check::equal(static_cast<long long>(split), 6,
+  check::equal(static_cast<std::int64_t>(split), 6,
                "three acentric reflections, two mates each");
-  check::equal(static_cast<long long>(whole), 3, "three centric ones whole");
+  check::equal(static_cast<std::int64_t>(whole), 3, "three centric ones whole");
 }
 
 } // namespace mxi
@@ -735,12 +737,13 @@ TEST(several_sweeps_observations_each_take_their_own_sweeps_scan) {
   }
   const ScaleData data =
       build_scale_data(experiments, t, group, ScaleModelShape{3, 0, 0});
-  check::equal(static_cast<long long>(data.size()), 4,
+  check::equal(static_cast<std::int64_t>(data.size()), 4,
                "every sweep's observations");
   for (std::size_t k = 0; k < data.size(); ++k) {
     const std::size_t r = data.row[k];
-    check::equal(static_cast<long long>(data.observation[k].sweep),
-                 static_cast<long long>(rows[r].first), "each its id's sweep");
+    check::equal(static_cast<std::int64_t>(data.observation[k].sweep),
+                 static_cast<std::int64_t>(rows[r].first),
+                 "each its id's sweep");
   }
   check::close(data.observation[0].rotation, 0.25, 1e-12,
                "the first's frame 25: a quarter");
@@ -756,16 +759,16 @@ TEST(several_sweeps_observations_each_take_their_own_sweeps_scan) {
   leave.exclude = {{1, 120, 130}, {0, 70, 80}};
   const ScaleData kept =
       build_scale_data(experiments, t, group, ScaleModelShape{3, 0, 0}, leave);
-  check::equal(static_cast<long long>(kept.size()), 2, "two left out");
+  check::equal(static_cast<std::int64_t>(kept.size()), 2, "two left out");
   for (std::size_t k = 0; k < kept.size(); ++k)
     check::is_true(kept.row[k] == 0 || kept.row[k] == 3,
                    "image 26 of the first and 176 of the second kept");
   leave.exclude = {{0, 120, 130}};
-  check::equal(
-      static_cast<long long>(build_scale_data(experiments, t, group,
-                                              ScaleModelShape{3, 0, 0}, leave)
-                                 .size()),
-      4, "another experiment's images are not this one's");
+  check::equal(static_cast<std::int64_t>(
+                   build_scale_data(experiments, t, group,
+                                    ScaleModelShape{3, 0, 0}, leave)
+                       .size()),
+               4, "another experiment's images are not this one's");
   id.ints[3] = 2;
   bool refused = false;
   try {

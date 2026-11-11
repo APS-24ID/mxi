@@ -63,13 +63,14 @@ TEST(combine_offsets_every_reference_and_renumbers_the_reflections) {
       {list("s-a", "d-a"), list("s-b", "d-b")},
       {rows("s-a", "d-a", false), rows("s-b", "d-b", true)});
   const json::Array &e = c.document["experiment"].as_array();
-  check::equal(static_cast<long long>(e.size()), 4, "four experiments");
-  check::equal(static_cast<long long>(e[3]["crystal"].as_number()), 1,
+  check::equal(static_cast<std::int64_t>(e.size()), 4, "four experiments");
+  check::equal(static_cast<std::int64_t>(e[3]["crystal"].as_number()), 1,
                "the second data set's crystal, offset by the first's");
-  check::equal(static_cast<long long>(e[2]["imageset"].as_number()), 1,
+  check::equal(static_cast<std::int64_t>(e[2]["imageset"].as_number()), 1,
                "the second sweep's image set, offset");
-  check::equal(static_cast<long long>(c.document["crystal"].as_array().size()),
-               2, "both crystals");
+  check::equal(
+      static_cast<std::int64_t>(c.document["crystal"].as_array().size()), 2,
+      "both crystals");
   check::is_true(c.reflections.at("id").ints ==
                      std::vector<std::int64_t>{0, 1, 1, 2, 3, 3},
                  "the second input's reflections numbered after the first's");
@@ -98,7 +99,7 @@ TEST(a_data_set_taken_out_with_its_sweep_and_put_back) {
   const ExperimentsAndReflections b = select_experiments(
       both.document, both.reflections, {false, false, false, true});
   const json::Array &e = b.document["experiment"].as_array();
-  check::equal(static_cast<long long>(e.size()), 2,
+  check::equal(static_cast<std::int64_t>(e.size()), 2,
                "the data set and its sweep");
   check::is_true(e[0]["identifier"].as_string() == "s-b" &&
                      e[1]["identifier"].as_string() == "d-b",
@@ -138,7 +139,7 @@ TEST(experiments_sharing_nothing_refinement_fits_are_independent) {
     {"beam": 1, "detector": 1, "imageset": 1, "scan": 1},
     {"beam": 1, "detector": 1, "imageset": 1, "scan": 1, "crystal": 1}]})");
   const auto g = independent_groups(apart);
-  check::equal(static_cast<long long>(g.size()), 2, "two groups");
+  check::equal(static_cast<std::int64_t>(g.size()), 2, "two groups");
   check::is_true(g[0] == std::vector<std::size_t>{0, 1} &&
                      g[1] == std::vector<std::size_t>{2, 3},
                  "each sweep's two together");
@@ -146,24 +147,26 @@ TEST(experiments_sharing_nothing_refinement_fits_are_independent) {
   json::Value shared = json::parse(R"({"experiment": [
     {"beam": 0, "detector": 0, "imageset": 0, "scan": 0, "crystal": 0},
     {"beam": 0, "detector": 1, "imageset": 1, "scan": 1, "crystal": 1}]})");
-  check::equal(static_cast<long long>(independent_groups(shared).size()), 2,
+  check::equal(static_cast<std::int64_t>(independent_groups(shared).size()), 2,
                "by sweep, the default: a shared beam does not join them");
-  check::equal(static_cast<long long>(independent_groups(shared, true).size()),
-               1, "by models: a shared beam joins them");
+  check::equal(
+      static_cast<std::int64_t>(independent_groups(shared, true).size()), 1,
+      "by models: a shared beam joins them");
   // One crystal across two sweeps: one group.
   json::Value crystal = json::parse(R"({"experiment": [
     {"beam": 0, "detector": 0, "imageset": 0, "scan": 0, "crystal": 0},
     {"beam": 1, "detector": 1, "imageset": 1, "scan": 1, "crystal": 0}]})");
-  check::equal(static_cast<long long>(independent_groups(crystal).size()), 2,
+  check::equal(static_cast<std::int64_t>(independent_groups(crystal).size()), 2,
                "by sweep: a shared crystal does not join them");
-  check::equal(static_cast<long long>(independent_groups(crystal, true).size()),
-               1, "by models: a shared crystal joins them");
+  check::equal(
+      static_cast<std::int64_t>(independent_groups(crystal, true).size()), 1,
+      "by models: a shared crystal joins them");
   // Two lattices on one sweep: together either way, its detector theirs.
   json::Value lattices = json::parse(R"({"experiment": [
     {"beam": 0, "detector": 0, "imageset": 0, "scan": 0, "crystal": 0},
     {"beam": 0, "detector": 0, "imageset": 0, "scan": 0, "crystal": 1}]})");
-  check::equal(static_cast<long long>(independent_groups(lattices).size()), 1,
-               "one sweep's two lattices together");
+  check::equal(static_cast<std::int64_t>(independent_groups(lattices).size()),
+               1, "one sweep's two lattices together");
 }
 
 // Control points one per `interval` degrees of a scan, at least `minimum`:
@@ -174,14 +177,14 @@ TEST(control_points_follow_the_interval) {
   scan.osc_width = 0.1;
   scan.first_image = 1;
   scan.last_image = 1700; // 170 degrees
-  check::equal(static_cast<long long>(scan_varying_points(scan)), 17,
+  check::equal(static_cast<std::int64_t>(scan_varying_points(scan)), 17,
                "one per 10 degrees");
-  check::equal(static_cast<long long>(scan_varying_points(scan, 30.0, 4)), 6,
+  check::equal(static_cast<std::int64_t>(scan_varying_points(scan, 30.0, 4)), 6,
                "one per 30");
   scan.last_image = 300; // 30 degrees
-  check::equal(static_cast<long long>(scan_varying_points(scan)), 5,
+  check::equal(static_cast<std::int64_t>(scan_varying_points(scan)), 5,
                "at least five by default");
-  check::equal(static_cast<long long>(scan_varying_points(scan, 30.0, 4)), 4,
+  check::equal(static_cast<std::int64_t>(scan_varying_points(scan, 30.0, 4)), 4,
                "at least four with an interval");
 }
 
@@ -265,10 +268,10 @@ TEST(untrusted_regions_are_the_pixels_whose_centres_they_hold) {
   const auto shapes = [](const char *text) { return json::parse(text); };
   // A 2 x 2 rectangle, corners either way round: four pixels.
   auto r = untrusted_pixels(shapes(R"([{"rectangle": [3, 2, 5, 4]}])"), 10, 10);
-  check::equal(static_cast<long long>(r.size()), 4, "a 2 x 2 rectangle");
-  check::equal(static_cast<long long>(r.front()), 2 * 10 + 3, "its first");
+  check::equal(static_cast<std::int64_t>(r.size()), 4, "a 2 x 2 rectangle");
+  check::equal(static_cast<std::int64_t>(r.front()), 2 * 10 + 3, "its first");
   check::equal(
-      static_cast<long long>(
+      static_cast<std::int64_t>(
           untrusted_pixels(shapes(R"([{"rectangle": [5, 4, 3, 2]}])"), 10, 10)
               .size()),
       4, "corners the other way round");
@@ -276,7 +279,7 @@ TEST(untrusted_regions_are_the_pixels_whose_centres_they_hold) {
   // neighbours' centres within 1.5 -- the four edge ones, the corners at
   // 1.41 too.
   auto c = untrusted_pixels(shapes(R"([{"circle": [5.5, 5.5, 1.5]}])"), 10, 10);
-  check::equal(static_cast<long long>(c.size()), 9, "nine pixels");
+  check::equal(static_cast<std::int64_t>(c.size()), 9, "nine pixels");
   // Clipped at the edge: a circle about a corner keeps only what is inside.
   auto e = untrusted_pixels(shapes(R"([{"circle": [0, 0, 2]}])"), 10, 10);
   for (std::uint64_t i : e)
@@ -285,14 +288,15 @@ TEST(untrusted_regions_are_the_pixels_whose_centres_they_hold) {
   auto l = untrusted_pixels(
       shapes(R"([{"polygon": [[0,0],[4,0],[4,2],[2,2],[2,4],[0,4]]}])"), 10,
       10);
-  check::equal(static_cast<long long>(l.size()), 12, "the L's twelve pixels");
+  check::equal(static_cast<std::int64_t>(l.size()), 12,
+               "the L's twelve pixels");
   check::is_true(!std::binary_search(l.begin(), l.end(), 3 * 10 + 3),
                  "the notch left out");
   // Overlaps counted once.
   auto o = untrusted_pixels(
       shapes(R"([{"rectangle": [0,0,2,2]}, {"rectangle": [1,1,3,3]}])"), 10,
       10);
-  check::equal(static_cast<long long>(o.size()), 7,
+  check::equal(static_cast<std::int64_t>(o.size()), 7,
                "four and four, one shared");
   bool refused = false;
   try {
@@ -315,7 +319,8 @@ TEST(a_repeated_option_keeps_every_value) {
   const Arguments a = parse_arguments(6, const_cast<char **>(argv),
                                       {"--exclude"}, {"--exclude"});
   check::is_true(a.ok, "parsed");
-  check::equal(static_cast<long long>(a.values("--exclude").size()), 2, "both");
+  check::equal(static_cast<std::int64_t>(a.values("--exclude").size()), 2,
+               "both");
   check::is_true(a.values("--exclude")[0] == "6:600:800" &&
                      a.values("--exclude")[1] == "0:550-700",
                  "in order");
@@ -338,7 +343,7 @@ TEST(the_crystal_over_its_scan_is_sampled_by_angle_over_all_of_it) {
   for (int k = 0; k < 37; ++k) // control points, a cell growing 1% over 360
     c.A_points.push_back(Mat3::identity() * (0.0125 / (1.0 + 0.01 * k / 36.0)));
   const std::vector<ScanSample> s = crystal_over_scan(c, scan);
-  check::equal(static_cast<long long>(s.size()), 361,
+  check::equal(static_cast<std::int64_t>(s.size()), 361,
                "a sample a degree, both ends");
   check::close(s.front().angle, 0.0, 1e-9, "from the scan's start");
   check::close(s.back().angle, 360.0, 1e-9, "to its end");
@@ -350,7 +355,7 @@ TEST(the_crystal_over_its_scan_is_sampled_by_angle_over_all_of_it) {
   f.A_points.assign(3601, Mat3::identity() * 0.0125);
   f.A_points_are_samples = true;
   const std::vector<ScanSample> g = crystal_over_scan(f, scan, 10.0);
-  check::equal(static_cast<long long>(g.size()), 37, "every ten degrees");
+  check::equal(static_cast<std::int64_t>(g.size()), 37, "every ten degrees");
   check::close(g[18].angle, 180.0, 1e-9, "the middle at 180");
 }
 
@@ -362,19 +367,21 @@ TEST(the_threads_are_the_cores_this_process_may_use_or_what_j_says) {
   cpu_set_t set;
   CPU_ZERO(&set);
   check::is_true(sched_getaffinity(0, sizeof set, &set) == 0, "affinity read");
-  check::equal(static_cast<long long>(available_cores()),
-               static_cast<long long>(CPU_COUNT(&set)),
+  check::equal(static_cast<std::int64_t>(available_cores()),
+               static_cast<std::int64_t>(CPU_COUNT(&set)),
                "the cores this process may use, not the machine's");
 #endif
   set_parallel_threads(0);
-  check::equal(static_cast<long long>(parallel_threads()),
-               static_cast<long long>(available_cores()), "0: all of them");
+  check::equal(static_cast<std::int64_t>(parallel_threads()),
+               static_cast<std::int64_t>(available_cores()), "0: all of them");
   set_parallel_threads(3);
-  check::equal(static_cast<long long>(parallel_threads()), 3LL, "-j 3: three");
+  check::equal(static_cast<std::int64_t>(parallel_threads()), std::int64_t{3},
+               "-j 3: three");
   const char *argv[] = {"prog", "--threads", "2", "file"};
   const Arguments a =
       parse_arguments(4, const_cast<char **>(argv), {}, {}); // knows neither
   check::is_true(a.ok && a.positional.size() == 1, "taken by any command");
-  check::equal(static_cast<long long>(parallel_threads()), 2LL, "and set");
+  check::equal(static_cast<std::int64_t>(parallel_threads()), std::int64_t{2},
+               "and set");
   set_parallel_threads(0);
 }

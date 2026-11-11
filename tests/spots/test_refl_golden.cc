@@ -11,6 +11,7 @@
 // -- then this test should be changed to decode both and compare columns,
 // dtypes and shoebox contents. It must not be weakened to pass.
 
+#include <cstdint>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -111,13 +112,13 @@ int run() {
   // The size and a cheap checksum, which between them catch a changed field,
   // a changed dtype and a changed order without carrying a megabyte of hex in
   // the source.
-  std::size_t checksum = 1469598103934665603ULL;
+  std::size_t checksum = std::uint64_t{1469598103934665603u};
   for (unsigned char c : bytes) {
     checksum ^= c;
-    checksum *= 1099511628211ULL;
+    checksum *= std::uint64_t{1099511628211u};
   }
-  const std::size_t expected_size = 2026UL;
-  const std::size_t expected_checksum = 11545107909170840019UL;
+  const std::size_t expected_size = std::uint64_t{2026u};
+  const std::size_t expected_checksum = std::uint64_t{11545107909170840019u};
   check(bytes.size() == expected_size,
         "size is " + std::to_string(bytes.size()) + ", was " +
             std::to_string(expected_size));
@@ -135,6 +136,6 @@ int run() {
 // In mxi_tests: every check above, through the file's own count of
 // failures, which must be none.
 TEST(spots_table_golden) {
-  check::equal(static_cast<long long>(run()), 0LL,
+  check::equal(static_cast<std::int64_t>(run()), std::int64_t{0},
                "test_refl_golden: its checks");
 }

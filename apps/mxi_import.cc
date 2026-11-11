@@ -2,7 +2,9 @@
 // dials.import writes it, so that the chain needs nothing of DIALS's. What the
 // file gets wrong or leaves out, the overrides say.
 
+#include <cinttypes>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <set>
 #include <stdexcept>
@@ -86,13 +88,15 @@ void describe(const std::string &master, const mxi::json::Value &expt,
     nx /= nn, ny /= nn, nz /= nn;
     const double d = ox * nx + oy * ny + oz * nz;
     // Where the beam, along -z, meets the plane: t (0,0,-1).n = d.
-    std::printf("  panel %s: %lld x %lld pixels of %.4f x %.4f mm, %s %.3f "
+    std::printf("  panel %s: %" PRId64 " x %" PRId64
+                " pixels of %.4f x %.4f mm, %s %.3f "
                 "mm thick, mu %.4f/mm\n",
                 p.at("name").as_string().c_str(),
-                static_cast<long long>(a("image_size", 0)),
-                static_cast<long long>(a("image_size", 1)), a("pixel_size", 0),
-                a("pixel_size", 1), p.at("material").as_string().c_str(),
-                num(p.at("thickness")), num(p.at("mu")));
+                static_cast<std::int64_t>(a("image_size", 0)),
+                static_cast<std::int64_t>(a("image_size", 1)),
+                a("pixel_size", 0), a("pixel_size", 1),
+                p.at("material").as_string().c_str(), num(p.at("thickness")),
+                num(p.at("mu")));
     if (std::fabs(nz) > 1e-9) {
       const double t = d / (-nz);
       const double hx = -ox, hy = -oy, hz = -t - oz;
@@ -116,10 +120,11 @@ void describe(const std::string &master, const mxi::json::Value &expt,
   const auto &osc = s.at("properties").as_object().at("oscillation").as_array();
   const auto &range = s.at("image_range").as_array();
   const double width = osc.size() > 1 ? num(osc[1]) - num(osc[0]) : 0.0;
-  std::printf("  scan: images %lld to %lld, from %.4f deg, %.4f deg each, "
+  std::printf("  scan: images %" PRId64 " to %" PRId64
+              ", from %.4f deg, %.4f deg each, "
               "%.1f deg in all\n",
-              static_cast<long long>(num(range[0])),
-              static_cast<long long>(num(range[1])),
+              static_cast<std::int64_t>(num(range[0])),
+              static_cast<std::int64_t>(num(range[1])),
               osc.empty() ? 0.0 : num(osc[0]), width,
               width * (num(range[1]) - num(range[0]) + 1.0));
   for (const std::string &n : notes)
@@ -141,8 +146,8 @@ mxi::json::Value split_sweeps(const mxi::json::Value &doc, std::size_t n) {
     const json::Value &scan = doc["scan"].as_array().at(si);
     const json::Value &set = doc["imageset"].as_array().at(ii);
     const json::Array &range = scan["image_range"].as_array();
-    const auto first = static_cast<long long>(range.at(0).as_number());
-    const auto last = static_cast<long long>(range.at(1).as_number());
+    const auto first = static_cast<std::int64_t>(range.at(0).as_number());
+    const auto last = static_cast<std::int64_t>(range.at(1).as_number());
     const auto count = static_cast<std::size_t>(last - first + 1);
     if (n > count)
       throw std::runtime_error("--split " + std::to_string(n) +
@@ -153,30 +158,32 @@ mxi::json::Value split_sweeps(const mxi::json::Value &doc, std::size_t n) {
       if (!v.is_array() || v.as_array().size() != count)
         return v;
       const json::Array &a = v.as_array();
-      return json::Value(json::Array(a.begin() + static_cast<long>(from),
-                                     a.begin() + static_cast<long>(to)));
+      return json::Value(
+          json::Array(a.begin() + static_cast<std::int64_t>(from),
+                      a.begin() + static_cast<std::int64_t>(to)));
     };
     for (std::size_t k = 0; k < n; ++k) {
       const std::size_t from = count * k / n, to = count * (k + 1) / n;
       json::Object sc = scan.as_object();
-      sc["image_range"] = json::Value(json::Array{
-          json::Value(static_cast<long>(first + static_cast<long long>(from))),
-          json::Value(
-              static_cast<long>(first + static_cast<long long>(to) - 1))});
+      sc["image_range"] = json::Value(
+          json::Array{json::Value(static_cast<std::int64_t>(
+                          first + static_cast<std::int64_t>(from))),
+                      json::Value(static_cast<std::int64_t>(
+                          first + static_cast<std::int64_t>(to) - 1))});
       if (scan["properties"].is_object()) {
         json::Object props;
         for (const auto &[key, value] : scan["properties"].as_object())
           props[key] = slice(value, from, to);
         sc["properties"] = json::Value(std::move(props));
       }
-      sc["batch_offset"] = json::Value(0L);
+      sc["batch_offset"] = json::Value(std::int64_t{0});
       sc["valid_image_ranges"] = json::Value(json::Object{});
       json::Object is = set.as_object();
       if (set["single_file_indices"].is_array())
         is["single_file_indices"] = slice(set["single_file_indices"], from, to);
       json::Object x = e.as_object();
-      x["scan"] = json::Value(static_cast<long>(scans.size()));
-      x["imageset"] = json::Value(static_cast<long>(imagesets.size()));
+      x["scan"] = json::Value(static_cast<std::int64_t>(scans.size()));
+      x["imageset"] = json::Value(static_cast<std::int64_t>(imagesets.size()));
       x["identifier"] = json::Value(new_identifier());
       scans.push_back(json::Value(std::move(sc)));
       imagesets.push_back(json::Value(std::move(is)));
@@ -252,8 +259,9 @@ int mxi_import_main(int argc, char **argv) {
         std::printf("Split into %zu sweeps:", scans.size());
         for (std::size_t k = 0; k < scans.size() && k < 6; ++k) {
           const json::Array &r = scans[k]["image_range"].as_array();
-          std::printf(" %lld-%lld", static_cast<long long>(r.at(0).as_number()),
-                      static_cast<long long>(r.at(1).as_number()));
+          std::printf(" %" PRId64 "-%" PRId64,
+                      static_cast<std::int64_t>(r.at(0).as_number()),
+                      static_cast<std::int64_t>(r.at(1).as_number()));
         }
         std::printf("%s\n", scans.size() > 6 ? " ..." : "");
       }
@@ -269,8 +277,10 @@ int mxi_import_main(int argc, char **argv) {
         const GeometryFigures g = geometry_figures(e);
         c_file.push_back(json::Value(
             i < args.positional.size() ? args.positional[i] : std::string()));
-        c_first.push_back(json::Value(static_cast<long>(e.scan.first_image)));
-        c_last.push_back(json::Value(static_cast<long>(e.scan.last_image)));
+        c_first.push_back(
+            json::Value(static_cast<std::int64_t>(e.scan.first_image)));
+        c_last.push_back(
+            json::Value(static_cast<std::int64_t>(e.scan.last_image)));
         c_start.push_back(json::Value(e.scan.osc_start));
         c_width.push_back(json::Value(e.scan.osc_width));
         c_wavelength.push_back(json::Value(g.wavelength));

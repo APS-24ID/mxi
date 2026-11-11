@@ -3,6 +3,7 @@
 // I23's in I432 is.
 
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <random>
 #include <set>
@@ -79,20 +80,21 @@ P1Intensities planted(const Rotation &twist, unsigned seed) {
 TEST(cosym_brings_planted_data_sets_to_one_setting) {
   const std::vector<Rotation> lattice =
       lattice_symmetry(UnitCell{50, 50, 50, 90, 90, 90});
-  check::equal(static_cast<long long>(lattice.size()), 24,
+  check::equal(static_cast<std::int64_t>(lattice.size()), 24,
                "P432's 24 rotations");
   const Rotation identity{1, 0, 0, 0, 1, 0, 0, 0, 1};
   const Rotation four{0, -1, 0, 1, 0, 0, 0, 0, 1}; // about c: not in P23
   const std::vector<P1Intensities> sets = {
       planted(identity, 1), planted(four, 2), planted(identity, 3)};
   const CosymResult r = cosym(sets, lattice);
-  check::equal(static_cast<long long>(r.chosen.size()), 3, "one choice a set");
-  check::equal(static_cast<long long>(r.chosen[0]), 0,
+  check::equal(static_cast<std::int64_t>(r.chosen.size()), 3,
+               "one choice a set");
+  check::equal(static_cast<std::int64_t>(r.chosen[0]), 0,
                "the reference as it is");
   check::is_true(r.cc[1] > 0.95,
                  "the twisted set, reindexed, one with the first: " +
                      std::to_string(r.cc[1]));
-  check::equal(static_cast<long long>(r.chosen[2]), 0,
+  check::equal(static_cast<std::int64_t>(r.chosen[2]), 0,
                "a set in the reference's setting left as it is");
   check::is_true(r.cc[2] > 0.95, "and one with the first");
   // Not by luck: unreindexed, the twisted set agrees far less -- only where

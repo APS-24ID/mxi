@@ -14,6 +14,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "../src/geometry.hh"
@@ -436,7 +437,7 @@ TEST(predict_indices_agrees_with_the_full_enumeration) {
 TEST(a_crystal_free_experiment_predicts_nothing) {
   Experiment e = insulin();
   e.crystal.reset();
-  check::equal(static_cast<long long>(predict(e).size()), 0,
+  check::equal(static_cast<std::int64_t>(predict(e).size()), 0,
                "no crystal, no predictions");
 }
 

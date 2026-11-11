@@ -1,6 +1,7 @@
 #include "summary_cut.hh"
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <set>
 #include <string>
@@ -11,10 +12,10 @@ namespace {
 
 // Each experiment's sweep: its image set, numbered in the order image sets
 // first appear among the experiments (counted over those marked).
-std::vector<long> sweeps_of(const json::Value &document,
-                            const std::vector<bool> *only) {
-  std::vector<long> out;
-  std::map<long, long> seen;
+std::vector<std::int64_t> sweeps_of(const json::Value &document,
+                                    const std::vector<bool> *only) {
+  std::vector<std::int64_t> out;
+  std::map<std::int64_t, std::int64_t> seen;
   const json::Value &all = document["experiment"];
   for (std::size_t i = 0; i < all.size(); ++i) {
     const json::Value &set = all[i]["imageset"];
@@ -22,8 +23,9 @@ std::vector<long> sweeps_of(const json::Value &document,
       out.push_back(-1);
       continue;
     }
-    const long key = static_cast<long>(set.as_number());
-    auto [at, fresh] = seen.emplace(key, static_cast<long>(seen.size()));
+    const std::int64_t key = static_cast<std::int64_t>(set.as_number());
+    auto [at, fresh] =
+        seen.emplace(key, static_cast<std::int64_t>(seen.size()));
     (void)fresh;
     out.push_back(at->second);
   }
@@ -34,15 +36,15 @@ bool is_table(const json::Value &v) {
   return v.is_object() && v["columns"].is_array();
 }
 
-long number_of(const json::Value &v) {
-  return v.is_number() ? static_cast<long>(v.as_number()) : -1;
+std::int64_t number_of(const json::Value &v) {
+  return v.is_number() ? static_cast<std::int64_t>(v.as_number()) : -1;
 }
 
 // A table's rows where keep(row) is true; column `renumber`, if named,
 // mapped through `to`.
 json::Value rows_of(const json::Value &table, const std::vector<bool> &keep,
                     const std::string &renumber,
-                    const std::map<long, long> &to) {
+                    const std::map<std::int64_t, std::int64_t> &to) {
   json::Object out;
   out["columns"] = table["columns"];
   for (const json::Value &name : table["columns"].as_array()) {
@@ -67,25 +69,25 @@ json::Value cut_summary(const json::Value &summary, const json::Value &document,
                         const std::vector<bool> &keep, const json::Value *own) {
   // Old to new: experiments by rank among those kept; sweeps by first
   // appearance among them.
-  const std::vector<long> parent_sweep = sweeps_of(document, nullptr);
-  const std::vector<long> kept_sweep = sweeps_of(document, &keep);
-  std::map<long, long> experiment, sweep;
-  long n = 0;
+  const std::vector<std::int64_t> parent_sweep = sweeps_of(document, nullptr);
+  const std::vector<std::int64_t> kept_sweep = sweeps_of(document, &keep);
+  std::map<std::int64_t, std::int64_t> experiment, sweep;
+  std::int64_t n = 0;
   for (std::size_t i = 0; i < keep.size(); ++i)
     if (keep[i]) {
-      experiment[static_cast<long>(i)] = n++;
+      experiment[static_cast<std::int64_t>(i)] = n++;
       if (i < parent_sweep.size() && parent_sweep[i] >= 0)
         sweep[parent_sweep[i]] = kept_sweep[i];
     }
-  long parent_sweeps = 0;
-  for (long s : parent_sweep)
+  std::int64_t parent_sweeps = 0;
+  for (std::int64_t s : parent_sweep)
     parent_sweeps = std::max(parent_sweeps, s + 1);
   // A list aligned to the parent's sweeps, its entries those kept, in the
   // new order.
   const auto by_position = [&](const json::Array &list) {
     std::vector<json::Value> placed(sweep.size());
     for (const auto &[from, to] : sweep)
-      if (from < static_cast<long>(list.size()))
+      if (from < static_cast<std::int64_t>(list.size()))
         placed[static_cast<std::size_t>(to)] =
             list[static_cast<std::size_t>(from)];
     return json::Value(json::Array(placed.begin(), placed.end()));
@@ -134,12 +136,12 @@ json::Value cut_summary(const json::Value &summary, const json::Value &document,
         for (const json::Value &entry : value.as_array()) {
           json::Object e = entry.as_object();
           if (entry.contains("sweep")) {
-            const long s = number_of(entry["sweep"]);
+            const std::int64_t s = number_of(entry["sweep"]);
             if (!sweep.count(s))
               continue;
             e["sweep"] = json::Value(sweep.at(s));
           } else if (entry.contains("experiment")) {
-            const long x = number_of(entry["experiment"]);
+            const std::int64_t x = number_of(entry["experiment"]);
             if (!experiment.count(x))
               continue;
             e["experiment"] = json::Value(experiment.at(x));
@@ -165,7 +167,7 @@ json::Value cut_summary(const json::Value &summary, const json::Value &document,
         const json::Value &column = out["each_sweep"][total];
         if (!column.is_array())
           continue;
-        long sum = 0;
+        std::int64_t sum = 0;
         for (const json::Value &v : column.as_array())
           sum += number_of(v) > 0 ? number_of(v) : 0;
         out[total] = json::Value(sum);

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "../src/mask.hh"
@@ -299,7 +300,7 @@ TEST(the_scan_is_divided_as_well_as_the_detector) {
   panel.image_size[0] = 900;
   panel.image_size[1] = 900;
   ReferenceProfiles reference = make_reference(spec, 1, 4, 1, 0.0, 400.0);
-  check::equal(static_cast<long long>(reference.region_count()), 4,
+  check::equal(static_cast<std::int64_t>(reference.region_count()), 4,
                "one detector region, four scan blocks");
 
   // A different profile in the first block and the last.
@@ -629,8 +630,8 @@ TEST(the_fast_profile_on_pixels_is_the_direct_one) {
         profile_on_pixels(e, box, v[i].s1, v[i].phi, g, reference);
     const std::vector<double> direct =
         profile_on_pixels_direct(e, box, v[i].s1, v[i].phi, g, reference);
-    check::equal(static_cast<long long>(fast.size()),
-                 static_cast<long long>(direct.size()),
+    check::equal(static_cast<std::int64_t>(fast.size()),
+                 static_cast<std::int64_t>(direct.size()),
                  "the same number of voxels");
     for (std::size_t k = 0; k < fast.size(); ++k) {
       worst = std::max(worst, std::fabs(fast[k] - direct[k]));

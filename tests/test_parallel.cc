@@ -1,6 +1,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -57,7 +58,7 @@ TEST(parallel_work_started_inside_a_block_runs_serially) {
     for_each_block(8, [&](std::size_t) { count.fetch_add(1); });
   });
   set_parallel_threads(0);
-  check::equal(static_cast<long long>(count.load()), 64,
+  check::equal(static_cast<std::int64_t>(count.load()), 64,
                "eight inner blocks in each of eight");
 }
 
@@ -76,7 +77,7 @@ TEST(an_exception_in_a_block_reaches_the_caller_and_the_pool_carries_on) {
   for_each_block(64, [&](std::size_t) { after.fetch_add(1); });
   set_parallel_threads(0);
   check::is_true(caught, "the caller gets the exception");
-  check::equal(static_cast<long long>(after.load()), 64,
+  check::equal(static_cast<std::int64_t>(after.load()), 64,
                "and the pool works after it");
 }
 
@@ -95,17 +96,17 @@ TEST(parallel_work_started_inside_a_block_finishes_whichever_thread_runs_it) {
   set_parallel_threads(4);
   const std::thread::id caller = std::this_thread::get_id();
   std::atomic<int> by_caller{0};
-  std::vector<long long> sums(16, 0);
+  std::vector<std::int64_t> sums(16, 0);
   for_each_index(16, [&](std::size_t i) {
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
     if (std::this_thread::get_id() == caller)
       by_caller.fetch_add(1);
-    std::vector<long long> inner(8, 0);
+    std::vector<std::int64_t> inner(8, 0);
     for_each_index(8, [&](std::size_t j) {
-      inner[j] = static_cast<long long>(i * 8 + j);
+      inner[j] = static_cast<std::int64_t>(i * 8 + j);
     });
-    long long s = 0;
-    for (long long v : inner)
+    std::int64_t s = 0;
+    for (std::int64_t v : inner)
       s += v;
     sums[i] = s;
   });
@@ -113,7 +114,7 @@ TEST(parallel_work_started_inside_a_block_finishes_whichever_thread_runs_it) {
   check::is_true(by_caller.load() > 0,
                  "the caller took a block with nested work");
   for (std::size_t i = 0; i < 16; ++i)
-    check::equal(sums[i], static_cast<long long>(64 * i + 28),
+    check::equal(sums[i], static_cast<std::int64_t>(64 * i + 28),
                  "each block's own sum");
 }
 

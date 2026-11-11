@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <stdexcept>
 #include <tuple>
@@ -168,8 +169,8 @@ VerifyResult verify_lattice(const ExperimentList &experiments, std::size_t id,
     ++shell.predicted;
     ++result.all.predicted;
     if (mask && p.panel == 0) {
-      const long x = static_cast<long>(std::floor(p.px_fast));
-      const long y = static_cast<long>(std::floor(p.px_slow));
+      const std::int64_t x = static_cast<std::int64_t>(std::floor(p.px_fast));
+      const std::int64_t y = static_cast<std::int64_t>(std::floor(p.px_slow));
       const std::size_t at = static_cast<std::size_t>(y) * mask_width +
                              static_cast<std::size_t>(x);
       if (x < 0 || y < 0 || static_cast<std::size_t>(x) >= mask_width ||

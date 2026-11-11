@@ -20,6 +20,7 @@
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <cstdint>
 #include <cstdio>
 #include <deque>
 #include <exception>
@@ -74,7 +75,7 @@ void add_overlap_count(Summary &step, const Table &t) {
   if (!t.has("profile.fitted_together"))
     return;
   const Column &c = t.at("profile.fitted_together");
-  long n = 0;
+  std::int64_t n = 0;
   for (std::size_t r = 0; r < t.nrows; ++r)
     n += c.integer(r) != 0 ? 1 : 0;
   step.set("fitted_together", json::Value(n));
@@ -86,16 +87,16 @@ void add_integration_tables(Summary &step, const IntegrationSummary &in) {
     for (const SummaryRow *r : rows) {
       c[0].push_back(json::Value(r->d_max));
       c[1].push_back(json::Value(r->d_min));
-      c[2].push_back(json::Value(static_cast<long>(r->full)));
-      c[3].push_back(json::Value(static_cast<long>(r->partial)));
-      c[4].push_back(json::Value(static_cast<long>(r->summed)));
-      c[5].push_back(json::Value(static_cast<long>(r->fitted)));
+      c[2].push_back(json::Value(static_cast<std::int64_t>(r->full)));
+      c[3].push_back(json::Value(static_cast<std::int64_t>(r->partial)));
+      c[4].push_back(json::Value(static_cast<std::int64_t>(r->summed)));
+      c[5].push_back(json::Value(static_cast<std::int64_t>(r->fitted)));
       c[6].push_back(json::Value(r->background));
       c[7].push_back(json::Value(r->isigma_sum));
       c[8].push_back(json::Value(r->isigma_prf));
       c[9].push_back(json::Value(r->cc_prf));
       c[10].push_back(json::Value(r->rmsd_xy));
-      c[11].push_back(json::Value(static_cast<long>(r->n)));
+      c[11].push_back(json::Value(static_cast<std::int64_t>(r->n)));
     }
     return c;
   };
@@ -158,7 +159,7 @@ json::Value joined_summary(const std::string &input, const Table &joined,
                            const std::vector<Table> &runs_tables) {
   const std::size_t runs = runs_tables.size();
   Summary step("mxi_integrate", input);
-  step.set("runs", json::Value(static_cast<long>(runs)));
+  step.set("runs", json::Value(static_cast<std::int64_t>(runs)));
   // Each sweep's own summaries, as its run printed them, beside all
   // together's (Graeme: four runs, one graph).
   {
@@ -171,13 +172,13 @@ json::Value joined_summary(const std::string &input, const Table &joined,
         json::Object own = Summary::steps(doc).back().as_object();
         own.erase("program");
         own.erase("time");
-        own["sweep"] = json::Value(static_cast<long>(k));
+        own["sweep"] = json::Value(static_cast<std::int64_t>(k));
         each.push_back(json::Value(std::move(own)));
       }
     }
     step.set("each_sweep", json::Value(std::move(each)));
   }
-  step.set("reflections", json::Value(static_cast<long>(joined.nrows)));
+  step.set("reflections", json::Value(static_cast<std::int64_t>(joined.nrows)));
   if (const auto s = summarise_table(joined)) {
     std::printf("\n=== All %zu together ===\n", runs);
     print_summary(stdout, *s);
@@ -576,15 +577,15 @@ int integrate_sweeps(const Arguments &args, const char *program,
   try {
     // The sweeps: experiments on one image set and one scan, in the order
     // first met.
-    std::vector<std::pair<long long, long long>> keys;
+    std::vector<std::pair<std::int64_t, std::int64_t>> keys;
     std::vector<std::vector<std::size_t>> groups;
     for (std::size_t i = 0; i < n; ++i) {
       const json::Value &set = experiments[i]["imageset"];
       const json::Value &scan = experiments[i]["scan"];
-      const long long own = -1 - static_cast<long long>(i);
-      const std::pair<long long, long long> key{
-          set.is_number() ? static_cast<long long>(set.as_number()) : own,
-          scan.is_number() ? static_cast<long long>(scan.as_number()) : own};
+      const std::int64_t own = -1 - static_cast<std::int64_t>(i);
+      const std::pair<std::int64_t, std::int64_t> key{
+          set.is_number() ? static_cast<std::int64_t>(set.as_number()) : own,
+          scan.is_number() ? static_cast<std::int64_t>(scan.as_number()) : own};
       std::size_t g = 0;
       while (g < keys.size() && keys[g] != key)
         ++g;
@@ -630,9 +631,9 @@ int integrate_sweeps(const Arguments &args, const char *program,
       if (has_refl) {
         const Column &id = indexed.at("id");
         std::vector<std::size_t> rows;
-        std::vector<long> renumber(n, -1);
+        std::vector<std::int64_t> renumber(n, -1);
         for (std::size_t k = 0; k < members.size(); ++k)
-          renumber[members[k]] = static_cast<long>(k);
+          renumber[members[k]] = static_cast<std::int64_t>(k);
         for (std::size_t r = 0; r < indexed.nrows; ++r) {
           const std::int64_t i = id.integer(r);
           if (i >= 0 && static_cast<std::size_t>(i) < n &&
@@ -843,16 +844,17 @@ int integrate_several(const Arguments &args, const char *program,
     // Same images: the same image set and the same scan -- a sweep split in
     // two shares its image set and not its scan, and its halves are not each
     // other's neighbours.
-    std::map<std::pair<long long, long long>, std::vector<std::size_t>>
+    std::map<std::pair<std::int64_t, std::int64_t>, std::vector<std::size_t>>
         on_imageset;
     for (std::size_t i = 0; i < n; ++i) {
       const json::Value &set = experiments[i]["imageset"];
       const json::Value &scan = experiments[i]["scan"];
-      const long long own = -1 - static_cast<long long>(i);
-      on_imageset[{set.is_number() ? static_cast<long long>(set.as_number())
+      const std::int64_t own = -1 - static_cast<std::int64_t>(i);
+      on_imageset[{set.is_number() ? static_cast<std::int64_t>(set.as_number())
                                    : own,
-                   scan.is_number() ? static_cast<long long>(scan.as_number())
-                                    : own}]
+                   scan.is_number()
+                       ? static_cast<std::int64_t>(scan.as_number())
+                       : own}]
           .push_back(i);
     }
     std::vector<json::Value> profiled(n);
@@ -3379,7 +3381,7 @@ int run_integrate(int argc, char **argv) {
       {
         std::vector<json::Value> l_n, l_b, l_m, l_sigma;
         for (std::size_t l = 0; l < n_lattices; ++l) {
-          l_n.push_back(json::Value(static_cast<long>(l + 1)));
+          l_n.push_back(json::Value(static_cast<std::int64_t>(l + 1)));
           l_b.push_back(json::Value(lattice_masks[l].sigma_d));
           l_m.push_back(json::Value(lattice_masks[l].sigma_m));
           l_sigma.push_back(json::Value(lattice_masks[l].n_sigma));
@@ -3389,7 +3391,7 @@ int run_integrate(int argc, char **argv) {
             {"lattice", "sigma_b_deg", "sigma_m_deg", "foreground_sigma"},
             {l_n, l_b, l_m, l_sigma});
         processing.set("reflections",
-                       json::Value(static_cast<long>(planned.size())));
+                       json::Value(static_cast<std::int64_t>(planned.size())));
         if (integration_summary)
           add_integration_tables(processing, *integration_summary);
         add_overlap_count(processing, out);

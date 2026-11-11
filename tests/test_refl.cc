@@ -1,6 +1,7 @@
 // The reflection table reader and writer, at the level of bytes.
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <string>
@@ -52,8 +53,8 @@ TEST(a_table_survives_a_read_and_a_write_byte_for_byte) {
   const std::string a = slurp(first);
   const std::string b = slurp(second);
   check::is_true(!a.empty(), "something was written");
-  check::equal(static_cast<long long>(b.size()),
-               static_cast<long long>(a.size()),
+  check::equal(static_cast<std::int64_t>(b.size()),
+               static_cast<std::int64_t>(a.size()),
                "same size after a round trip");
   check::is_true(a == b, "byte for byte identical after a round trip");
   std::remove(first.c_str());
@@ -94,7 +95,8 @@ TEST(a_column_too_large_for_msgpack_is_refused_rather_than_truncated) {
     // 4 GB plus one byte. A machine without the memory cannot run this, and
     // it is SKIPPED: it used to assert true and report "ok" for a check that
     // was never made.
-    big.bytes.assign(static_cast<std::size_t>(0xFFFFFFFFull) + 1, '\0');
+    big.bytes.assign(static_cast<std::size_t>(std::uint64_t{0xFFFFFFFFu}) + 1,
+                     '\0');
   } catch (const std::bad_alloc &) {
     check::skip("not enough memory for a four gigabyte column");
   }
@@ -140,17 +142,17 @@ TEST(a_saved_shoebox_follows_dials_mask_convention) {
       shoebox_mask::kBackground, // and a background one
   };
   to_dials_convention(&box);
-  check::equal(
-      static_cast<long long>(box.mask[0]),
-      static_cast<long long>(shoebox_mask::kValid | shoebox_mask::kForeground),
-      "a measured foreground voxel is left alone");
-  check::equal(
-      static_cast<long long>(box.mask[1]),
-      static_cast<long long>(shoebox_mask::kValid | shoebox_mask::kBackground),
-      "and so is a measured background one");
-  check::equal(static_cast<long long>(box.mask[2]), 0,
+  check::equal(static_cast<std::int64_t>(box.mask[0]),
+               static_cast<std::int64_t>(shoebox_mask::kValid |
+                                         shoebox_mask::kForeground),
+               "a measured foreground voxel is left alone");
+  check::equal(static_cast<std::int64_t>(box.mask[1]),
+               static_cast<std::int64_t>(shoebox_mask::kValid |
+                                         shoebox_mask::kBackground),
+               "and so is a measured background one");
+  check::equal(static_cast<std::int64_t>(box.mask[2]), 0,
                "an unmeasured foreground voxel is zero, not Foreground alone");
-  check::equal(static_cast<long long>(box.mask[3]), 0,
+  check::equal(static_cast<std::int64_t>(box.mask[3]), 0,
                "and an unmeasured background voxel likewise");
   for (std::uint8_t m : box.mask) {
     const bool region =
@@ -166,7 +168,7 @@ TEST(the_msgpack_size_rule_holds_at_its_exact_boundary) {
   // cannot. msgpack's bin32 length is four bytes: 2^32 - 1 is the largest.
   bool largest_refused = false;
   try {
-    check_blob_size(0xFFFFFFFFull);
+    check_blob_size(std::uint64_t{0xFFFFFFFFu});
   } catch (const ReflError &) {
     largest_refused = true;
   }
@@ -176,7 +178,7 @@ TEST(the_msgpack_size_rule_holds_at_its_exact_boundary) {
   bool over_refused = false;
   std::string said;
   try {
-    check_blob_size(0xFFFFFFFFull + 1);
+    check_blob_size(std::uint64_t{0xFFFFFFFFu} + 1);
   } catch (const ReflError &error) {
     over_refused = true;
     said = error.what();
@@ -213,10 +215,11 @@ TEST(tables_are_joined_in_order_and_mismatched_columns_refused) {
   };
   const Table joined =
       concat_rows({table({1.0, 2.0}, 0, "a"), table({3.0}, 1, "b")});
-  check::equal(static_cast<long long>(joined.nrows), 3LL, "three rows");
+  check::equal(static_cast<std::int64_t>(joined.nrows), std::int64_t{3},
+               "three rows");
   check::close(joined.at("intensity.sum.value").real(2), 3.0, 0.0, "in order");
-  check::equal(static_cast<long long>(joined.at("id").integer(2)), 1LL,
-               "ids kept");
+  check::equal(static_cast<std::int64_t>(joined.at("id").integer(2)),
+               std::int64_t{1}, "ids kept");
   check::is_true(joined.identifiers.at(0) == "a" &&
                      joined.identifiers.at(1) == "b",
                  "identifiers merged");

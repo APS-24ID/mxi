@@ -3,7 +3,9 @@
 // et al. (2020), with B-splines for the scale and decay; see
 // docs/scaling.md.
 
+#include <cinttypes>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <set>
 #include <string>
@@ -264,10 +266,10 @@ int run_scale(int argc, char **argv) {
       for (std::size_t c = 1; c < t.size(); ++c)
         if (t[c] == '-')
           t[c] = ':';
-      long e = -1, first = 0, last = 0;
+      std::int64_t e = -1, first = 0, last = 0;
       char extra = 0;
-      if (std::sscanf(t.c_str(), "%ld:%ld:%ld%c", &e, &first, &last, &extra) !=
-              3 ||
+      if (std::sscanf(t.c_str(), "%" SCNd64 ":%" SCNd64 ":%" SCNd64 "%c", &e,
+                      &first, &last, &extra) != 3 ||
           e < 0 || first > last)
         throw std::runtime_error("--exclude is EXPERIMENT:FIRST:LAST, as "
                                  "6:600:800 or 6:600-800, not '" +
@@ -294,8 +296,9 @@ int run_scale(int argc, char **argv) {
         which += (which.empty() ? "" : ", ") + std::to_string(w);
       const bool itself =
           named.size() == 1 && named[0] == static_cast<std::size_t>(e);
-      std::printf("Excluding images %ld to %ld of experiment %ld%s%s\n", first,
-                  last, e,
+      std::printf("Excluding images %" PRId64 " to %" PRId64
+                  " of experiment %" PRId64 "%s%s\n",
+                  first, last, e,
                   itself ? ""
                          : (named.size() == 1 ? ", its sweep's lattice "
                                               : ", its sweep's lattices "),
@@ -638,7 +641,7 @@ int run_scale(int argc, char **argv) {
                   : 0.0));
         }
         json::Object out;
-        out["n_parameters"] = json::Value(static_cast<long>(count));
+        out["n_parameters"] = json::Value(static_cast<std::int64_t>(count));
         out["parameters"] = json::Value(std::move(values));
         out["est_standard_devs"] = json::Value(std::move(esds));
         return json::Value(std::move(out));
@@ -648,7 +651,8 @@ int run_scale(int argc, char **argv) {
       error["b"] = json::Value(run.error_model.b);
       error["a_background"] = json::Value(
           run.error_model.split ? run.error_model.a_bg : run.error_model.a);
-      error["split"] = json::Value(run.error_model.split ? 1L : 0L);
+      error["split"] = json::Value(run.error_model.split ? std::int64_t{1}
+                                                         : std::int64_t{0});
       error["formula"] = json::Value(std::string(
           "sigma'^2 = a_background^2 V_background + a^2 (V_signal + V_scale) "
           "+ a^2 b^2 I^2; one a for both when not split"));
@@ -664,7 +668,8 @@ int run_scale(int argc, char **argv) {
         m["decay"] = block(run.model.first_decay(w), shape.decay_points);
         json::Value abs =
             block(run.model.first_absorption(w), harmonic_count(shape.lmax));
-        abs.as_object()["lmax"] = json::Value(static_cast<long>(shape.lmax));
+        abs.as_object()["lmax"] =
+            json::Value(static_cast<std::int64_t>(shape.lmax));
         m["absorption"] = std::move(abs);
         m["error_model"] = json::Value(error);
         json::Object how;
@@ -692,7 +697,7 @@ int run_scale(int argc, char **argv) {
             w < views.position.size() ? views.position[w] : w;
         if (at < exps.size())
           exps[at].as_object()["scaling_model"] =
-              json::Value(static_cast<long>(models.size()));
+              json::Value(static_cast<std::int64_t>(models.size()));
         models.push_back(json::Value(std::move(m)));
       }
       document.as_object()["scaling_model"] = json::Value(std::move(models));
@@ -710,7 +715,7 @@ int run_scale(int argc, char **argv) {
       for (const CalibrationRow &r : *rows) {
         c_lo.push_back(json::Value(r.lo));
         c_hi.push_back(json::Value(r.hi));
-        c_n.push_back(json::Value(static_cast<long>(r.n)));
+        c_n.push_back(json::Value(static_cast<std::int64_t>(r.n)));
         c_rm.push_back(json::Value(r.raw_ms));
         c_rr.push_back(json::Value(r.raw_robust));
         c_fm.push_back(json::Value(r.final_ms));
@@ -747,7 +752,7 @@ int run_scale(int argc, char **argv) {
         summary.set("two_theta_cell", json::Value(std::move(cell)));
         summary.set("two_theta_cell_esd", json::Value(std::move(esd)));
         summary.set("two_theta_reflections",
-                    json::Value(static_cast<long>(tt.reflections)));
+                    json::Value(static_cast<std::int64_t>(tt.reflections)));
         summary.set("two_theta_rmsd_deg", json::Value(tt.rmsd_deg));
         summary.set("two_theta_system",
                     json::Value(std::string(name_of(tt.system))));
@@ -767,10 +772,11 @@ int run_scale(int argc, char **argv) {
       if (run.error_model.split)
         summary.set("error_model_a_background",
                     json::Value(run.error_model.a_bg));
-      summary.set("outliers", json::Value(static_cast<long>(run.outliers)));
+      summary.set("outliers",
+                  json::Value(static_cast<std::int64_t>(run.outliers)));
       summary.set("observations",
-                  json::Value(static_cast<long>(all.observations)));
-      summary.set("unique", json::Value(static_cast<long>(all.unique)));
+                  json::Value(static_cast<std::int64_t>(all.observations)));
+      summary.set("unique", json::Value(static_cast<std::int64_t>(all.unique)));
       if (res.d_min_cc_half > 0.0)
         summary.set("resolution_cc_half", json::Value(res.d_min_cc_half));
       if (res.d_min_significance > 0.0)
@@ -787,8 +793,9 @@ int run_scale(int argc, char **argv) {
                                                         : labels[k]));
               c[1].push_back(json::Value(m.d_max));
               c[2].push_back(json::Value(m.d_min));
-              c[3].push_back(json::Value(static_cast<long>(m.observations)));
-              c[4].push_back(json::Value(static_cast<long>(m.unique)));
+              c[3].push_back(
+                  json::Value(static_cast<std::int64_t>(m.observations)));
+              c[4].push_back(json::Value(static_cast<std::int64_t>(m.unique)));
               c[5].push_back(json::Value(m.multiplicity));
               c[6].push_back(json::Value(100.0 * m.completeness));
               c[7].push_back(json::Value(m.mean_i));

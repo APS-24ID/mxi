@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdint>
 #include <set>
 
 #include "../src/symmetry.hh"
@@ -12,7 +13,7 @@ TEST(every_equivalent_of_a_reflection_in_m3_is_one_reflection) {
   // inversion. All 24 images of (1, 2, 3) are one reflection.
   const SpaceGroup g = SpaceGroup::from_name("I 2 3");
   check::is_true(g.laue() == "m-3", "the Laue class is m-3: " + g.laue());
-  check::equal(static_cast<long long>(g.order()), 12,
+  check::equal(static_cast<std::int64_t>(g.order()), 12,
                "12 operations without centring");
   const Miller h{1, 2, 3};
   const Miller u = g.unique(h);
@@ -29,7 +30,7 @@ TEST(every_equivalent_of_a_reflection_in_m3_is_one_reflection) {
       }
     }
   }
-  check::equal(static_cast<long long>(images.size()), 24,
+  check::equal(static_cast<std::int64_t>(images.size()), 24,
                "and there are 24 of them");
   // A non-cyclic permutation is m-3m's symmetry, not m-3's: a different
   // reflection. This is what would catch the wrong Laue class.
@@ -46,7 +47,7 @@ TEST(centring_forbids_reflections_and_p1_pairs_only_friedel_mates) {
                  "h + k + l odd is absent under I centring");
   check::is_true(!g.absent({1, 1, 0}), "and even is not");
   const SpaceGroup p1 = SpaceGroup::from_hall(" P 1");
-  check::equal(static_cast<long long>(p1.number()), 1,
+  check::equal(static_cast<std::int64_t>(p1.number()), 1,
                "an .expt's ' P 1' is P 1");
   check::is_true(p1.unique({1, 2, 3}) == p1.unique({-1, -2, -3}),
                  "Friedel mates merge");
@@ -62,7 +63,7 @@ TEST(a_change_of_basis_takes_the_primitive_cell_to_the_conventional) {
   const ChangeOfBasis cb = ChangeOfBasis::parse("b+c,a+c,a+b");
   check::is_true(cb.apply({1, 2, 3}) == Miller{5, 4, 3}, "(1,2,3) -> (5,4,3)");
   const Miller n = cb.apply({1, 0, 0});
-  check::equal(static_cast<long long>((n[0] + n[1] + n[2]) % 2), 0,
+  check::equal(static_cast<std::int64_t>((n[0] + n[1] + n[2]) % 2), 0,
                "every reindexed index obeys I centring");
   // Its inverse, with fractions, undoes it; and a fractional index is refused.
   const ChangeOfBasis back =

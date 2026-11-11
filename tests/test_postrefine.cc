@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdint>
 #include <limits>
 
 #include "../src/postrefine.hh"
@@ -45,20 +46,21 @@ Table five_integrated() {
 TEST(post_refinement_keeps_the_summed_the_centred_and_the_indexed) {
   const std::vector<std::size_t> rows =
       rows_for_postrefinement(five_integrated());
-  check::equal(static_cast<long long>(rows.size()), 2, "two of the five");
-  check::equal(static_cast<long long>(rows[0]), 0, "the plain one");
-  check::equal(static_cast<long long>(rows[1]), 4, "and the one also fitted");
+  check::equal(static_cast<std::int64_t>(rows.size()), 2, "two of the five");
+  check::equal(static_cast<std::int64_t>(rows[0]), 0, "the plain one");
+  check::equal(static_cast<std::int64_t>(rows[1]), 4,
+               "and the one also fitted");
 }
 
 TEST(selected_rows_carry_every_component_in_order) {
   const Table t = five_integrated();
   const Table s = select_rows(t, {4, 0});
-  check::equal(static_cast<long long>(s.nrows), 2, "two rows");
+  check::equal(static_cast<std::int64_t>(s.nrows), 2, "two rows");
   check::close(s.at("xyzobs.px.value").real(0, 0), 40.0, 0.0, "row 4 first");
   check::close(s.at("xyzobs.px.value").real(0, 2), 42.0, 0.0,
                "all three components");
   check::close(s.at("xyzobs.px.value").real(1, 1), 1.0, 0.0, "then row 0");
-  check::equal(static_cast<long long>(s.at("miller_index").integer(0, 2)), 4,
+  check::equal(static_cast<std::int64_t>(s.at("miller_index").integer(0, 2)), 4,
                "integer columns too");
   bool refused = false;
   try {
@@ -74,15 +76,15 @@ TEST(post_refinement_points_follow_the_rotation) {
   scan.first_image = 1;
   scan.osc_width = 0.1;
   scan.last_image = 300; // 30 degrees: the five the effect was measured with
-  check::equal(static_cast<long long>(postrefinement_points(scan)), 5,
+  check::equal(static_cast<std::int64_t>(postrefinement_points(scan)), 5,
                "30 degrees");
   // One per 10 degrees since 30 September 2026, as mxi_refine --scan-varying:
   // it was one per 36 and two more, 7 and 12 below.
   scan.last_image = 1800; // 180
-  check::equal(static_cast<long long>(postrefinement_points(scan)), 18,
+  check::equal(static_cast<std::int64_t>(postrefinement_points(scan)), 18,
                "180 degrees");
   scan.last_image = 3600; // 360
-  check::equal(static_cast<long long>(postrefinement_points(scan)), 36,
+  check::equal(static_cast<std::int64_t>(postrefinement_points(scan)), 36,
                "360 degrees");
 }
 
@@ -95,7 +97,7 @@ TEST(a_scan_varying_crystal_has_a_control_point_per_ten_degrees) {
     s.first_image = 1;
     s.last_image = images;
     s.osc_width = width;
-    return static_cast<long long>(scan_varying_points(s));
+    return static_cast<std::int64_t>(scan_varying_points(s));
   };
   check::equal(points(3600, 0.1), 36, "a full turn");
   check::equal(points(1800, 0.1), 18, "half a turn");

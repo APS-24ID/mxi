@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <set>
 #include <stdexcept>
@@ -348,11 +349,11 @@ struct Layout {
   // numerical Jacobian that re-evaluated every reflection for each of them
   // would be quadratic in the number of sweeps for no reason: a crystal
   // parameter of sweep two cannot move a reflection of sweep three.
-  long owner(std::size_t p) const {
+  std::int64_t owner(std::size_t p) const {
     if (p < crystal_size()) {
       if (shared_crystal)
         return -1;
-      return static_cast<long>(
+      return static_cast<std::int64_t>(
           std::upper_bound(start_of.begin(), start_of.end(), p) -
           start_of.begin() - 1);
     }
@@ -360,12 +361,12 @@ struct Layout {
     // (-1) if several share it.
     const auto sole = [&](const std::vector<std::size_t> &block,
                           const std::vector<std::size_t> &members,
-                          std::size_t b) -> long {
+                          std::size_t b) -> std::int64_t {
       if (members[b] != 1)
         return -1;
       for (std::size_t e = 0; e < block.size(); ++e)
         if (block[e] == b)
-          return static_cast<long>(e);
+          return static_cast<std::int64_t>(e);
       return -1;
     };
     std::size_t q = p - crystal_size();
@@ -444,7 +445,7 @@ void apply(const ExperimentList &base, const Layout &layout,
 // cannot move another sweep's reflections.
 double residuals_of(const ExperimentList &experiments,
                     const std::vector<TargetRow> &observations,
-                    std::vector<double> *out, long only = -1) {
+                    std::vector<double> *out, std::int64_t only = -1) {
   if (only < 0)
     out->assign(observations.size() * 3, 0.0);
   double total = 0.0;
@@ -881,7 +882,7 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
           std::fill(shift.begin(), shift.end(), 0.0);
           shift[p] = step[p];
           apply(experiments, layout, shift, &trial);
-          const long only = layout.owner(p);
+          const std::int64_t only = layout.owner(p);
           moved = residual;
           residuals_of(trial, observations, &moved, only);
           jacobian[p].resize(moved.size());

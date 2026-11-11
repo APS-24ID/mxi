@@ -1,5 +1,6 @@
 #include "laue.hh"
 
+#include <cstdint>
 #include <gemmi/it92.hpp>
 
 #include "parallel.hh"
@@ -372,8 +373,9 @@ LaueScores score_laue_groups(const P1Intensities &data,
     const std::size_t bin = std::max<std::size_t>(200, data.size() / 500 + 1);
     for (std::size_t s = 0; s + 1 < by_d.size(); s += bin) {
       std::vector<std::size_t> in(
-          by_d.begin() + static_cast<long>(s),
-          by_d.begin() + static_cast<long>(std::min(by_d.size(), s + bin)));
+          by_d.begin() + static_cast<std::int64_t>(s),
+          by_d.begin() +
+              static_cast<std::int64_t>(std::min(by_d.size(), s + bin)));
       std::shuffle(in.begin(), in.end(), rng);
       for (std::size_t k = 0; k + 1 < in.size(); k += 2) {
         a.push_back(data.i[in[k]]);

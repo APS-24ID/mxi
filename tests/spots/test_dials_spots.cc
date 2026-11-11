@@ -11,6 +11,7 @@
 // early; and the two filters dials.find_spots applies by default do what they
 // say.
 
+#include <cinttypes>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -27,11 +28,12 @@ namespace {
 
 int failures = 0;
 
-void check(const std::string &what, unsigned long long actual,
-           unsigned long long expected) {
+void check(const std::string &what, std::uint64_t actual,
+           std::uint64_t expected) {
   if (actual == expected)
     return;
-  std::printf("FAIL %s: %llu, expected %llu\n", what.c_str(), actual, expected);
+  std::printf("FAIL %s: %" PRIu64 ", expected %" PRIu64 "\n", what.c_str(),
+              actual, expected);
   failures++;
 }
 
@@ -452,6 +454,6 @@ int run() {
 // In mxi_tests: every check above, through the file's own count of
 // failures, which must be none.
 TEST(spots_grouping) {
-  check::equal(static_cast<long long>(run()), 0LL,
+  check::equal(static_cast<std::int64_t>(run()), std::int64_t{0},
                "test_dials_spots: its checks");
 }

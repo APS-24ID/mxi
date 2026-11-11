@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <map>
@@ -240,8 +241,9 @@ public:
     }
     layout["xaxis"] = json::Value(std::move(x));
     layout["yaxis"] = json::Value(std::move(y));
-    layout["margin"] = json::Value(json::Object{{"t", json::Value(40L)}});
-    layout["height"] = json::Value(360L);
+    layout["margin"] =
+        json::Value(json::Object{{"t", json::Value(std::int64_t{40})}});
+    layout["height"] = json::Value(std::int64_t{360});
     std::ostringstream o;
     o << "<div class=\"plot\" id=\"" << id
       << "\"></div><script>Plotly.newPlot('" << id << "', "
@@ -283,10 +285,10 @@ json::Value on_right(json::Value t) {
   return json::Value(std::move(o));
 }
 
-json::Array counting(std::size_t n, long first) {
+json::Array counting(std::size_t n, std::int64_t first) {
   json::Array a;
   for (std::size_t i = 0; i < n; ++i)
-    a.push_back(json::Value(first + static_cast<long>(i)));
+    a.push_back(json::Value(first + static_cast<std::int64_t>(i)));
   return a;
 }
 
@@ -343,7 +345,7 @@ std::size_t images_per_degree(double width) {
 
 // Means of consecutive runs of `k` values, at their middle image.
 std::pair<json::Array, json::Array> per_run(const json::Array &values,
-                                            long first, std::size_t k) {
+                                            std::int64_t first, std::size_t k) {
   json::Array xs, ys;
   for (std::size_t i = 0; i < values.size(); i += k) {
     const std::size_t to = std::min(values.size(), i + k);
@@ -374,11 +376,12 @@ std::string section_find(const json::Value &s, Figures &f,
     for (std::size_t k = 0; k < n; ++k) {
       const json::Array counts = several ? list[k].as_array() : list;
       const json::Value &firsts = s["first_image"];
-      const long first =
+      const std::int64_t first =
           firsts.is_array() && k < firsts.as_array().size()
-              ? static_cast<long>(firsts.as_array()[k].as_number())
-              : (firsts.is_number() ? static_cast<long>(firsts.as_number())
-                                    : 1);
+              ? static_cast<std::int64_t>(firsts.as_array()[k].as_number())
+              : (firsts.is_number()
+                     ? static_cast<std::int64_t>(firsts.as_number())
+                     : 1);
       o << f.plot(n > 1 ? "Spots per image, sweep " + std::to_string(k)
                         : std::string("Spots per image"),
                   "image", "spots", [&] {

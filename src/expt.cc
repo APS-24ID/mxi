@@ -3,6 +3,7 @@
 #include "rflx.hh"
 
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <random>
 
@@ -264,7 +265,7 @@ ExperimentList experiments_from_json(const json::Value &document) {
                     at.as_number())])
               : ProfileBlock{});
     }
-  std::vector<std::pair<long long, long long>> sweep_keys;
+  std::vector<std::pair<std::int64_t, std::int64_t>> sweep_keys;
   for (const json::Value &e : document["experiment"].as_array()) {
     Experiment x;
     x.identifier = e["identifier"].as_string();
@@ -285,12 +286,12 @@ ExperimentList experiments_from_json(const json::Value &document) {
     {
       // Its sweep: its image set and scan, numbered in the order met.
       const json::Value &set = e["imageset"];
-      const std::pair<long long, long long> key{
+      const std::pair<std::int64_t, std::int64_t> key{
           set.is_number()
-              ? static_cast<long long>(set.as_number())
-              : -1 - static_cast<long long>(list.experiments.size()),
-          s >= 0 ? static_cast<long long>(s)
-                 : -1 - static_cast<long long>(list.experiments.size())};
+              ? static_cast<std::int64_t>(set.as_number())
+              : -1 - static_cast<std::int64_t>(list.experiments.size()),
+          s >= 0 ? static_cast<std::int64_t>(s)
+                 : -1 - static_cast<std::int64_t>(list.experiments.size())};
       std::size_t at = 0;
       while (at < sweep_keys.size() && sweep_keys[at] != key)
         ++at;
@@ -365,8 +366,8 @@ json::Value panel_to_json(const Panel &p) {
   o["slow_axis"] = to_json(p.slow);
   o["origin"] = to_json(p.origin);
   o["image_size"] =
-      json::Array{json::Value(static_cast<long>(p.image_size[0])),
-                  json::Value(static_cast<long>(p.image_size[1]))};
+      json::Array{json::Value(static_cast<std::int64_t>(p.image_size[0])),
+                  json::Value(static_cast<std::int64_t>(p.image_size[1]))};
   o["pixel_size"] =
       json::Array{json::Value(p.pixel_size[0]), json::Value(p.pixel_size[1])};
   o["trusted_range"] =
@@ -419,15 +420,15 @@ json::Value experiments_to_json(const ExperimentList &list) {
     beam["polarization_fraction"] = json::Value(0.999);
     beam["probe"] = json::Value("x-ray");
     x["beam"] = json::Value(
-        static_cast<long>(intern(beams, json::Value(std::move(beam)))));
+        static_cast<std::int64_t>(intern(beams, json::Value(std::move(beam)))));
 
     json::Array panels;
     for (const Panel &p : e.detector.panels)
       panels.push_back(panel_to_json(p));
     json::Object detector;
     detector["panels"] = json::Value(std::move(panels));
-    x["detector"] = json::Value(
-        static_cast<long>(intern(detectors, json::Value(std::move(detector)))));
+    x["detector"] = json::Value(static_cast<std::int64_t>(
+        intern(detectors, json::Value(std::move(detector)))));
 
     // The goniometer is written in the single-axis form, with the composed
     // fixed and setting rotations. That is lossless for everything downstream
@@ -444,14 +445,15 @@ json::Value experiments_to_json(const ExperimentList &list) {
     gonio["setting_rotation"] = json::Value(std::move(setting));
     if (e.goniometer.has_offset())
       gonio["mxi_sample_offset"] = to_json(e.goniometer.sample_offset);
-    x["goniometer"] = json::Value(
-        static_cast<long>(intern(goniometers, json::Value(std::move(gonio)))));
+    x["goniometer"] = json::Value(static_cast<std::int64_t>(
+        intern(goniometers, json::Value(std::move(gonio)))));
 
     json::Object scan;
     scan["image_range"] =
-        json::Array{json::Value(static_cast<long>(e.scan.first_image)),
-                    json::Value(static_cast<long>(e.scan.last_image))};
-    scan["batch_offset"] = json::Value(static_cast<long>(e.scan.batch_offset));
+        json::Array{json::Value(static_cast<std::int64_t>(e.scan.first_image)),
+                    json::Value(static_cast<std::int64_t>(e.scan.last_image))};
+    scan["batch_offset"] =
+        json::Value(static_cast<std::int64_t>(e.scan.batch_offset));
     json::Array oscillation;
     for (std::int64_t i = 0; i < e.scan.num_images(); ++i) {
       oscillation.push_back(json::Value(
@@ -461,7 +463,7 @@ json::Value experiments_to_json(const ExperimentList &list) {
     properties["oscillation"] = json::Value(std::move(oscillation));
     scan["properties"] = json::Value(std::move(properties));
     x["scan"] = json::Value(
-        static_cast<long>(intern(scans, json::Value(std::move(scan)))));
+        static_cast<std::int64_t>(intern(scans, json::Value(std::move(scan)))));
 
     if (e.crystal) {
       json::Object crystal;
@@ -510,8 +512,8 @@ json::Value experiments_to_json(const ExperimentList &list) {
         }
         crystal["A_at_scan_points"] = json::Value(std::move(points));
       }
-      x["crystal"] = json::Value(
-          static_cast<long>(intern(crystals, json::Value(std::move(crystal)))));
+      x["crystal"] = json::Value(static_cast<std::int64_t>(
+          intern(crystals, json::Value(std::move(crystal)))));
     } else {
       // Absent models are null, which is what dxtbx writes and what its lookup
       // expects. An index of -1 is read as an index, and reaches for the last
@@ -531,13 +533,13 @@ json::Value experiments_to_json(const ExperimentList &list) {
           break;
       if (at == profile_blocks.size())
         profile_blocks.push_back(own);
-      x["profile"] = json::Value(static_cast<long>(at));
+      x["profile"] = json::Value(static_cast<std::int64_t>(at));
     } else if (list.profile.present &&
                list.profiles.size() != list.experiments.size()) {
       // The one block every experiment refers to. Where each has its own, one
       // without -- a sweep's crystal-less experiment -- refers to none.
-      x["profile"] =
-          json::Value(static_cast<long>(0)); // an index, as DIALS reads it
+      x["profile"] = json::Value(
+          static_cast<std::int64_t>(0)); // an index, as DIALS reads it
     }
 
     // Carry through this experiment's references to models this package does
@@ -618,10 +620,10 @@ json::Value join_experiment_lists(const std::vector<json::Value> &lists) {
     const json::Object &in = lists[l].as_object();
     // How many of each model there are already: this list's indices start
     // there.
-    std::map<std::string, long long> base;
+    std::map<std::string, std::int64_t> base;
     for (const char *m : kModels)
       base[m] =
-          o.count(m) ? static_cast<long long>(o.at(m).as_array().size()) : 0;
+          o.count(m) ? static_cast<std::int64_t>(o.at(m).as_array().size()) : 0;
     for (const char *m : kModels) {
       if (!in.count(m))
         continue;
@@ -634,7 +636,7 @@ json::Value join_experiment_lists(const std::vector<json::Value> &lists) {
       json::Value e = ev;
       for (auto &[key, value] : e.as_object())
         if (base.count(key) && value.is_number())
-          value = json::Value(static_cast<long long>(value.as_number()) +
+          value = json::Value(static_cast<std::int64_t>(value.as_number()) +
                               base[key]);
       experiments.push_back(e);
     }
@@ -705,7 +707,7 @@ void share_identical(json::Value *list, const std::string &kind) {
     if (index.is_number()) {
       const auto at = static_cast<std::size_t>(index.as_number());
       if (at < first.size())
-        index = json::Value(static_cast<long long>(first[at]));
+        index = json::Value(static_cast<std::int64_t>(first[at]));
     }
   }
   o[kind] = json::Value(unique);

@@ -2,6 +2,7 @@
 
 #include "hdf5_handle.hh"
 
+#include <cstdint>
 #include <hdf5.h>
 
 #include <algorithm>
@@ -460,7 +461,7 @@ bool nearly_nexus(hid_t file, const std::string &detector) {
 // data file's own stack: how many in all, and their height and width. None if
 // a linked file cannot be opened.
 struct LinkedFrames {
-  long long images = 0, height = 0, width = 0;
+  std::int64_t images = 0, height = 0, width = 0;
 };
 std::optional<LinkedFrames> linked_frames(hid_t file) {
   LinkedFrames out;
@@ -477,9 +478,9 @@ std::optional<LinkedFrames> linked_frames(hid_t file) {
     if (H5Sget_simple_extent_ndims(space.get()) != 3)
       return std::nullopt;
     H5Sget_simple_extent_dims(space.get(), dims, nullptr);
-    out.images += static_cast<long long>(dims[0]);
-    out.height = static_cast<long long>(dims[1]);
-    out.width = static_cast<long long>(dims[2]);
+    out.images += static_cast<std::int64_t>(dims[0]);
+    out.height = static_cast<std::int64_t>(dims[1]);
+    out.width = static_cast<std::int64_t>(dims[2]);
   }
   if (out.images == 0)
     return std::nullopt;
@@ -490,11 +491,11 @@ std::optional<LinkedFrames> linked_frames(hid_t file) {
 // /entry/data/data, or the numbered links to the data files' stacks, or,
 // those not to be opened, the detector's pixel mask, which is a frame's
 // shape. None if none of them is there.
-std::optional<std::pair<long long, long long>>
+std::optional<std::pair<std::int64_t, std::int64_t>>
 frame_shape(hid_t file, const std::string &detector) {
   const auto dims_of =
       [&](const std::string &path,
-          int rank) -> std::optional<std::pair<long long, long long>> {
+          int rank) -> std::optional<std::pair<std::int64_t, std::int64_t>> {
     if (H5Lexists(file, path.c_str(), H5P_DEFAULT) <= 0)
       return std::nullopt;
     H5 d(H5Dopen2(file, path.c_str(), H5P_DEFAULT), H5Dclose);
@@ -505,8 +506,8 @@ frame_shape(hid_t file, const std::string &detector) {
       return std::nullopt;
     hsize_t dims[3] = {0, 0, 0};
     H5Sget_simple_extent_dims(space.get(), dims, nullptr);
-    return std::make_pair(static_cast<long long>(dims[rank - 2]),
-                          static_cast<long long>(dims[rank - 1]));
+    return std::make_pair(static_cast<std::int64_t>(dims[rank - 2]),
+                          static_cast<std::int64_t>(dims[rank - 1]));
   };
   if (const auto s = dims_of("/entry/data/data", 3))
     return s;
@@ -752,18 +753,18 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
       if (*type_limit < *detector_limit)
         notes->push_back(
             "the detector's count limit, " +
-            std::to_string(static_cast<long long>(*detector_limit)) +
+            std::to_string(static_cast<std::int64_t>(*detector_limit)) +
             ", is above what " + std::to_string(*bits) +
             "-bit data can hold below its markers: the trusted "
             "range's top is " +
-            std::to_string(static_cast<long long>(*type_limit)));
+            std::to_string(static_cast<std::int64_t>(*type_limit)));
     } else if (detector_limit) {
       trusted_max = *detector_limit;
     } else if (type_limit) {
       trusted_max = *type_limit;
       notes->push_back("no count limit could be read: the trusted range's top "
                        "is " +
-                       std::to_string(static_cast<long long>(*type_limit)) +
+                       std::to_string(static_cast<std::int64_t>(*type_limit)) +
                        ", the largest " + std::to_string(*bits) +
                        "-bit count below the markers (" + bits_from +
                        "); give --trusted-max for the detector's own");
@@ -799,15 +800,15 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
       return read_doubles(f, path).at(0) *
              to_mm(attr_string(d.get(), "units"), name, notes);
     };
-    long long nx = 0, ny = 0;
+    std::int64_t nx = 0, ny = 0;
     if (linked) {
       nx = linked->width;
       ny = linked->height;
     } else {
-      nx = static_cast<long long>(
+      nx = static_cast<std::int64_t>(
           read_doubles(f, detector + "/detectorSpecific/x_pixels_in_detector")
               .at(0));
-      ny = static_cast<long long>(
+      ny = static_cast<std::int64_t>(
           read_doubles(f, detector + "/detectorSpecific/y_pixels_in_detector")
               .at(0));
     }
@@ -817,7 +818,7 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
         {"fast_axis", vec(fast_axis)},
         {"slow_axis", vec(slow_axis)},
         {"origin", vec(origin)},
-        {"raw_image_offset", json::Array{0LL, 0LL}},
+        {"raw_image_offset", json::Array{std::int64_t{0}, std::int64_t{0}}},
         {"image_size", json::Array{nx, ny}},
         {"pixel_size",
          json::Array{size_mm("x_pixel_size"), size_mm("y_pixel_size")}},
@@ -861,10 +862,10 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
     if (size.size() < 2)
       throw std::runtime_error(module + "/data_size is not two numbers");
     // NeXus gives slow then fast; DIALS fast then slow.
-    const long long nx = static_cast<long long>(size[size.size() - 1]);
-    const long long ny = static_cast<long long>(size[size.size() - 2]);
-    const long long ox = static_cast<long long>(start[start.size() - 1]);
-    const long long oy = static_cast<long long>(start[start.size() - 2]);
+    const std::int64_t nx = static_cast<std::int64_t>(size[size.size() - 1]);
+    const std::int64_t ny = static_cast<std::int64_t>(size[size.size() - 2]);
+    const std::int64_t ox = static_cast<std::int64_t>(start[start.size() - 1]);
+    const std::int64_t oy = static_cast<std::int64_t>(start[start.size() - 2]);
     panels.push_back(json::Object{
         {"name", module},
         {"type", "SENSOR_PAD"},
@@ -901,9 +902,9 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
     if (const auto shape = frame_shape(f, detector)) {
       json::Object p = panels[0].as_object();
       const json::Array size = p["image_size"].as_array();
-      const long long nx = static_cast<long long>(size.at(0).as_number());
-      const long long ny = static_cast<long long>(size.at(1).as_number());
-      const long long width = shape->second, height = shape->first;
+      const std::int64_t nx = static_cast<std::int64_t>(size.at(0).as_number());
+      const std::int64_t ny = static_cast<std::int64_t>(size.at(1).as_number());
+      const std::int64_t width = shape->second, height = shape->first;
       if (width > 0 && height > 0 && (nx != width || ny != height)) {
         notes->push_back(
             "the file says the detector is " + std::to_string(nx) + " x " +
@@ -977,7 +978,7 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
       {"px_mm_strategy", json::Object{{"type", "SimplePxMmStrategy"}}}};
   json::Array children;
   for (std::size_t k = 0; k < panels.size(); ++k)
-    children.push_back(json::Object{{"panel", static_cast<long long>(k)}});
+    children.push_back(json::Object{{"panel", static_cast<std::int64_t>(k)}});
   hierarchy["children"] = children;
 
   // The goniometer: the rotations of the sample's chain, innermost first; the
@@ -1004,11 +1005,11 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
     double step =
         read_doubles(f, "/entry/sample/goniometer/omega_range_average").at(0);
     step = static_cast<int>(step * 100 + 0.5) / 100.0;
-    long long images = 0;
+    std::int64_t images = 0;
     if (linked) {
       images = linked->images;
     } else {
-      images = static_cast<long long>(
+      images = static_cast<std::int64_t>(
           read_doubles(f, detector + "/detectorSpecific/nimages").at(0) *
           (exists(f, detector + "/detectorSpecific/ntrigger")
                ? read_doubles(f, detector + "/detectorSpecific/ntrigger").at(0)
@@ -1017,7 +1018,7 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
                        std::to_string(images) +
                        " images from nimages and ntrigger");
     }
-    for (long long i = 0; i < images; ++i)
+    for (std::int64_t i = 0; i < images; ++i)
       scan_values.push_back(step * static_cast<double>(i));
     if (exists(f, "/entry/sample/goniometer/omega_start"))
       notes->push_back(
@@ -1057,8 +1058,8 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
                           {"scan_axis", scan_axis}};
 
   // The scan.
-  const long long frames = static_cast<long long>(scan_values.size());
-  long long first = 1, last = frames;
+  const std::int64_t frames = static_cast<std::int64_t>(scan_values.size());
+  std::int64_t first = 1, last = frames;
   if (o.image_range) {
     first = (*o.image_range)[0];
     last = (*o.image_range)[1];
@@ -1079,7 +1080,7 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
     frame_time = read_doubles(f, detector + "/frame_time").at(0) * k;
   }
   json::Array oscillation, epochs, exposures, indices;
-  for (long long i = first - 1; i < last; ++i) {
+  for (std::int64_t i = first - 1; i < last; ++i) {
     oscillation.push_back(scan_values[static_cast<std::size_t>(i)]);
     epochs.push_back(frame_time * static_cast<double>(i));
     exposures.push_back(frame_time);

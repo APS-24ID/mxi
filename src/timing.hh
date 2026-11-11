@@ -15,6 +15,8 @@
 
 #include <sys/resource.h>
 
+#include "output.hh"
+
 namespace mxi {
 
 //: The process's peak resident memory so far, in MB: kB on Linux, bytes on
@@ -75,21 +77,21 @@ public:
 
   //: The table, each phase in seconds and per cent of the run so far, and the
   //: run's total.
-  void report(std::FILE *out = stdout) const {
+  void report(Stream out = Stream::out) const {
     if (!on_)
       return;
     const double total = now() - began_;
-    std::fprintf(out, "\nTiming\n");
+    mxi::print_to(out, "\nTiming\n");
     for (const Phase &p : phases_) {
       const std::string name =
           std::string(static_cast<std::size_t>(2 * p.depth), ' ') + p.name;
-      std::fprintf(out, "  %-42s %9.3f s  %5.1f%%  peak %8.0f MB\n",
-                   name.c_str(), p.seconds,
-                   total > 0.0 ? 100.0 * p.seconds / total : 0.0, p.peak_mb);
+      mxi::print_to(out, "  %-42s %9.3f s  %5.1f%%  peak %8.0f MB\n",
+                    name.c_str(), p.seconds,
+                    total > 0.0 ? 100.0 * p.seconds / total : 0.0, p.peak_mb);
     }
-    std::fprintf(out, "  %-42s %9.3f s\n", "total", total);
+    mxi::print_to(out, "  %-42s %9.3f s\n", "total", total);
     for (const std::string &n : notes_)
-      std::fprintf(out, "  %s\n", n.c_str());
+      mxi::print_to(out, "  %s\n", n.c_str());
   }
 
 private:

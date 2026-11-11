@@ -23,6 +23,7 @@
 #include "expt.hh"
 #include "image_series.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "refl.hh"
 #include "rflx.hh"
 #include "untrusted.hh"
@@ -108,19 +109,18 @@ int mxi_verify_main(int argc, char **argv) {
                                              "--tolerance"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (!args.ok) {
-    std::fprintf(stderr, "mxi verify: %s\n", args.error.c_str());
-    std::fputs(kUsage, stderr);
+    mxi::eprint("mxi verify: %s\n", args.error.c_str());
+    mxi::put(mxi::Stream::err, kUsage);
     return 2;
   }
   if (args.has("--help") || args.has("-h")) {
-    std::fputs(kUsage, stdout);
+    mxi::put(mxi::Stream::out, kUsage);
     return 0;
   }
   args.positional = rflx::as_pair(args.positional);
   if (args.positional.size() != 2) {
-    std::fprintf(stderr,
-                 "mxi verify: expected a .rflx, or an .expt and a .refl\n");
-    std::fputs(kUsage, stderr);
+    mxi::eprint("mxi verify: expected a .rflx, or an .expt and a .refl\n");
+    mxi::put(mxi::Stream::err, kUsage);
     return 2;
   }
   VerifyOptions options;
@@ -144,27 +144,27 @@ int mxi_verify_main(int argc, char **argv) {
       const VerifyResult r =
           verify_lattice(experiments, i, table, options,
                          mask.empty() ? nullptr : &mask, width);
-      std::printf("\nExperiment %zu: %zu indexed spots", i, r.indexed);
+      mxi::print("\nExperiment %zu: %zu indexed spots", i, r.indexed);
       if (r.d_min <= 0.0) {
-        std::printf(", so no limit to predict to: give --d-min\n");
+        mxi::print(", so no limit to predict to: give --d-min\n");
         continue;
       }
-      std::printf("; predicted to %.2f A (%s)\n", r.d_min,
-                  r.d_min_from_spots ? "the indexed spots' limit" : "--d-min");
+      mxi::print("; predicted to %.2f A (%s)\n", r.d_min,
+                 r.d_min_from_spots ? "the indexed spots' limit" : "--d-min");
       if (!r.masked)
-        std::printf("  masked pixels not taken into account: %s\n",
-                    args.has("--no-mask") ? "--no-mask" : why.c_str());
-      std::printf("  %-15s %10s %13s %9s %9s %9s\n", "d (A)", "predicted",
-                  "unobservable", "observed", "fraction", "indexed");
+        mxi::print("  masked pixels not taken into account: %s\n",
+                   args.has("--no-mask") ? "--no-mask" : why.c_str());
+      mxi::print("  %-15s %10s %13s %9s %9s %9s\n", "d (A)", "predicted",
+                 "unobservable", "observed", "fraction", "indexed");
       // A shell with nothing it could see has no fraction, not 0 per cent.
       const auto line = [](const char *label, const VerifyShell &s) {
-        std::printf("  %-15s %10zu %13zu %9zu", label, s.predicted,
-                    s.unobservable, s.observed);
+        mxi::print("  %-15s %10zu %13zu %9zu", label, s.predicted,
+                   s.unobservable, s.observed);
         if (s.predicted > s.unobservable)
-          std::printf(" %8.1f%%", 100.0 * s.fraction());
+          mxi::print(" %8.1f%%", 100.0 * s.fraction());
         else
-          std::printf(" %9s", "-");
-        std::printf(" %9zu\n", s.indexed);
+          mxi::print(" %9s", "-");
+        mxi::print(" %9zu\n", s.indexed);
       };
       for (const VerifyShell &s : r.shells) {
         char label[32];
@@ -174,12 +174,12 @@ int mxi_verify_main(int argc, char **argv) {
       line("all", r.all);
     }
     if (lattices == 0) {
-      std::fprintf(stderr, "mxi verify: %s has no lattice: index it first\n",
-                   args.positional[0].c_str());
+      mxi::eprint("mxi verify: %s has no lattice: index it first\n",
+                  args.positional[0].c_str());
       return 1;
     }
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi verify: %s\n", e.what());
+    mxi::eprint("mxi verify: %s\n", e.what());
     return 1;
   }
   return 0;

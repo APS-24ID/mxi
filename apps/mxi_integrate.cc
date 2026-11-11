@@ -58,6 +58,7 @@
 
 #include "decompress.hh"
 #include "image_series.hh"
+#include "output.hh"
 #include "rflx.hh"
 
 #include <memory>
@@ -180,8 +181,8 @@ json::Value joined_summary(const std::string &input, const Table &joined,
   }
   step.set("reflections", json::Value(static_cast<std::int64_t>(joined.nrows)));
   if (const auto s = summarise_table(joined)) {
-    std::printf("\n=== All %zu together ===\n", runs);
-    print_summary(stdout, *s);
+    mxi::print("\n=== All %zu together ===\n", runs);
+    print_summary(mxi::Stream::out, *s);
     add_integration_tables(step, *s);
   }
   add_overlap_count(step, joined);
@@ -302,7 +303,7 @@ private:
 };
 
 void usage(const char *program) {
-  std::printf(
+  mxi::print(
       "usage: %s [options] EXPT [INDEXED_REFL]\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
@@ -434,8 +435,7 @@ integrate_with_postrefinement(const Arguments &args, const char *program,
   if (args.has("--postrefine-points")) {
     const double n = args.number("--postrefine-points", 0.0);
     if (!(n >= 2.0)) {
-      std::fprintf(stderr,
-                   "mxi integrate: --postrefine-points needs at least 2\n");
+      mxi::eprint("mxi integrate: --postrefine-points needs at least 2\n");
       return 2;
     }
     points = static_cast<std::size_t>(n);
@@ -480,9 +480,9 @@ integrate_with_postrefinement(const Arguments &args, const char *program,
     return run_integrate(static_cast<std::int32_t>(words.size()), argv.data());
   };
 
-  std::printf("Integrating with the models as given, then refining against the "
-              "centres that measures, then integrating again\n\n");
-  std::printf("=== Integration with the models as given ===\n");
+  mxi::print("Integrating with the models as given, then refining against the "
+             "centres that measures, then integrating again\n\n");
+  mxi::print("=== Integration with the models as given ===\n");
   std::int32_t status = run(command(args.positional[0], true));
   if (status != 0)
     return status;
@@ -491,36 +491,35 @@ integrate_with_postrefinement(const Arguments &args, const char *program,
     ExperimentList experiments = read_experiments(args.positional[0]);
     const Table first = read_reflections(first_refl);
     const PostrefineResult result = postrefine(experiments, first, points);
-    std::printf("\n=== Post-refinement ===\n");
-    std::printf(
+    mxi::print("\n=== Post-refinement ===\n");
+    mxi::print(
         "Refining against %zu of the %zu integrated reflections: summed, "
         "and with a centre of mass\n",
         result.selected, result.candidates);
     const RefineResult &st = result.refinement.static_pass;
     const RefineResult &sv = result.refinement.varying_pass;
     if (st.n_used == 0) {
-      std::fprintf(stderr,
-                   "mxi integrate: post-refinement fitted nothing, so there "
-                   "is nothing to integrate again with\n");
+      mxi::eprint("mxi integrate: post-refinement fitted nothing, so there "
+                  "is nothing to integrate again with\n");
       std::remove(first_refl.c_str());
       std::remove(first_expt.c_str());
       return 1;
     }
-    std::printf(
+    mxi::print(
         "  scan-static:  %3zu parameters, %zu reflections, RMSD %.4f px, "
         "%.4f px, %.4f images\n",
         st.n_parameters, st.n_used, st.rmsd_x, st.rmsd_y, st.rmsd_z);
     if (result.refinement.varied) {
-      std::printf(
+      mxi::print(
           "  scan-varying: %3zu parameters, %zu reflections, RMSD %.4f px, "
           "%.4f px, %.4f images; %zu control points, the detector held\n",
           sv.n_parameters, sv.n_used, sv.rmsd_x, sv.rmsd_y, sv.rmsd_z,
           experiments[0].crystal ? experiments[0].crystal->A_points.size() : 0);
     }
     write_experiments(post_expt, experiments);
-    std::printf("Post-refined models written for the second integration\n\n");
+    mxi::print("Post-refined models written for the second integration\n\n");
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi integrate: post-refinement: %s\n", error.what());
+    mxi::eprint("mxi integrate: post-refinement: %s\n", error.what());
     std::remove(first_refl.c_str());
     std::remove(first_expt.c_str());
     std::remove(post_expt.c_str());
@@ -529,7 +528,7 @@ integrate_with_postrefinement(const Arguments &args, const char *program,
   std::remove(first_refl.c_str());
   std::remove(first_expt.c_str());
 
-  std::printf("=== Integration with the post-refined models ===\n");
+  mxi::print("=== Integration with the post-refined models ===\n");
   status = run(command(post_expt, false));
   std::remove(post_expt.c_str());
   return status;
@@ -600,16 +599,15 @@ std::int32_t integrate_sweeps(const Arguments &args, const char *program,
     if (has_refl) {
       indexed = read_reflections(args.positional[1]);
       if (!indexed.has("id")) {
-        std::fprintf(stderr,
-                     "mxi integrate: %s has no id column, so which of the %zu "
-                     "experiments each reflection belongs to is not known\n",
-                     args.positional[1].c_str(), n);
+        mxi::eprint("mxi integrate: %s has no id column, so which of the %zu "
+                    "experiments each reflection belongs to is not known\n",
+                    args.positional[1].c_str(), n);
         return 1;
       }
     }
-    std::printf("Integrating %zu experiments, a sweep at a time -- %zu "
-                "sweeps -- into one table\n",
-                n, groups.size());
+    mxi::print("Integrating %zu experiments, a sweep at a time -- %zu "
+               "sweeps -- into one table\n",
+               n, groups.size());
     std::vector<Table> tables;
     std::vector<json::Value> lists;
     std::vector<std::size_t> order; // the whole index of each joined entry
@@ -667,12 +665,12 @@ std::int32_t integrate_sweeps(const Arguments &args, const char *program,
       }
       words.insert(words.end(),
                    {"-o", got_refl, "--output-expt", got_expt, "--sweep-run"});
-      std::printf("\n=== Sweep %zu of %zu: experiment%s", g + 1, groups.size(),
-                  members.size() == 1 ? "" : "s");
+      mxi::print("\n=== Sweep %zu of %zu: experiment%s", g + 1, groups.size(),
+                 members.size() == 1 ? "" : "s");
       for (std::size_t i : members)
-        std::printf(" %zu", i);
-      std::printf(" ===\n");
-      std::fflush(stdout);
+        mxi::print(" %zu", i);
+      mxi::print(" ===\n");
+      mxi::flush();
       const std::int32_t status = run(words);
       if (status != 0) {
         tidy();
@@ -733,15 +731,15 @@ std::int32_t integrate_sweeps(const Arguments &args, const char *program,
     rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_integrate",
                         &joined_document);
     tidy();
-    std::printf("\n");
+    mxi::print("\n");
     for (std::size_t g = 0; g < groups.size(); ++g)
-      std::printf("  sweep %zu: %zu reflections\n", g, tables[g].nrows);
-    std::printf(
+      mxi::print("  sweep %zu: %zu reflections\n", g, tables[g].nrows);
+    mxi::print(
         "Wrote %zu reflections of %zu experiments, and the models, to %s\n",
         joined.nrows, n, rflx::describe(outputs).c_str());
     return 0;
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi integrate: %s\n", error.what());
+    mxi::eprint("mxi integrate: %s\n", error.what());
     tidy();
     return 1;
   }
@@ -789,14 +787,13 @@ std::int32_t integrate_several(const Arguments &args, const char *program,
     if (has_refl) {
       indexed = read_reflections(args.positional[1]);
       if (!indexed.has("id")) {
-        std::fprintf(stderr,
-                     "mxi integrate: %s has no id column, so which of the %zu "
-                     "sweeps each reflection belongs to is not known\n",
-                     args.positional[1].c_str(), n);
+        mxi::eprint("mxi integrate: %s has no id column, so which of the %zu "
+                    "sweeps each reflection belongs to is not known\n",
+                    args.positional[1].c_str(), n);
         return 1;
       }
     }
-    std::printf("Integrating %zu experiments, each alone, into one table\n", n);
+    mxi::print("Integrating %zu experiments, each alone, into one table\n", n);
     // Each experiment's inputs: its slice of the list, its own reflections,
     // the options it is to be run with.
     std::vector<std::string> stems(n), identifiers(n);
@@ -868,8 +865,8 @@ std::int32_t integrate_several(const Arguments &args, const char *program,
         made.push_back(out);
         std::vector<std::string> words = base_words[i];
         words.insert(words.end(), {"--profile-only", "--output-expt", out});
-        std::printf("\n=== Lattice %zu's profile model ===\n", i + 1);
-        std::fflush(stdout);
+        mxi::print("\n=== Lattice %zu's profile model ===\n", i + 1);
+        mxi::flush();
         const std::int32_t status = run(words);
         if (status != 0) {
           tidy();
@@ -900,8 +897,8 @@ std::int32_t integrate_several(const Arguments &args, const char *program,
       const std::string got_expt = stems[i] + ".expt";
       words.insert(words.end(),
                    {"-o", got_refl, "--output-expt", got_expt, "--sweep-run"});
-      std::printf("\n=== Experiment %zu of %zu ===\n", i + 1, n);
-      std::fflush(stdout);
+      mxi::print("\n=== Experiment %zu of %zu ===\n", i + 1, n);
+      mxi::flush();
       const std::int32_t status = run(words);
       if (status != 0) {
         tidy();
@@ -955,15 +952,15 @@ std::int32_t integrate_several(const Arguments &args, const char *program,
     rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_integrate",
                         &joined_document);
     tidy();
-    std::printf("\n");
+    mxi::print("\n");
     for (std::size_t i = 0; i < n; ++i)
-      std::printf("  experiment %zu: %zu reflections\n", i, tables[i].nrows);
-    std::printf(
+      mxi::print("  experiment %zu: %zu reflections\n", i, tables[i].nrows);
+    mxi::print(
         "Wrote %zu reflections of %zu experiments, and the models, to %s\n",
         joined.nrows, n, rflx::describe(outputs).c_str());
     return 0;
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi integrate: %s\n", error.what());
+    mxi::eprint("mxi integrate: %s\n", error.what());
     tidy();
     return 1;
   }
@@ -1047,13 +1044,12 @@ int run_integrate(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi integrate: %s\n", args.error.c_str());
+    mxi::eprint("mxi integrate: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.empty() || args.positional.size() > 2) {
-    std::fprintf(stderr,
-                 "mxi integrate: expected an .expt and optionally a .refl of "
-                 "indexed reflections\n");
+    mxi::eprint("mxi integrate: expected an .expt and optionally a .refl of "
+                "indexed reflections\n");
     usage(argv[0]);
     return 2;
   }
@@ -1090,10 +1086,9 @@ int run_integrate(int argc, char **argv) {
         if (args.has("--each-alone") || args.has("--postrefine")) {
           for (const json::Value &x : document["experiment"].as_array())
             if (!x["crystal"].is_number()) {
-              std::fprintf(stderr,
-                           "mxi integrate: a run an experiment cannot take a "
-                           "crystal-less one: without --each-alone or "
-                           "--postrefine, a run a sweep carries it\n");
+              mxi::eprint("mxi integrate: a run an experiment cannot take a "
+                          "crystal-less one: without --each-alone or "
+                          "--postrefine, a run a sweep carries it\n");
               return 1;
             }
           return integrate_several(args, argv[0], takes_value, document);
@@ -1108,7 +1103,7 @@ int run_integrate(int argc, char **argv) {
   // settings nobody chose.
   for (const char *needs : {"--postrefine-points"}) {
     if (args.has(needs)) {
-      std::fprintf(stderr, "mxi integrate: %s is for --postrefine\n", needs);
+      mxi::eprint("mxi integrate: %s is for --postrefine\n", needs);
       return 2;
     }
   }
@@ -1132,9 +1127,9 @@ int run_integrate(int argc, char **argv) {
           views.any_crystal_less() ? views.position[lattice] : lattice);
     };
     if (experiments.size() == 0) {
-      std::fprintf(stderr, whole.size() == 0
-                               ? "mxi integrate: no experiments\n"
-                               : "mxi integrate: no lattices: index first\n");
+      mxi::eprint(whole.size() == 0
+                      ? "mxi integrate: no experiments\n"
+                      : "mxi integrate: no lattices: index first\n");
       return 1;
     }
     const Experiment &e = experiments[0];
@@ -1168,8 +1163,7 @@ int run_integrate(int argc, char **argv) {
     const std::string sigma_m_estimator =
         args.value("--sigma-m-estimator", "basic");
     if (sigma_m_estimator != "basic" && sigma_m_estimator != "extended") {
-      std::fprintf(stderr,
-                   "mxi integrate: --sigma-m-estimator is basic or extended\n");
+      mxi::eprint("mxi integrate: --sigma-m-estimator is basic or extended\n");
       return 2;
     }
     const bool sigma_m_weighted = sigma_m_estimator == "extended";
@@ -1194,10 +1188,9 @@ int run_integrate(int argc, char **argv) {
             strong = read_reflections(strong_path);
             strong_boxes = decode_shoeboxes(*strong);
             if (strong_boxes.empty()) {
-              std::fprintf(stderr,
-                           "mxi integrate: %s has no shoeboxes, so the profile "
-                           "model cannot be estimated from it\n",
-                           strong_path.c_str());
+              mxi::eprint("mxi integrate: %s has no shoeboxes, so the profile "
+                          "model cannot be estimated from it\n",
+                          strong_path.c_str());
               return 1;
             }
             // The profile model needs INDEXED spots -- each spot's predicted
@@ -1205,8 +1198,7 @@ int run_integrate(int argc, char **argv) {
             // Said in those terms, because "no column 's1'" is true and names
             // nothing a user can do.
             if (!strong->has("s1") || !strong->has("xyzcal.mm")) {
-              std::fprintf(
-                  stderr,
+              mxi::eprint(
                   "mxi integrate: %s has no predictions for its spots, so the "
                   "profile model cannot be estimated from it. Give the "
                   "refined or indexed reflections (refined.refl), not the "
@@ -1273,11 +1265,10 @@ int run_integrate(int argc, char **argv) {
           sources[l] = "the profile block of the .expt";
         }
         if (!(lb > 0.0) || !(lm > 0.0)) {
-          std::fprintf(stderr,
-                       "mxi integrate: no profile model. Give a .refl of "
-                       "strong spots with shoeboxes to estimate it from, or "
-                       "--sigma-b and --sigma-m, or an .expt that carries a "
-                       "profile block.\n");
+          mxi::eprint("mxi integrate: no profile model. Give a .refl of "
+                      "strong spots with shoeboxes to estimate it from, or "
+                      "--sigma-b and --sigma-m, or an .expt that carries a "
+                      "profile block.\n");
           return 1;
         }
         lattice_masks[l].sigma_d = lb;
@@ -1293,11 +1284,11 @@ int run_integrate(int argc, char **argv) {
     t_profile = now_wall() - t_profile_start;
     for (std::size_t l = 0; l < n_lattices; ++l) {
       if (n_lattices > 1)
-        std::printf("Lattice %zu: ", l + 1);
-      std::printf("Profile model: sigma_b %.4f deg, sigma_m %.4f deg (%s); "
-                  "foreground to %.1f sigma\n",
-                  lattice_masks[l].sigma_d, lattice_masks[l].sigma_m,
-                  sources[l], lattice_masks[l].n_sigma);
+        mxi::print("Lattice %zu: ", l + 1);
+      mxi::print("Profile model: sigma_b %.4f deg, sigma_m %.4f deg (%s); "
+                 "foreground to %.1f sigma\n",
+                 lattice_masks[l].sigma_d, lattice_masks[l].sigma_m, sources[l],
+                 lattice_masks[l].n_sigma);
     }
     // Internal, for the lattices of a sweep integrated each beside the others
     // (integrate_several): the profile model alone, written with the models,
@@ -1327,17 +1318,15 @@ int run_integrate(int argc, char **argv) {
       image_path = experiments.image_template;
       image_source = "the .expt's imageset template";
       if (image_path.empty()) {
-        std::fprintf(stderr,
-                     "mxi integrate: %s has no imageset template, so there is "
-                     "nothing to read images from; give --images\n",
-                     args.positional[0].c_str());
+        mxi::eprint("mxi integrate: %s has no imageset template, so there is "
+                    "nothing to read images from; give --images\n",
+                    args.positional[0].c_str());
         return 1;
       }
       if (image_path.find('#') != std::string::npos) {
-        std::fprintf(stderr,
-                     "mxi integrate: the imageset template is %s, which names "
-                     "a numbered series rather than one file; give --images\n",
-                     image_path.c_str());
+        mxi::eprint("mxi integrate: the imageset template is %s, which names "
+                    "a numbered series rather than one file; give --images\n",
+                    image_path.c_str());
         return 1;
       }
     }
@@ -1355,10 +1344,9 @@ int run_integrate(int argc, char **argv) {
     std::vector<std::unique_ptr<mxi::series::Reader>> readers;
     mxi::series::Info info;
     if (!images || !images->try_open(&info)) {
-      std::fprintf(stderr,
-                   "mxi integrate: cannot open %s. If the data have moved "
-                   "since the .expt was written, give --images\n",
-                   image_path.c_str());
+      mxi::eprint("mxi integrate: cannot open %s. If the data have moved "
+                  "since the .expt was written, give --images\n",
+                  image_path.c_str());
       return 1;
     }
     // The image set's untrusted regions (mxi_view), joined to the detector's
@@ -1369,9 +1357,9 @@ int run_integrate(int argc, char **argv) {
       const std::vector<std::uint64_t> pixels =
           mxi::untrusted_pixels(experiments.untrusted, info.width, info.height);
       images->add_masked(pixels);
-      std::printf("Untrusted regions: %s, %zu pixels\n",
-                  mxi::describe_untrusted(experiments.untrusted).c_str(),
-                  pixels.size());
+      mxi::print("Untrusted regions: %s, %zu pixels\n",
+                 mxi::describe_untrusted(experiments.untrusted).c_str(),
+                 pixels.size());
     }
 
     // -j/--threads, as every command takes it, or every core this job may
@@ -1400,13 +1388,13 @@ int run_integrate(int argc, char **argv) {
       std::size_t total = 0;
       for (const auto &list : lattice_predictions)
         total += list.size();
-      std::printf("Predicted %zu reflections", total);
+      mxi::print("Predicted %zu reflections", total);
       if (n_lattices > 1) {
-        std::printf(" of %zu lattices:", n_lattices);
+        mxi::print(" of %zu lattices:", n_lattices);
         for (const auto &list : lattice_predictions)
-          std::printf(" %zu", list.size());
+          mxi::print(" %zu", list.size());
       }
-      std::printf("\n");
+      mxi::print("\n");
     }
 
     // TWO PASSES, AND WHY
@@ -1459,20 +1447,20 @@ int run_integrate(int argc, char **argv) {
       std::size_t left_out = outside_range;
       for (const auto &entry : refused)
         left_out += entry.second;
-      std::printf("Integrating %zu of them", planned.size());
+      mxi::print("Integrating %zu of them", planned.size());
       if (left_out > 0) {
-        std::printf("; not integrated:\n");
+        mxi::print("; not integrated:\n");
         if (outside_range > 0)
-          std::printf("  %8zu  outside the image range\n", outside_range);
+          mxi::print("  %8zu  outside the image range\n", outside_range);
         for (const auto &entry : refused)
           if (entry.first == describe(BoxRejection::kSmallZeta))
-            std::printf("  %8zu  %s, |zeta| below %g (--min-zeta)\n",
-                        entry.second, entry.first.c_str(),
-                        mask_options.min_zeta);
+            mxi::print("  %8zu  %s, |zeta| below %g (--min-zeta)\n",
+                       entry.second, entry.first.c_str(),
+                       mask_options.min_zeta);
           else
-            std::printf("  %8zu  %s\n", entry.second, entry.first.c_str());
+            mxi::print("  %8zu  %s\n", entry.second, entry.first.c_str());
       } else {
-        std::printf("\n");
+        mxi::print("\n");
       }
     }
     if (planned.empty())
@@ -1504,7 +1492,7 @@ int run_integrate(int argc, char **argv) {
     bool fit_overlaps = !args.has("--no-fit-overlaps");
     if (fit_overlaps && !mask_neighbours) {
       if (asked_overlaps)
-        std::printf(
+        mxi::print(
             "--fit-overlaps finds overlaps among the neighbours: not with "
             "--no-mask-neighbours\n");
       fit_overlaps = false;
@@ -1512,9 +1500,8 @@ int run_integrate(int argc, char **argv) {
     if (fit_overlaps &&
         (args.has("--two-pass") || args.has("--summation-only"))) {
       if (asked_overlaps)
-        std::printf(
-            "--fit-overlaps fits in the one pass's profile fitting: not "
-            "with --two-pass or --summation-only\n");
+        mxi::print("--fit-overlaps fits in the one pass's profile fitting: not "
+                   "with --two-pass or --summation-only\n");
       fit_overlaps = false;
     }
     // The other lattices of this sweep (--mask-also, from integrate_several):
@@ -1563,9 +1550,9 @@ int run_integrate(int argc, char **argv) {
           if (integration_bbox(other_models[k], q, other_masks[k], o.bbox))
             others.push_back(o);
         }
-      std::printf("Masking also %zu reflections of %zu other lattice%s\n",
-                  others.size(), other_models.size(),
-                  other_models.size() == 1 ? "" : "s");
+      mxi::print("Masking also %zu reflections of %zu other lattice%s\n",
+                 others.size(), other_models.size(),
+                 other_models.size() == 1 ? "" : "s");
     }
     // A reflection's box, its own lattice's or another's.
     const auto box_of = [&](std::size_t j) -> const std::int32_t * {
@@ -1720,7 +1707,7 @@ int run_integrate(int argc, char **argv) {
         std::size_t in_groups = 0;
         for (std::size_t n : group_size)
           in_groups += n;
-        std::printf(
+        mxi::print(
             "Overlapping foregrounds: %zu reflections in %zu groups, to be "
             "fitted together\n",
             in_groups, group_size.size());
@@ -2381,11 +2368,11 @@ int run_integrate(int argc, char **argv) {
     // saved (see IntegrateOptions::fill_background).
     integrate_options.fill_background = !(use_gpu && !save);
     if ((use_gpu || emulate_gpu) && args.has("--least-variance"))
-      std::printf("--least-variance is the CPU fit's: the device's keeps "
-                  "0.001\n");
+      mxi::print("--least-variance is the CPU fit's: the device's keeps "
+                 "0.001\n");
     if (use_gpu && !single_pass) {
-      std::printf("--gpu fits in one pass only; with --two-pass the fitting is "
-                  "on the CPU\n");
+      mxi::print("--gpu fits in one pass only; with --two-pass the fitting is "
+                 "on the CPU\n");
       use_gpu = false;
     }
     const bool on_device =
@@ -2394,13 +2381,13 @@ int run_integrate(int argc, char **argv) {
       // The emulation runs the kernel's algorithm, which recomputes each
       // pixel's cells for every slice -- cheap on a device, several times the
       // work on a CPU -- so without a device the fit is the CPU's own.
-      std::printf("--gpu: no usable device (%s); fitting on the CPU, in double "
-                  "precision\n",
-                  fit_device_unavailable_reason().c_str());
+      mxi::print("--gpu: no usable device (%s); fitting on the CPU, in double "
+                 "precision\n",
+                 fit_device_unavailable_reason().c_str());
       use_gpu = false;
     } else if (on_device)
-      std::printf("Profile fitting on %s, in single precision\n",
-                  fit_device_name());
+      mxi::print("Profile fitting on %s, in single precision\n",
+                 fit_device_name());
     // A batch a lattice, each made on its own lattice's profile grid: the
     // device's batch carries one grid, and the lattices of a sweep have each
     // their own (docs/multi-lattice.md).
@@ -3132,8 +3119,8 @@ int run_integrate(int argc, char **argv) {
           if (!profile_path.empty()) {
             std::FILE *f = std::fopen(profile_path.c_str(), "w");
             if (f == nullptr) {
-              std::fprintf(stderr, "mxi integrate: cannot write %s\n",
-                           profile_path.c_str());
+              mxi::eprint("mxi integrate: cannot write %s\n",
+                          profile_path.c_str());
             } else {
               // Plain text, one profile a block, because the thing that reads
               // this is a person with a plotting script and not a program
@@ -3152,7 +3139,7 @@ int run_integrate(int argc, char **argv) {
                   std::fprintf(f, "%.9g\n", v);
               }
               std::fclose(f);
-              std::printf("wrote %s\n", profile_path.c_str());
+              mxi::print("wrote %s\n", profile_path.c_str());
             }
           }
           // How many reflections this lattice learned from: its own regions'
@@ -3178,10 +3165,9 @@ int run_integrate(int argc, char **argv) {
                  own.region_count());
         }
         if (references_used == 0) {
-          std::fprintf(stderr,
-                       "mxi integrate: nothing to learn profiles from, so no "
-                       "profile fitting: lower --reference-signal or check the "
-                       "summation\n");
+          mxi::eprint("mxi integrate: nothing to learn profiles from, so no "
+                      "profile fitting: lower --reference-signal or check the "
+                      "summation\n");
           // Nothing learned, so nothing fitted: what one pass held goes out
           // as it was, as the two passes' first pass left it.
           if (single_pass && save)
@@ -3219,16 +3205,16 @@ int run_integrate(int argc, char **argv) {
               }
               ++replaced;
             }
-            std::printf("Fitted together: %zu reflections in %zu groups",
-                        replaced, overlap_fitted_groups);
+            mxi::print("Fitted together: %zu reflections in %zu groups",
+                       replaced, overlap_fitted_groups);
             if (overlap_degenerate > 0)
-              std::printf("; %zu whose profiles could not be told apart, each "
-                          "fitted alone",
-                          overlap_degenerate);
+              mxi::print("; %zu whose profiles could not be told apart, each "
+                         "fitted alone",
+                         overlap_degenerate);
             if (overlap_unfitted > 0)
-              std::printf("; %zu with no profile for a member, each alone",
-                          overlap_unfitted);
-            std::printf("\n");
+              mxi::print("; %zu with no profile for a member, each alone",
+                         overlap_unfitted);
+            mxi::print("\n");
           }
         } else {
           pass = 1;
@@ -3248,8 +3234,7 @@ int run_integrate(int argc, char **argv) {
     if (save)
       shoebox_bytes = encode_shoeboxes(saved);
     if (frames_missing > 0) {
-      std::fprintf(
-          stderr,
+      mxi::eprint(
           "mxi integrate: %zu reads found no frame: an unallocated chunk is a "
           "frame the writer never received, and a shoebox spanning one is "
           "missing a slice\n",
@@ -3298,15 +3283,15 @@ int run_integrate(int argc, char **argv) {
             detected ? obs_px.reals[i * 3 + 1] - cal_px.reals[i * 3 + 1] : nan;
       }
       integration_summary = summarise(summary, 10);
-      print_summary(stdout, *integration_summary);
+      print_summary(mxi::Stream::out, *integration_summary);
     }
-    std::printf("\n");
+    mxi::print("\n");
 
     if (save) {
       Table::Opaque column;
       column.type = "Shoebox<>";
       column.rows = planned.size();
-      std::printf("Shoeboxes kept: %.1f MB\n", shoebox_bytes.size() / 1e6);
+      mxi::print("Shoeboxes kept: %.1f MB\n", shoebox_bytes.size() / 1e6);
       column.bytes = std::move(shoebox_bytes);
       out.set_opaque("shoebox", std::move(column));
     }
@@ -3333,10 +3318,10 @@ int run_integrate(int argc, char **argv) {
                                prf_off_foreground + prf_masked +
                                prf_degenerate + prf_device + prf_too_little;
       if (lost > 0 && fitting) {
-        std::printf("Not profile fitted, %zu, and why:\n", lost);
+        mxi::print("Not profile fitted, %zu, and why:\n", lost);
         const auto line = [](std::size_t n, const char *why) {
           if (n > 0)
-            std::printf("  %10zu  %s\n", n, why);
+            mxi::print("  %10zu  %s\n", n, why);
         };
         line(prf_no_box, "the box was rejected before fitting");
         line(prf_no_reference,
@@ -3353,7 +3338,7 @@ int run_integrate(int argc, char **argv) {
                       "under %.2f of the profile measured (--least-measured)",
                       least_measured);
         line(prf_too_little, cut);
-        std::printf("\n");
+        mxi::print("\n");
       }
     }
 
@@ -3408,11 +3393,11 @@ int run_integrate(int argc, char **argv) {
       // removed inside the program, so its figures are said, not their names;
       // the whole's own line names what was written.
       if (args.has("--sweep-run"))
-        std::printf("Integrated %zu reflections\n", planned.size());
+        mxi::print("Integrated %zu reflections\n", planned.size());
       else
-        std::printf("Wrote %zu reflections, and the models with the profile "
-                    "model, to %s\n",
-                    planned.size(), rflx::describe(outputs).c_str());
+        mxi::print("Wrote %zu reflections, and the models with the profile "
+                   "model, to %s\n",
+                   planned.size(), rflx::describe(outputs).c_str());
     }
 
     if (args.has("--timing")) {
@@ -3426,22 +3411,22 @@ int run_integrate(int argc, char **argv) {
       timing.add("learning profiles", t_transform);
       timing.add("profile fitting", t_fit);
       timing.add("writing", t_write);
-      timing.report(stdout);
+      timing.report(mxi::Stream::out);
       const auto per = [&](double seconds) {
         return t_region > 0.0 ? seconds / t_region : 0.0;
       };
-      std::printf("  %zu threads, chunks of %zu frames, at most %zu boxes "
-                  "opened a chunk, %zu "
-                  "open at once\n",
-                  workers, window, max_boxes, most_open);
-      std::printf("  %zu frames read, %zu wanted by a shoebox, each read %.2f "
-                  "times; %zu voxels "
-                  "on masked pixels\n",
-                  frames_read, wanted.size(),
-                  wanted.empty() ? 0.0
-                                 : static_cast<double>(frames_read) /
-                                       static_cast<double>(wanted.size()),
-                  bad_pixels);
+      mxi::print("  %zu threads, chunks of %zu frames, at most %zu boxes "
+                 "opened a chunk, %zu "
+                 "open at once\n",
+                 workers, window, max_boxes, most_open);
+      mxi::print("  %zu frames read, %zu wanted by a shoebox, each read %.2f "
+                 "times; %zu voxels "
+                 "on masked pixels\n",
+                 frames_read, wanted.size(),
+                 wanted.empty() ? 0.0
+                                : static_cast<double>(frames_read) /
+                                      static_cast<double>(wanted.size()),
+                 bad_pixels);
       {
         // Background and summation, in thread-seconds: the background fit,
         // the rest of integrate_shoebox, and the rest of closing a box; and
@@ -3466,20 +3451,19 @@ int run_integrate(int argc, char **argv) {
           for (std::int32_t v : iterations)
             mean += v;
           mean /= static_cast<double>(iterations.size());
-          std::printf("  background and summation, in thread-seconds: the "
-                      "background fit %.3f s, the rest of integrate_shoebox "
-                      "%.3f s, the rest of closing %.3f s\n",
-                      fit, shoebox - fit, closing - shoebox);
-          std::printf(
-              "  the background fit's iterations: mean %.1f, median %d, "
-              "90%% %d, 99%% %d, most %d\n",
-              mean, at(0.5), at(0.9), at(0.99), iterations.back());
+          mxi::print("  background and summation, in thread-seconds: the "
+                     "background fit %.3f s, the rest of integrate_shoebox "
+                     "%.3f s, the rest of closing %.3f s\n",
+                     fit, shoebox - fit, closing - shoebox);
+          mxi::print("  the background fit's iterations: mean %.1f, median %d, "
+                     "90%% %d, 99%% %d, most %d\n",
+                     mean, at(0.5), at(0.9), at(0.99), iterations.back());
         }
       }
-      std::printf("  opening shoeboxes: building %.3f s, marking neighbours "
-                  "%.3f s, wall\n",
-                  t_build, t_mark);
-      std::printf(
+      mxi::print("  opening shoeboxes: building %.3f s, marking neighbours "
+                 "%.3f s, wall\n",
+                 t_build, t_mark);
+      mxi::print(
           "  reading frames, in thread-seconds: fetching %.3f s (%.2f x wall), "
           "decompressing %.3f s (%.2f x), filling shoeboxes %.3f s (%.2f x)\n",
           t_fetch, per(t_fetch), t_decompress, per(t_decompress), t_fill,
@@ -3487,40 +3471,40 @@ int run_integrate(int argc, char **argv) {
       if (use_gpu) {
         double device[3] = {0.0, 0.0, 0.0};
         fit_device_times(device);
-        std::printf("  profile fitting in single precision, %s: %.3f s on the "
-                    "CPU's side -- "
-                    "preparing %.3f s (the local references), waiting for a "
-                    "free slot %.3f s, packing %.3f s, handing over "
-                    "%.3f s, waiting for the device %.3f s",
-                    on_device ? fit_device_name() : "emulated on the CPU",
-                    t_fit_batched.seconds() + t_gpu_wait.seconds(),
-                    t_gpu_prepare.seconds(), t_gpu_slot.seconds(),
-                    t_gpu_pack.seconds(), t_gpu_device.seconds(),
-                    t_gpu_wait.seconds());
+        mxi::print("  profile fitting in single precision, %s: %.3f s on the "
+                   "CPU's side -- "
+                   "preparing %.3f s (the local references), waiting for a "
+                   "free slot %.3f s, packing %.3f s, handing over "
+                   "%.3f s, waiting for the device %.3f s",
+                   on_device ? fit_device_name() : "emulated on the CPU",
+                   t_fit_batched.seconds() + t_gpu_wait.seconds(),
+                   t_gpu_prepare.seconds(), t_gpu_slot.seconds(),
+                   t_gpu_pack.seconds(), t_gpu_device.seconds(),
+                   t_gpu_wait.seconds());
         if (on_device)
-          std::printf(" (on the device: uploading %.3f s, %.2f GB for %zu "
-                      "boxes, %.1f GB/s; the "
-                      "kernel %.3f s; downloading %.3f s)",
-                      device[0], gpu_bytes / 1e9, gpu_boxes,
-                      device[0] > 0.0 ? gpu_bytes / 1e9 / device[0] : 0.0,
-                      device[1], device[2]);
-        std::printf("\n");
+          mxi::print(" (on the device: uploading %.3f s, %.2f GB for %zu "
+                     "boxes, %.1f GB/s; the "
+                     "kernel %.3f s; downloading %.3f s)",
+                     device[0], gpu_bytes / 1e9, gpu_boxes,
+                     device[0] > 0.0 ? gpu_bytes / 1e9 / device[0] : 0.0,
+                     device[1], device[2]);
+        mxi::print("\n");
       }
-      std::printf(
+      mxi::print(
           "  profile fitting, in thread-seconds: interpolating the reference "
           "%.3f s, "
           "carrying it onto the pixels %.3f s, the least squares %.3f s\n",
           t_fit_interpolate.seconds(), t_fit_onto.seconds(),
           t_fit_solve.seconds());
       if (single_pass)
-        std::printf("  one pass: at most %zu shoeboxes held for fitting, %.2f "
-                    "GB of pixels and "
-                    "masks\n",
-                    most_held, most_held_bytes / 1e9);
+        mxi::print("  one pass: at most %zu shoeboxes held for fitting, %.2f "
+                   "GB of pixels and "
+                   "masks\n",
+                   most_held, most_held_bytes / 1e9);
     }
     return 0;
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi integrate: %s\n", error.what());
+    mxi::eprint("mxi integrate: %s\n", error.what());
     return 1;
   }
 }

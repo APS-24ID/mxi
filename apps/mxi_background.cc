@@ -16,13 +16,14 @@
 #include "args.hh"
 #include "background.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "timing.hh"
 
 namespace mxi {
 
 namespace {
 void usage(const char *program) {
-  std::printf(
+  mxi::print(
       "usage: %s [--tuning K] [FILE]\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
@@ -49,7 +50,7 @@ int run_background(int argc, char **argv) {
   Timing timing(args.has("--timing"));
   double mark = Timing::now();
   if (!args.ok) {
-    std::fprintf(stderr, "mxi background: %s\n", args.error.c_str());
+    mxi::eprint("mxi background: %s\n", args.error.c_str());
     return 2;
   }
   // --help printed nothing and then waited for standard input, which on a
@@ -66,8 +67,8 @@ int run_background(int argc, char **argv) {
   if (!args.positional.empty()) {
     file.open(args.positional[0]);
     if (!file) {
-      std::fprintf(stderr, "mxi background: cannot open %s\n",
-                   args.positional[0].c_str());
+      mxi::eprint("mxi background: cannot open %s\n",
+                  args.positional[0].c_str());
       return 1;
     }
     in = &file;
@@ -81,10 +82,10 @@ int run_background(int argc, char **argv) {
     while (row >> v)
       values.push_back(v);
     const BackgroundResult r = glm_background(values, options);
-    std::printf("%.10g %d %d\n", r.mean, r.iterations, r.converged ? 1 : 0);
+    mxi::print("%.10g %d %d\n", r.mean, r.iterations, r.converged ? 1 : 0);
   }
   timing.add("reading and fitting", Timing::now() - mark);
-  timing.report(stdout);
+  timing.report(mxi::Stream::out);
   return 0;
 }
 

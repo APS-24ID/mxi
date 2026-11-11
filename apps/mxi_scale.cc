@@ -13,6 +13,7 @@
 #include "args.hh"
 #include "expt.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "parallel.hh"
 #include "processing.hh"
 #include "refl.hh"
@@ -29,7 +30,7 @@ namespace mxi {
 namespace {
 
 void usage() {
-  std::printf(
+  mxi::print(
       "usage: mxi scale [options] INTEGRATED_EXPT INTEGRATED_REFL\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
@@ -132,49 +133,44 @@ int run_scale(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi scale: %s\n", args.error.c_str());
+    mxi::eprint("mxi scale: %s\n", args.error.c_str());
     return 2;
   }
   const std::string level = args.value("--absorption-level", "low");
   if (level != "low" && level != "medium" && level != "high") {
-    std::fprintf(stderr,
-                 "mxi scale: --absorption-level is low, medium or high, not "
-                 "'%s'\n",
-                 level.c_str());
+    mxi::eprint("mxi scale: --absorption-level is low, medium or high, not "
+                "'%s'\n",
+                level.c_str());
     return 2;
   }
   if (args.has("--absorption-level") && args.has("--no-absorption")) {
-    std::fprintf(stderr, "mxi scale: --absorption-level and --no-absorption "
-                         "contradict each other\n");
+    mxi::eprint("mxi scale: --absorption-level and --no-absorption "
+                "contradict each other\n");
     return 2;
   }
   if (args.has("--l-max")) {
     const double l = args.number("--l-max", -1.0);
     if (!(l >= 0.0 && l <= 12.0 && l == std::floor(l))) {
-      std::fprintf(
-          stderr,
+      mxi::eprint(
           "mxi scale: --l-max is a whole number from 0 to 12, not '%s'\n",
           args.value("--l-max", "").c_str());
       return 2;
     }
     if (args.has("--no-absorption")) {
-      std::fprintf(
-          stderr,
+      mxi::eprint(
           "mxi scale: --l-max and --no-absorption contradict each other\n");
       return 2;
     }
   }
   if (args.has("--d-min") && args.has("--d-min-auto")) {
-    std::fprintf(
-        stderr,
+    mxi::eprint(
         "mxi scale: --d-min and --d-min-auto are two answers to one question; "
         "give one\n");
     return 2;
   }
   if (args.positional.size() != 2) {
-    std::fprintf(stderr,
-                 "mxi scale: expected an .expt and a .refl, got %zu files\n",
-                 args.positional.size());
+    mxi::eprint("mxi scale: expected an .expt and a .refl, got %zu files\n",
+                args.positional.size());
     usage();
     return 2;
   }
@@ -215,16 +211,16 @@ int run_scale(int argc, char **argv) {
     if (args.has("--change-of-basis")) {
       const std::string cb = args.value("--change-of-basis", "");
       reindex(experiments, reflections, ChangeOfBasis::parse(cb), group);
-      std::printf("Reindexed by %s\n", cb.c_str());
+      mxi::print("Reindexed by %s\n", cb.c_str());
     } else {
       for (Experiment &e : experiments)
         e.crystal->space_group_hall = group.hall();
     }
     const UnitCell cell = experiments[0].crystal->cell();
-    std::printf("Space group %s, Laue class %s; cell %.3f %.3f %.3f A, %.3f "
-                "%.3f %.3f deg\n",
-                group.name().c_str(), group.laue().c_str(), cell.a, cell.b,
-                cell.c, cell.alpha, cell.beta, cell.gamma);
+    mxi::print("Space group %s, Laue class %s; cell %.3f %.3f %.3f A, %.3f "
+               "%.3f %.3f deg\n",
+               group.name().c_str(), group.laue().c_str(), cell.a, cell.b,
+               cell.c, cell.alpha, cell.beta, cell.gamma);
 
     ScaleRunOptions options;
     options.combine = !args.has("--profile-only");
@@ -296,13 +292,13 @@ int run_scale(int argc, char **argv) {
         which += (which.empty() ? "" : ", ") + std::to_string(w);
       const bool itself =
           named.size() == 1 && named[0] == static_cast<std::size_t>(e);
-      std::printf("Excluding images %" PRId64 " to %" PRId64
-                  " of experiment %" PRId64 "%s%s\n",
-                  first, last, e,
-                  itself ? ""
-                         : (named.size() == 1 ? ", its sweep's lattice "
-                                              : ", its sweep's lattices "),
-                  itself ? "" : which.c_str());
+      mxi::print("Excluding images %" PRId64 " to %" PRId64
+                 " of experiment %" PRId64 "%s%s\n",
+                 first, last, e,
+                 itself ? ""
+                        : (named.size() == 1 ? ", its sweep's lattice "
+                                             : ", its sweep's lattices "),
+                 itself ? "" : which.c_str());
     }
     const double cc_half_limit = args.number("--cc-half-limit", 0.3);
     phase("reindexing");
@@ -328,12 +324,12 @@ int run_scale(int argc, char **argv) {
         // for, so that what was chosen can be said and repeated: this is what
         // --d-min with that number does, exactly.
         options.d_min = std::round(first_res.d_min_cc_half * 100.0) / 100.0;
-        std::printf(
+        mxi::print(
             "\n--d-min-auto: CC half falls to %.2f at %.2f A with everything "
             "scaled; scaling again, as --d-min %.2f would\n",
             cc_half_limit, first_res.d_min_cc_half, options.d_min);
       } else {
-        std::printf(
+        mxi::print(
             "\n--d-min-auto: CC half stays above %.2f to the edge of the data; "
             "no limit applied\n",
             cc_half_limit);
@@ -348,20 +344,20 @@ int run_scale(int argc, char **argv) {
       throw std::runtime_error("no observations fit to scale");
 
     const ScaleModelShape &shape = run.model.shape();
-    std::printf("\n%zu observations of %zu reflections, of %zu rows\n",
-                data.size(), data.unique.size(), reflections.nrows);
+    mxi::print("\n%zu observations of %zu reflections, of %zu rows\n",
+               data.size(), data.unique.size(), reflections.nrows);
     if (data.partials_combined > 0)
-      std::printf("%zu pieces of reflections split by integration combined "
-                  "with the others of their reflection\n",
-                  data.partials_combined);
+      mxi::print("%zu pieces of reflections split by integration combined "
+                 "with the others of their reflection\n",
+                 data.partials_combined);
     if (run.model.sweeps() == 1)
-      std::printf("Scaling model: %zu scale, %zu decay and %zu absorption "
-                  "parameters, %zu in "
-                  "all; fitted on %zu observations\n",
-                  shape.scale_points, shape.decay_points,
-                  harmonic_count(shape.lmax), run.model.size(), run.fitted_on);
+      mxi::print("Scaling model: %zu scale, %zu decay and %zu absorption "
+                 "parameters, %zu in "
+                 "all; fitted on %zu observations\n",
+                 shape.scale_points, shape.decay_points,
+                 harmonic_count(shape.lmax), run.model.size(), run.fitted_on);
     else
-      std::printf(
+      mxi::print(
           "Scaling model: %zu experiments, a model each, %zu parameters in "
           "all; fitted on %zu observations\n",
           run.model.sweeps(), run.model.size(), run.fitted_on);
@@ -370,21 +366,21 @@ int run_scale(int argc, char **argv) {
       for (std::size_t w = 0; w < run.model.sweeps(); ++w)
         harmonics += harmonic_count(run.model.shape(w).lmax);
       if (harmonics > 0)
-        std::printf("  absorption level %s: degree %d, each harmonic "
-                    "restrained by %g\n",
-                    level.c_str(), run.model.shape(0).lmax,
-                    options.fit.absorption_restraint);
+        mxi::print("  absorption level %s: degree %d, each harmonic "
+                   "restrained by %g\n",
+                   level.c_str(), run.model.shape(0).lmax,
+                   options.fit.absorption_restraint);
     }
     if (!data.pair.empty())
-      std::printf(
+      mxi::print(
           "Friedel mates kept apart (--anomalous): %zu groups scaled, from %zu "
           "symmetry-unique reflections\n",
           data.unique.size(), data.pair_unique.size());
     for (std::size_t k = 0; k < run.fits.size(); ++k)
-      std::printf("  fit %zu: %d steps, target %.6g to %.6g%s\n", k + 1,
-                  run.fits[k].iterations, run.fits[k].target_start,
-                  run.fits[k].target_end,
-                  run.fits[k].converged ? "" : ", not converged");
+      mxi::print("  fit %zu: %d steps, target %.6g to %.6g%s\n", k + 1,
+                 run.fits[k].iterations, run.fits[k].target_start,
+                 run.fits[k].target_end,
+                 run.fits[k].converged ? "" : ", not converged");
     // Each sweep's scale and relative B: for several, side by side, which is
     // where their relative scales show.
     for (std::size_t w = 0; w < run.model.sweeps(); ++w) {
@@ -401,29 +397,29 @@ int run_scale(int argc, char **argv) {
         bmax = std::fmax(bmax, b);
       }
       if (run.model.sweeps() > 1)
-        std::printf("  experiment %zu: %zu scale, %zu decay, %zu absorption "
-                    "parameters;",
-                    w, own.scale_points, own.decay_points,
-                    harmonic_count(own.lmax));
-      std::printf("  scale %.4f to %.4f", cmin, cmax);
+        mxi::print("  experiment %zu: %zu scale, %zu decay, %zu absorption "
+                   "parameters;",
+                   w, own.scale_points, own.decay_points,
+                   harmonic_count(own.lmax));
+      mxi::print("  scale %.4f to %.4f", cmin, cmax);
       if (own.decay_points > 0)
-        std::printf("; relative B %.3f to %.3f A^2", bmin, bmax);
-      std::printf("\n");
+        mxi::print("; relative B %.3f to %.3f A^2", bmin, bmax);
+      mxi::print("\n");
       // A scale at or below zero is no scale: the fit went where the data did
       // not hold it, and every intensity it touches is meaningless. Said, not
       // written as a result in silence (item 71).
       if (cmin <= 0.0)
-        std::printf("  WARNING: experiment %zu's scale reaches %.4f -- at or "
-                    "below zero, which no scale can be; the fit is not to be "
-                    "trusted (try a stronger --scale-restraint)\n",
-                    w, cmin);
+        mxi::print("  WARNING: experiment %zu's scale reaches %.4f -- at or "
+                   "below zero, which no scale can be; the fit is not to be "
+                   "trusted (try a stronger --scale-restraint)\n",
+                   w, cmin);
     }
     if (run.i_mid == 0.0)
-      std::printf("Intensities: profile fitted\n");
+      mxi::print("Intensities: profile fitted\n");
     else if (std::isinf(run.i_mid))
-      std::printf("Intensities: summation\n");
+      mxi::print("Intensities: summation\n");
     else
-      std::printf(
+      mxi::print(
           "Intensities: profile fitted, crossing to summation at I = %.0f\n",
           run.i_mid);
     if (run.covariance.ok) {
@@ -433,31 +429,31 @@ int run_scale(int argc, char **argv) {
         big = std::fmax(big, f);
         total += f;
       }
-      std::printf("Scale uncertainties: sigma(g)/g %.4f on average, %.4f at "
-                  "most; goodness of "
-                  "fit %.3f on %zu degrees of freedom; carried into each "
-                  "variance before the "
-                  "error model\n",
-                  total / static_cast<double>(run.g_variance.size()), big,
-                  run.covariance.goodness_of_fit,
-                  run.covariance.degrees_of_freedom);
+      mxi::print("Scale uncertainties: sigma(g)/g %.4f on average, %.4f at "
+                 "most; goodness of "
+                 "fit %.3f on %zu degrees of freedom; carried into each "
+                 "variance before the "
+                 "error model\n",
+                 total / static_cast<double>(run.g_variance.size()), big,
+                 run.covariance.goodness_of_fit,
+                 run.covariance.degrees_of_freedom);
     } else {
-      std::printf("Scale uncertainties: the normal matrix could not be "
-                  "inverted; none carried\n");
+      mxi::print("Scale uncertainties: the normal matrix could not be "
+                 "inverted; none carried\n");
     }
     if (run.error_model.split)
-      std::printf("Error model: a = %.4f for the variance with no signal, %.4f "
-                  "for the rest, b = %.4f, from %zu observations\n",
-                  run.error_model.a_bg, run.error_model.a, run.error_model.b,
-                  run.error_model.used);
+      mxi::print("Error model: a = %.4f for the variance with no signal, %.4f "
+                 "for the rest, b = %.4f, from %zu observations\n",
+                 run.error_model.a_bg, run.error_model.a, run.error_model.b,
+                 run.error_model.used);
     else
-      std::printf("Error model: a = %.4f, b = %.4f, from %zu observations\n",
-                  run.error_model.a, run.error_model.b, run.error_model.used);
+      mxi::print("Error model: a = %.4f, b = %.4f, from %zu observations\n",
+                 run.error_model.a, run.error_model.b, run.error_model.used);
     if (!run.error_model.split_refused.empty())
-      std::printf("  not split by background and signal, though integration "
-                  "wrote the variance with no signal: %s\n",
-                  run.error_model.split_refused.c_str());
-    std::printf("%zu outliers\n", run.outliers);
+      mxi::print("  not split by background and signal, though integration "
+                 "wrote the variance with no signal: %s\n",
+                 run.error_model.split_refused.c_str());
+    mxi::print("%zu outliers\n", run.outliers);
 
     MergingShell all;
     const std::int32_t shells =
@@ -465,16 +461,16 @@ int run_scale(int argc, char **argv) {
     const std::vector<MergingShell> table = merging_statistics(
         data, run.g, group, *experiments[0].crystal, shells, &all);
     phase("merging statistics");
-    std::printf("\nMerging statistics, Friedel mates merged\n");
-    std::printf("  %6s %6s %7s %6s %6s %6s %8s %7s %6s %7s %6s %6s\n", "d_max",
-                "d_min", "#obs", "#uniq", "mult.", "%comp", "<I>", "<I/sI>",
-                "r_mrg", "r_meas", "r_pim", "cc1/2");
+    mxi::print("\nMerging statistics, Friedel mates merged\n");
+    mxi::print("  %6s %6s %7s %6s %6s %6s %8s %7s %6s %7s %6s %6s\n", "d_max",
+               "d_min", "#obs", "#uniq", "mult.", "%comp", "<I>", "<I/sI>",
+               "r_mrg", "r_meas", "r_pim", "cc1/2");
     const auto row = [](const MergingShell &m) {
-      std::printf("  %6.2f %6.2f %7zu %6zu %6.2f %6.2f %8.1f %7.1f %6.3f %7.3f "
-                  "%6.3f %6.3f\n",
-                  m.d_max, m.d_min, m.observations, m.unique, m.multiplicity,
-                  100.0 * m.completeness, m.mean_i, m.i_over_sigma, m.rmerge,
-                  m.rmeas, m.rpim, m.cc_half);
+      mxi::print("  %6.2f %6.2f %7zu %6zu %6.2f %6.2f %8.1f %7.1f %6.3f %7.3f "
+                 "%6.3f %6.3f\n",
+                 m.d_max, m.d_min, m.observations, m.unique, m.multiplicity,
+                 100.0 * m.completeness, m.mean_i, m.i_over_sigma, m.rmerge,
+                 m.rmeas, m.rpim, m.cc_half);
     };
     for (const MergingShell &m : table)
       row(m);
@@ -488,16 +484,16 @@ int run_scale(int argc, char **argv) {
         data, run.g, *experiments[0].crystal, 50, 10, 0.1, &wilson);
     const ResolutionEstimate res = estimate_resolution(bins, cc_half_limit);
     phase("the resolution limit");
-    std::printf("\nRemoving %zu Wilson outliers with E^2 >= 16.0\n", wilson);
+    mxi::print("\nRemoving %zu Wilson outliers with E^2 >= 16.0\n", wilson);
     if (res.d_min_cc_half > 0.0)
-      std::printf("Resolution cc_half:       %.2f\n", res.d_min_cc_half);
+      mxi::print("Resolution cc_half:       %.2f\n", res.d_min_cc_half);
     else
-      std::printf("Resolution cc_half:       none found\n");
+      mxi::print("Resolution cc_half:       none found\n");
     if (res.d_min_significance > 0.0)
-      std::printf("Resolution cc_half_significance_level:    %.2f\n",
-                  res.d_min_significance);
+      mxi::print("Resolution cc_half_significance_level:    %.2f\n",
+                 res.d_min_significance);
     else
-      std::printf("Resolution cc_half_significance_level:    none found\n");
+      mxi::print("Resolution cc_half_significance_level:    none found\n");
 
     // "Suggested": the same summary, cut at the CC half limit -- unless a
     // limit was given with --d-min, which is the cut already chosen; a column
@@ -533,15 +529,15 @@ int run_scale(int argc, char **argv) {
                         bool resolution) {
       if (rows.empty())
         return;
-      std::printf("\nThe sigmas' calibration %s: (I - <I> of the others) / "
-                  "sigma, its variance -- 1 where right\n",
-                  title);
-      std::printf(
-          "  %9s %9s %8s %9s %9s %9s %9s\n", resolution ? "d_max" : "<I> from",
-          resolution ? "d_min" : "to", "n", "raw", "robust", "final", "robust");
+      mxi::print("\nThe sigmas' calibration %s: (I - <I> of the others) / "
+                 "sigma, its variance -- 1 where right\n",
+                 title);
+      mxi::print("  %9s %9s %8s %9s %9s %9s %9s\n",
+                 resolution ? "d_max" : "<I> from", resolution ? "d_min" : "to",
+                 "n", "raw", "robust", "final", "robust");
       for (const CalibrationRow &r : rows)
-        std::printf("  %9.2f %9.2f %8zu %9.3f %9.3f %9.3f %9.3f\n", r.lo, r.hi,
-                    r.n, r.raw_ms, r.raw_robust, r.final_ms, r.final_robust);
+        mxi::print("  %9.2f %9.2f %8zu %9.3f %9.3f %9.3f %9.3f\n", r.lo, r.hi,
+                   r.n, r.raw_ms, r.raw_robust, r.final_ms, r.final_robust);
     };
     say("by resolution", by_d, true);
     say("by intensity", by_i, false);
@@ -550,13 +546,13 @@ int run_scale(int argc, char **argv) {
     // highest, and the data cut at the suggested limit.
     {
       const MergingShell &low = table.front(), &high = table.back();
-      std::printf("\n            -------------Summary of merging "
-                  "statistics--------------\n\n");
+      mxi::print("\n            -------------Summary of merging "
+                 "statistics--------------\n\n");
       if (cut)
-        std::printf("%-44s %8s %7s %7s %9s\n", "", "Overall", "Low", "High",
-                    "Suggested");
+        mxi::print("%-44s %8s %7s %7s %9s\n", "", "Overall", "Low", "High",
+                   "Suggested");
       else
-        std::printf("%-44s %8s %7s %7s\n", "", "Overall", "Low", "High");
+        mxi::print("%-44s %8s %7s %7s\n", "", "Overall", "Low", "High");
       const auto line = [&](const char *what, double MergingShell::*f,
                             const char *fmt, double scale) {
         char x[4][32];
@@ -564,21 +560,21 @@ int run_scale(int argc, char **argv) {
         for (std::int32_t k = 0; k < 4; ++k)
           std::snprintf(x[k], sizeof x[k], fmt, scale * (m[k]->*f));
         if (cut)
-          std::printf("%-44s %8s %7s %7s %9s\n", what, x[0], x[1], x[2], x[3]);
+          mxi::print("%-44s %8s %7s %7s %9s\n", what, x[0], x[1], x[2], x[3]);
         else
-          std::printf("%-44s %8s %7s %7s\n", what, x[0], x[1], x[2]);
+          mxi::print("%-44s %8s %7s %7s\n", what, x[0], x[1], x[2]);
       };
       const auto count = [&](const char *what, std::size_t MergingShell::*f) {
         if (cut)
-          std::printf("%-44s %8zu %7zu %7zu %9zu\n", what, all.*f, low.*f,
-                      high.*f, suggested.*f);
+          mxi::print("%-44s %8zu %7zu %7zu %9zu\n", what, all.*f, low.*f,
+                     high.*f, suggested.*f);
         else
-          std::printf("%-44s %8zu %7zu %7zu\n", what, all.*f, low.*f, high.*f);
+          mxi::print("%-44s %8zu %7zu %7zu\n", what, all.*f, low.*f, high.*f);
       };
       const auto only = [&](const char *what, double v, const char *fmt) {
         char x[32];
         std::snprintf(x, sizeof x, fmt, v);
-        std::printf("%-44s %8s\n", what, x);
+        mxi::print("%-44s %8s\n", what, x);
       };
       line("High resolution limit", &MergingShell::d_min, "%.2f", 1.0);
       line("Low resolution limit", &MergingShell::d_max, "%.2f", 1.0);
@@ -735,15 +731,15 @@ int run_scale(int argc, char **argv) {
       const TwoThetaResult &tt = two_theta;
       if (tt.valid) {
         const UnitCell &c = tt.cell;
-        std::printf("Cell from two-theta, %zu reflections, %s, RMSD %.4f deg: "
-                    "%s %s %s A, %s %s %s deg\n",
-                    tt.reflections, name_of(tt.system), tt.rmsd_deg,
-                    with_esd(c.a, tt.esd[0]).c_str(),
-                    with_esd(c.b, tt.esd[1]).c_str(),
-                    with_esd(c.c, tt.esd[2]).c_str(),
-                    with_esd(c.alpha, tt.esd[3], 3).c_str(),
-                    with_esd(c.beta, tt.esd[4], 3).c_str(),
-                    with_esd(c.gamma, tt.esd[5], 3).c_str());
+        mxi::print("Cell from two-theta, %zu reflections, %s, RMSD %.4f deg: "
+                   "%s %s %s A, %s %s %s deg\n",
+                   tt.reflections, name_of(tt.system), tt.rmsd_deg,
+                   with_esd(c.a, tt.esd[0]).c_str(),
+                   with_esd(c.b, tt.esd[1]).c_str(),
+                   with_esd(c.c, tt.esd[2]).c_str(),
+                   with_esd(c.alpha, tt.esd[3], 3).c_str(),
+                   with_esd(c.beta, tt.esd[4], 3).c_str(),
+                   with_esd(c.gamma, tt.esd[5], 3).c_str());
         json::Array cell, esd;
         const double v[6] = {c.a, c.b, c.c, c.alpha, c.beta, c.gamma};
         for (std::size_t k = 0; k < 6; ++k) {
@@ -758,7 +754,7 @@ int run_scale(int argc, char **argv) {
         summary.set("two_theta_system",
                     json::Value(std::string(name_of(tt.system))));
       } else {
-        std::printf("Cell from two-theta: not refined, %s\n", tt.why.c_str());
+        mxi::print("Cell from two-theta: not refined, %s\n", tt.why.c_str());
       }
     }
     {
@@ -847,11 +843,11 @@ int run_scale(int argc, char **argv) {
     const json::Value summary_document = summary.document();
     rflx::write_outputs(out, &document, &written_table, "mxi_scale",
                         &summary_document);
-    std::printf("\nWrote %s\n", rflx::describe(out).c_str());
+    mxi::print("\nWrote %s\n", rflx::describe(out).c_str());
     phase("writing");
-    timing.report(stdout);
+    timing.report(mxi::Stream::out);
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi scale: %s\n", error.what());
+    mxi::eprint("mxi scale: %s\n", error.what());
     return 1;
   }
   return 0;

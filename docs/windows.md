@@ -28,7 +28,7 @@ Found by searching the source for system headers and calls (src, apps):
 | `apps/mxi_process.cc` | each step started and waited for: `posix_spawn`, `waitpid` | `CreateProcessW`, `WaitForSingleObject`, `GetExitCodeProcess` |
 | `src/progress.hh` | whether a terminal, and its width: `isatty`, `ioctl(TIOCGWINSZ)` | `_isatty`, `GetConsoleScreenBufferInfo` |
 | `src/timing.hh` | peak memory for `--timing`: `getrusage` | `GetProcessMemoryInfo` (PeakWorkingSetSize) |
-| `src/log_mirror.hh` | stdout and stderr written to the terminal and a log at once: the C library's `stdout` and `stderr` replaced by streams made with `fopencookie` (glibc) or `funopen` (BSD) | **no equivalent**: Windows has neither, and its C library does not let `stdout` be replaced. A design of its own -- below |
+| `src/log_mirror.hh` | stdout and stderr written to the terminal and a log at once: the C library's `stdout` and `stderr` replaced by streams made with `fopencookie` (glibc) or `funopen` (BSD) | **done, 7 November**: `src/output.hh`, below -- standard C++ only, nothing to port |
 | `src/nxmx_reader.cc` | direct reads of NXmx files: `unistd`/`fcntl` | `_open`/`_read`, or `ReadFile` |
 | `apps/mxi.cc` | `mxi view`, `mxi ui`: `execv` of a Python script with a `#!` line | Python started explicitly (`py -3`, or `python` on the PATH), the script its argument |
 | `python/src/mxi_ui/locate.py`, `mxi_tools.py` | `mxi` looked for beside the package by that name | `mxi.exe` |
@@ -60,6 +60,24 @@ offers neither way of making such a stream. Two designs:
   on every system, and testable. The larger change and the better one.
 * **On Windows only, a pipe copied by a thread**: little code, but the design
   rejected for the crash case, and a second way of doing the same thing.
+
+**Done, 7 November: the first design.** `src/output.hh`: `mxi::print`,
+`mxi::eprint`, `mxi::print_to` and `mxi::put` in place of `printf`,
+`fprintf(stdout or stderr, ...)` and `fputs` -- 651 calls in src and apps --
+each formatting once and writing the terminal and the open log under one
+lock, the log flushed each call; stdout flushed at each newline, piped or
+not, as the mirror's was (mxi ui shows a step's output as it is written);
+logs a stack, `open_log` and `close_log`, for mxi process in code. The four
+functions that took a `FILE *` always stdout or stderr (`print_summary`, the
+timing table's `report`, find's `usage`, mxi's `list`) take an
+`mxi::Stream`. `log_mirror.hh` now only opens the log; no `fopencookie`,
+`funopen`, `unistd` or `fcntl`. Not mirrored, as the old mirror did: what
+another library writes straight to stderr (HDF5's error stack where not
+turned off) -- on the terminal only. The Metal and CUDA sources keep
+`printf` (not compiled here) -- their output on the terminal, not in a log,
+until converted where they build. A run's log and its terminal output byte
+for byte the same (`mxi index` on the planted series); tests of order, nested
+logs, long text and threads' whole lines (`tests/test_output.cc`).
 
 ## Simpler first: no process starting another
 
@@ -93,8 +111,8 @@ run today from its `bin`, would want installing from the wheel -- a change
 for a release's notes.
 
 **What Windows would still need**, both made: the terminal's width
-(trivial), peak memory (small), the NXmx reads (small), and the log mirror
-(above) -- four places of six, and none of them starting or waiting for a
+(trivial), peak memory (small), the NXmx reads (small) -- the log mirror
+now done -- three places of six, and none of them starting or waiting for a
 process, the part hardest to make the same on three systems.
 
 

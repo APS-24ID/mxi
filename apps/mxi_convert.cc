@@ -19,6 +19,7 @@
 #include "args.hh"
 #include "json.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "refl.hh"
 #include "rflx.hh"
 #include "views.hh"
@@ -78,13 +79,13 @@ int mxi_convert_main(int argc, char **argv) {
                                              "--output-refl"};
   const Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (args.has("--help")) {
-    std::printf("%s", kUsage);
+    mxi::print("%s", kUsage);
     return 0;
   }
   if (!args.ok || args.positional.empty()) {
     if (!args.ok)
-      std::fprintf(stderr, "mxi convert: %s\n", args.error.c_str());
-    std::fprintf(stderr, "%s", kUsage);
+      mxi::eprint("mxi convert: %s\n", args.error.c_str());
+    mxi::eprint("%s", kUsage);
     return 2;
   }
   const std::string output = args.value("-o", args.value("--output", ""));
@@ -98,8 +99,7 @@ int mxi_convert_main(int argc, char **argv) {
     if (!hdf5.empty()) {
       // From a .rflx.
       if (hdf5.size() > 1 || !other.empty()) {
-        std::fprintf(stderr,
-                     "mxi convert: one .rflx at a time, and nothing with it\n");
+        mxi::eprint("mxi convert: one .rflx at a time, and nothing with it\n");
         return 2;
       }
       const std::string &in = hdf5.front();
@@ -108,14 +108,13 @@ int mxi_convert_main(int argc, char **argv) {
       const std::optional<Table> reflections =
           rflx::read_reflections(in, &skipped);
       for (const std::string &name : skipped)
-        std::printf("Left out the column %s, of a type mxi's tables have no "
-                    "place for\n",
-                    name.c_str());
+        mxi::print("Left out the column %s, of a type mxi's tables have no "
+                   "place for\n",
+                   name.c_str());
       if (!experiments && !reflections) {
-        std::fprintf(stderr,
-                     "mxi convert: %s holds neither experiments nor "
-                     "reflections\n",
-                     in.c_str());
+        mxi::eprint("mxi convert: %s holds neither experiments nor "
+                    "reflections\n",
+                    in.c_str());
         return 1;
       }
       if (!output.empty() && ends_with(output, ".rflx")) {
@@ -125,7 +124,7 @@ int mxi_convert_main(int argc, char **argv) {
         rflx::write(output, experiments ? &*experiments : nullptr,
                     reflections ? &*reflections : nullptr, "mxi_convert",
                     compress, summary ? &*summary : nullptr);
-        std::printf("Wrote %s\n", output.c_str());
+        mxi::print("Wrote %s\n", output.c_str());
         return 0;
       }
       // The pair as DIALS has it: each sweep's crystal-less experiment left
@@ -144,9 +143,9 @@ int mxi_convert_main(int argc, char **argv) {
         list = dials_form(*list, table ? &*table : nullptr);
         const std::size_t after = (*list)["experiment"].as_array().size();
         if (after < before)
-          std::printf("%zu crystal-less experiment%s left out, their spots' "
-                      "id -1 (--keep-sweeps keeps them)\n",
-                      before - after, before - after == 1 ? "" : "s");
+          mxi::print("%zu crystal-less experiment%s left out, their spots' "
+                     "id -1 (--keep-sweeps keeps them)\n",
+                     before - after, before - after == 1 ? "" : "s");
       }
       // mxi's own scale model, mxi_physical, is not DIALS's physical model and
       // DIALS cannot read it: out of the .expt, the experiments' pointers too.
@@ -159,22 +158,22 @@ int mxi_convert_main(int argc, char **argv) {
           list->as_object()["scaling_model"] = json::Value(json::Array{});
           for (json::Value &e : list->as_object()["experiment"].as_array())
             e.as_object().erase("scaling_model");
-          std::printf("mxi's scale model left out: DIALS does not read it\n");
+          mxi::print("mxi's scale model left out: DIALS does not read it\n");
         }
       }
       if (list) {
         const std::string out =
             args.value("--output-expt", with_extension(in, ".expt"));
         json::dump_file(out, *list);
-        std::printf("Wrote the experiment list to %s\n", out.c_str());
+        mxi::print("Wrote the experiment list to %s\n", out.c_str());
       }
       if (table) {
         const Table &reflections_out = *table;
         const std::string out =
             args.value("--output-refl", with_extension(in, ".refl"));
         write_reflections(out, reflections_out);
-        std::printf("Wrote %zu reflections to %s\n", reflections_out.nrows,
-                    out.c_str());
+        mxi::print("Wrote %zu reflections to %s\n", reflections_out.nrows,
+                   out.c_str());
       }
       return 0;
     }
@@ -188,13 +187,13 @@ int mxi_convert_main(int argc, char **argv) {
       const bool looks_refl = ends_with(p, ".refl");
       if (looks_expt || (!looks_refl && !experiments)) {
         if (experiments) {
-          std::fprintf(stderr, "mxi convert: two experiment lists given\n");
+          mxi::eprint("mxi convert: two experiment lists given\n");
           return 2;
         }
         experiments = json::parse_file(p);
       } else {
         if (reflections) {
-          std::fprintf(stderr, "mxi convert: two reflection tables given\n");
+          mxi::eprint("mxi convert: two reflection tables given\n");
           return 2;
         }
         reflections = read_reflections(p);
@@ -204,15 +203,15 @@ int mxi_convert_main(int argc, char **argv) {
         output.empty() ? with_extension(other.front(), ".rflx") : output;
     rflx::write(out, experiments ? &*experiments : nullptr,
                 reflections ? &*reflections : nullptr, "mxi_convert", compress);
-    std::printf("Wrote %s%s%s\n", out.c_str(),
-                experiments ? ": the experiment list" : ":",
-                reflections ? (", " + std::to_string(reflections->nrows) +
-                               " reflections")
-                                  .c_str()
-                            : "");
+    mxi::print("Wrote %s%s%s\n", out.c_str(),
+               experiments ? ": the experiment list" : ":",
+               reflections ? (", " + std::to_string(reflections->nrows) +
+                              " reflections")
+                                 .c_str()
+                           : "");
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi convert: %s\n", e.what());
+    mxi::eprint("mxi convert: %s\n", e.what());
     return 1;
   }
 }

@@ -42,6 +42,7 @@
 #include "decompress.hh"
 #include "expt.hh"
 #include "image_series.hh"
+#include "output.hh"
 #include "parallel.hh"
 
 namespace {
@@ -166,14 +167,14 @@ int mxi_readtest_main(int argc, char **argv) {
                                              "--images"};
   const Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (args.has("--help")) {
-    std::printf("%s", kUsage);
+    mxi::print("%s", kUsage);
     return 0;
   }
   if (!args.ok || args.positional.size() != 1 ||
       args.has("--direct-chunk") == args.has("--pread")) {
     if (!args.ok)
-      std::fprintf(stderr, "mxi readtest: %s\n", args.error.c_str());
-    std::fprintf(stderr, "%s", kUsage);
+      mxi::eprint("mxi readtest: %s\n", args.error.c_str());
+    mxi::eprint("%s", kUsage);
     return 2;
   }
   try {
@@ -294,33 +295,32 @@ int mxi_readtest_main(int argc, char **argv) {
       decomp += decompressing_s[w];
     }
     const double gb = static_cast<double>(compressed.load()) / 1e9;
-    std::printf("mxi readtest: %s, %" PRIu64
-                " frames of %zu x %zu, %u bit, %s\n",
-                master.c_str(), static_cast<std::uint64_t>(read_frames.load()),
-                width, height, bit_depth,
-                algorithm.empty() ? "uncompressed" : algorithm.c_str());
-    std::printf("  read %s on %zu threads%s\n",
-                by_pread ? "by pread, outside any lock"
-                         : "by H5Dread_chunk, the reader's way",
-                threads,
-                decompressing ? ", and decompressed" : ", not decompressed");
+    mxi::print("mxi readtest: %s, %" PRIu64
+               " frames of %zu x %zu, %u bit, %s\n",
+               master.c_str(), static_cast<std::uint64_t>(read_frames.load()),
+               width, height, bit_depth,
+               algorithm.empty() ? "uncompressed" : algorithm.c_str());
+    mxi::print("  read %s on %zu threads%s\n",
+               by_pread ? "by pread, outside any lock"
+                        : "by H5Dread_chunk, the reader's way",
+               threads,
+               decompressing ? ", and decompressed" : ", not decompressed");
     if (by_pread)
-      std::printf("  finding the chunks     %8.3f s\n", t_find);
-    std::printf("  wall                   %8.3f s   %.0f frames/s, %.2f GB/s "
-                "compressed\n",
-                wall, static_cast<double>(read_frames.load()) / wall,
-                gb / wall);
-    std::printf("  fetching               %8.3f thread-s   (%.2f x wall)\n",
-                fetch, fetch / wall);
+      mxi::print("  finding the chunks     %8.3f s\n", t_find);
+    mxi::print("  wall                   %8.3f s   %.0f frames/s, %.2f GB/s "
+               "compressed\n",
+               wall, static_cast<double>(read_frames.load()) / wall, gb / wall);
+    mxi::print("  fetching               %8.3f thread-s   (%.2f x wall)\n",
+               fetch, fetch / wall);
     if (decompressing)
-      std::printf("  decompressing          %8.3f thread-s   (%.2f x wall)\n",
-                  decomp, decomp / wall);
-    std::printf("  compressed             %8.3f GB\n", gb);
-    std::printf("  checksum               %016" PRIx64 "\n",
-                static_cast<std::uint64_t>(checksum.load()));
+      mxi::print("  decompressing          %8.3f thread-s   (%.2f x wall)\n",
+                 decomp, decomp / wall);
+    mxi::print("  compressed             %8.3f GB\n", gb);
+    mxi::print("  checksum               %016" PRIx64 "\n",
+               static_cast<std::uint64_t>(checksum.load()));
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi readtest: %s\n", e.what());
+    mxi::eprint("mxi readtest: %s\n", e.what());
     return 1;
   }
 }

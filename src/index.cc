@@ -15,6 +15,7 @@
 #include <unordered_map>
 
 #include "fft.hh"
+#include "output.hh"
 #include "parallel.hh"
 #include "refine.hh"
 
@@ -1204,9 +1205,9 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
   result.timing.fft = g_last_fft_seconds;
   result.timing.peak_search = g_last_peak_seconds;
   if (options.verbose) {
-    std::printf("  %zu candidate basis vectors\n", result.candidates.size());
+    mxi::print("  %zu candidate basis vectors\n", result.candidates.size());
     for (std::size_t i = 0; i < result.candidates.size(); ++i)
-      std::printf("    |v| = %8.3f\n", result.candidates[i].norm());
+      mxi::print("    |v| = %8.3f\n", result.candidates[i].norm());
   }
 
   const double t_choose = now_seconds();
@@ -1245,21 +1246,21 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
       break;
     result.crystal.A = trial;
     if (options.verbose) {
-      std::printf("  fit at tol %.3f: %zu reflections\n", tolerance, used);
+      mxi::print("  fit at tol %.3f: %zu reflections\n", tolerance, used);
     }
   }
   if (options.verbose) {
     const UnitCell u = result.crystal.cell();
-    std::printf("  after fit:   %.3f %.3f %.3f  %.2f %.2f %.2f  V=%.0f\n", u.a,
-                u.b, u.c, u.alpha, u.beta, u.gamma, u.volume());
+    mxi::print("  after fit:   %.3f %.3f %.3f  %.2f %.2f %.2f  V=%.0f\n", u.a,
+               u.b, u.c, u.alpha, u.beta, u.gamma, u.volume());
   }
   const Mat3 reduced = reduce_basis(result.crystal.A.inverse());
   if (options.verbose) {
     Crystal t;
     t.A = reduced.inverse();
     const UnitCell u = t.cell();
-    std::printf("  after reduce:%.3f %.3f %.3f  %.2f %.2f %.2f  V=%.0f\n", u.a,
-                u.b, u.c, u.alpha, u.beta, u.gamma, u.volume());
+    mxi::print("  after reduce:%.3f %.3f %.3f  %.2f %.2f %.2f  V=%.0f\n", u.a,
+               u.b, u.c, u.alpha, u.beta, u.gamma, u.volume());
   }
   // Accept the reduction on the invariant that actually holds -- the cell
   // volume -- and not on the number of reflections indexed.

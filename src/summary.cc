@@ -163,31 +163,31 @@ IntegrationSummary summarise(const SummaryInput &in, std::int32_t shells) {
   return out;
 }
 
-void print_summary(std::FILE *out, const IntegrationSummary &s) {
+void print_summary(Stream out, const IntegrationSummary &s) {
   if (s.shells.empty()) {
-    std::fprintf(out, "\nno reflections with a resolution to summarise\n");
+    mxi::print_to(out, "\nno reflections with a resolution to summarise\n");
     return;
   }
-  std::fprintf(out, "\nSummary against resolution\n");
-  std::fprintf(out, "  %6s %7s %7s %7s %7s %7s %8s %8s %6s %7s\n", "d min",
-               "# full", "# part", "# sum", "# prf", "Ibg", "I/sigI", "I/sigI",
-               "CC", "RMSD XY");
-  std::fprintf(out, "  %6s %7s %7s %7s %7s %7s %8s %8s %6s %7s\n", "(A)", "",
-               "", "", "", "", "(sum)", "(prf)", "prf", "(px)");
+  mxi::print_to(out, "\nSummary against resolution\n");
+  mxi::print_to(out, "  %6s %7s %7s %7s %7s %7s %8s %8s %6s %7s\n", "d min",
+                "# full", "# part", "# sum", "# prf", "Ibg", "I/sigI", "I/sigI",
+                "CC", "RMSD XY");
+  mxi::print_to(out, "  %6s %7s %7s %7s %7s %7s %8s %8s %6s %7s\n", "(A)", "",
+                "", "", "", "", "(sum)", "(prf)", "prf", "(px)");
   for (const SummaryRow &r : s.shells) {
-    std::fprintf(out,
-                 "  %6.2f %7zu %7zu %7zu %7zu %7.2f %8.2f %8.2f %6.3f %7.2f\n",
-                 r.d_min, r.full, r.partial, r.summed, r.fitted, r.background,
-                 r.isigma_sum, r.isigma_prf, r.cc_prf, r.rmsd_xy);
+    mxi::print_to(out,
+                  "  %6.2f %7zu %7zu %7zu %7zu %7.2f %8.2f %8.2f %6.3f %7.2f\n",
+                  r.d_min, r.full, r.partial, r.summed, r.fitted, r.background,
+                  r.isigma_sum, r.isigma_prf, r.cc_prf, r.rmsd_xy);
   }
 
   const SummaryRow &o = s.overall;
   const SummaryRow &low = s.shells.back();
   const SummaryRow &high = s.shells.front();
-  std::fprintf(out, "\nSummary\n");
-  std::fprintf(out, "  %-44s %9s %9s %9s\n", "", "overall", "low", "high");
+  mxi::print_to(out, "\nSummary\n");
+  mxi::print_to(out, "  %-44s %9s %9s %9s\n", "", "overall", "low", "high");
   const auto count = [&](const char *what, std::size_t SummaryRow::*m) {
-    std::fprintf(out, "  %-44s %9zu %9zu %9zu\n", what, o.*m, low.*m, high.*m);
+    mxi::print_to(out, "  %-44s %9zu %9zu %9zu\n", what, o.*m, low.*m, high.*m);
   };
   const auto value = [&](const char *what, double SummaryRow::*m,
                          const char *fmt) {
@@ -195,7 +195,7 @@ void print_summary(std::FILE *out, const IntegrationSummary &s) {
     std::snprintf(a, sizeof a, fmt, o.*m);
     std::snprintf(b, sizeof b, fmt, low.*m);
     std::snprintf(c, sizeof c, fmt, high.*m);
-    std::fprintf(out, "  %-44s %9s %9s %9s\n", what, a, b, c);
+    mxi::print_to(out, "  %-44s %9s %9s %9s\n", what, a, b, c);
   };
   value("d min (A)", &SummaryRow::d_min, "%.2f");
   value("d max (A)", &SummaryRow::d_max, "%.2f");
@@ -214,10 +214,10 @@ void print_summary(std::FILE *out, const IntegrationSummary &s) {
   value("mean profile correlation", &SummaryRow::cc_prf, "%.3f");
   value("RMSD of the centre from the prediction (px)", &SummaryRow::rmsd_xy,
         "%.3f");
-  std::fprintf(out,
-               "  summed against fitted intensity, over %zu reflections: "
-               "Pearson %.4f, Spearman %.4f\n",
-               s.both, s.pearson_sum_prf, s.spearman_sum_prf);
+  mxi::print_to(out,
+                "  summed against fitted intensity, over %zu reflections: "
+                "Pearson %.4f, Spearman %.4f\n",
+                s.both, s.pearson_sum_prf, s.spearman_sum_prf);
 }
 
 } // namespace mxi

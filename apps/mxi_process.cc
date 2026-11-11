@@ -29,6 +29,7 @@
 
 #include "args.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "rflx.hh"
 #include "self_path.hh"
 
@@ -85,8 +86,8 @@ std::int32_t run(const std::string &self, const Step &s) {
   for (std::string &w : words)
     argv.push_back(w.data());
   argv.push_back(nullptr);
-  std::fflush(stdout);
-  std::fflush(stderr);
+  mxi::flush();
+  mxi::flush();
   pid_t pid = 0;
   if (posix_spawn(&pid, self.c_str(), nullptr, nullptr, argv.data(), environ) !=
       0)
@@ -174,18 +175,17 @@ int mxi_process_main(int argc, char **argv) {
   const std::set<std::string> takes_value = {"--cell", "--space-group"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (!args.ok) {
-    std::fprintf(stderr, "mxi process: %s\n", args.error.c_str());
-    std::fputs(kUsage, stderr);
+    mxi::eprint("mxi process: %s\n", args.error.c_str());
+    mxi::put(mxi::Stream::err, kUsage);
     return 2;
   }
   if (args.has("--help") || args.has("-h")) {
-    std::fputs(kUsage, stdout);
+    mxi::put(mxi::Stream::out, kUsage);
     return 0;
   }
   if (args.positional.empty()) {
-    std::fprintf(stderr,
-                 "mxi process: the images' master files, one a sweep\n");
-    std::fputs(kUsage, stderr);
+    mxi::eprint("mxi process: the images' master files, one a sweep\n");
+    mxi::put(mxi::Stream::err, kUsage);
     return 2;
   }
   const bool dry = args.has("--dry-run");
@@ -243,15 +243,14 @@ int mxi_process_main(int argc, char **argv) {
     try {
       first = next_after(file, &by);
     } catch (const std::exception &e) {
-      std::fprintf(stderr, "mxi process: %s\n", e.what());
+      mxi::eprint("mxi process: %s\n", e.what());
       return 1;
     }
     if (first.empty()) {
-      std::fprintf(stderr,
-                   "mxi process: %s says neither the step that wrote it nor "
-                   "one to follow%s: run the next step by hand\n",
-                   file.c_str(),
-                   by.empty() ? "" : (" (written by " + by + ")").c_str());
+      mxi::eprint("mxi process: %s says neither the step that wrote it nor "
+                  "one to follow%s: run the next step by hand\n",
+                  file.c_str(),
+                  by.empty() ? "" : (" (written by " + by + ")").c_str());
       return 1;
     }
     std::size_t k = 0;
@@ -280,19 +279,20 @@ int mxi_process_main(int argc, char **argv) {
     steps.erase(steps.begin(), steps.begin() + static_cast<std::int64_t>(k));
     steps.front().args.front() = file;
     // To stderr in a dry run, so that its output is the commands alone.
-    FILE *note = dry ? stderr : stdout;
-    std::fprintf(note, "mxi process: %s: after %s -- from mxi %s on\n",
-                 file.c_str(), by.c_str(), first.c_str());
+    const mxi::Stream note = dry ? mxi::Stream::err : mxi::Stream::out;
+    mxi::print_to(note, "mxi process: %s: after %s -- from mxi %s on\n",
+                  file.c_str(), by.c_str(), first.c_str());
     for (const std::string &u : unused)
-      std::fprintf(note, "mxi process: %s not used: its step is done already\n",
-                   u.c_str());
+      mxi::print_to(note,
+                    "mxi process: %s not used: its step is done already\n",
+                    u.c_str());
   }
   for (Step &s : steps)
     s.args = with(s.args, threads);
 
   if (dry) {
     for (const Step &s : steps)
-      std::printf("%s\n", shown(s).c_str());
+      mxi::print("%s\n", shown(s).c_str());
     return 0;
   }
 
@@ -314,36 +314,33 @@ int mxi_process_main(int argc, char **argv) {
   const std::size_t n = steps.size();
   for (std::size_t i = 0; i < n; ++i) {
     const Step &s = steps[i];
-    std::printf("\n== mxi process: step %zu of %zu: %s\n\n", i + 1, n,
-                shown(s).c_str());
+    mxi::print("\n== mxi process: step %zu of %zu: %s\n\n", i + 1, n,
+               shown(s).c_str());
     const std::int32_t code = run(self, s);
     if (code != 0) {
-      std::printf("\n");
+      mxi::print("\n");
       if (code < 0)
-        std::fprintf(
-            stderr,
-            "mxi process: stopped at step %zu of %zu, mxi %s: it could "
-            "not be started (%s)\n",
-            i + 1, n, s.name.c_str(), self.c_str());
+        mxi::eprint("mxi process: stopped at step %zu of %zu, mxi %s: it could "
+                    "not be started (%s)\n",
+                    i + 1, n, s.name.c_str(), self.c_str());
       else
-        std::fprintf(stderr,
-                     "mxi process: stopped at step %zu of %zu, mxi %s, which "
-                     "failed (exit %d): its output is above, and in "
-                     "mxi_%s.log. Once it is put right, run it again --\n"
-                     "  %s\n"
-                     "-- and the steps after it, or all that remains:\n"
-                     "  mxi process %s%s\n",
-                     i + 1, n, s.name.c_str(), code, s.name.c_str(),
-                     shown(s).c_str(),
-                     s.name == "import" ? join(args.positional).c_str()
-                                        : s.args.front().c_str(),
-                     shared.c_str());
+        mxi::eprint("mxi process: stopped at step %zu of %zu, mxi %s, which "
+                    "failed (exit %d): its output is above, and in "
+                    "mxi_%s.log. Once it is put right, run it again --\n"
+                    "  %s\n"
+                    "-- and the steps after it, or all that remains:\n"
+                    "  mxi process %s%s\n",
+                    i + 1, n, s.name.c_str(), code, s.name.c_str(),
+                    shown(s).c_str(),
+                    s.name == "import" ? join(args.positional).c_str()
+                                       : s.args.front().c_str(),
+                    shared.c_str());
       return code < 0 ? 1 : code;
     }
   }
-  std::printf("\nmxi process: all %zu steps done: the scaled data and their "
-              "merging statistics in scaled.rflx (mxi show, mxi report), an "
-              "unmerged MTZ in scaled.mtz.\n",
-              n);
+  mxi::print("\nmxi process: all %zu steps done: the scaled data and their "
+             "merging statistics in scaled.rflx (mxi show, mxi report), an "
+             "unmerged MTZ in scaled.mtz.\n",
+             n);
   return 0;
 }

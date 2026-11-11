@@ -19,6 +19,7 @@
 #include "expt.hh"
 #include "laue.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "parallel.hh"
 #include "processing.hh"
 #include "refl.hh"
@@ -102,7 +103,7 @@ std::string as_hkl(const Rotation &g) {
 }
 
 void usage() {
-  std::printf(
+  mxi::print(
       "usage: mxi symmetry [options] INTEGRATED_EXPT INTEGRATED_REFL\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
@@ -140,14 +141,13 @@ int run_symmetry(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi symmetry: %s\n", args.error.c_str());
+    mxi::eprint("mxi symmetry: %s\n", args.error.c_str());
     return 2;
   }
   // -j/--threads: set by the parser, as for every command (args.cc).
   if (args.positional.size() != 2) {
-    std::fprintf(stderr,
-                 "mxi symmetry: expected an .expt and a .refl, got %zu files\n",
-                 args.positional.size());
+    mxi::eprint("mxi symmetry: expected an .expt and a .refl, got %zu files\n",
+                args.positional.size());
     usage();
     return 2;
   }
@@ -220,13 +220,13 @@ int run_symmetry(int argc, char **argv) {
             SpaceGroup::from_hall(experiments[0].crystal->space_group_hall)
                 .name();
         reindex(experiments, reflections, cb, SpaceGroup::from_hall(" P 1"));
-        std::printf("The input is in a centred setting, %s: taken to its "
-                    "primitive cell first, by %s",
-                    name.c_str(), found->second);
+        mxi::print("The input is in a centred setting, %s: taken to its "
+                   "primitive cell first, by %s",
+                   name.c_str(), found->second);
         if (dropped > 0)
-          std::printf("; %zu reflections forbidden by the centring dropped",
-                      dropped);
-        std::printf("\n");
+          mxi::print("; %zu reflections forbidden by the centring dropped",
+                     dropped);
+        mxi::print("\n");
       }
     }
     // Several sweeps of one crystal pooled, as dials.symmetry takes them: the
@@ -259,9 +259,9 @@ int run_symmetry(int argc, char **argv) {
             "cell and one setting");
     }
     if (experiments.size() > 1)
-      std::printf("%zu sweeps, pooled\n", experiments.size());
-    std::printf("Cell %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n", cell.a, cell.b,
-                cell.c, cell.alpha, cell.beta, cell.gamma);
+      mxi::print("%zu sweeps, pooled\n", experiments.size());
+    mxi::print("Cell %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n", cell.a, cell.b,
+               cell.c, cell.alpha, cell.beta, cell.gamma);
 
     // Several crystals: one setting first (docs/multi-lattice.md). Sweeps of
     // one crystal share its setting; two crystals, or two lattices in one
@@ -301,9 +301,9 @@ int run_symmetry(int argc, char **argv) {
     }
     const bool one_crystal = widest <= same_within;
     if (experiments.size() > 1 && one_crystal && !args.has("--no-cosym"))
-      std::printf("\nOne setting already: the %zu crystals' orientations agree "
-                  "within %.3f deg, so no cosym\n",
-                  experiments.size(), widest);
+      mxi::print("\nOne setting already: the %zu crystals' orientations agree "
+                 "within %.3f deg, so no cosym\n",
+                 experiments.size(), widest);
     if (experiments.size() > 1 && !one_crystal && !args.has("--no-cosym")) {
       std::vector<P1Intensities> sets;
       const Column &id = reflections.at("id");
@@ -325,23 +325,22 @@ int run_symmetry(int argc, char **argv) {
       const std::vector<Rotation> lattice =
           lattice_symmetry(cell, args.number("--max-delta", 2.0));
       const CosymResult c = cosym(sets, lattice);
-      std::printf("\nOne setting for %zu crystals (cosym): the lattice's %zu "
-                  "rotations; principal components",
-                  experiments.size(), lattice.size());
+      mxi::print("\nOne setting for %zu crystals (cosym): the lattice's %zu "
+                 "rotations; principal components",
+                 experiments.size(), lattice.size());
       for (double share : c.explained)
-        std::printf(" %.1f%%", 100.0 * share);
-      std::printf(", %zu kept\n", c.dimensions);
+        mxi::print(" %.1f%%", 100.0 * share);
+      mxi::print(", %zu kept\n", c.dimensions);
       if (args.has("--timing"))
-        std::printf(
-            "  cosym: correlations %.3f s, eigen-decomposition of %zu x "
-            "%zu %.3f s\n",
-            c.seconds_correlations, experiments.size() * lattice.size(),
-            experiments.size() * lattice.size(), c.seconds_eigen);
+        mxi::print("  cosym: correlations %.3f s, eigen-decomposition of %zu x "
+                   "%zu %.3f s\n",
+                   c.seconds_correlations, experiments.size() * lattice.size(),
+                   experiments.size() * lattice.size(), c.seconds_eigen);
       for (std::size_t j = 0; j < experiments.size(); ++j) {
         const Rotation &g = c.operations[c.chosen[j]];
-        std::printf("  experiment %zu: %s; cosine %.3f; CC with the first "
-                    "%.3f over %zu reflections\n",
-                    j, as_hkl(g).c_str(), c.cosine[j], c.cc[j], c.common[j]);
+        mxi::print("  experiment %zu: %s; cosine %.3f; CC with the first "
+                   "%.3f over %zu reflections\n",
+                   j, as_hkl(g).c_str(), c.cosine[j], c.cc[j], c.common[j]);
         if (c.chosen[j] == 0)
           continue;
         // Its indices h to R^T h, and its crystal A to A (R^T)^-1, so that
@@ -368,20 +367,20 @@ int run_symmetry(int argc, char **argv) {
             miller.ints[3 * r + static_cast<std::size_t>(k)] = h[k];
         }
       }
-      std::printf("\n");
+      mxi::print("\n");
     }
 
     P1Selection selection;
     const P1Intensities merged =
         merge_in_p1(experiments, reflections, &selection);
     phase("merging in P1, and the resolution limit");
-    std::printf("%zu observations; %zu removed with I/sigma below -5\n",
-                selection.observations, selection.negative);
-    std::printf("Resolution from CC half above 0.6: %.2f A; from <I>/<sigma> "
-                "above 4: %.2f A; "
-                "the finer, %.2f A, used\n",
-                selection.d_min_cc_half, selection.d_min_i_over_sigma,
-                selection.d_min);
+    mxi::print("%zu observations; %zu removed with I/sigma below -5\n",
+               selection.observations, selection.negative);
+    mxi::print("Resolution from CC half above 0.6: %.2f A; from <I>/<sigma> "
+               "above 4: %.2f A; "
+               "the finer, %.2f A, used\n",
+               selection.d_min_cc_half, selection.d_min_i_over_sigma,
+               selection.d_min);
     P1Intensities normalised = merged;
     WilsonFit wilson_fit;
     const std::size_t wilson = normalise(normalised, 200, &wilson_fit);
@@ -389,7 +388,7 @@ int run_symmetry(int argc, char **argv) {
       // B along each reciprocal axis, in A^2: the exponent's b times twice the
       // cell edge squared -- for a cell near orthogonal, what dials.symmetry
       // reports as B_cart's diagonal.
-      std::printf(
+      mxi::print(
           "Normalised by an anisotropic Wilson model, %zu reflections "
           "fitted in %d steps: B %.2f, %.2f, %.2f A^2 along a*, b*, c*\n",
           wilson_fit.used, wilson_fit.iterations,
@@ -397,12 +396,12 @@ int run_symmetry(int argc, char **argv) {
           2.0 * wilson_fit.b[1] * cell.b * cell.b,
           2.0 * wilson_fit.b[2] * cell.c * cell.c);
     } else {
-      std::printf("Too few reflections for a Wilson model (%zu): normalised "
-                  "in shells instead\n",
-                  wilson_fit.used);
+      mxi::print("Too few reflections for a Wilson model (%zu): normalised "
+                 "in shells instead\n",
+                 wilson_fit.used);
     }
     phase("normalising");
-    std::printf("%zu Wilson outliers removed, E^2 of 16 or more\n", wilson);
+    mxi::print("%zu Wilson outliers removed, E^2 of 16 or more\n", wilson);
     const std::vector<Rotation> lattice =
         lattice_symmetry(cell, args.number("--max-delta", 2.0));
     phase("the lattice's symmetry");
@@ -411,33 +410,33 @@ int run_symmetry(int argc, char **argv) {
     timing.add("E(CC) and sigma(CC)", scores.t_estimates, 1);
     timing.add("the elements", scores.t_elements, 1);
     timing.add("the subgroups", scores.t_groups, 1);
-    std::printf("%zu reflections merged in P1, Friedel mates apart; the "
-                "lattice has %zu rotations, "
-                "%zu symmetry "
-                "elements, %zu subgroups\n",
-                merged.size(), lattice.size(), scores.elements.size(),
-                scores.groups.size());
-    std::printf("E(CC; S) %.3f, from the intensities %.3f and from the "
-                "identity %.3f; sigma(CC) "
-                "factor %.3f\n",
-                scores.cc_true, scores.e_cc_true, scores.cc_identity,
-                scores.cc_sig_fac);
+    mxi::print("%zu reflections merged in P1, Friedel mates apart; the "
+               "lattice has %zu rotations, "
+               "%zu symmetry "
+               "elements, %zu subgroups\n",
+               merged.size(), lattice.size(), scores.elements.size(),
+               scores.groups.size());
+    mxi::print("E(CC; S) %.3f, from the intensities %.3f and from the "
+               "identity %.3f; sigma(CC) "
+               "factor %.3f\n",
+               scores.cc_true, scores.e_cc_true, scores.cc_identity,
+               scores.cc_sig_fac);
 
-    std::printf("\nScoring each symmetry element\n");
-    std::printf("  %-4s %-14s %7s %6s %7s %10s\n", "", "operator", "pairs",
-                "CC", "Z-CC", "likelihood");
+    mxi::print("\nScoring each symmetry element\n");
+    mxi::print("  %-4s %-14s %7s %6s %7s %10s\n", "", "operator", "pairs", "CC",
+               "Z-CC", "likelihood");
     for (std::size_t k = 0; k < scores.elements.size(); ++k) {
       const ElementScore &e = scores.elements[k];
-      std::printf("  %-4c %-14s %7zu %6.3f %7.2f %10.3f %s\n",
-                  static_cast<char>('a' + k),
-                  describe_element(e.rotation, e.order).c_str(), e.pairs, e.cc,
-                  e.z, e.likelihood, e.likelihood > 0.5 ? "***" : "");
+      mxi::print("  %-4c %-14s %7zu %6.3f %7.2f %10.3f %s\n",
+                 static_cast<char>('a' + k),
+                 describe_element(e.rotation, e.order).c_str(), e.pairs, e.cc,
+                 e.z, e.likelihood, e.likelihood > 0.5 ? "***" : "");
     }
 
-    std::printf("\nScoring all possible subgroups\n");
-    std::printf("  %-14s %3s %10s %7s %6s %6s %5s %5s  %-20s %s\n",
-                "Patterson group", "", "likelihood", "NetZcc", "Zcc+", "Zcc-",
-                "CC", "CC-", "reindex", "elements");
+    mxi::print("\nScoring all possible subgroups\n");
+    mxi::print("  %-14s %3s %10s %7s %6s %6s %5s %5s  %-20s %s\n",
+               "Patterson group", "", "likelihood", "NetZcc", "Zcc+", "Zcc-",
+               "CC", "CC-", "reindex", "elements");
     // Every subgroup's reference setting and name, each on its own thread --
     // naming them one after another was most of a small run -- then the table
     // printed in order.
@@ -454,11 +453,10 @@ int run_symmetry(int argc, char **argv) {
       std::string letters;
       for (std::size_t j = 0; j < g.contains.size(); ++j)
         letters += g.contains[j] ? static_cast<char>('a' + j) : '.';
-      std::printf(
-          "  %-14s %3s %10.3f %7.2f %6.2f %6.2f %5.2f %5.2f  %-20s %s\n",
-          s ? s->group.name().c_str() : "?", k == 0 ? "***" : "", g.likelihood,
-          g.z_net, g.z_for, g.z_against, g.cc_for, g.cc_against,
-          s ? s->cb_text.c_str() : "?", letters.c_str());
+      mxi::print("  %-14s %3s %10.3f %7.2f %6.2f %6.2f %5.2f %5.2f  %-20s %s\n",
+                 s ? s->group.name().c_str() : "?", k == 0 ? "***" : "",
+                 g.likelihood, g.z_net, g.z_for, g.z_against, g.cc_for,
+                 g.cc_against, s ? s->cb_text.c_str() : "?", letters.c_str());
     }
     if (!best)
       throw std::runtime_error(
@@ -472,25 +470,24 @@ int run_symmetry(int argc, char **argv) {
     const SpaceGroupChoice choice =
         choose_space_group(hkl, merged.i, merged.sigma, best->group);
     phase("the space group, by absences");
-    std::printf(
+    mxi::print(
         "\nSpace groups with Patterson group %s, judged by their absences\n",
         best->group.name().c_str());
-    std::printf("  %-14s %8s %10s  %s\n", "space group", "tested", "<I/sigma>",
-                "");
+    mxi::print("  %-14s %8s %10s  %s\n", "space group", "tested", "<I/sigma>",
+               "");
     for (const AbsenceTest &t : choice.candidates)
-      std::printf("  %-14s %8zu %10.2f  %s\n", t.group.name().c_str(), t.tested,
-                  t.mean_i_over_sigma,
-                  t.consistent ? "consistent" : "inconsistent");
-    std::printf("\nRecommended space group: %s\n",
-                choice.chosen.name().c_str());
+      mxi::print("  %-14s %8zu %10.2f  %s\n", t.group.name().c_str(), t.tested,
+                 t.mean_i_over_sigma,
+                 t.consistent ? "consistent" : "inconsistent");
+    mxi::print("\nRecommended space group: %s\n", choice.chosen.name().c_str());
     for (const std::string &n : choice.indistinguishable)
-      std::printf("  indistinguishable by its absences from %s\n", n.c_str());
-    std::printf("Reindex operator: %s\n", best->cb_text.c_str());
+      mxi::print("  indistinguishable by its absences from %s\n", n.c_str());
+    mxi::print("Reindex operator: %s\n", best->cb_text.c_str());
 
     reindex(experiments, reflections, best->cb, choice.chosen);
     const UnitCell after = experiments[0].crystal->cell();
-    std::printf("Cell %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n", after.a, after.b,
-                after.c, after.alpha, after.beta, after.gamma);
+    mxi::print("Cell %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n", after.a, after.b,
+               after.c, after.alpha, after.beta, after.gamma);
     const rflx::Outputs out = rflx::outputs(args, "symmetrized");
     const ExperimentList written = whole_again(whole, views, experiments);
     Table written_table =
@@ -547,11 +544,11 @@ int run_symmetry(int argc, char **argv) {
     phase("reindexing");
     rflx::write_outputs(out, &document, &written_table, "mxi_symmetry",
                         &summary_document);
-    std::printf("\nWrote %s\n", rflx::describe(out).c_str());
+    mxi::print("\nWrote %s\n", rflx::describe(out).c_str());
     phase("writing");
-    timing.report(stdout);
+    timing.report(mxi::Stream::out);
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi symmetry: %s\n", error.what());
+    mxi::eprint("mxi symmetry: %s\n", error.what());
     return 1;
   }
   return 0;

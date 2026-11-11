@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <vector>
 
+#include "output.hh"
 #include "self_path.hh"
 
 #if defined(__APPLE__)
@@ -107,24 +108,24 @@ const Command kCommands[] = {
     {"readtest", mxi_readtest_main, "reading, timed", true},
 };
 
-void list(std::FILE *out) {
-  std::fprintf(out,
-               "mxi %s: processing rotation data, NXmx images to merged "
-               "intensities\n\nusage: mxi COMMAND [ARGUMENTS]\n\n",
-               MXI_VERSION);
+void list(mxi::Stream out) {
+  mxi::print_to(out,
+                "mxi %s: processing rotation data, NXmx images to merged "
+                "intensities\n\nusage: mxi COMMAND [ARGUMENTS]\n\n",
+                MXI_VERSION);
   for (bool diagnostic : {false, true}) {
-    std::fprintf(out,
-                 diagnostic ? "\nFor looking at a step:\n" : "Commands:\n");
+    mxi::print_to(out,
+                  diagnostic ? "\nFor looking at a step:\n" : "Commands:\n");
     for (const Command &c : kCommands)
       if (c.diagnostic == diagnostic)
-        std::fprintf(out, "  %-12s %s\n", c.name, c.what);
+        mxi::print_to(out, "  %-12s %s\n", c.name, c.what);
   }
-  std::fprintf(out,
-               "\nEvery command takes -j N or --threads N: the threads for "
-               "everything it\ndoes in parallel; 0, the default, every core "
-               "this job may use (on Linux,\nits CPU affinity: a batch "
-               "system's allocation, taskset).\n");
-  std::fprintf(out, "\nmxi COMMAND --help for each; mxi --version.\n");
+  mxi::print_to(out,
+                "\nEvery command takes -j N or --threads N: the threads for "
+                "everything it\ndoes in parallel; 0, the default, every core "
+                "this job may use (on Linux,\nits CPU affinity: a batch "
+                "system's allocation, taskset).\n");
+  mxi::print_to(out, "\nmxi COMMAND --help for each; mxi --version.\n");
 }
 
 // The commands that are Python, beside this binary: mxi view, mxi_view; mxi
@@ -151,8 +152,8 @@ std::int32_t python_command(const char *command, int argc, char **argv,
     args.push_back(argv[i]);
   args.push_back(nullptr);
   ::execv(script.c_str(), args.data());
-  std::fprintf(stderr, "mxi %s: cannot run %s: %s\n", command, script.c_str(),
-               std::strerror(errno));
+  mxi::eprint("mxi %s: cannot run %s: %s\n", command, script.c_str(),
+              std::strerror(errno));
   return 2;
 }
 
@@ -169,11 +170,11 @@ int main(int argc, char **argv) {
   }
   if (argc < 2 || std::strcmp(argv[1], "help") == 0 ||
       std::strcmp(argv[1], "--help") == 0 || std::strcmp(argv[1], "-h") == 0) {
-    list(stdout);
+    list(mxi::Stream::out);
     return 0;
   }
   if (std::strcmp(argv[1], "--version") == 0) {
-    std::printf("mxi %s\n", MXI_VERSION);
+    mxi::print("mxi %s\n", MXI_VERSION);
     return 0;
   }
   for (const Command &c : kCommands) {
@@ -188,7 +189,7 @@ int main(int argc, char **argv) {
     args.push_back(nullptr);
     return c.run(argc - 1, args.data());
   }
-  std::fprintf(stderr, "mxi: no command '%s'\n\n", argv[1]);
-  list(stderr);
+  mxi::eprint("mxi: no command '%s'\n\n", argv[1]);
+  list(mxi::Stream::err);
   return 2;
 }

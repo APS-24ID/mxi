@@ -20,6 +20,7 @@
 #include "../src/refl.hh"
 #include "args.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "profile_grid.hh"
 #include "rflx.hh"
 #include "shoebox.hh"
@@ -30,7 +31,7 @@ namespace mxi {
 namespace {
 
 void usage(const char *program) {
-  std::printf(
+  mxi::print(
       "usage: %s [options] EXPT REFL\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
@@ -77,11 +78,11 @@ int run_grid(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi grid: %s\n", args.error.c_str());
+    mxi::eprint("mxi grid: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.size() != 2) {
-    std::fprintf(stderr, "mxi grid: expected an .expt and a .refl\n");
+    mxi::eprint("mxi grid: expected an .expt and a .refl\n");
     usage(argv[0]);
     return 2;
   }
@@ -93,12 +94,12 @@ int run_grid(int argc, char **argv) {
     mark = Timing::now();
     const std::vector<Shoebox> boxes = decode_shoeboxes(reflections);
     if (boxes.empty()) {
-      std::fprintf(stderr, "mxi grid: %s has no shoeboxes\n",
-                   args.positional[1].c_str());
+      mxi::eprint("mxi grid: %s has no shoeboxes\n",
+                  args.positional[1].c_str());
       return 1;
     }
     if (!reflections.has("s1") || !reflections.has("xyzcal.mm")) {
-      std::fprintf(stderr, "mxi grid: needs the s1 and xyzcal.mm columns\n");
+      mxi::eprint("mxi grid: needs the s1 and xyzcal.mm columns\n");
       return 1;
     }
 
@@ -124,7 +125,7 @@ int run_grid(int argc, char **argv) {
       chosen.push_back(i);
     }
     if (chosen.size() < 10) {
-      std::fprintf(stderr, "mxi grid: only %zu usable spots\n", chosen.size());
+      mxi::eprint("mxi grid: only %zu usable spots\n", chosen.size());
       return 1;
     }
 
@@ -151,8 +152,8 @@ int run_grid(int argc, char **argv) {
             reflecting_range(samples, Scan::radians(e.scan.osc_width), 0.0);
       }
     }
-    std::printf("sigma_b %.6f  sigma_m %.6f  over %zu spots\n", sigma_b,
-                sigma_m, chosen.size());
+    mxi::print("sigma_b %.6f  sigma_m %.6f  over %zu spots\n", sigma_b, sigma_m,
+               chosen.size());
 
     const std::int32_t n = static_cast<std::int32_t>(args.number("--n", 4));
     const double half = args.number("--half-width", 3.0);
@@ -167,7 +168,7 @@ int run_grid(int argc, char **argv) {
     const std::string path = args.value("--out", "grids.txt");
     std::FILE *out = std::fopen(path.c_str(), "w");
     if (out == nullptr) {
-      std::fprintf(stderr, "mxi grid: cannot write %s\n", path.c_str());
+      mxi::eprint("mxi grid: cannot write %s\n", path.c_str());
       return 1;
     }
     std::fprintf(out, "# side %d half_width %g sigma_b %.9f sigma_m %.9f\n",
@@ -188,7 +189,7 @@ int run_grid(int argc, char **argv) {
     }
     all.normalise();
     write("all", all);
-    std::printf("wrote the average of %zu spots\n", all.n_spots);
+    mxi::print("wrote the average of %zu spots\n", all.n_spots);
 
     // A few examples, each with the spots nearest it on the detector.
     for (std::size_t k = 0; k < examples && k < chosen.size(); ++k) {
@@ -231,7 +232,7 @@ int run_grid(int argc, char **argv) {
       write(label, reference);
     }
     std::fclose(out);
-    std::printf("wrote %s\n", path.c_str());
+    mxi::print("wrote %s\n", path.c_str());
 
     // The anisotropy against position, and the sensor smear that may explain
     // it. eps2 lies in the scattering plane -- radially on the detector --
@@ -242,7 +243,7 @@ int run_grid(int argc, char **argv) {
     if (!map_path.empty()) {
       std::FILE *m = std::fopen(map_path.c_str(), "w");
       if (m == nullptr) {
-        std::fprintf(stderr, "mxi grid: cannot write %s\n", map_path.c_str());
+        mxi::eprint("mxi grid: cannot write %s\n", map_path.c_str());
         return 1;
       }
       const Panel &p0 = e.detector[0];
@@ -274,13 +275,13 @@ int run_grid(int argc, char **argv) {
       }
       std::fclose(m);
       (void)normal;
-      std::printf("wrote %s\n", map_path.c_str());
+      mxi::print("wrote %s\n", map_path.c_str());
     }
     timing.add("computing, printing and writing", Timing::now() - mark);
-    timing.report(stdout);
+    timing.report(mxi::Stream::out);
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi grid: %s\n", e.what());
+    mxi::eprint("mxi grid: %s\n", e.what());
     return 1;
   }
 }

@@ -15,6 +15,7 @@
 
 #include "args.hh"
 #include "expt.hh"
+#include "output.hh"
 #include "processing.hh"
 #include "refl.hh"
 #include "rflx.hh"
@@ -25,7 +26,7 @@ namespace mxi {
 namespace {
 
 void usage(const char *program) {
-  std::printf(
+  mxi::print(
       "usage: %s FILE [REFL]\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
@@ -106,16 +107,16 @@ void show_table(const std::string &name, const json::Value &t) {
     for (const std::string &s : cells[c])
       width[c] = std::max(width[c], s.size());
   }
-  std::printf("    %s\n     ", name.c_str());
+  mxi::print("    %s\n     ", name.c_str());
   for (std::size_t c = 0; c < heads.size(); ++c)
-    std::printf(" %*s", static_cast<std::int32_t>(width[c]), heads[c].c_str());
-  std::printf("\n");
+    mxi::print(" %*s", static_cast<std::int32_t>(width[c]), heads[c].c_str());
+  mxi::print("\n");
   for (std::size_t r = 0; r < rows; ++r) {
-    std::printf("     ");
+    mxi::print("     ");
     for (std::size_t c = 0; c < heads.size(); ++c)
-      std::printf(" %*s", static_cast<std::int32_t>(width[c]),
-                  r < cells[c].size() ? cells[c][r].c_str() : "");
-    std::printf("\n");
+      mxi::print(" %*s", static_cast<std::int32_t>(width[c]),
+                 r < cells[c].size() ? cells[c][r].c_str() : "");
+    mxi::print("\n");
   }
 }
 
@@ -125,36 +126,36 @@ void show_models(const ExperimentList &list) {
   std::map<std::size_t, std::vector<std::size_t>> by_sweep;
   for (std::size_t i = 0; i < list.size(); ++i)
     by_sweep[list.sweep(i)].push_back(i);
-  std::printf("Experiments: %zu, on %zu sweep%s\n", list.size(),
-              by_sweep.size(), by_sweep.size() == 1 ? "" : "s");
+  mxi::print("Experiments: %zu, on %zu sweep%s\n", list.size(), by_sweep.size(),
+             by_sweep.size() == 1 ? "" : "s");
   for (const auto &[sweep, members] : by_sweep) {
     const Experiment &e = list[members.front()];
-    std::printf("  sweep %zu: images %" PRId64 " to %" PRId64
-                ", %.4f deg each from %.4f deg "
-                "(%.1f deg in all); wavelength %.6f A\n",
-                sweep, static_cast<std::int64_t>(e.scan.first_image),
-                static_cast<std::int64_t>(e.scan.last_image), e.scan.osc_width,
-                e.scan.osc_start,
-                e.scan.osc_width * static_cast<double>(e.scan.num_images()),
-                e.beam.wavelength);
+    mxi::print("  sweep %zu: images %" PRId64 " to %" PRId64
+               ", %.4f deg each from %.4f deg "
+               "(%.1f deg in all); wavelength %.6f A\n",
+               sweep, static_cast<std::int64_t>(e.scan.first_image),
+               static_cast<std::int64_t>(e.scan.last_image), e.scan.osc_width,
+               e.scan.osc_start,
+               e.scan.osc_width * static_cast<double>(e.scan.num_images()),
+               e.beam.wavelength);
     if (e.detector.size() > 0) {
       const Panel &p = e.detector[0];
       const Vec3 normal = p.fast.cross(p.slow);
       const double distance = std::fabs(p.origin.dot(normal / normal.norm()));
-      std::printf("    detector: %zu panel%s, distance %.3f mm",
-                  e.detector.size(), e.detector.size() == 1 ? "" : "s",
-                  distance);
+      mxi::print("    detector: %zu panel%s, distance %.3f mm",
+                 e.detector.size(), e.detector.size() == 1 ? "" : "s",
+                 distance);
       if (const auto hit = e.detector.intersect(e.beam.s0()))
-        std::printf(", the beam at pixel %.2f, %.2f", std::get<1>(*hit),
-                    std::get<2>(*hit));
-      std::printf("\n");
+        mxi::print(", the beam at pixel %.2f, %.2f", std::get<1>(*hit),
+                   std::get<2>(*hit));
+      mxi::print("\n");
     }
     for (std::size_t i : members) {
       const Experiment &x = list[i];
       if (!x.crystal) {
-        std::printf("    experiment %zu: no crystal -- the sweep's own, its "
-                    "unindexed spots\n",
-                    i);
+        mxi::print("    experiment %zu: no crystal -- the sweep's own, its "
+                   "unindexed spots\n",
+                   i);
         continue;
       }
       const UnitCell c = x.crystal->cell();
@@ -163,21 +164,21 @@ void show_models(const ExperimentList &list) {
         group = SpaceGroup::from_hall(x.crystal->space_group_hall).name();
       } catch (const std::exception &) {
       }
-      std::printf("    experiment %zu: %.3f %.3f %.3f A, %.3f %.3f %.3f deg; "
-                  "%s%s\n",
-                  i, c.a, c.b, c.c, c.alpha, c.beta, c.gamma, group.c_str(),
-                  x.crystal->A_points.empty() ? "" : "; scan-varying");
+      mxi::print("    experiment %zu: %.3f %.3f %.3f A, %.3f %.3f %.3f deg; "
+                 "%s%s\n",
+                 i, c.a, c.b, c.c, c.alpha, c.beta, c.gamma, group.c_str(),
+                 x.crystal->A_points.empty() ? "" : "; scan-varying");
       const ProfileBlock &profile =
           list.profiles.size() == list.size() ? list.profiles[i] : list.profile;
       if (profile.present)
-        std::printf("      profile model: sigma_b %.4f deg, sigma_m %.4f deg\n",
-                    profile.sigma_b, profile.sigma_m);
+        mxi::print("      profile model: sigma_b %.4f deg, sigma_m %.4f deg\n",
+                   profile.sigma_b, profile.sigma_m);
     }
   }
 }
 
 void show_reflections(const Table &t) {
-  std::printf("Reflections: %zu\n", t.nrows);
+  mxi::print("Reflections: %zu\n", t.nrows);
   if (!t.has("flags") || t.nrows == 0)
     return;
   const Column &flags = t.at("flags");
@@ -199,18 +200,18 @@ void show_reflections(const Table &t) {
     c.scaled += (f >> 26) & 1;
     c.outlier += (f >> 23) & 1;
   }
-  std::printf("  %4s %9s %9s %9s %9s %9s %9s %9s\n", "id", "rows", "strong",
-              "indexed", "summed", "fitted", "scaled", "outliers");
+  mxi::print("  %4s %9s %9s %9s %9s %9s %9s %9s\n", "id", "rows", "strong",
+             "indexed", "summed", "fitted", "scaled", "outliers");
   for (const auto &[id, c] : by_id)
-    std::printf("  %4" PRId64 " %9zu %9zu %9zu %9zu %9zu %9zu %9zu\n", id,
-                c.rows, c.strong, c.indexed, c.sum, c.prf, c.scaled, c.outlier);
+    mxi::print("  %4" PRId64 " %9zu %9zu %9zu %9zu %9zu %9zu %9zu\n", id,
+               c.rows, c.strong, c.indexed, c.sum, c.prf, c.scaled, c.outlier);
 }
 
 // Each crystal's cell, a line each and nothing else, to read or to cut: the
 // experiment, its sweep, a b c alpha beta gamma, the space group last (its
 // name has spaces). What the tutorial had grepped mxi show for (Graeme).
 void show_cells(const ExperimentList &list) {
-  std::printf("# experiment sweep a b c alpha beta gamma space_group\n");
+  mxi::print("# experiment sweep a b c alpha beta gamma space_group\n");
   for (std::size_t i = 0; i < list.size(); ++i) {
     const Experiment &x = list[i];
     if (!x.crystal)
@@ -221,8 +222,8 @@ void show_cells(const ExperimentList &list) {
       group = SpaceGroup::from_hall(x.crystal->space_group_hall).name();
     } catch (const std::exception &) {
     }
-    std::printf("%zu %zu %.3f %.3f %.3f %.3f %.3f %.3f %s\n", i, list.sweep(i),
-                c.a, c.b, c.c, c.alpha, c.beta, c.gamma, group.c_str());
+    mxi::print("%zu %zu %.3f %.3f %.3f %.3f %.3f %.3f %s\n", i, list.sweep(i),
+               c.a, c.b, c.c, c.alpha, c.beta, c.gamma, group.c_str());
   }
 }
 
@@ -235,16 +236,16 @@ void show_summary(const json::Value &summary, const std::string &only = "") {
         kept.push_back(step);
     steps = kept;
   }
-  std::printf("Processing: %zu step%s\n", steps.size(),
-              steps.size() == 1 ? "" : "s");
+  mxi::print("Processing: %zu step%s\n", steps.size(),
+             steps.size() == 1 ? "" : "s");
   for (const json::Value &step : steps) {
-    std::printf("  %s, %s\n", step["program"].as_string().c_str(),
-                step["time"].is_string() ? step["time"].as_string().c_str()
-                                         : "");
+    mxi::print("  %s, %s\n", step["program"].as_string().c_str(),
+               step["time"].is_string() ? step["time"].as_string().c_str()
+                                        : "");
     for (const auto &[name, value] : step.as_object()) {
       if (name == "program" || name == "time" || is_table(value))
         continue;
-      std::printf("    %s: %s\n", name.c_str(), value_text(value).c_str());
+      mxi::print("    %s: %s\n", name.c_str(), value_text(value).c_str());
     }
     for (const auto &[name, value] : step.as_object())
       if (is_table(value))
@@ -263,7 +264,7 @@ int run_show(int argc, char **argv) {
   // A refused option said, not passed over: this had not looked, so that an
   // option it did not know was ignored whenever the files came first.
   if (!args.ok) {
-    std::fprintf(stderr, "mxi show: %s\n", args.error.c_str());
+    mxi::eprint("mxi show: %s\n", args.error.c_str());
     usage(argv[0]);
     return 2;
   }
@@ -289,7 +290,7 @@ int run_show(int argc, char **argv) {
     // The file's name heads what is read, not the cells alone: those go
     // into a file or another program as they are.
     if (models || reflections || summary)
-      std::printf("%s\n", first.c_str());
+      mxi::print("%s\n", first.c_str());
     const ExperimentList list = read_experiments(first);
     if (models)
       show_models(list);
@@ -307,7 +308,7 @@ int run_show(int argc, char **argv) {
     if (summary && rflx::is_hdf5(first)) {
       const auto held = rflx::read_summary(first);
       if (!held) {
-        std::printf("Processing: no summary in the file\n");
+        mxi::print("Processing: no summary in the file\n");
         if (!step.empty())
           return 1;
       } else if (!step.empty()) {
@@ -316,8 +317,8 @@ int run_show(int argc, char **argv) {
           any = any ||
                 (s["program"].is_string() && s["program"].as_string() == step);
         if (!any) {
-          std::fprintf(stderr, "mxi show: %s records no step %s\n",
-                       first.c_str(), step.c_str());
+          mxi::eprint("mxi show: %s records no step %s\n", first.c_str(),
+                      step.c_str());
           return 1;
         }
         show_summary(*held, step);
@@ -327,7 +328,7 @@ int run_show(int argc, char **argv) {
     }
     return 0;
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi show: %s\n", error.what());
+    mxi::eprint("mxi show: %s\n", error.what());
     return 1;
   }
 }

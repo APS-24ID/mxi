@@ -18,6 +18,7 @@
 #include "args.hh"
 #include "expt.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "refl.hh"
 #include "rflx.hh"
 #include "views.hh"
@@ -32,7 +33,7 @@ constexpr std::int64_t kIntegratedPrf = 1 << 9;
 constexpr std::int64_t kBadForScaling = (1 << 23) | (1 << 24) | (1 << 25);
 
 void usage() {
-  std::printf(
+  mxi::print(
       "usage: mxi export [options] FILE.rflx | EXPT REFL\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
@@ -230,7 +231,7 @@ int run_export(int argc, char **argv) {
   }
   if (!args.ok || args.positional.size() != 2) {
     if (!args.ok)
-      std::fprintf(stderr, "mxi export: %s\n", args.error.c_str());
+      mxi::eprint("mxi export: %s\n", args.error.c_str());
     usage();
     return 2;
   }
@@ -549,29 +550,29 @@ int run_export(int argc, char **argv) {
           "the indices could not be put in the asymmetric unit");
     mtz.sort(5);
     mtz.write_to_file(output);
-    std::printf("Wrote %zu reflections and %zu batches to %s", rows.size(),
-                mtz.batches.size(), output.c_str());
-    std::printf(" (%s; %zu left out)\n",
-                scaled ? "scaled intensities" : "profile-fitted and summed",
-                dropped);
+    mxi::print("Wrote %zu reflections and %zu batches to %s", rows.size(),
+               mtz.batches.size(), output.c_str());
+    mxi::print(" (%s; %zu left out)\n",
+               scaled ? "scaled intensities" : "profile-fitted and summed",
+               dropped);
     // The MTZ's summary, as the tutorial reads it off dials.merge: what is in
     // the file, for the program that reads it next.
     mtz.update_reso();
-    std::printf("  space group %s; cell %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n",
-                mtz.spacegroup ? mtz.spacegroup->hm : "?", best.a, best.b,
-                best.c, best.alpha, best.beta, best.gamma);
-    std::printf("  resolution %.2f to %.2f A", mtz.resolution_low(),
-                mtz.resolution_high());
+    mxi::print("  space group %s; cell %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n",
+               mtz.spacegroup ? mtz.spacegroup->hm : "?", best.a, best.b,
+               best.c, best.alpha, best.beta, best.gamma);
+    mxi::print("  resolution %.2f to %.2f A", mtz.resolution_low(),
+               mtz.resolution_high());
     if (!mtz.batches.empty())
-      std::printf("; batches %d to %d", mtz.batches.front().number,
-                  mtz.batches.back().number);
-    std::printf("\n  columns:");
+      mxi::print("; batches %d to %d", mtz.batches.front().number,
+                 mtz.batches.back().number);
+    mxi::print("\n  columns:");
     for (const gemmi::Mtz::Column &c : mtz.columns)
-      std::printf(" %s(%c)", c.label.c_str(), c.type);
-    std::printf("\n");
+      mxi::print(" %s(%c)", c.label.c_str(), c.type);
+    mxi::print("\n");
     return 0;
   } catch (const std::exception &ex) {
-    std::fprintf(stderr, "mxi export: %s\n", ex.what());
+    mxi::eprint("mxi export: %s\n", ex.what());
     return 1;
   }
 }

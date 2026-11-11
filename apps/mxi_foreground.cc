@@ -21,6 +21,7 @@
 #include "args.hh"
 #include "log_mirror.hh"
 #include "mask.hh"
+#include "output.hh"
 #include "predict.hh"
 #include "profile_model.hh"
 #include "rflx.hh"
@@ -32,7 +33,7 @@ namespace mxi {
 namespace {
 
 void usage(const char *program) {
-  std::printf(
+  mxi::print(
       "usage: %s [options] EXPT [REFL]\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
@@ -81,12 +82,11 @@ int run_foreground(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi foreground: %s\n", args.error.c_str());
+    mxi::eprint("mxi foreground: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.empty() || args.positional.size() > 2) {
-    std::fprintf(stderr,
-                 "mxi foreground: expected an .expt and optionally a .refl\n");
+    mxi::eprint("mxi foreground: expected an .expt and optionally a .refl\n");
     usage(argv[0]);
     return 2;
   }
@@ -96,7 +96,7 @@ int run_foreground(int argc, char **argv) {
     timing.add("reading", Timing::now() - mark);
     mark = Timing::now();
     if (experiments.size() == 0) {
-      std::fprintf(stderr, "mxi foreground: no experiments\n");
+      mxi::eprint("mxi foreground: no experiments\n");
       return 1;
     }
     const Experiment &e = experiments[0];
@@ -108,7 +108,7 @@ int run_foreground(int argc, char **argv) {
     if (args.value("--shape", "box") == "ellipsoid") {
       options.shape = RegionShape::kEllipsoid;
     } else if (args.value("--shape", "box") != "box") {
-      std::fprintf(stderr, "mxi foreground: --shape is box or ellipsoid\n");
+      mxi::eprint("mxi foreground: --shape is box or ellipsoid\n");
       return 2;
     }
     options.sigma_d = args.number("--sigma-b", 0.0);
@@ -118,8 +118,7 @@ int run_foreground(int argc, char **argv) {
     // calculation mxi_profile does and reports.
     if (!(options.sigma_d > 0.0) || !(options.sigma_m > 0.0)) {
       if (args.positional.size() < 2) {
-        std::fprintf(
-            stderr,
+        mxi::eprint(
             "mxi foreground: give a .refl to estimate the profile model "
             "from, or --sigma-b and --sigma-m\n");
         return 2;
@@ -127,11 +126,9 @@ int run_foreground(int argc, char **argv) {
       const Table strong = read_reflections(args.positional[1]);
       const std::vector<Shoebox> boxes = decode_shoeboxes(strong);
       if (boxes.empty()) {
-        std::fprintf(
-            stderr,
-            "mxi foreground: %s has no shoeboxes, so the profile model "
-            "cannot be estimated from it\n",
-            args.positional[1].c_str());
+        mxi::eprint("mxi foreground: %s has no shoeboxes, so the profile model "
+                    "cannot be estimated from it\n",
+                    args.positional[1].c_str());
         return 1;
       }
       const Column &s = strong.at("s1");
@@ -165,21 +162,20 @@ int run_foreground(int argc, char **argv) {
         options.sigma_m =
             reflecting_range(samples, Scan::radians(e.scan.osc_width), 0.0);
       }
-      std::printf("profile model from %zu spots\n", selected.size());
+      mxi::print("profile model from %zu spots\n", selected.size());
     }
-    std::printf("sigma_b %.6f  sigma_m %.6f  n_sigma %.1f  shape %s\n",
-                options.sigma_d, options.sigma_m, options.n_sigma,
-                options.shape == RegionShape::kEllipsoid ? "ellipsoid" : "box");
+    mxi::print("sigma_b %.6f  sigma_m %.6f  n_sigma %.1f  shape %s\n",
+               options.sigma_d, options.sigma_m, options.n_sigma,
+               options.shape == RegionShape::kEllipsoid ? "ellipsoid" : "box");
     if (!(options.sigma_d > 0.0) || !(options.sigma_m > 0.0)) {
-      std::fprintf(stderr,
-                   "mxi foreground: the profile model came out empty\n");
+      mxi::eprint("mxi foreground: the profile model came out empty\n");
       return 1;
     }
 
     PredictOptions predict_options;
     predict_options.d_min = args.number("--d-min", 0.0);
     const std::vector<Prediction> predictions = predict(e, predict_options);
-    std::printf("%zu reflections predicted\n", predictions.size());
+    mxi::print("%zu reflections predicted\n", predictions.size());
 
     // An image range, because a whole sweep of shoeboxes does not fit in
     // memory and is not what anyone looks at. A thousand images of insulin at
@@ -218,12 +214,12 @@ int run_foreground(int argc, char **argv) {
       bboxes.push_back(b);
       kept.push_back(&p);
     }
-    std::printf(
+    mxi::print(
         "%zu shoeboxes; %zu outside the image range, %zu skipped for zeta, "
         "%zu for leaving the scan\n",
         kept.size(), skipped_range, skipped_zeta, skipped_box);
     if (kept.empty()) {
-      std::fprintf(stderr, "mxi foreground: nothing to write\n");
+      mxi::eprint("mxi foreground: nothing to write\n");
       return 1;
     }
 
@@ -293,21 +289,21 @@ int run_foreground(int argc, char **argv) {
         }
       }
     }
-    std::printf("%zu of %zu voxels marked (%.1f%%)\n", foreground, voxels,
-                100.0 * static_cast<double>(foreground) /
-                    static_cast<double>(voxels));
-    std::printf(
+    mxi::print("%zu of %zu voxels marked (%.1f%%)\n", foreground, voxels,
+               100.0 * static_cast<double>(foreground) /
+                   static_cast<double>(voxels));
+    mxi::print(
         "a three-dimensional Gaussian holds %.4f inside the box and %.4f\n"
         "inside the ellipsoid at n = 3\n",
         0.99187, 0.97071);
-    std::printf("wrote %s\n", path.c_str());
-    std::printf("\n  dials.image_viewer %s %s\n", args.positional[0].c_str(),
-                path.c_str());
+    mxi::print("wrote %s\n", path.c_str());
+    mxi::print("\n  dials.image_viewer %s %s\n", args.positional[0].c_str(),
+               path.c_str());
     timing.add("computing, printing and writing", Timing::now() - mark);
-    timing.report(stdout);
+    timing.report(mxi::Stream::out);
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi foreground: %s\n", e.what());
+    mxi::eprint("mxi foreground: %s\n", e.what());
     return 1;
   }
 }

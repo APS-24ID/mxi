@@ -17,6 +17,7 @@
 #include "args.hh"
 #include "combine.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "postrefine.hh"
 #include "processing.hh"
 #include "refine.hh"
@@ -30,7 +31,7 @@ namespace mxi {
 
 namespace {
 void usage() {
-  std::printf(
+  mxi::print(
       "usage: mxi refine INDEXED.expt INDEXED.refl [options]\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
@@ -101,14 +102,14 @@ namespace {
 // outliers rejected after its fit, and its RMSDs. Printed by the program from
 // what refine() records; the library used to print these lines itself.
 void print_cycles(const mxi::RefineResult &r) {
-  std::printf("  %5s %11s %8s %8s %8s %8s\n", "cycle", "reflections",
-              "rejected", "RMSD x", "RMSD y", "RMSD z");
-  std::printf("  %5s %11s %8s %8s %8s %8s\n", "", "", "", "(px)", "(px)",
-              "(images)");
+  mxi::print("  %5s %11s %8s %8s %8s %8s\n", "cycle", "reflections", "rejected",
+             "RMSD x", "RMSD y", "RMSD z");
+  mxi::print("  %5s %11s %8s %8s %8s %8s\n", "", "", "", "(px)", "(px)",
+             "(images)");
   for (std::size_t c = 0; c < r.cycles.size(); ++c) {
     const mxi::RefineCycle &k = r.cycles[c];
-    std::printf("  %5zu %11zu %8zu %8.3f %8.3f %8.3f\n", c + 1, k.reflections,
-                k.rejected, k.rmsd_x, k.rmsd_y, k.rmsd_z);
+    mxi::print("  %5zu %11zu %8zu %8.3f %8.3f %8.3f\n", c + 1, k.reflections,
+               k.rejected, k.rmsd_x, k.rmsd_y, k.rmsd_z);
   }
 }
 
@@ -153,22 +154,21 @@ void print_residuals(const mxi::Table &t,
   }
   if (d[0].empty())
     return;
-  std::printf(
-      "\nCalculated minus observed, over the %zu reflections refined on",
-      d[0].size());
+  mxi::print("\nCalculated minus observed, over the %zu reflections refined on",
+             d[0].size());
   if (left_out > 0)
-    std::printf(
+    mxi::print(
         " (%zu more could not be predicted with the final model, and are "
         "left out)",
         left_out);
-  std::printf(":\n");
-  std::printf("  %-12s %9s %9s %9s %9s %9s\n", "", "min", "Q1", "median", "Q3",
-              "max");
+  mxi::print(":\n");
+  mxi::print("  %-12s %9s %9s %9s %9s %9s\n", "", "min", "Q1", "median", "Q3",
+             "max");
   const char *names[3] = {"x (px)", "y (px)", "z (images)"};
   for (std::int32_t k = 0; k < 3; ++k) {
-    std::printf("  %-12s %9.4f %9.4f %9.4f %9.4f %9.4f\n", names[k],
-                quantile(d[k], 0.0), quantile(d[k], 0.25), quantile(d[k], 0.5),
-                quantile(d[k], 0.75), quantile(d[k], 1.0));
+    mxi::print("  %-12s %9.4f %9.4f %9.4f %9.4f %9.4f\n", names[k],
+               quantile(d[k], 0.0), quantile(d[k], 0.25), quantile(d[k], 0.5),
+               quantile(d[k], 0.75), quantile(d[k], 1.0));
   }
 }
 
@@ -192,8 +192,8 @@ std::int32_t refine_apart(const Arguments &args,
   const std::size_t n = document["experiment"].as_array().size();
   const Table indexed = read_reflections(args.positional[1]);
   if (!indexed.has("id")) {
-    std::fprintf(stderr, "mxi refine: %s has no id column\n",
-                 args.positional[1].c_str());
+    mxi::eprint("mxi refine: %s has no id column\n",
+                args.positional[1].c_str());
     return 1;
   }
   std::vector<std::string> made;
@@ -208,10 +208,10 @@ std::int32_t refine_apart(const Arguments &args,
     argv.push_back(nullptr);
     return run_refine(static_cast<std::int32_t>(words.size()), argv.data());
   };
-  std::printf("Refining %zu experiments sweep by sweep, %zu runs, each "
-              "sweep's beam and detector its own (--joint for one refinement "
-              "of them all)\n",
-              n, groups.size());
+  mxi::print("Refining %zu experiments sweep by sweep, %zu runs, each "
+             "sweep's beam and detector its own (--joint for one refinement "
+             "of them all)\n",
+             n, groups.size());
   std::vector<json::Value> lists(groups.size());
   std::vector<Table> tables(groups.size());
   json::Array steps;
@@ -258,14 +258,14 @@ std::int32_t refine_apart(const Arguments &args,
         words.push_back(value);
     }
     words.insert(words.end(), {"-o", got});
-    std::printf("\n=== Group %zu of %zu: experiment%s", g + 1, groups.size(),
-                members.size() == 1 ? "" : "s");
+    mxi::print("\n=== Group %zu of %zu: experiment%s", g + 1, groups.size(),
+               members.size() == 1 ? "" : "s");
     for (std::size_t i : members)
-      std::printf(" %zu", i);
-    std::printf(" ===\n");
-    std::fflush(stdout);
+      mxi::print(" %zu", i);
+    mxi::print(" ===\n");
+    mxi::flush();
     if (run(words) != 0) {
-      std::fprintf(stderr, "mxi refine: group %zu did not refine\n", g);
+      mxi::eprint("mxi refine: group %zu did not refine\n", g);
       tidy();
       return 1;
     }
@@ -315,9 +315,9 @@ std::int32_t refine_apart(const Arguments &args,
                       &summary_document);
   tidy();
   if (unassigned > 0)
-    std::printf("\n%zu reflections with no experiment left out\n", unassigned);
-  std::printf("\n%zu experiments refined in %zu groups, each on its own: %s\n",
-              n, groups.size(), rflx::describe(outputs).c_str());
+    mxi::print("\n%zu reflections with no experiment left out\n", unassigned);
+  mxi::print("\n%zu experiments refined in %zu groups, each on its own: %s\n",
+             n, groups.size(), rflx::describe(outputs).c_str());
   return 0;
 }
 
@@ -366,20 +366,18 @@ int run_refine(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi refine: %s\n", args.error.c_str());
+    mxi::eprint("mxi refine: %s\n", args.error.c_str());
     return 2;
   }
   if (args.has("--static") && args.has("--scan-varying")) {
-    std::fprintf(
-        stderr,
+    mxi::eprint(
         "mxi refine: --static and --scan-varying contradict each other\n");
     return 2;
   }
   if (args.positional.size() != 2) {
-    std::fprintf(stderr,
-                 "mxi refine: expected an .expt and a .refl, got %zu file "
-                 "arguments\n",
-                 args.positional.size());
+    mxi::eprint("mxi refine: expected an .expt and a .refl, got %zu file "
+                "arguments\n",
+                args.positional.size());
     usage();
     return 2;
   }
@@ -461,10 +459,10 @@ int run_refine(int argc, char **argv) {
       } else if (degrees >= 10.0) {
         points = scan_varying_points(e.scan);
       } else {
-        std::printf("Static: the scan is %.1f degrees, under the 10 a "
-                    "scan-varying crystal "
-                    "needs\n",
-                    degrees);
+        mxi::print("Static: the scan is %.1f degrees, under the 10 a "
+                   "scan-varying crystal "
+                   "needs\n",
+                   degrees);
       }
       points_of.push_back(points);
     }
@@ -486,42 +484,41 @@ int run_refine(int argc, char **argv) {
     set_verbose(args.has("--verbose"));
     Summary summary("mxi_refine", args.positional[0]);
     const ExperimentList given_models = experiments;
-    std::printf("Refining against %zu reflections from %zu experiment%s\n",
-                reflections.nrows, experiments.size(),
-                experiments.size() == 1 ? "" : "s");
+    mxi::print("Refining against %zu reflections from %zu experiment%s\n",
+               reflections.nrows, experiments.size(),
+               experiments.size() == 1 ? "" : "s");
 
     const TwoPassRefinement two =
         refine_in_two_passes(experiments, reflections, options, points_of,
                              !args.has("--detector-in-scan-varying"));
     if (two.static_pass.n_used > 0) {
-      std::printf("\nScan-static: %zu parameters\n",
-                  two.static_pass.n_parameters);
+      mxi::print("\nScan-static: %zu parameters\n",
+                 two.static_pass.n_parameters);
       print_cycles(two.static_pass);
     }
     if (two.varied && two.varying_pass.n_used > 0) {
-      std::printf("\nScan-varying, %s control points: %zu parameters%s\n",
-                  points_text.c_str(), two.varying_pass.n_parameters,
-                  two.detector_held
-                      ? "; the detector held where the scan-static pass put "
-                        "it (--detector-in-scan-varying to refine it too)"
-                      : "");
+      mxi::print("\nScan-varying, %s control points: %zu parameters%s\n",
+                 points_text.c_str(), two.varying_pass.n_parameters,
+                 two.detector_held
+                     ? "; the detector held where the scan-static pass put "
+                       "it (--detector-in-scan-varying to refine it too)"
+                     : "");
       print_cycles(two.varying_pass);
     }
     RefineResult result = two.final();
     if (result.n_used == 0) {
-      std::fprintf(stderr, "mxi refine: nothing to refine against\n");
+      mxi::eprint("mxi refine: nothing to refine against\n");
       return 1;
     }
-    std::printf(
-        "\nRefined on %zu of %zu reflections: %zu rejected as outliers, "
-        "%zu with an undetermined rotation angle; %d steps\n",
-        result.n_used, reflections.nrows, result.n_rejected,
-        result.n_ill_conditioned, result.iterations);
+    mxi::print("\nRefined on %zu of %zu reflections: %zu rejected as outliers, "
+               "%zu with an undetermined rotation angle; %d steps\n",
+               result.n_used, reflections.nrows, result.n_rejected,
+               result.n_ill_conditioned, result.iterations);
     // Said plainly, because a residual averaged over a different set of
     // reflections is not comparable with anything -- including dials.refine,
     // which applies the same cutoff and reports over what is left.
-    std::printf("RMSD over those %zu: %.4f px, %.4f px, %.4f images\n",
-                result.n_used, result.rmsd_x, result.rmsd_y, result.rmsd_z);
+    mxi::print("RMSD over those %zu: %.4f px, %.4f px, %.4f images\n",
+               result.n_used, result.rmsd_x, result.rmsd_y, result.rmsd_z);
 
     // s1, rlp and entering follow the refined model, as they do in DIALS.
     // xyzobs.mm deliberately does not: it is what the spot finder measured
@@ -532,7 +529,7 @@ int run_refine(int argc, char **argv) {
     const std::vector<std::size_t> unpredicted =
         update_predictions(experiments, reflections);
     print_residuals(reflections, unpredicted);
-    std::printf("\n");
+    mxi::print("\n");
     // Each crystal: the cell with the scan-static pass's e.s.d.s, as DIALS
     // prints it; scan-varying, how far the cell and the orientation move
     // over the scan -- the check the tutorial makes in dials.report.
@@ -549,14 +546,14 @@ int run_refine(int argc, char **argv) {
       const std::array<double, 6> v = {c.a, c.b, c.c, c.alpha, c.beta, c.gamma};
       // No e.s.d.s here: the cell's are mxi_scale's, from two-theta (Graeme).
       const std::array<double, 6> e = {0, 0, 0, 0, 0, 0};
-      std::printf("Unit cell%s: %s %s %s A, %s %s %s deg; volume %.0f A^3\n",
-                  experiments.size() > 1
-                      ? (" [" + std::to_string(i) + "]").c_str()
-                      : "",
-                  with_esd(v[0], e[0]).c_str(), with_esd(v[1], e[1]).c_str(),
-                  with_esd(v[2], e[2]).c_str(), with_esd(v[3], e[3], 3).c_str(),
-                  with_esd(v[4], e[4], 3).c_str(),
-                  with_esd(v[5], e[5], 3).c_str(), c.volume());
+      mxi::print("Unit cell%s: %s %s %s A, %s %s %s deg; volume %.0f A^3\n",
+                 experiments.size() > 1
+                     ? (" [" + std::to_string(i) + "]").c_str()
+                     : "",
+                 with_esd(v[0], e[0]).c_str(), with_esd(v[1], e[1]).c_str(),
+                 with_esd(v[2], e[2]).c_str(), with_esd(v[3], e[3], 3).c_str(),
+                 with_esd(v[4], e[4], 3).c_str(),
+                 with_esd(v[5], e[5], 3).c_str(), c.volume());
       // Where the centre of diffraction sits off the axis, if refined: its
       // distance, and its direction about the axis from the frame's first
       // perpendicular, as refinement parameterises it.
@@ -567,10 +564,10 @@ int run_refine(int argc, char **argv) {
             std::fabs(ax.z) < 0.9 ? Vec3{0.0, 0.0, 1.0} : Vec3{1.0, 0.0, 0.0};
         const Vec3 pu = ax.cross(ref).normalized(), pv = ax.cross(pu);
         const Vec3 &c0 = g.sample_offset;
-        std::printf("  the centre of diffraction %.1f um off the axis, at %.1f "
-                    "deg\n",
-                    1000.0 * c0.norm(),
-                    std::atan2(c0.dot(pv), c0.dot(pu)) * 180.0 / M_PI);
+        mxi::print("  the centre of diffraction %.1f um off the axis, at %.1f "
+                   "deg\n",
+                   1000.0 * c0.norm(),
+                   std::atan2(c0.dot(pv), c0.dot(pu)) * 180.0 / M_PI);
       }
       json::Array jc, je, jlo, jhi;
       for (std::int32_t k = 0; k < 6; ++k) {
@@ -637,11 +634,11 @@ int run_refine(int argc, char **argv) {
         const double cosine = (R(0, 0) + R(1, 1) + R(2, 2) - 1.0) / 2.0;
         turned =
             std::acos(std::fmax(-1.0, std::fmin(1.0, cosine))) * 180.0 / M_PI;
-        std::printf("  over the scan: a %.4f to %.4f, b %.4f to %.4f, c %.4f "
-                    "to %.4f A; alpha %.3f to %.3f, beta %.3f to %.3f, gamma "
-                    "%.3f to %.3f deg; the orientation turns %.3f deg\n",
-                    lo[0], hi[0], lo[1], hi[1], lo[2], hi[2], lo[3], hi[3],
-                    lo[4], hi[4], lo[5], hi[5], turned);
+        mxi::print("  over the scan: a %.4f to %.4f, b %.4f to %.4f, c %.4f "
+                   "to %.4f A; alpha %.3f to %.3f, beta %.3f to %.3f, gamma "
+                   "%.3f to %.3f deg; the orientation turns %.3f deg\n",
+                   lo[0], hi[0], lo[1], hi[1], lo[2], hi[2], lo[3], hi[3],
+                   lo[4], hi[4], lo[5], hi[5], turned);
         // A crystal does not change shape like this within a sweep: radiation
         // damage and goniometer wobble stay well inside these. Said, as a
         // scale at zero is (a small molecule's cell edge had run 5.32 to
@@ -652,13 +649,13 @@ int run_refine(int argc, char **argv) {
         for (std::size_t k = 3; k < 6; ++k)
           angle = std::fmax(angle, hi[k] - lo[k]);
         if (edge > 2.0 || angle > 2.0 || turned > 2.0)
-          std::printf("  WARNING: experiment %zu's crystal changes more than "
-                      "a crystal does within a sweep -- a cell edge by %.1f "
-                      "per cent, an angle by %.1f deg, the orientation by %.1f "
-                      "deg; the scan-varying model is not held by its data "
-                      "(--interval for fewer control points, or a stronger "
-                      "--crystal-restraint)\n",
-                      i, edge, angle, turned);
+          mxi::print("  WARNING: experiment %zu's crystal changes more than "
+                     "a crystal does within a sweep -- a cell edge by %.1f "
+                     "per cent, an angle by %.1f deg, the orientation by %.1f "
+                     "deg; the scan-varying model is not held by its data "
+                     "(--interval for fewer control points, or a stronger "
+                     "--crystal-restraint)\n",
+                     i, edge, angle, turned);
         for (std::size_t k = 0; k < 6; ++k) {
           jlo.push_back(json::Value(lo[k]));
           jhi.push_back(json::Value(hi[k]));
@@ -684,10 +681,10 @@ int run_refine(int argc, char **argv) {
       if (seen)
         continue;
       said.push_back(after);
-      std::printf("Beam centre %.2f, %.2f px and distance %.3f mm as given; "
-                  "refined %.2f, %.2f px and %.3f mm\n",
-                  before.beam_x, before.beam_y, before.distance, after.beam_x,
-                  after.beam_y, after.distance);
+      mxi::print("Beam centre %.2f, %.2f px and distance %.3f mm as given; "
+                 "refined %.2f, %.2f px and %.3f mm\n",
+                 before.beam_x, before.beam_y, before.distance, after.beam_x,
+                 after.beam_y, after.distance);
       if (i == 0) {
         summary.set("geometry_given", to_json(before));
         summary.set("geometry", to_json(after));
@@ -742,7 +739,7 @@ int run_refine(int argc, char **argv) {
     rflx::write_outputs(out, &document, &written_table, "mxi_refine",
                         &summary_document);
     t_write = now_wall() - t_write_start;
-    std::printf("Wrote %s\n", rflx::describe(out).c_str());
+    mxi::print("Wrote %s\n", rflx::describe(out).c_str());
 
     if (args.has("--timing")) {
       Timing timing(true, t_start);
@@ -754,11 +751,11 @@ int run_refine(int argc, char **argv) {
       timing.add("the trial residuals", g_residual_seconds);
       timing.add("outlier rejection", g_outlier_seconds);
       timing.add("writing", t_write);
-      timing.report(stdout);
+      timing.report(mxi::Stream::out);
     }
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi refine: %s\n", e.what());
+    mxi::eprint("mxi refine: %s\n", e.what());
     return 1;
   }
 }

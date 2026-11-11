@@ -11,6 +11,8 @@
 #include <cstdio>
 #include <vector>
 
+#include "output.hh"
+
 namespace mxi {
 
 //: The columns a summary is made from, one entry per reflection. Every vector
@@ -59,6 +61,6 @@ struct IntegrationSummary {
 IntegrationSummary summarise(const SummaryInput &in, std::int32_t shells = 10);
 
 //: The two tables, as text.
-void print_summary(std::FILE *out, const IntegrationSummary &s);
+void print_summary(Stream out, const IntegrationSummary &s);
 
 } // namespace mxi

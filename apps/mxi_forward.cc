@@ -19,6 +19,7 @@
 #include "args.hh"
 #include "forward.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "profile_model.hh"
 #include "rflx.hh"
 #include "shoebox.hh"
@@ -29,7 +30,7 @@ namespace mxi {
 namespace {
 
 void usage(const char *program) {
-  std::printf(
+  mxi::print(
       "usage: %s [options] EXPT REFL\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
@@ -64,11 +65,11 @@ int run_forward(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi forward: %s\n", args.error.c_str());
+    mxi::eprint("mxi forward: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.size() != 2) {
-    std::fprintf(stderr, "mxi forward: expected an .expt and a .refl\n");
+    mxi::eprint("mxi forward: expected an .expt and a .refl\n");
     usage(argv[0]);
     return 2;
   }
@@ -80,8 +81,8 @@ int run_forward(int argc, char **argv) {
     mark = Timing::now();
     const std::vector<Shoebox> boxes = decode_shoeboxes(t);
     if (boxes.empty()) {
-      std::fprintf(stderr, "mxi forward: %s has no shoeboxes\n",
-                   args.positional[1].c_str());
+      mxi::eprint("mxi forward: %s has no shoeboxes\n",
+                  args.positional[1].c_str());
       return 1;
     }
     const Experiment &e = experiments[0];
@@ -126,15 +127,15 @@ int run_forward(int argc, char **argv) {
       options.sigma_m =
           reflecting_range(samples, Scan::radians(e.scan.osc_width), 0.0);
     }
-    std::printf("sigma_b %.6f  sigma_m %.6f  sensor %s (%d depths)\n",
-                options.sigma_d, options.sigma_m,
-                options.sensor ? "modelled" : "off", options.depth_samples);
-    std::printf("%zu spots\n", chosen.size());
+    mxi::print("sigma_b %.6f  sigma_m %.6f  sensor %s (%d depths)\n",
+               options.sigma_d, options.sigma_m,
+               options.sensor ? "modelled" : "off", options.depth_samples);
+    mxi::print("%zu spots\n", chosen.size());
 
     const std::string path = args.value("--out", "forward.txt");
     std::FILE *out = std::fopen(path.c_str(), "w");
     if (out == nullptr) {
-      std::fprintf(stderr, "mxi forward: cannot write %s\n", path.c_str());
+      mxi::eprint("mxi forward: cannot write %s\n", path.c_str());
       return 1;
     }
     std::fprintf(out, "# obliquity_deg counts shift_fast shift_slow shift_z "
@@ -171,12 +172,12 @@ int run_forward(int argc, char **argv) {
       ++written;
     }
     std::fclose(out);
-    std::printf("wrote %s, %zu spots compared\n", path.c_str(), written);
+    mxi::print("wrote %s, %zu spots compared\n", path.c_str(), written);
     timing.add("computing, printing and writing", Timing::now() - mark);
-    timing.report(stdout);
+    timing.report(mxi::Stream::out);
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi forward: %s\n", e.what());
+    mxi::eprint("mxi forward: %s\n", e.what());
     return 1;
   }
 }

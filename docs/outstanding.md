@@ -437,6 +437,13 @@ history on 20 October: four closed, nine rewritten to what is now true.
     detector's first panel only (`docs/ui.md`).
 
 ## Infrastructure
+* **89.** **capability -- a Windows build** (Graeme, 7 November; investigated,
+    nothing built). `docs/windows.md`: six POSIX places with Windows
+    equivalents; the audit of `long`, 32 bits on 64-bit Windows -- four uses
+    wrong there (the shoeboxes' flat offsets, a doubling loop's signed overflow,
+    the max cell's cell keys, find's running totals), the rest safe or small;
+    a rule for sized integer types, to apply first on Linux and macOS; a
+    Windows job on GitHub Actions; what Graeme would test.
 * **31.** **The C++ suite is slow**: mxi_tests about five minutes on one core
     here, most of it a handful of older refinement and indexing tests and, since
     October, the spot finder's tests joined to it. ctest runs it as one test.

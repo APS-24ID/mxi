@@ -13,6 +13,7 @@
 // FFTW is GPL, which the licence of anything linking it must accommodate. That
 // is why it is optional and off unless asked for, rather than a dependency.
 
+#include <cstdint>
 #include <fftw3.h>
 
 #include <complex>
@@ -34,7 +35,8 @@ std::mutex g_plan_lock;
 
 } // namespace
 
-void fft3d(std::vector<std::complex<double>> &grid, std::size_t n, int sign) {
+void fft3d(std::vector<std::complex<double>> &grid, std::size_t n,
+           std::int32_t sign) {
   if (n == 0)
     return;
   if (grid.size() != n * n * n)
@@ -59,24 +61,24 @@ void fft3d(std::vector<std::complex<double>> &grid, std::size_t n, int sign) {
       // As many as every parallel part of the command (-j/--threads,
       // parallel.hh): there had been a count for the transform alone,
       // --fft-threads (APS-24ID/mxi#1).
-      fftw_plan_with_nthreads(static_cast<int>(parallel_threads()));
+      fftw_plan_with_nthreads(static_cast<std::int32_t>(parallel_threads()));
     }
 #endif
     // FFTW_ESTIMATE rather than FFTW_MEASURE: measuring writes to the array
     // and takes longer than the transform it is planning, for a grid used a
     // handful of times per run.
-    plan = fftw_plan_dft_3d(static_cast<int>(n), static_cast<int>(n),
-                            static_cast<int>(n), data, data,
-                            // FFTW_FORWARD is exp(-i...), and the built-in
-                            // uses exp(+i * sign * ...), so a positive sign
-                            // here is FFTW's BACKWARD. Getting this the
-                            // natural-looking way round conjugates every
-                            // peak's position through the origin, which on a
-                            // centrosymmetric lattice still looks like a
-                            // lattice -- the agreement test caught it, nothing
-                            // else would have.
-                            sign >= 0 ? FFTW_BACKWARD : FFTW_FORWARD,
-                            FFTW_ESTIMATE);
+    plan = fftw_plan_dft_3d(
+        static_cast<std::int32_t>(n), static_cast<std::int32_t>(n),
+        static_cast<std::int32_t>(n), data, data,
+        // FFTW_FORWARD is exp(-i...), and the built-in
+        // uses exp(+i * sign * ...), so a positive sign
+        // here is FFTW's BACKWARD. Getting this the
+        // natural-looking way round conjugates every
+        // peak's position through the origin, which on a
+        // centrosymmetric lattice still looks like a
+        // lattice -- the agreement test caught it, nothing
+        // else would have.
+        sign >= 0 ? FFTW_BACKWARD : FFTW_FORWARD, FFTW_ESTIMATE);
   }
   if (plan == nullptr)
     return;

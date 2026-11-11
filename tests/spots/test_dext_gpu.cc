@@ -80,7 +80,7 @@ bool run(const Frame &frame) {
   const std::size_t capacity = frame.height * frame.width * 2 / 16;
 
   dext_scratch<std::uint16_t> scratch;
-  const int cpu_status = dext<std::uint16_t>(
+  const std::int32_t cpu_status = dext<std::uint16_t>(
       frame.pixels.data(), cpu, frame.height, frame.width, scratch);
   if (cpu_status != 0) {
     std::printf("  FAIL %s: dext returned %d\n", frame.name.c_str(),
@@ -94,7 +94,7 @@ bool run(const Frame &frame) {
     return false;
   }
 
-  const int gpu_status = mxi::gpu::find<std::uint16_t>(
+  const std::int32_t gpu_status = mxi::gpu::find<std::uint16_t>(
       frame.pixels.data(), device, frame.height, frame.width);
   if (gpu_status != 0) {
     std::printf("  FAIL %s: mxi::gpu::find returned %d\n", frame.name.c_str(),
@@ -115,8 +115,8 @@ namespace {
 
 // Every frame under one configuration of the backend. Returns the number that
 // disagreed with the CPU.
-int run_all(const std::vector<Frame> &frames) {
-  int failures = 0;
+std::int32_t run_all(const std::vector<Frame> &frames) {
+  std::int32_t failures = 0;
   for (const Frame &frame : frames) {
     if (!run(frame))
       failures++;
@@ -126,7 +126,7 @@ int run_all(const std::vector<Frame> &frames) {
 
 } // namespace
 
-int main() {
+std::int32_t main() {
   if (!mxi::gpu::available()) {
     std::printf("no %s device available; skipping\n", mxi::gpu::backend());
     return 77;
@@ -170,7 +170,7 @@ int main() {
     frames.push_back(frame);
   }
 
-  int failures = 0;
+  std::int32_t failures = 0;
 
   // Every combination of window, against the same CPU results. stage0 and
   // stage2 each have two, they are four ways of summing the same two windows,

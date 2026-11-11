@@ -26,9 +26,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   as before; what another library writes straight to stderr (HDF5's error
   stack, where not turned off) now reaches the terminal, not the log.
 - Every integer in the code an explicitly sized type -- `std::int64_t` where
-  `long` was, `std::int32_t` where `int` was -- the same types on Linux and
-  macOS, so no change in what mxi does; on Windows the four uses of `long`
-  that would have been wrong there (docs/windows.md) are right.
+  `long` was, `std::int32_t` where `int` was -- the CUDA and Metal code among
+  it, the same types on Linux and macOS, so no change in what mxi does; on
+  Windows the four uses of `long` that would have been wrong there
+  (docs/windows.md) are right.
 
 ## 1.2.0 -- 7 November 2026
 

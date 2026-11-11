@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -145,7 +146,7 @@ private:
 // One configuration, timed. Returns the median frame time in milliseconds.
 Timing time_windows(mxi::gpu::Window window0, mxi::gpu::Window window2,
                     const synthetic::Frame &frame, const std::uint16_t *pixels,
-                    int repeats, std::vector<SignalPixel> *out) {
+                    std::int32_t repeats, std::vector<SignalPixel> *out) {
   mxi::gpu::stage0_window(window0);
   mxi::gpu::stage2_window(window2);
   std::vector<SignalPixel> signal;
@@ -160,10 +161,10 @@ Timing time_windows(mxi::gpu::Window window0, mxi::gpu::Window window2,
 
   std::vector<double> samples;
   samples.reserve(static_cast<std::size_t>(repeats));
-  for (int n = 0; n < repeats; n++) {
+  for (std::int32_t n = 0; n < repeats; n++) {
     const Clock::time_point started = Clock::now();
-    const int status = mxi::gpu::find<std::uint16_t>(pixels, signal,
-                                                     frame.height, frame.width);
+    const std::int32_t status = mxi::gpu::find<std::uint16_t>(
+        pixels, signal, frame.height, frame.width);
     const Clock::time_point finished = Clock::now();
     if (status != 0) {
       std::printf("  find() returned %d on repeat %d\n", status, n);
@@ -184,12 +185,13 @@ Timing time_windows(mxi::gpu::Window window0, mxi::gpu::Window window2,
 // does, so the no-copy path is exercised rather than the staging fallback --
 // otherwise this would be measuring a memcpy that production does not do.
 double time_threaded(mxi::gpu::Window window0, mxi::gpu::Window window2,
-                     const synthetic::Frame &frame, int repeats, int threads) {
+                     const synthetic::Frame &frame, std::int32_t repeats,
+                     std::int32_t threads) {
   mxi::gpu::stage0_window(window0);
   mxi::gpu::stage2_window(window2);
 
   const std::size_t bytes = frame.pixels.size() * sizeof(std::uint16_t);
-  std::atomic<int> failed{0};
+  std::atomic<std::int32_t> failed{0};
 
   const auto worker = [&]() {
     void *const buffer = mxi::gpu::host_alloc(bytes);
@@ -207,7 +209,7 @@ double time_threaded(mxi::gpu::Window window0, mxi::gpu::Window window2,
                                       frame.width) != 0)
       failed++;
 
-    for (int n = 0; n < repeats; n++) {
+    for (std::int32_t n = 0; n < repeats; n++) {
       if (mxi::gpu::find<std::uint16_t>(source, signal, frame.height,
                                         frame.width) != 0) {
         failed++;
@@ -225,7 +227,7 @@ double time_threaded(mxi::gpu::Window window0, mxi::gpu::Window window2,
   const Clock::time_point started = Clock::now();
   std::vector<std::thread> pool;
   pool.reserve(static_cast<std::size_t>(threads));
-  for (int t = 0; t < threads; t++)
+  for (std::int32_t t = 0; t < threads; t++)
     pool.emplace_back(worker);
   for (std::thread &thread : pool)
     thread.join();
@@ -248,14 +250,14 @@ double time_threaded(mxi::gpu::Window window0, mxi::gpu::Window window2,
 // That gap is information too, and it is printed rather than hidden.
 void profile(mxi::gpu::Window window0, mxi::gpu::Window window2,
              const synthetic::Frame &frame, const std::uint16_t *pixels,
-             int repeats, double unprofiled) {
+             std::int32_t repeats, double unprofiled) {
   mxi::gpu::stage0_window(window0);
   mxi::gpu::stage2_window(window2);
   mxi::gpu::profile_stages(true);
 
   std::vector<SignalPixel> signal;
   std::vector<double> up, zero, one, two, copied, sorted;
-  for (int n = 0; n < repeats; n++) {
+  for (std::int32_t n = 0; n < repeats; n++) {
     if (mxi::gpu::find<std::uint16_t>(pixels, signal, frame.height,
                                       frame.width) != 0) {
       mxi::gpu::profile_stages(false);
@@ -314,7 +316,7 @@ void profile(mxi::gpu::Window window0, mxi::gpu::Window window2,
   const double shares[3] = {s0.median, s1.median, s2.median};
   const char *labels[3] = {"stage0  7x7 dispersion", "stage1  5x5 erode",
                            "stage2  11x11 Poisson"};
-  for (int n = 0; n < 3; n++) {
+  for (std::int32_t n = 0; n < 3; n++) {
     const double share = gpu_total > 0.0 ? 100.0 * shares[n] / gpu_total : 0.0;
     std::printf("    %-26s %8.2f ms  %5.1f%%\n", labels[n], shares[n], share);
   }
@@ -348,8 +350,8 @@ void profile(mxi::gpu::Window window0, mxi::gpu::Window window2,
 int main(int argc, char **argv) {
   std::size_t height = 4362;
   std::size_t width = 4148;
-  int repeats = 20;
-  int threads = 1;
+  std::int32_t repeats = 20;
+  std::int32_t threads = 1;
 
   if (argc >= 3 && argc <= 5) {
     height = static_cast<std::size_t>(std::atol(argv[1]));
@@ -405,8 +407,8 @@ int main(int argc, char **argv) {
   bool disagreed = false;
 
   std::printf("\none frame at a time, by window:\n");
-  for (int a = 0; a < 2; a++) {
-    for (int b = 0; b < 2; b++) {
+  for (std::int32_t a = 0; a < 2; a++) {
+    for (std::int32_t b = 0; b < 2; b++) {
       std::vector<SignalPixel> signal;
       timings[a][b] = time_windows(windows[a], windows[b], frame,
                                    shared.pixels(), repeats, &signal);
@@ -426,8 +428,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  for (int a = 0; a < 2; a++) {
-    for (int b = 0; b < 2; b++) {
+  for (std::int32_t a = 0; a < 2; a++) {
+    for (std::int32_t b = 0; b < 2; b++) {
       char label[64];
       std::snprintf(label, sizeof(label), "stage0 %-6s stage2 %-6s",
                     mxi::gpu::name(windows[a]), mxi::gpu::name(windows[b]));
@@ -436,10 +438,10 @@ int main(int argc, char **argv) {
   }
 
   // Which won, for the profile and the summary below.
-  int best_a = 0;
-  int best_b = 0;
-  for (int a = 0; a < 2; a++) {
-    for (int b = 0; b < 2; b++) {
+  std::int32_t best_a = 0;
+  std::int32_t best_b = 0;
+  for (std::int32_t a = 0; a < 2; a++) {
+    for (std::int32_t b = 0; b < 2; b++) {
       if (timings[a][b].median > 0.0 &&
           (timings[best_a][best_b].median <= 0.0 ||
            timings[a][b].median < timings[best_a][best_b].median)) {
@@ -454,8 +456,8 @@ int main(int argc, char **argv) {
   // frames per configuration.
   if (threads > 1) {
     std::printf("\n%d workers at once, aggregate:\n", threads);
-    for (int a = 0; a < 2; a++) {
-      for (int b = 0; b < 2; b++) {
+    for (std::int32_t a = 0; a < 2; a++) {
+      for (std::int32_t b = 0; b < 2; b++) {
         const double rate =
             time_threaded(windows[a], windows[b], frame, repeats, threads);
         const double alone =
@@ -473,13 +475,13 @@ int main(int argc, char **argv) {
 
   // The CPU, for scale. Fewer repeats because it is much slower and the point
   // is the order of magnitude, not a tight figure.
-  const int cpu_repeats = repeats > 4 ? 4 : repeats;
+  const std::int32_t cpu_repeats = repeats > 4 ? 4 : repeats;
   std::vector<SignalPixel> cpu_signal;
   dext_scratch<std::uint16_t> scratch;
   dext<std::uint16_t>(frame.pixels.data(), cpu_signal, height, width, scratch);
 
   std::vector<double> cpu_samples;
-  for (int n = 0; n < cpu_repeats; n++) {
+  for (std::int32_t n = 0; n < cpu_repeats; n++) {
     const Clock::time_point started = Clock::now();
     dext<std::uint16_t>(frame.pixels.data(), cpu_signal, height, width,
                         scratch);

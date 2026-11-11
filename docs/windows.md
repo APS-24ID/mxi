@@ -229,13 +229,16 @@ there -- and the suites pass as before: 378 C++ tests, 745 Python.
 files, the same types on all three systems, so `%d` and `%u` stand and nothing
 changes at run time. Kept: `main` and the commands' entry functions, `int
 f(int argc, char **argv)` (48); `char` and `unsigned char`, characters and
-bytes. **Not yet converted**, this sandbox having no compiler for them and
-nothing changed here unbuilt: the Metal sources (`src/dext_metal.cc`,
-`src/fit_device_metal.cc`, `src/metal_device.*`), the CUDA ones
-(`src/*.cu`, `src/fit_device_cuda.cc`), `src/fft_fftw.cc` (FFTW, off by
-default) and the GPU spot finder's tests (`tests/spots/test_dext_gpu.cc`,
-`tests/spots/bench_dext_gpu.cc`) -- to do where each builds, the same script
-(the rule above). 378 C++ tests, 745 Python; no warnings.
+bytes. **The accelerators converted too**, 7 November (Graeme: before the platform
+layer): the CUDA sources (`src/*.cu`, `src/fit_device_cuda.cc`), the Metal
+ones (`src/dext_metal.cc`, `src/fit_device_metal.cc`), `src/fft_fftw.cc` and
+the GPU spot finder's two tests -- 254 replacements; their three host-side
+`fprintf(stderr, ...)` through `mxi::eprint`. Kept: the Metal shader library's
+embedded size and the function given it, `unsigned long` as the build
+generates the symbol; and `printf` in the GPU tests, as every test prints.
+Compiled here with CUDA 12.0's `nvcc` (GCC 11 its host compiler) and FFTW on,
+with no warnings; the GPU test skips without a device; FFTW's transform agrees
+with the built-in. The Metal sources compiled where they build: Graeme's Mac. 378 C++ tests, 745 Python; no warnings.
 
 Done in stages, each committed alone and each a change of no behaviour on
 Linux and macOS: the `long` family first (`long` is `std::int64_t` there,

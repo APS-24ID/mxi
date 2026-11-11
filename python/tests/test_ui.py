@@ -356,3 +356,26 @@ def test_every_note_names_options_its_command_takes_and_guides_that_exist():
             assert takes(text, flag), f"mxi {key} {flag}"
         for _label, path in note.read:
             assert os.path.isfile(os.path.join(root, path)), path
+
+
+def test_mxi_found_beside_as_windows_names_it(tmp_path, monkeypatch):
+    # On Windows mxi is mxi.exe beside the package (docs/windows.md): the name
+    # looked for follows os.name, the PATH's search (shutil.which) adding .exe
+    # itself.
+    import importlib
+    import shutil
+
+    from mxi_ui import locate
+
+    monkeypatch.delenv("MXI", raising=False)
+    package = tmp_path / "mxi_ui"
+    package.mkdir()
+    for name in ("mxi", "mxi.exe"):
+        (tmp_path / name).write_text("")
+        os.chmod(tmp_path / name, 0o755)
+    monkeypatch.setattr(locate, "__file__", str(package / "locate.py"))
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    assert locate.find_mxi() == str(tmp_path / "mxi")
+    monkeypatch.setattr(os, "name", "nt")
+    assert locate.find_mxi() == str(tmp_path / "mxi.exe")
+    importlib.reload(locate)

@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 #include <random>
 #include <vector>
 
@@ -19,7 +20,7 @@ std::vector<TwoThetaObservation> planted(const UnitCell &cell, double sigma,
                                          std::mt19937 &rng) {
   std::normal_distribution<double> noise(0.0, sigma);
   std::vector<TwoThetaObservation> out;
-  const double wavelength = 0.9537, kDeg = M_PI / 180.0;
+  const double wavelength = 0.9537, kDeg = std::numbers::pi / 180.0;
   const double ca = std::cos(cell.alpha * kDeg),
                cb = std::cos(cell.beta * kDeg),
                cg = std::cos(cell.gamma * kDeg);

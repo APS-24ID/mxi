@@ -29,7 +29,13 @@
 #include <string>
 #include <vector>
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__MINGW32__)
+// MinGW checks "printf" against Microsoft's old C runtime, which knows no
+// %zu; mxi's formats are C99's, as MinGW's own stdio gives them
+// (__USE_MINGW_ANSI_STDIO), and as Microsoft's current runtime does.
+#define MXI_PRINTF_LIKE(format_at, args_at)                                    \
+  __attribute__((format(gnu_printf, format_at, args_at)))
+#elif defined(__GNUC__) || defined(__clang__)
 #define MXI_PRINTF_LIKE(format_at, args_at)                                    \
   __attribute__((format(printf, format_at, args_at)))
 #else

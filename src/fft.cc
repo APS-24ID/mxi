@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 #include <stdexcept>
 
 namespace mxi {
@@ -29,7 +30,8 @@ void transform_line(std::complex<double> *data, std::size_t n,
       std::swap(data[i * stride], data[j * stride]);
   }
   for (std::size_t len = 2; len <= n; len <<= 1) {
-    const double angle = sign * 2.0 * M_PI / static_cast<double>(len);
+    const double angle =
+        sign * 2.0 * std::numbers::pi / static_cast<double>(len);
     const std::complex<double> step(std::cos(angle), std::sin(angle));
     for (std::size_t i = 0; i < n; i += len) {
       std::complex<double> w(1.0, 0.0);

@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "json.hh"
+#include "output.hh"
 
 namespace mxi {
 
@@ -64,11 +65,7 @@ private:
 void set_verbose(bool on);
 bool verbose();
 //: printf, under --verbose only.
-void detail(const char *format, ...)
-#if defined(__GNUC__)
-    __attribute__((format(printf, 1, 2)))
-#endif
-    ;
+void detail(const char *format, ...) MXI_PRINTF_LIKE(1, 2);
 
 } // namespace mxi
 

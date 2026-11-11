@@ -16,6 +16,7 @@
 #include <complex>
 #include <cstdint>
 #include <map>
+#include <numbers>
 #include <tuple>
 
 #include "../src/expt.hh"
@@ -862,7 +863,8 @@ TEST(every_prediction_is_on_the_sphere_under_the_crystal_at_its_own_position) {
   const std::size_t points = 1801;
   e.crystal->A_points.resize(points);
   for (std::size_t k = 0; k < points; ++k) {
-    const double turn = 0.5 * (M_PI / 180.0) * static_cast<double>(k) / 1800.0;
+    const double turn =
+        0.5 * (std::numbers::pi / 180.0) * static_cast<double>(k) / 1800.0;
     e.crystal->A_points[k] = rotation({0.0, 1.0, 0.0}, turn) * e.crystal->A;
   }
 

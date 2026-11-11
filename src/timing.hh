@@ -14,25 +14,15 @@
 #include <utility>
 #include <vector>
 
-#include <sys/resource.h>
-
 #include "output.hh"
+#include "platform.hh"
 
 namespace mxi {
 
 //: The process's peak resident memory so far, in MB: kB on Linux, bytes on
 //: macOS. Only ever rises, so the phase after which it jumps is the one that
 //: asked for the memory (Graeme: symmetry 22 GB, scaling 26, on 36000 images).
-inline double peak_memory_mb() {
-  struct rusage u{};
-  if (getrusage(RUSAGE_SELF, &u) != 0)
-    return 0.0;
-#ifdef __APPLE__
-  return static_cast<double>(u.ru_maxrss) / (1024.0 * 1024.0);
-#else
-  return static_cast<double>(u.ru_maxrss) / 1024.0;
-#endif
-}
+inline double peak_memory_mb() { return platform::peak_memory_mb(); }
 
 class Timing {
 public:

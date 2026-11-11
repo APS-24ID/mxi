@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 
 #include "linalg.hh"
 
@@ -12,7 +13,7 @@ namespace mxi {
 
 namespace {
 
-constexpr double kDeg = M_PI / 180.0;
+constexpr double kDeg = std::numbers::pi / 180.0;
 
 // 1/d^2 for hkl in a cell: h^T G* h, G* the inverse of the real-space metric.
 double inverse_d2(const UnitCell &c, const Miller &h) {
@@ -114,7 +115,7 @@ Parametrisation parametrise(CrystalSystem system, const UnitCell &c) {
 double two_theta_of(const UnitCell &c, const TwoThetaObservation &o) {
   const double s =
       o.wavelength * std::sqrt(std::fmax(inverse_d2(c, o.hkl), 0.0)) / 2.0;
-  return s < 1.0 ? 2.0 * std::asin(s) : M_PI;
+  return s < 1.0 ? 2.0 * std::asin(s) : std::numbers::pi;
 }
 
 } // namespace

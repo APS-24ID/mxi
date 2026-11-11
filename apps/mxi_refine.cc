@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <map>
+#include <numbers>
 #include <set>
 #include <string>
 
@@ -567,7 +568,8 @@ int run_refine(int argc, char **argv) {
         mxi::print("  the centre of diffraction %.1f um off the axis, at %.1f "
                    "deg\n",
                    1000.0 * c0.norm(),
-                   std::atan2(c0.dot(pv), c0.dot(pu)) * 180.0 / M_PI);
+                   std::atan2(c0.dot(pv), c0.dot(pu)) * 180.0 /
+                       std::numbers::pi);
       }
       json::Array jc, je, jlo, jhi;
       for (std::int32_t k = 0; k < 6; ++k) {
@@ -632,8 +634,8 @@ int run_refine(int argc, char **argv) {
         const Mat3 R = orientation(samples.back().A) *
                        orientation(samples.front().A).transpose();
         const double cosine = (R(0, 0) + R(1, 1) + R(2, 2) - 1.0) / 2.0;
-        turned =
-            std::acos(std::fmax(-1.0, std::fmin(1.0, cosine))) * 180.0 / M_PI;
+        turned = std::acos(std::fmax(-1.0, std::fmin(1.0, cosine))) * 180.0 /
+                 std::numbers::pi;
         mxi::print("  over the scan: a %.4f to %.4f, b %.4f to %.4f, c %.4f "
                    "to %.4f A; alpha %.3f to %.3f, beta %.3f to %.3f, gamma "
                    "%.3f to %.3f deg; the orientation turns %.3f deg\n",

@@ -11,7 +11,8 @@ def find_mxi():
     if given:
         return given
     here = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    beside = os.path.join(here, "mxi")
+    # mxi.exe on Windows (docs/windows.md); shutil.which tries it itself.
+    beside = os.path.join(here, "mxi.exe" if os.name == "nt" else "mxi")
     if os.path.isfile(beside) and os.access(beside, os.X_OK):
         return beside
     return shutil.which("mxi")

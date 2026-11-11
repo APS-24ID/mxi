@@ -15,8 +15,6 @@
 
 #include <cinttypes>
 #include <cstdint>
-#include <sys/ioctl.h>
-#include <unistd.h>
 
 #include <algorithm>
 #include <chrono>
@@ -27,6 +25,7 @@
 #include <string>
 
 #include "output.hh"
+#include "platform.hh"
 
 namespace mxi {
 
@@ -40,7 +39,7 @@ public:
 
   //: Whether a bar is drawn: standard error a terminal, and not a dumb one.
   static bool on_terminal() {
-    if (!::isatty(STDERR_FILENO))
+    if (!platform::stderr_is_terminal())
       return false;
     const char *term = std::getenv("TERM");
     return term == nullptr || std::strcmp(term, "dumb") != 0;
@@ -105,9 +104,8 @@ private:
   // The terminal's width, asked each time it is drawn so that a window
   // resized while it runs is followed; COLUMNS, then 80, where it cannot say.
   static std::int32_t columns() {
-    struct winsize w{};
-    if (::ioctl(STDERR_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0)
-      return w.ws_col;
+    if (const std::int32_t n = platform::stderr_columns(); n > 0)
+      return n;
     if (const char *c = std::getenv("COLUMNS"))
       if (const std::int32_t n = std::atoi(c); n > 0)
         return n;
@@ -173,17 +171,13 @@ private:
     put(line);
   }
 
-  // To the terminal itself, past the log mirror's copies of stdout and
-  // stderr.
+  // To the terminal alone, not the log: straight to the C library's stderr,
+  // which the log does not see -- only what goes through mxi::print does
+  // (output.hh). It had been ::write past the old mirror's replacement of
+  // stderr itself; this is the same, and C++'s own.
   static void put(const char *line) {
-    const std::size_t n = std::strlen(line);
-    std::size_t written = 0;
-    while (written < n) {
-      const ssize_t k = ::write(STDERR_FILENO, line + written, n - written);
-      if (k <= 0)
-        break;
-      written += static_cast<std::size_t>(k);
-    }
+    std::fputs(line, stderr);
+    std::fflush(stderr);
   }
 
   std::string label_, unit_;

@@ -26,14 +26,14 @@ Found by searching the source for system headers and calls (src, apps):
 | --- | --- | --- |
 | `src/self_path.cc` | the executable's own path: `/proc/self/exe`, `_NSGetExecutablePath`, `realpath` | **gone, 7 November**: nothing needs it |
 | `apps/mxi_process.cc` | each step started and waited for: `posix_spawn`, `waitpid` | **gone, 7 November**: each step a call |
-| `src/progress.hh` | whether a terminal, and its width: `isatty`, `ioctl(TIOCGWINSZ)` | `_isatty`, `GetConsoleScreenBufferInfo` |
-| `src/timing.hh` | peak memory for `--timing`: `getrusage` | `GetProcessMemoryInfo` (PeakWorkingSetSize) |
+| `src/progress.hh` | whether a terminal, and its width: `isatty`, `ioctl(TIOCGWINSZ)`; its bar written with `::write` | **done, 7 November**: `platform.hh`'s `stderr_is_terminal`, `stderr_columns`; the bar through C's own `stderr` |
+| `src/timing.hh` | peak memory for `--timing`: `getrusage` | **done, 7 November**: `platform.hh`'s `peak_memory_mb` (`K32GetProcessMemoryInfo` on Windows, no psapi to link) |
 | `src/log_mirror.hh` | stdout and stderr written to the terminal and a log at once: the C library's `stdout` and `stderr` replaced by streams made with `fopencookie` (glibc) or `funopen` (BSD) | **done, 7 November**: `src/output.hh`, below -- standard C++ only, nothing to port |
-| `src/nxmx_reader.cc` | direct reads of NXmx files: `unistd`/`fcntl` | `_open`/`_read`, or `ReadFile` |
+| `src/nxmx_reader.cc` | direct reads of NXmx files: `open`, `pread` | **done, 7 November**: `platform.hh`'s `open_for_reading`, `read_at` (`CreateFileW` on the path as UTF-16, `ReadFile` at an offset) |
 | `apps/mxi.cc` | `mxi view`, `mxi ui`: `execv` of a Python script with a `#!` line | **gone, 7 November**: `mxi-view` and `mxi-ui` are commands of their own |
-| `python/src/mxi_ui/locate.py`, `mxi_tools.py` | `mxi` looked for beside the package by that name | `mxi.exe` |
-| 10 files | `M_PI` | `_USE_MATH_DEFINES`, defined for the build |
-| `src/processing.hh` | one `__attribute__` | guarded for MSVC |
+| `python/src/mxi_ui/locate.py`, `mxi_tools.py` | `mxi` looked for beside the package by that name | **done, 7 November**: `mxi.exe` where `os.name` is `nt` |
+| 10 files | `M_PI` | **done, 7 November**: C++20's `std::numbers::pi`, the same value, no macro |
+| `src/processing.hh` | one `__attribute__` | **done, 7 November**: `MXI_PRINTF_LIKE` (output.hh), nothing under MSVC, `gnu_printf` under MinGW |
 | `CMakeLists.txt` | `-Wall -Wextra -Wpedantic` on every target | by compiler: `/W4` for MSVC, or clang-cl, which takes them |
 
 Not found: `fork`, `mmap`, `dlopen`, `pthread` (threads are `std::thread`),
@@ -120,6 +120,24 @@ for a release's notes.
 now done -- three places of six, and none of them starting or waiting for a
 process, the part hardest to make the same on three systems.
 
+**The platform layer, done 7 November**: `src/platform.hh`, header-only, a
+POSIX half and a Windows half -- `stderr_is_terminal`, `stderr_columns`,
+`peak_memory_mb`, `open_for_reading` and `read_at`. Outside it, no POSIX
+header in the code but the diagnostic `mxi_readtest`, left out of a Windows
+build.
+
+**Checked without Windows** (`scripts/check_windows.sh`): every source
+compiled for Windows by MinGW-w64, syntax only, warnings on -- all 76, no
+warning in mxi's code (with MinGW's C99 stdio, `__USE_MINGW_ANSI_STDIO`: its
+default, Microsoft's old runtime, knows no `%zu`; the current one, the planned
+build's, does) -- and the platform layer's Windows half built and run under
+Wine (`tests/windows/platform_windows.cc`): 2000 reads at offsets from four
+threads, every byte right; the end of a file; no file; peak memory; a log
+holding what was printed. Wine is not Windows, but the same API is called.
+Left for the build job: CMake for clang-cl (its flags), vcpkg's Windows
+triplet, the workflow's job; HDF5 and paths that are not ASCII.
+
+## The integer audit
 
 64-bit Windows is LLP64: `long` and `unsigned long` are 32 bits, where Linux and
 macOS (LP64) make them 64; `long long`, `std::size_t`, `std::ptrdiff_t` and the

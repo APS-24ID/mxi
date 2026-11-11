@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <map>
+#include <numbers>
 #include <numeric>
 #include <set>
 #include <string>
@@ -297,7 +298,7 @@ int run_symmetry(int argc, char **argv) {
       const double cosine = (R(0, 0) + R(1, 1) + R(2, 2) - 1.0) / 2.0;
       widest =
           std::max(widest, std::acos(std::fmax(-1.0, std::fmin(1.0, cosine))) *
-                               180.0 / M_PI);
+                               180.0 / std::numbers::pi);
     }
     const bool one_crystal = widest <= same_within;
     if (experiments.size() > 1 && one_crystal && !args.has("--no-cosym"))

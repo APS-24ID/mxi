@@ -1,4 +1,4 @@
-"""python -m mxi_ui: as mxi ui."""
+"""python -m mxi_ui: as mxi-ui."""
 
 from mxi_ui.app import main
 

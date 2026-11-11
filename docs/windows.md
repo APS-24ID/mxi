@@ -24,13 +24,13 @@ Found by searching the source for system headers and calls (src, apps):
 
 | Where | What | On Windows |
 | --- | --- | --- |
-| `src/self_path.cc` | the executable's own path: `/proc/self/exe`, `_NSGetExecutablePath`, `realpath` | `GetModuleFileNameW` |
-| `apps/mxi_process.cc` | each step started and waited for: `posix_spawn`, `waitpid` | `CreateProcessW`, `WaitForSingleObject`, `GetExitCodeProcess` |
+| `src/self_path.cc` | the executable's own path: `/proc/self/exe`, `_NSGetExecutablePath`, `realpath` | **gone, 7 November**: nothing needs it |
+| `apps/mxi_process.cc` | each step started and waited for: `posix_spawn`, `waitpid` | **gone, 7 November**: each step a call |
 | `src/progress.hh` | whether a terminal, and its width: `isatty`, `ioctl(TIOCGWINSZ)` | `_isatty`, `GetConsoleScreenBufferInfo` |
 | `src/timing.hh` | peak memory for `--timing`: `getrusage` | `GetProcessMemoryInfo` (PeakWorkingSetSize) |
 | `src/log_mirror.hh` | stdout and stderr written to the terminal and a log at once: the C library's `stdout` and `stderr` replaced by streams made with `fopencookie` (glibc) or `funopen` (BSD) | **done, 7 November**: `src/output.hh`, below -- standard C++ only, nothing to port |
 | `src/nxmx_reader.cc` | direct reads of NXmx files: `unistd`/`fcntl` | `_open`/`_read`, or `ReadFile` |
-| `apps/mxi.cc` | `mxi view`, `mxi ui`: `execv` of a Python script with a `#!` line | Python started explicitly (`py -3`, or `python` on the PATH), the script its argument |
+| `apps/mxi.cc` | `mxi view`, `mxi ui`: `execv` of a Python script with a `#!` line | **gone, 7 November**: `mxi-view` and `mxi-ui` are commands of their own |
 | `python/src/mxi_ui/locate.py`, `mxi_tools.py` | `mxi` looked for beside the package by that name | `mxi.exe` |
 | 10 files | `M_PI` | `_USE_MATH_DEFINES`, defined for the build |
 | `src/processing.hh` | one `__attribute__` | guarded for MSVC |
@@ -104,7 +104,9 @@ crash's isolation -- a step that crashes takes mxi process with it, without
 its message of which step stopped and how to go on; a step that fails and
 returns keeps it.
 
-**`mxi-ui` and `mxi-view` only.** Gone: mxi's starting of Python
+**`mxi-ui` and `mxi-view` only** (done, 7 November: `mxi ui` and `mxi
+view`, typed, say where they went; the build installs `mxi-view` beside
+`mxi-ui`; `src/self_path.cc` deleted, nothing using it). Gone: mxi's starting of Python
 (`python_command` in `apps/mxi.cc`, `execv` of a `#!` script) and the other
 use of `src/self_path.cc`, which goes with both changes made. On Windows pip
 makes the wheel's entry points small `.exe` launchers itself: nothing to port.

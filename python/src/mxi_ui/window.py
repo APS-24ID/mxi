@@ -134,7 +134,7 @@ class MainWindow:
         self.viewers = []
         self.command = tk.StringVar()
         self.trouble = tk.StringVar()
-        root.title(f"mxi ui {VERSION}")
+        root.title(f"mxi-ui {VERSION}")
         root.geometry("1100x720")
         root.minsize(800, 500)
         self._menus()
@@ -166,7 +166,7 @@ class MainWindow:
         run.add_command(label="Cancel", command=self.cancel)
         bar.add_cascade(label="Run", menu=run)
         help_ = tk.Menu(bar, tearoff=False)
-        help_.add_command(label="About mxi ui", command=self.about)
+        help_.add_command(label="About mxi-ui", command=self.about)
         bar.add_cascade(label="Help", menu=help_)
         self.root.config(menu=bar)
 
@@ -188,7 +188,7 @@ class MainWindow:
         # and a window's own button easily missed (Graeme).
         self.quit_button = ttk.Button(foot, text="Quit", command=self.quit)
         self.quit_button.pack(side=tk.RIGHT)
-        Tooltip(self.quit_button, f"Quit mxi ui: {QUIT_KEY_SHOWN}")
+        Tooltip(self.quit_button, f"Quit mxi-ui: {QUIT_KEY_SHOWN}")
         self.cancel_button = ttk.Button(
             foot, text="Cancel", command=self.cancel, state=tk.DISABLED
         )
@@ -511,7 +511,7 @@ class MainWindow:
         path = self.images_file()
         if path is None:
             messagebox.showinfo(
-                "mxi ui",
+                "mxi-ui",
                 (
                     "Nothing to view yet: run Import first."
                     if self.selected
@@ -525,12 +525,12 @@ class MainWindow:
             viewer = Viewer(
                 self.root,
                 path,
-                f"mxi ui: {self.selected.title}, {os.path.basename(path)}",
+                f"mxi-ui: {self.selected.title}, {os.path.basename(path)}",
                 on_saved=self.masked,
             )
         except Exception as e:  # noqa: BLE001 -- said, whatever it is
             messagebox.showerror(
-                "mxi ui", f"Cannot show the images of {os.path.basename(path)}:\n{e}"
+                "mxi-ui", f"Cannot show the images of {os.path.basename(path)}:\n{e}"
             )
             return None
         self.viewers.append(viewer)
@@ -773,7 +773,7 @@ class MainWindow:
             return
         argv, found = self.form_argv()
         if found or not argv:
-            messagebox.showinfo("mxi ui", "\n".join(found) or "Nothing to run.")
+            messagebox.showinfo("mxi-ui", "\n".join(found) or "Nothing to run.")
             return
         self.run(argv, title=self.selected.title)
 
@@ -781,12 +781,12 @@ class MainWindow:
         """Runs a command in the working directory, its output in the log;
         argv[0] "mxi" is the mxi found (locate.py)."""
         if self.runner.running():
-            messagebox.showinfo("mxi ui", "A command is running: wait, or cancel it.")
+            messagebox.showinfo("mxi-ui", "A command is running: wait, or cancel it.")
             return False
         if argv and argv[0] == "mxi":
             if not self.mxi:
                 messagebox.showerror(
-                    "mxi ui", "mxi is not on the PATH, nor beside mxi ui."
+                    "mxi-ui", "mxi is not on the PATH, nor beside mxi-ui."
                 )
                 return False
             argv = [self.mxi, *argv[1:]]
@@ -838,8 +838,8 @@ class MainWindow:
 
     def about(self):
         messagebox.showinfo(
-            "About mxi ui",
-            f"mxi ui {VERSION}\n\nAn interface to mxi, for processing data and for "
+            "About mxi-ui",
+            f"mxi-ui {VERSION}\n\nAn interface to mxi, for processing data and for "
             f"teaching.\n\nmxi: {self.mxi or 'not found'}",
         )
 
@@ -850,7 +850,7 @@ class MainWindow:
         the viewer itself asks."""
         if self.runner.running():
             if not messagebox.askyesno(
-                "mxi ui", "A command is running. Stop it and quit?"
+                "mxi-ui", "A command is running. Stop it and quit?"
             ):
                 return
             self.runner.cancel()
@@ -860,7 +860,7 @@ class MainWindow:
             if v.top.winfo_exists() and v.regions.changed and not v.saved
         ]
         if unsaved and not messagebox.askyesno(
-            "mxi ui", "Untrusted regions drawn in a viewer are not saved. Quit anyway?"
+            "mxi-ui", "Untrusted regions drawn in a viewer are not saved. Quit anyway?"
         ):
             return
         self.root.destroy()

@@ -9,7 +9,7 @@ Pixels, two conventions: DIALS's, which mxi's files use, where pixel i spans i
 to i + 1 and a spot's centroid at x lies in pixel floor(x); and the pixel's
 centre's, where pixel i is centred on i, which Markers' positions are -- so
 centred = DIALS - 0.5, in x, y and z alike: image n, frame n - 1, spanning z
-from n - 1 to n. (napari's, whose viewer mxi view was through 1.1.4; mxi ui's
+from n - 1 to n. (napari's, whose viewer mxi view was through 1.1.4; mxi-ui's
 viewer adds the half pixel back.)
 """
 
@@ -32,7 +32,7 @@ def mxi_command(name: str) -> list[str]:
     PATH, with the command -- [".../mxi", "untrusted"] -- every step a command
     of one program since 1.1, an installed release having nothing else; else
     the command's own program, mxi_untrusted, as a build before 1.1 had. The
-    MXI environment variable first, where set: mxi ui finds mxi by it too, and
+    MXI environment variable first, where set: mxi-ui finds mxi by it too, and
     its viewer saves through this."""
     named = os.environ.get("MXI")
     if named and os.path.isfile(named) and os.access(named, os.X_OK):
@@ -282,10 +282,10 @@ class Markers:
         z = xyz[index, 2]
         own = np.floor(z)
         # Each spot's half-width and half-height, from its box, for markers
-        # drawn the spot's size (mxi ui's viewer): zero where there is none.
+        # drawn the spot's size (mxi-ui's viewer): zero where there is none.
         self.half = np.zeros((len(index), 2))
         # And its box itself, x0, x1, y0, y1 in pixel edges, for markers drawn
-        # as the box (mxi ui's viewer): None where the table has none.
+        # as the box (mxi-ui's viewer): None where the table has none.
         self.box = None
         if len(index) and "bbox" in table:
             box = np.asarray(table["bbox"])[index]
@@ -432,7 +432,7 @@ def save_untrusted(
     """Each image set's regions written by mxi untrusted into a new file,
     `output`, the input left as it was; and kept in mxi_mask.json, to apply
     again with no window. Both in `where` -- the current directory where it
-    is not given, as mxi view is run in the data's; mxi ui, run anywhere,
+    is not given, as mxi-view is run in the data's; mxi-ui, run anywhere,
     names the data's. Returns mxi untrusted's report."""
     where = where or os.getcwd()
     output = output if os.path.isabs(output) else os.path.join(where, output)

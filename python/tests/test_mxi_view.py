@@ -2,8 +2,8 @@
 
 mxi_tools: its reflection reader against mxeq's; frames summed against the
 file read directly; markers on exactly the images of their boxes; masters of
-several blocks; mxi found as an installed release lays it out. mxi view,
-mxi ui's viewer since 1.1.5 (its own tests, test_ui_viewer.py), run from the
+several blocks; mxi found as an installed release lays it out. mxi-view,
+mxi-ui's viewer since 1.1.5 (its own tests, test_ui_viewer.py), run from the
 PATH. napari's viewer and its tests are gone.
 """
 
@@ -23,7 +23,7 @@ BUILD = os.path.dirname(os.environ.get("MXI_FIND", "")) or os.environ.get(
     "MXI_BUILD", ""
 )
 TOOLS = os.path.join(BUILD, "mxi_tools.py")
-VIEW = os.path.join(BUILD, "mxi_view")
+VIEW = os.path.join(BUILD, "mxi-view")
 MXI = os.path.join(BUILD, "mxi")
 
 pytestmark = pytest.mark.skipif(
@@ -211,47 +211,50 @@ def test_an_installed_layout_runs_mxis_commands(tmp_path, monkeypatch):
     assert written["untrusted"] == [{"panel": 0, "rectangle": [10.0, 10.0, 50.0, 40.0]}]
 
 
-def test_mxi_view_runs_from_the_path_as_plain_mxi(tmp_path):
-    # mxi finds the viewer beside itself: where it is, the system says --
-    # /proc/self/exe, _NSGetExecutablePath -- not argv[0], which for plain
-    # "mxi" from the PATH has no directory; on macOS that had sent it to
-    # "./mxi_view" ("cannot run ./mxi_view", Graeme, 3 November). From
-    # another directory, and through a link to it elsewhere on the PATH.
+def test_mxi_view_runs_from_the_path_installed(tmp_path):
+    # mxi-view, a command of its own beside mxi as a release installs it,
+    # run from the PATH in another directory (it had been "mxi view", mxi
+    # finding the viewer beside itself -- /proc/self/exe, _NSGetExecutablePath,
+    # Graeme's "cannot run ./mxi_view", 3 November -- until no process started
+    # another, 7 November); "mxi view", typed, says where it went.
     import shutil
 
     installed = tmp_path / "bin"
     installed.mkdir()
     shutil.copy(os.path.realpath(os.path.join(BUILD, "mxi")), installed / "mxi")
-    shutil.copy(VIEW, installed / "mxi_view")
+    shutil.copy(VIEW, installed / "mxi-view")
     shutil.copy(TOOLS, installed / "mxi_tools.py")
-    os.chmod(installed / "mxi_view", 0o755)
-    links = tmp_path / "links"
-    links.mkdir()
-    os.symlink(installed / "mxi", links / "mxi")
+    os.chmod(installed / "mxi-view", 0o755)
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
-    for first in (installed, links):
-        env = dict(os.environ, PATH=f"{first}{os.pathsep}{os.environ['PATH']}")
-        run = subprocess.run(
-            ["mxi", "view", "--version"],
-            capture_output=True,
-            text=True,
-            cwd=elsewhere,
-            env=env,
-        )
-        assert run.returncode == 0, (first.name, run.stderr)
-        assert run.stdout.startswith("mxi view "), run.stdout
+    env = dict(os.environ, PATH=f"{installed}{os.pathsep}{os.environ['PATH']}")
+    run = subprocess.run(
+        ["mxi-view", "--version"],
+        capture_output=True,
+        text=True,
+        cwd=elsewhere,
+        env=env,
+    )
+    assert run.returncode == 0 and run.stdout.startswith("mxi-view "), run.stderr
+    moved = subprocess.run(
+        ["mxi", "view", "strong.rflx"],
+        capture_output=True,
+        text=True,
+        cwd=elsewhere,
+        env=env,
+    )
+    assert moved.returncode == 2 and "mxi-view" in moved.stderr, moved.stderr
 
 
 def test_mxi_view_opens_mxi_uis_viewer(tmp_path):
-    # mxi view is mxi ui's viewer since napari's was retired: a file named
+    # mxi-view is mxi-ui's viewer since napari's was retired: a file named
     # that is not there said first, whatever the display; with one, a window
     # opened and kept open, the options -o, --sum and --sweep taken.
     run = subprocess.run(
-        [MXI, "view", "nowhere.rflx"], capture_output=True, text=True, cwd=tmp_path
+        [VIEW, "nowhere.rflx"], capture_output=True, text=True, cwd=tmp_path
     )
     assert run.returncode == 2 and "no such file: nowhere.rflx" in run.stderr
-    helped = subprocess.run([MXI, "view", "--help"], capture_output=True, text=True)
+    helped = subprocess.run([VIEW, "--help"], capture_output=True, text=True)
     assert all(o in helped.stdout for o in ("-o", "--sum", "--sweep"))
     if not os.environ.get("DISPLAY") or os.environ.get("MXI_NO_WINDOW_TESTS"):
         pytest.skip("no display for the window (or the release builds')")
@@ -259,7 +262,7 @@ def test_mxi_view_opens_mxi_uis_viewer(tmp_path):
     import time
 
     p = subprocess.Popen(
-        [MXI, "view", str(strong), "--sum", "3", "-o", "mine.rflx"],
+        [VIEW, str(strong), "--sum", "3", "-o", "mine.rflx"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=tmp_path,

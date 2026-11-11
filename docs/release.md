@@ -37,14 +37,14 @@ nothing is published.
 | `mxi_python-1.1.1-py3-none-any.whl` | mxi's Python tools, `pip install` it: mxeq, the referee; `mxi_tools`; `mxi-view`, the viewer; `mxi-ui`, the interface |
 
 Each binary archive is `bin/` -- `mxi`, every step a command of it, with the
-Python beside it that `mxi view` and `mxi ui` run: `mxi_view`, `mxi-ui` and its
+Python beside it that `mxi-view` and `mxi-ui` run: `mxi_view`, `mxi-ui` and its
 package `mxi_ui/`, and their module `mxi_tools.py` -- with the licence,
 the README and the release notes. Unpack it and put its `bin` on the PATH. The
 program needs nothing installed: HDF5 and zlib are linked in, from vcpkg
 (`vcpkg.json`), and on Linux the C++ runtime too; built in manylinux_2_28, it needs glibc 2.28
 or later, which packaging checks; the CUDA driver is the
 system's. `scripts/package_release.sh` refuses to package a build that would
-need anything else. `mxi ui` and `mxi view` need Python with tkinter (`docs/ui.md`).
+need anything else. `mxi-ui` and `mxi-view` need Python with tkinter (`docs/ui.md`).
 
 One program, not 24 each with its own HDF5: the archive is a few megabytes, where 24 programs had made it some 50.
 
@@ -101,7 +101,7 @@ the device tests (ctest's `dext_gpu`) are left out: the CUDA and Metal builds
 are released tested on their CPU paths, their device paths tested on real
 machines as before; the CPU build is tested whole.
 
-mxi ui's window tests are left out too (`MXI_NO_WINDOW_TESTS`): v1.1.4-rc1's
+mxi-ui's window tests are left out too (`MXI_NO_WINDOW_TESTS`): v1.1.4-rc1's
 macOS test step seemed to stall -- the runners having problems then, or as
 likely a window waiting on a hosted runner for a display that never comes --
 and that cause is ruled out so. They run where there is a display -- xvfb in a

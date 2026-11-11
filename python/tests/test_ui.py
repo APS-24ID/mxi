@@ -1,5 +1,5 @@
-"""mxi ui without a window: the dependency check and its install hints, the
-directory's state, the runner, the steps' commands, and mxi ui through mxi."""
+"""mxi-ui without a window: the dependency check and its install hints, the
+directory's state, the runner, the steps' commands, and mxi-ui beside mxi."""
 
 import os
 import subprocess
@@ -123,13 +123,21 @@ def test_a_running_command_can_be_cancelled(tmp_path):
             r2.cancel()
 
 
-@pytest.mark.skipif(not os.path.exists(MXI), reason="mxi is not built")
-def test_mxi_ui_runs_through_mxi(tmp_path):
-    run = subprocess.run([MXI, "ui", "--version"], capture_output=True, text=True)
-    assert run.returncode == 0 and run.stdout.startswith("mxi ui "), run.stderr
-    check = subprocess.run([MXI, "ui", "--check"], capture_output=True, text=True)
+UI = os.path.join(BUILD, "mxi-ui")
+
+
+@pytest.mark.skipif(not os.path.exists(UI), reason="mxi is not built")
+def test_mxi_ui_runs_beside_mxi(tmp_path):
+    # mxi-ui, a command of its own beside mxi (it had been "mxi ui", mxi
+    # starting it, until no process started another, 7 November); "mxi ui",
+    # typed, says where it went.
+    run = subprocess.run([UI, "--version"], capture_output=True, text=True)
+    assert run.returncode == 0 and run.stdout.startswith("mxi-ui "), run.stderr
+    check = subprocess.run([UI, "--check"], capture_output=True, text=True)
     assert check.returncode in (0, 1)
-    assert "ready" in check.stdout or "mxi ui:" in check.stdout
+    assert "ready" in check.stdout or "mxi-ui:" in check.stdout
+    moved = subprocess.run([MXI, "ui"], capture_output=True, text=True)
+    assert moved.returncode == 2 and "mxi-ui" in moved.stderr, moved.stderr
     no_display = {
         k: v for k, v in os.environ.items() if k not in ("DISPLAY", "WAYLAND_DISPLAY")
     }
@@ -137,9 +145,7 @@ def test_mxi_ui_runs_through_mxi(tmp_path):
         # The first problem here: no display, or, where this Python has no
         # tkinter (a release build's container), that -- said either way.
         expected = (deps.problems(need_display=False) or ["no display"])[0][:20]
-        run = subprocess.run(
-            [MXI, "ui"], capture_output=True, text=True, env=no_display
-        )
+        run = subprocess.run([UI], capture_output=True, text=True, env=no_display)
         assert run.returncode == 1 and expected in run.stderr, run.stderr
 
 

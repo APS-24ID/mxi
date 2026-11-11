@@ -147,7 +147,7 @@ A shadow on the detector first (`docs/mask.md`):
 
 ```mermaid
 flowchart LR
-    a[/"master.nxs"/] --> i["mxi import"] --> v["mxi view imported.rflx:<br/>draw, Save"]
+    a[/"master.nxs"/] --> i["mxi import"] --> v["mxi-view imported.rflx:<br/>draw, Save"]
     v --> masked[/"masked.rflx"/] --> p["mxi process masked.rflx --d-min-auto"]
     p --> m[/"scaled.mtz"/]
 ```
@@ -173,7 +173,7 @@ Each cluster carries its own crystals' history, cut from the whole run's
 
 Not a way to pass options to one step: `mxi process` carries the few above
 and no more, by design -- for anything else, the step by hand, then `mxi
-process` on its output. Not mxi ui: the interface runs the same commands a step
+process` on its output. Not mxi-ui: the interface runs the same commands a step
 at a time, each shown and changeable before it runs (`docs/ui.md`). Its source
 is `apps/mxi_process.cc`; its tests, `python/tests/test_process.py`, try its
 rules with `--dry-run` -- images, a step's file, a cluster, a masked file, the

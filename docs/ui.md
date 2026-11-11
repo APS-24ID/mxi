@@ -1,4 +1,4 @@
-# mxi ui: the interface
+# mxi-ui: the interface
 
 An interface to mxi, for processing data and for teaching. The workflow's
 steps are down the side; each is a form that builds the real `mxi` command,
@@ -11,19 +11,19 @@ and learnt, by hand.
 ## Starting it
 
 ```sh
-mxi ui                 # in the current directory
-mxi ui ~/data/run1     # in another
-mxi ui --check         # whether it can run here, and what is missing
+mxi-ui                 # in the current directory
+mxi-ui ~/data/run1     # in another
+mxi-ui --check         # whether it can run here, and what is missing
 ```
 
-From a release archive `mxi ui` runs the interface beside `mxi`; from the
+From a release archive `mxi-ui` runs the interface beside `mxi`; from the
 wheel, `mxi-python`, the same is `mxi-ui`, or `python -m mxi_ui`.
 
 ## What it needs
 
 Python 3.10 or later with tkinter, Tk 8.6 or later; numpy, h5py, hdf5plugin
 and matplotlib, which the wheel brings; a display. tkinter comes with Python,
-but some systems package it apart, and `mxi ui` says what to install where it
+but some systems package it apart, and `mxi-ui` says what to install where it
 is missing: `sudo apt install python3-tk` on Debian and Ubuntu, `sudo dnf
 install python3-tkinter` on Fedora, RHEL and its clones, `brew install
 python-tk@3.12` (the version of Python's) with Homebrew; the python.org
@@ -144,7 +144,7 @@ small circle; each layer can be hidden.
   number editable: typed, and Return, that image.
 - **Pan**: drag with the left button.
 - **Close** (Cmd-W, Ctrl-W): the viewer, asking first where regions are not
-  saved; under `mxi view`, the program.
+  saved; under `mxi-view`, the program.
 - **Contrast**: set from the image, its darkest counts on the slider; three
   colour maps.
 - **Under the cursor**: the pixel, its counts and its resolution.
@@ -193,13 +193,13 @@ reduction, scale and geometry; `regions.py` its untrusted regions; `notes.py`
 each step's notes; `deps.py` the check for what is needed;
 `window.py` and `viewer.py` the windows; `gestures.py` a wheel's and a
 trackpad's scrolling; `tooltip.py` the tooltips; `locate.py` finding `mxi`;
-`app.py` the command, `mxi ui`. Only the windows and what they need of Tk
+`app.py` the command, `mxi-ui`. Only the windows and what they need of Tk
 -- `window.py`, `viewer.py`, `tooltip.py`, `gestures.py`, and `app.py` when
 it opens one -- import tkinter, so that everything else imports, and is
 tested, where there is no display. It finds mxi where the `MXI` environment
 variable says, else beside itself, as a release archive lays it out, else on
 the PATH. It reads images and files
-through `mxi_tools`, as `mxi view` does.
+through `mxi_tools`, as `mxi-view` does.
 
 ## Not yet
 

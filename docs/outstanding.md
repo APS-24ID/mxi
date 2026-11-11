@@ -447,7 +447,7 @@ history on 20 October: four closed, nine rewritten to what is now true.
 * **31.** **The C++ suite is slow**: mxi_tests about five minutes on one core
     here, most of it a handful of older refinement and indexing tests and, since
     October, the spot finder's tests joined to it. ctest runs it as one test.
-* **87.** **mxi ui's window tests do not run in the release builds**
+* **87.** **mxi-ui's window tests do not run in the release builds**
     (`MXI_NO_WINDOW_TESTS`, since v1.1.4-rc1's macOS test step seemed to
     stall): they run where there is a display -- xvfb here, a desktop -- so
     before a release, on a desktop, `MXI_BUILD=build pytest -rs

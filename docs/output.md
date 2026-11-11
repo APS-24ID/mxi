@@ -1,7 +1,7 @@
 # What the programs say, and for whom
 
 STATUS: built, 12 and 13 October 2026, as Graeme decided (below); the GUI
-built since as mxi ui (November, docs/ui.md), reading the summaries below.
+built since as mxi-ui (November, docs/ui.md), reading the summaries below.
 
 Graeme: the programs' output is technical -- where the data are -- and light on
 crystallography, refinement's progress and the like. DIALS's logs are mostly of
@@ -138,7 +138,7 @@ model's normal probability plot, anomalous plots, Wilson plots -- dials.scale's 
 
 ## Since: the interface, and the commands after
 
-**mxi ui** (docs/ui.md), the GUI the section that stood here planned -- not a
+**mxi-ui** (docs/ui.md), the GUI the section that stood here planned -- not a
 port of `dials_ui` as planned but a program of mxi's own, in tkinter, reading
 each step's figures and tables from its file's summary (mxi_tools.read_summary)
 where the plan had a JSON file a program, and with its own image viewer where

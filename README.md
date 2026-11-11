@@ -70,9 +70,9 @@ clear the quarantine flag once, after unpacking.
 xattr -dr com.apple.quarantine mxi-<version>-macos-arm64
 ```
 
-`mxi ui`, the interface, and `mxi view`, its image viewer and mask editor,
+`mxi-ui`, the interface, and `mxi-view`, its image viewer and mask editor,
 are Python, with tkinter, numpy, h5py, hdf5plugin and matplotlib
-(`docs/ui.md`, `docs/mask.md`); `mxi ui --check` says what is missing. Every
+(`docs/ui.md`, `docs/mask.md`); `mxi-ui --check` says what is missing. Every
 other program runs without Python.
 
 mxi's Python tools are on the same page as one wheel, `mxi-python`:
@@ -105,14 +105,14 @@ ctest --test-dir build
 
 The build leaves one program, `mxi`, in `build/`: every step is a command of it
 -- `mxi find`, `mxi index` -- and `mxi help` lists them. Either put `build/` on
-the `PATH`, or install `mxi`, with `mxi view`'s Python beside it, into a `bin`
+the `PATH`, or install `mxi`, with `mxi-view`'s Python beside it, into a `bin`
 directory and put that on it:
 
 ```sh
 cmake --install build --prefix ~/.local     # then ~/.local/bin on the PATH
 ```
 
-`mxi ui` and `mxi view`, its image viewer and mask editor, are Python with
+`mxi-ui` and `mxi-view`, its image viewer and mask editor, are Python with
 tkinter (`docs/ui.md`), installed beside `mxi` with their package `mxi_ui`
 and module `mxi_tools.py`, which they find there. They come in the wheel
 `mxi-python` too, as `mxi-ui` and `mxi-view`, with mxeq, the referee -- which,
@@ -135,14 +135,14 @@ Build options:
 ### The interface
 
 ```sh
-mxi ui                  # in a directory of data, processed or not
+mxi-ui                  # in a directory of data, processed or not
 ```
 
 The steps below as forms, each building the real command and running it,
 its log, summary and plots beside it, and each step's images, spots and
 predictions in a viewer of their own: for processing, and for learning what
 the commands do ([`docs/ui.md`](docs/ui.md)). It needs Python with tkinter;
-`mxi ui --check` says what is missing and how to install it.
+`mxi-ui --check` says what is missing and how to install it.
 
 ### The main sequence
 
@@ -245,8 +245,8 @@ The options most often wanted:
 | `mxi convert` | between `.rflx` and DIALS' `.expt` and `.refl` (below) |
 | `mxi combine` | several runs' files joined into one: data sets processed separately, to go through symmetry and scaling together |
 | `mxi split` | a file's data sets apart, each into its own file, or the ones named into one |
-| `mxi view` | the images, with the spots and predictions found on them, summed where asked, and the detector's untrusted regions drawn and saved: mxi ui's viewer ([`docs/mask.md`](docs/mask.md)) |
-| `mxi ui` | the interface: the workflow's steps as forms, each run as its mxi command, its log, summary and plots; each step's images in a viewer of their own with its spots and predictions; for processing and for teaching. tkinter and matplotlib, no Qt ([`docs/ui.md`](docs/ui.md)) |
+| `mxi-view` | the images, with the spots and predictions found on them, summed where asked, and the detector's untrusted regions drawn and saved: mxi-ui's viewer ([`docs/mask.md`](docs/mask.md)) |
+| `mxi-ui` | the interface: the workflow's steps as forms, each run as its mxi command, its log, summary and plots; each step's images in a viewer of their own with its spots and predictions; for processing and for teaching. tkinter and matplotlib, no Qt ([`docs/ui.md`](docs/ui.md)) |
 | `mxi untrusted` | list, set from a mask file, or clear the untrusted regions, with no window |
 | `mxi max` | the largest count on a valid pixel, and whether the images fit in 16 bits (for `mxi find --gpu-force`) |
 | `mxi verify` | how much of what each lattice predicts was seen: every reflection predicted to the indexed spots' resolution, against the spots indexed, by shell |
@@ -320,7 +320,7 @@ mxeq regress compare --against reference # what changed, past its tolerance
 `ctest --test-dir build` runs the C++ tests. `pytest python/tests` runs
 mxeq's, and those of the programs that need real data, given the programs and
 data through `MXI_*` environment variables; without them those tests are
-skipped ([`python/README.md`](python/README.md)). mxi ui's window tests need a
+skipped ([`python/README.md`](python/README.md)). mxi-ui's window tests need a
 display -- a desktop, or xvfb -- and are skipped where `MXI_NO_WINDOW_TESTS` is
 set, as the release builds set it.
 

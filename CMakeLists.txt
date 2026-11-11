@@ -125,7 +125,6 @@ add_library(mxi
   src/spot_table.cc
   src/untrusted.cc
   src/verify.cc
-  src/self_path.cc
   src/summary_cut.cc
   src/triage.cc
   src/experiment_images.cc
@@ -251,16 +250,16 @@ target_compile_options(mxi_combine PRIVATE -Wall -Wextra)
 add_library(mxi_split OBJECT apps/mxi_split.cc)
 target_link_libraries(mxi_split PRIVATE mxi)
 target_compile_options(mxi_split PRIVATE -Wall -Wextra)
-# mxi_view, in Python (mxi ui's viewer, Tk): copied beside the programs, its
-# version filled in, with the module mxi's Python tools share.
-configure_file(python/src/mxi_view.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_view @ONLY
+# mxi-view, in Python (mxi-ui's viewer, Tk): copied beside the programs, its
+# version filled in, with the module mxi's Python tools share -- a command of
+# its own, as mxi-ui is, mxi starting neither (docs/windows.md).
+configure_file(python/src/mxi_view.py ${CMAKE_CURRENT_BINARY_DIR}/mxi-view @ONLY
   FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
   GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 configure_file(python/src/mxi_tools.py ${CMAKE_CURRENT_BINARY_DIR}/mxi_tools.py
   COPYONLY)
-# mxi ui, the interface (python/src/mxi_ui, docs/ui.md): the package copied
-# beside mxi, its version stamped as mxi_view's is, and the launcher mxi-ui
-# that "mxi ui" runs.
+# mxi-ui, the interface (python/src/mxi_ui, docs/ui.md): the package copied
+# beside mxi, its version stamped as mxi-view's is, and the launcher mxi-ui.
 file(GLOB mxi_ui_sources CONFIGURE_DEPENDS python/src/mxi_ui/*.py)
 foreach(source ${mxi_ui_sources})
   get_filename_component(name ${source} NAME)
@@ -492,12 +491,12 @@ foreach(program ${MXI_PROGRAMS})
   file(CREATE_LINK mxi ${CMAKE_CURRENT_BINARY_DIR}/${program} SYMBOLIC)
 endforeach()
 
-# Installing: mxi, with mxi_view and the module it shares beside it --
+# Installing: mxi, with mxi-ui, mxi-view and the module they share beside it --
 #   cmake --install build --prefix ~/.local
 # -- which then wants to be on the PATH. The library is linked in; nothing
 # else is needed beside it (the Metal libraries are compiled in).
 install(TARGETS mxi_program RUNTIME DESTINATION bin)
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/mxi_view DESTINATION bin)
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/mxi-view DESTINATION bin)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mxi_tools.py DESTINATION bin)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/mxi-ui DESTINATION bin)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mxi_ui DESTINATION bin

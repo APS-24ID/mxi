@@ -1,4 +1,4 @@
-"""Whether mxi ui can run here, and what to install where it cannot. Checked
+"""Whether mxi-ui can run here, and what to install where it cannot. Checked
 before anything imports tkinter, so that a missing piece is a sentence naming
 what to install, not a traceback. tkinter comes with Python, but some systems
 package it apart: Debian and Ubuntu's python3-tk, Homebrew's python-tk."""
@@ -67,7 +67,7 @@ def tkinter_hint(system=None, family=None, version=None):
 
 
 def problems(need_display=True):
-    """What stops mxi ui running here, each with what to do: [] if nothing."""
+    """What stops mxi-ui running here, each with what to do: [] if nothing."""
     found = []
     if importlib.util.find_spec("tkinter") is None:
         found.append(

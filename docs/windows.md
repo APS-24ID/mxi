@@ -28,7 +28,7 @@ Found by searching the source for system headers and calls (src, apps):
 | `apps/mxi_process.cc` | each step started and waited for: `posix_spawn`, `waitpid` | `CreateProcessW`, `WaitForSingleObject`, `GetExitCodeProcess` |
 | `src/progress.hh` | whether a terminal, and its width: `isatty`, `ioctl(TIOCGWINSZ)` | `_isatty`, `GetConsoleScreenBufferInfo` |
 | `src/timing.hh` | peak memory for `--timing`: `getrusage` | `GetProcessMemoryInfo` (PeakWorkingSetSize) |
-| `src/log_mirror.hh` | stdout and stderr copied to a log: `unistd`/`fcntl` descriptors, a pipe | the C runtime's `_dup`, `_dup2`, `_pipe` |
+| `src/log_mirror.hh` | stdout and stderr written to the terminal and a log at once: the C library's `stdout` and `stderr` replaced by streams made with `fopencookie` (glibc) or `funopen` (BSD) | **no equivalent**: Windows has neither, and its C library does not let `stdout` be replaced. A design of its own -- below |
 | `src/nxmx_reader.cc` | direct reads of NXmx files: `unistd`/`fcntl` | `_open`/`_read`, or `ReadFile` |
 | `apps/mxi.cc` | `mxi view`, `mxi ui`: `execv` of a Python script with a `#!` line | Python started explicitly (`py -3`, or `python` on the PATH), the script its argument |
 | `python/src/mxi_ui/locate.py`, `mxi_tools.py` | `mxi` looked for beside the package by that name | `mxi.exe` |
@@ -47,7 +47,56 @@ endings translated, which corrupts binary data. Every binary read is
 the binary files mxi writes go through HDF5 and gemmi, which open them so
 themselves. Nothing to change.
 
-## The integer audit
+**The log mirror** (corrected 7 November: first written up here as file
+descriptors and a pipe, which it is not). It replaces `stdout` and `stderr`
+themselves, so that what a program writes goes to the terminal and its log in
+the same call -- deliberately not a pipe copied by a thread, since a crash's
+last lines can die in the pipe, and those are the lines that matter. Windows
+offers neither way of making such a stream. Two designs:
+
+* **All output through mxi's own two streams** -- `std::fprintf(mxi::out,
+  ...)` where it is `printf(...)` now: some 900 calls (715 printf, 193
+  fprintf to stdout or stderr; no iostreams), changed mechanically; the same
+  on every system, and testable. The larger change and the better one.
+* **On Windows only, a pipe copied by a thread**: little code, but the design
+  rejected for the crash case, and a second way of doing the same thing.
+
+## Simpler first: no process starting another
+
+Graeme asked (7 November) how much it would simplify -- the port, and the code
+-- if mxi started no other process: `mxi process` running each step in code,
+and the interface started only as `mxi-ui` and `mxi-view`.
+
+**`mxi process` in code.** mxi is one binary whose commands are functions
+(`mxi_find_main` and the rest), so `mxi process` can call them. Gone:
+`posix_spawn`, `waitpid`, `environ`, and its use of `src/self_path.cc`.
+Needed, each modest: the log mirror made a scope -- pushed as a step starts,
+popped as it ends, its file closed and the output before it restored, where
+each step now relies on its process ending; three `std::exit` (`--help` and
+`--version`, which mxi process never passes) made returns; the statics of
+`apps/mxi_find.cc` (its sweeps' tables and totals, 105 and 1290) into the
+call; `--timing`'s peak memory, which a process cannot reset between steps,
+said as the run's peak so far or measured otherwise; and every HDF5 handle
+closed when a step returns -- a process's exit closed any left open, and a
+step's output left open could fail the next step's reading of it. Lost: a
+crash's isolation -- a step that crashes takes mxi process with it, without
+its message of which step stopped and how to go on; a step that fails and
+returns keeps it.
+
+**`mxi-ui` and `mxi-view` only.** Gone: mxi's starting of Python
+(`python_command` in `apps/mxi.cc`, `execv` of a `#!` script) and the other
+use of `src/self_path.cc`, which goes with both changes made. On Windows pip
+makes the wheel's entry points small `.exe` launchers itself: nothing to port.
+The cost is to users: `mxi view` and `mxi ui` are in the README, the
+tutorials, the guides and the tests, and the release archive's interface,
+run today from its `bin`, would want installing from the wheel -- a change
+for a release's notes.
+
+**What Windows would still need**, both made: the terminal's width
+(trivial), peak memory (small), the NXmx reads (small), and the log mirror
+(above) -- four places of six, and none of them starting or waiting for a
+process, the part hardest to make the same on three systems.
+
 
 64-bit Windows is LLP64: `long` and `unsigned long` are 32 bits, where Linux and
 macOS (LP64) make them 64; `long long`, `std::size_t`, `std::ptrdiff_t` and the
@@ -169,8 +218,10 @@ Windows takes paths in the system's code page unless built for UTF-8.
 ## Phases
 
 1. **The integers**, by the rule above, on Linux and macOS: no Windows needed.
-2. **The platform layer**: the six POSIX places behind `src/platform.{hh,cc}`,
-   Windows' half written and compiled only there; the Python's `mxi.exe`.
+2. **No process starting another** (above), if Graeme chooses it, on Linux
+   and macOS; then **the platform layer**: what POSIX remains behind
+   `src/platform.{hh,cc}`, Windows' half compiled only there; the log mirror
+   by its own design (above).
 3. **The build**: CMake and vcpkg for Windows, the workflow job; round trips
    through Graeme until it builds and its tests pass.
 4. **Graeme's test** of the zip, and a release with it.

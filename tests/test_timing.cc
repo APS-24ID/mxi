@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <cstdio>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -22,21 +23,28 @@ TEST(thread_seconds_sum_what_every_thread_adds) {
 }
 
 TEST(timing_prints_nothing_unless_asked) {
-  std::FILE *f = std::tmpfile();
+  // Through a log, as a program's output reaches one (output.hh).
+  const auto read = [](const std::string &path) {
+    std::FILE *f = std::fopen(path.c_str(), "rb");
+    char buffer[512] = {0};
+    const std::size_t n = std::fread(buffer, 1, sizeof buffer - 1, f);
+    std::fclose(f);
+    return std::string(buffer, n);
+  };
+  const std::string path = check::scratch_path("timing.log");
+  check::is_true(open_log(path.c_str()), "a log");
   Timing off(false);
   off.add("a phase", 1.0);
-  off.report(f);
-  check::equal(static_cast<std::int64_t>(std::ftell(f)), 0,
-               "nothing without --timing");
+  off.report();
+  close_log();
+  check::is_true(read(path).empty(), "nothing without --timing");
+  check::is_true(open_log(path.c_str()), "a log again");
   Timing on(true);
   on.add("a phase", 1.0);
   on.add("its part", 0.5, 1);
-  on.report(f);
-  std::rewind(f);
-  char buffer[512] = {0};
-  const std::size_t n = std::fread(buffer, 1, sizeof buffer - 1, f);
-  std::fclose(f);
-  const std::string text(buffer, n);
+  on.report();
+  close_log();
+  const std::string text = read(path);
   check::is_true(text.find("\nTiming\n") != std::string::npos,
                  "a table with --timing");
   check::is_true(text.find("    its part") != std::string::npos,

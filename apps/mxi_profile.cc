@@ -16,6 +16,7 @@
 #include "../src/refl.hh"
 #include "args.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "profile_model.hh"
 #include "rflx.hh"
 #include "shoebox.hh"
@@ -26,7 +27,7 @@ namespace mxi {
 namespace {
 
 void usage(const char *program) {
-  std::printf(
+  mxi::print(
       "usage: %s [options] EXPT REFL\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
@@ -65,11 +66,11 @@ int run_profile(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi profile: %s\n", args.error.c_str());
+    mxi::eprint("mxi profile: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.size() != 2) {
-    std::fprintf(stderr, "mxi profile: expected an .expt and a .refl\n");
+    mxi::eprint("mxi profile: expected an .expt and a .refl\n");
     usage(argv[0]);
     return 2;
   }
@@ -80,25 +81,23 @@ int run_profile(int argc, char **argv) {
     timing.add("reading", Timing::now() - mark);
     mark = Timing::now();
     if (experiments.size() == 0) {
-      std::fprintf(stderr, "mxi profile: no experiments\n");
+      mxi::eprint("mxi profile: no experiments\n");
       return 1;
     }
 
     const std::vector<Shoebox> boxes = decode_shoeboxes(reflections);
     if (boxes.empty()) {
-      std::fprintf(stderr,
-                   "mxi profile: %s has no shoeboxes, and the profile model is "
-                   "estimated from the pixels. Use a table that still has "
-                   "them; dials.find_spots writes them and this package keeps "
-                   "them.\n",
-                   args.positional[1].c_str());
+      mxi::eprint("mxi profile: %s has no shoeboxes, and the profile model is "
+                  "estimated from the pixels. Use a table that still has "
+                  "them; dials.find_spots writes them and this package keeps "
+                  "them.\n",
+                  args.positional[1].c_str());
       return 1;
     }
     if (!reflections.has("s1")) {
-      std::fprintf(stderr,
-                   "mxi profile: %s has no s1 column, so there is nothing to "
-                   "measure the spread of each spot about\n",
-                   args.positional[1].c_str());
+      mxi::eprint("mxi profile: %s has no s1 column, so there is nothing to "
+                  "measure the spread of each spot about\n",
+                  args.positional[1].c_str());
       return 1;
     }
 
@@ -129,9 +128,9 @@ int run_profile(int argc, char **argv) {
       chosen.push_back(i);
     }
 
-    std::printf("%zu reflections, %zu with shoeboxes, %zu %s\n",
-                reflections.nrows, boxes.size(), selected.size(),
-                everything ? "used" : "used in refinement and above min-zeta");
+    mxi::print("%zu reflections, %zu with shoeboxes, %zu %s\n",
+               reflections.nrows, boxes.size(), selected.size(),
+               everything ? "used" : "used in refinement and above min-zeta");
 
     std::size_t used = 0;
     ProfileModel model;
@@ -139,8 +138,8 @@ int run_profile(int argc, char **argv) {
     model.sigma_d = beam_divergence(experiments[0], selected, s1, &used);
     model.n_used = used;
 
-    std::printf("sigma_D (beam divergence) %.9f degrees, from %zu spots\n",
-                model.sigma_d, model.n_used);
+    mxi::print("sigma_D (beam divergence) %.9f degrees, from %zu spots\n",
+               model.sigma_d, model.n_used);
     // sigma_M, from one sample per image each spot was seen on.
     std::vector<RangeSample> samples;
     if (reflections.has("xyzcal.mm")) {
@@ -170,12 +169,12 @@ int run_profile(int argc, char **argv) {
       }
       model.sigma_m = reflecting_range(
           samples, Scan::radians(experiments[0].scan.osc_width), 0.0);
-      std::printf("sigma_M (reflecting range) %.9f degrees, from %zu images\n",
-                  model.sigma_m, samples.size());
+      mxi::print("sigma_M (reflecting range) %.9f degrees, from %zu images\n",
+                 model.sigma_m, samples.size());
     } else {
-      std::printf("sigma_M needs xyzcal.mm, which this table does not have\n");
+      mxi::print("sigma_M needs xyzcal.mm, which this table does not have\n");
     }
-    std::printf("n_sigma %.1f\n", model.n_sigma);
+    mxi::print("n_sigma %.1f\n", model.n_sigma);
 
     // The test that does not depend on agreeing with anyone: a Gaussian taken
     // to three sigma holds essentially all of its density. If one sigma
@@ -189,18 +188,18 @@ int run_profile(int argc, char **argv) {
       const auto report = [&](const char *label, double sd, double sm) {
         const Capture c =
             capture_fractions(experiments[0], selected, s1, phi, sd, sm);
-        std::printf("  %-10s detector  %7.4f %7.4f %7.4f %7.4f\n", label,
-                    c.detector[0], c.detector[1], c.detector[2], c.detector[3]);
-        std::printf("  %-10s rotation  %7.4f %7.4f %7.4f %7.4f\n", label,
-                    c.rotation[0], c.rotation[1], c.rotation[2], c.rotation[3]);
-        std::printf("  %-10s both      %7.4f %7.4f %7.4f %7.4f\n", label,
-                    c.fraction[0], c.fraction[1], c.fraction[2], c.fraction[3]);
+        mxi::print("  %-10s detector  %7.4f %7.4f %7.4f %7.4f\n", label,
+                   c.detector[0], c.detector[1], c.detector[2], c.detector[3]);
+        mxi::print("  %-10s rotation  %7.4f %7.4f %7.4f %7.4f\n", label,
+                   c.rotation[0], c.rotation[1], c.rotation[2], c.rotation[3]);
+        mxi::print("  %-10s both      %7.4f %7.4f %7.4f %7.4f\n", label,
+                   c.fraction[0], c.fraction[1], c.fraction[2], c.fraction[3]);
       };
-      std::printf("\nfraction of counts within n sigma, over %zu spots\n",
-                  selected.size());
-      std::printf("  a one-dimensional Gaussian holds 0.6827, 0.9545, 0.9973, "
-                  "0.99994\n");
-      std::printf("  %-10s %-9s %7s %7s %7s %7s\n", "", "", "1", "2", "3", "4");
+      mxi::print("\nfraction of counts within n sigma, over %zu spots\n",
+                 selected.size());
+      mxi::print("  a one-dimensional Gaussian holds 0.6827, 0.9545, 0.9973, "
+                 "0.99994\n");
+      mxi::print("  %-10s %-9s %7s %7s %7s %7s\n", "", "", "1", "2", "3", "4");
       report("ours", model.sigma_d, model.sigma_m);
       if (args.has("--compare")) {
         const double other_b = args.number("--compare-sigma-b", 0.0);
@@ -208,25 +207,25 @@ int run_profile(int argc, char **argv) {
         if (other_b > 0.0 && other_m > 0.0)
           report("given", other_b, other_m);
       }
-      std::printf("  A shoebox is small, so at three or four sigma the BOX may "
-                  "run out\n"
-                  "  before the model does. A fraction near one there can mean "
-                  "the box\n"
-                  "  ended, not that the model held.\n");
+      mxi::print("  A shoebox is small, so at three or four sigma the BOX may "
+                 "run out\n"
+                 "  before the model does. A fraction near one there can mean "
+                 "the box\n"
+                 "  ended, not that the model held.\n");
     }
     // Said here rather than only in the documentation, because a number that
     // disagrees with DIALS and does not say so is worse than no number -- but
     // in terms true of any data. It quoted one data set's numbers, insulin's,
     // whatever it was given.
-    std::printf("\nNOTE: these are not computed as dials.integrate computes "
-                "its own, and\n"
-                "will not agree with it exactly; docs/integration.md says how "
-                "and why.\n");
+    mxi::print("\nNOTE: these are not computed as dials.integrate computes "
+               "its own, and\n"
+               "will not agree with it exactly; docs/integration.md says how "
+               "and why.\n");
     timing.add("computing, printing and writing", Timing::now() - mark);
-    timing.report(stdout);
+    timing.report(mxi::Stream::out);
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi profile: %s\n", e.what());
+    mxi::eprint("mxi profile: %s\n", e.what());
     return 1;
   }
 }

@@ -31,6 +31,7 @@
 #include "args.hh"
 #include "linalg.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "rflx.hh"
 #include "timing.hh"
 
@@ -65,23 +66,22 @@ int run_residuals(int argc, char **argv) {
   Timing timing(args.has("--timing"));
   double mark = Timing::now();
   if (args.help) {
-    std::printf("usage: mxi residuals EXPT REFL [--bins N] [--clip PX]\n"
-                "  -j, --threads N   threads for everything this does in "
-                "parallel; 0, every\n"
-                "                    core this job may use (0)\n"
-                "                     [--modules FASTW,FASTGAP,SLOWW,SLOWGAP] "
-                "[--timing]\n");
+    mxi::print("usage: mxi residuals EXPT REFL [--bins N] [--clip PX]\n"
+               "  -j, --threads N   threads for everything this does in "
+               "parallel; 0, every\n"
+               "                    core this job may use (0)\n"
+               "                     [--modules FASTW,FASTGAP,SLOWW,SLOWGAP] "
+               "[--timing]\n");
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi residuals: %s\n", args.error.c_str());
+    mxi::eprint("mxi residuals: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.size() != 2) {
-    std::fprintf(stderr,
-                 "mxi residuals: expected an .expt and a .refl, got %zu file "
-                 "arguments\n",
-                 args.positional.size());
+    mxi::eprint("mxi residuals: expected an .expt and a .refl, got %zu file "
+                "arguments\n",
+                args.positional.size());
     return 2;
   }
   const std::int32_t bins = static_cast<std::int32_t>(args.number("--bins", 8));
@@ -101,8 +101,7 @@ int run_residuals(int argc, char **argv) {
     timing.add("reading", Timing::now() - mark);
     mark = Timing::now();
     if (!t.has("xyzcal.px")) {
-      std::fprintf(stderr,
-                   "mxi residuals: no xyzcal.px; run mxi refine first\n");
+      mxi::eprint("mxi residuals: no xyzcal.px; run mxi refine first\n");
       return 1;
     }
     const Column &obs = t.at("xyzobs.px.value");
@@ -155,16 +154,16 @@ int run_residuals(int argc, char **argv) {
       points.push_back(q);
     }
     if (points.size() < 50) {
-      std::fprintf(stderr, "mxi residuals: only %zu usable reflections\n",
-                   points.size());
+      mxi::eprint("mxi residuals: only %zu usable reflections\n",
+                  points.size());
       return 1;
     }
 
     std::sort(points.begin(), points.end(), [](const Point &a, const Point &b) {
       return a.radius < b.radius;
     });
-    std::printf("%zu reflections, clipped at %.2f px\n\n", points.size(), clip);
-    std::printf(
+    mxi::print("%zu reflections, clipped at %.2f px\n\n", points.size(), clip);
+    mxi::print(
         "  radius (px)        n     radial   tangential        dx        dy\n");
 
     const std::size_t per = points.size() / static_cast<std::size_t>(bins);
@@ -178,9 +177,9 @@ int run_residuals(int argc, char **argv) {
         dx.push_back(points[i].dx);
         dy.push_back(points[i].dy);
       }
-      std::printf("  %5.0f - %5.0f  %7zu  %+9.4f    %+9.4f %+9.4f %+9.4f\n",
-                  points[from].radius, points[to - 1].radius, to - from,
-                  median(radial), median(tangential), median(dx), median(dy));
+      mxi::print("  %5.0f - %5.0f  %7zu  %+9.4f    %+9.4f %+9.4f %+9.4f\n",
+                 points[from].radius, points[to - 1].radius, to - from,
+                 median(radial), median(tangential), median(dx), median(dy));
     }
 
     // The affine part of the residual field, which is everything the detector
@@ -215,14 +214,14 @@ int run_residuals(int argc, char **argv) {
         const double scale_fast = bx[1], scale_slow = by[2];
         const double turn = 0.5 * (bx[2] - by[1]);
         const double shear = 0.5 * (bx[2] + by[1]);
-        std::printf(
+        mxi::print(
             "\n  affine part, all of which the detector model can express:\n");
-        std::printf("    scale fast   %+8.4f %%\n", 100 * scale_fast);
-        std::printf("    scale slow   %+8.4f %%\n", 100 * scale_slow);
-        std::printf("    rotation     %+8.4f mrad about the beam\n",
-                    1000 * turn);
-        std::printf("    shear        %+8.4f mrad\n", 1000 * shear);
-        std::printf("\n  radial residual AFTER removing the affine part:\n");
+        mxi::print("    scale fast   %+8.4f %%\n", 100 * scale_fast);
+        mxi::print("    scale slow   %+8.4f %%\n", 100 * scale_slow);
+        mxi::print("    rotation     %+8.4f mrad about the beam\n",
+                   1000 * turn);
+        mxi::print("    shear        %+8.4f mrad\n", 1000 * shear);
+        mxi::print("\n  radial residual AFTER removing the affine part:\n");
         for (std::int32_t b = 0; b < bins; ++b) {
           const std::size_t from = static_cast<std::size_t>(b) * per;
           const std::size_t to = (b + 1 == bins) ? points.size() : from + per;
@@ -233,8 +232,8 @@ int run_residuals(int argc, char **argv) {
             const double ey = q.dy - (by[0] + by[1] * q.x + by[2] * q.y);
             left.push_back((ex * q.x + ey * q.y) / q.radius);
           }
-          std::printf("    %5.0f - %5.0f  %+9.4f\n", points[from].radius,
-                      points[to - 1].radius, median(left));
+          mxi::print("    %5.0f - %5.0f  %+9.4f\n", points[from].radius,
+                     points[to - 1].radius, median(left));
         }
       }
     }
@@ -245,7 +244,7 @@ int run_residuals(int argc, char **argv) {
     // residuals -- as a step at each boundary. Refinement absorbs the average
     // of those steps into the panel scale and leaves the sawtooth.
     if (mod[0] > 0 && mod[2] > 0) {
-      std::printf("\n  step across module boundaries (150 px either side):\n");
+      mxi::print("\n  step across module boundaries (150 px either side):\n");
       const double band = 150.0;
       for (std::int32_t axis = 0; axis < 2; ++axis) {
         const std::int64_t width = mod[axis * 2];
@@ -263,15 +262,15 @@ int run_residuals(int argc, char **argv) {
           if (before.size() < 40 || after.size() < 40)
             continue;
           const double step = median(after) - median(before);
-          std::printf("    %s at %4" PRId64
-                      ":  %+7.3f -> %+7.3f   step %+7.3f  (n %zu, %zu)\n",
-                      axis == 0 ? "fast" : "slow", edge, median(before),
-                      median(after), step, before.size(), after.size());
+          mxi::print("    %s at %4" PRId64
+                     ":  %+7.3f -> %+7.3f   step %+7.3f  (n %zu, %zu)\n",
+                     axis == 0 ? "fast" : "slow", edge, median(before),
+                     median(after), step, before.size(), after.size());
         }
       }
-      std::printf(
+      mxi::print(
           "    A consistent sign across every boundary on an axis is a\n");
-      std::printf("    tiling error, not noise.\n");
+      mxi::print("    tiling error, not noise.\n");
     }
 
     // A straight line through the radial residual. Its slope is what a
@@ -287,14 +286,14 @@ int run_residuals(int argc, char **argv) {
       sxy += q.radius * q.radial;
     }
     const double slope = (n * sxy - sx * sy) / (n * sxx - sx * sx);
-    std::printf("\n  radial slope %+.4e px per px over %.0f px = %+.3f px\n",
-                slope, points.back().radius - points.front().radius,
-                slope * (points.back().radius - points.front().radius));
+    mxi::print("\n  radial slope %+.4e px per px over %.0f px = %+.3f px\n",
+               slope, points.back().radius - points.front().radius,
+               slope * (points.back().radius - points.front().radius));
     timing.add("computing and printing", Timing::now() - mark);
-    timing.report(stdout);
+    timing.report(mxi::Stream::out);
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi residuals: %s\n", e.what());
+    mxi::eprint("mxi residuals: %s\n", e.what());
     return 1;
   }
 }

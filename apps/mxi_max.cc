@@ -33,6 +33,7 @@
 #include "expt.hh"
 #include "image_series.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "parallel.hh"
 #include "rflx.hh"
 
@@ -110,13 +111,13 @@ int mxi_max_main(int argc, char **argv) {
   const std::set<std::string> takes_value = {"-j", "--threads"};
   const Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (args.has("--help")) {
-    std::printf("%s", kUsage);
+    mxi::print("%s", kUsage);
     return 0;
   }
   if (!args.ok || args.positional.size() != 1) {
     if (!args.ok)
-      std::fprintf(stderr, "mxi max: %s\n", args.error.c_str());
-    std::fprintf(stderr, "%s", kUsage);
+      mxi::eprint("mxi max: %s\n", args.error.c_str());
+    mxi::eprint("%s", kUsage);
     return 2;
   }
   try {
@@ -144,8 +145,8 @@ int mxi_max_main(int argc, char **argv) {
                                  " names no single NXmx file for its images");
       master = first;
       if (files.size() > 1)
-        std::printf("%s names %zu image files; the first sweep's, %s\n",
-                    args.positional[0].c_str(), files.size(), master.c_str());
+        mxi::print("%s names %zu image files; the first sweep's, %s\n",
+                   args.positional[0].c_str(), files.size(), master.c_str());
     }
     // -j/--threads, as every command takes it (args.cc), or every core this
     // job may use (parallel.hh).
@@ -222,36 +223,36 @@ int mxi_max_main(int argc, char **argv) {
     const double wall = now() - t0;
 
     const bool fits = best < kSixteenBitLimit;
-    std::printf("mxi max: %s, %" PRIu64
-                " frames of %u-bit pixels read in %.2f s on "
-                "%zu thread%s\n",
-                master.c_str(), static_cast<std::uint64_t>(read_frames.load()),
-                bit_depth, wall, threads, threads == 1 ? "" : "s");
-    std::printf("  the largest count on a valid pixel: %" PRIu64
-                " (0x%" PRIx64 "), on image %" PRIu64 "\n",
-                static_cast<std::uint64_t>(best),
-                static_cast<std::uint64_t>(best),
-                static_cast<std::uint64_t>(best_frame + 1));
-    std::printf("  pixels marked bad: %" PRIu64 "; tile joins: %" PRIu64
-                "; valid pixels at "
-                "0xFFFD or "
-                "above: %" PRIu64 "\n",
-                static_cast<std::uint64_t>(bad_total.load()),
-                static_cast<std::uint64_t>(join_total.load()),
-                static_cast<std::uint64_t>(over_total.load()));
+    mxi::print("mxi max: %s, %" PRIu64
+               " frames of %u-bit pixels read in %.2f s on "
+               "%zu thread%s\n",
+               master.c_str(), static_cast<std::uint64_t>(read_frames.load()),
+               bit_depth, wall, threads, threads == 1 ? "" : "s");
+    mxi::print("  the largest count on a valid pixel: %" PRIu64 " (0x%" PRIx64
+               "), on image %" PRIu64 "\n",
+               static_cast<std::uint64_t>(best),
+               static_cast<std::uint64_t>(best),
+               static_cast<std::uint64_t>(best_frame + 1));
+    mxi::print("  pixels marked bad: %" PRIu64 "; tile joins: %" PRIu64
+               "; valid pixels at "
+               "0xFFFD or "
+               "above: %" PRIu64 "\n",
+               static_cast<std::uint64_t>(bad_total.load()),
+               static_cast<std::uint64_t>(join_total.load()),
+               static_cast<std::uint64_t>(over_total.load()));
     if (bit_depth == 16)
-      std::printf("  16-bit already: mxi find --gpu takes it as it is\n");
+      mxi::print("  16-bit already: mxi find --gpu takes it as it is\n");
     else if (fits)
-      std::printf("  fits in 16 bits: mxi find --gpu --gpu-force can take it "
-                  "on a GPU of 16 "
-                  "bits only\n");
+      mxi::print("  fits in 16 bits: mxi find --gpu --gpu-force can take it "
+                 "on a GPU of 16 "
+                 "bits only\n");
     else
-      std::printf("  does not fit in 16 bits: for a GPU of 16 bits only, "
-                  "threshold it on the "
-                  "CPU\n");
+      mxi::print("  does not fit in 16 bits: for a GPU of 16 bits only, "
+                 "threshold it on the "
+                 "CPU\n");
     return fits ? 0 : 1;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi max: %s\n", e.what());
+    mxi::eprint("mxi max: %s\n", e.what());
     return 2;
   }
 }

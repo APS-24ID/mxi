@@ -19,6 +19,7 @@
 #include "args.hh"
 #include "combine.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "processing.hh"
 #include "refl.hh"
 #include "rflx.hh"
@@ -57,12 +58,12 @@ int mxi_split_main(int argc, char **argv) {
       parse_arguments(argc, argv, {"-o", "--prefix", "--experiments", "--help"},
                       {"-o", "--prefix", "--experiments"});
   if (args.help) {
-    std::printf("%s", kUsage);
+    mxi::print("%s", kUsage);
     return 0;
   }
   if (!args.ok || args.positional.size() != 1) {
-    std::fprintf(stderr, "mxi split: %s\n%s",
-                 args.ok ? "one file to split" : args.error.c_str(), kUsage);
+    mxi::eprint("mxi split: %s\n%s",
+                args.ok ? "one file to split" : args.error.c_str(), kUsage);
     return 2;
   }
   try {
@@ -89,9 +90,9 @@ int mxi_split_main(int argc, char **argv) {
       const json::Value steps = step.document();
       rflx::write(path, &part.document, &part.reflections, "mxi_split", false,
                   &steps);
-      std::printf("Wrote %s: %zu experiments, %zu reflections\n", path.c_str(),
-                  part.document["experiment"].as_array().size(),
-                  part.reflections.nrows);
+      mxi::print("Wrote %s: %zu experiments, %zu reflections\n", path.c_str(),
+                 part.document["experiment"].as_array().size(),
+                 part.reflections.nrows);
     };
 
     if (args.has("--experiments")) {
@@ -121,7 +122,7 @@ int mxi_split_main(int argc, char **argv) {
     }
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi split: %s\n", e.what());
+    mxi::eprint("mxi split: %s\n", e.what());
     return 1;
   }
 }

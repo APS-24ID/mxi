@@ -17,6 +17,7 @@
 #include "args.hh"
 #include "expt.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "refl.hh"
 #include "rflx.hh"
 #include "scale.hh"
@@ -101,8 +102,8 @@ TriageData merged(const Table &t, const SpaceGroup &group,
 
 void moments_row(const char *name, double a, double a_un, double a_tw, double c,
                  double c_un, double c_tw) {
-  std::printf("  %-14s %8.3f %10.3f %9.3f   %8.3f %10.3f %9.3f\n", name, a,
-              a_un, a_tw, c, c_un, c_tw);
+  mxi::print("  %-14s %8.3f %10.3f %9.3f   %8.3f %10.3f %9.3f\n", name, a, a_un,
+             a_tw, c, c_un, c_tw);
 }
 
 } // namespace
@@ -114,17 +115,17 @@ int run_triage(int argc, char **argv) {
                                              "--max-delta", "--min-partiality"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (!args.ok) {
-    std::fprintf(stderr, "mxi triage: %s\n", args.error.c_str());
-    std::fputs(kUsage, stderr);
+    mxi::eprint("mxi triage: %s\n", args.error.c_str());
+    mxi::put(mxi::Stream::err, kUsage);
     return 2;
   }
   if (args.has("--help") || args.has("-h")) {
-    std::fputs(kUsage, stdout);
+    mxi::put(mxi::Stream::out, kUsage);
     return 0;
   }
   args.positional = rflx::as_pair(args.positional);
   if (args.positional.size() != 2) {
-    std::fputs(kUsage, stderr);
+    mxi::put(mxi::Stream::err, kUsage);
     return 2;
   }
   if (!only_asks_for_help(argc, argv))
@@ -139,7 +140,7 @@ int run_triage(int argc, char **argv) {
         break;
       }
     if (first == nullptr) {
-      std::fprintf(stderr, "mxi triage: no experiment has a crystal\n");
+      mxi::eprint("mxi triage: no experiment has a crystal\n");
       return 1;
     }
     const SpaceGroup group =
@@ -155,23 +156,23 @@ int run_triage(int argc, char **argv) {
     options.max_delta = args.number("--max-delta", options.max_delta);
     const Triage t = triage(data, cell, group, options);
 
-    std::printf("%s: %zu unique reflections merged, in %s\n",
-                args.positional[0].c_str(), data.hkl.size(),
-                group.name().c_str());
-    std::printf("  cell %.3f %.3f %.3f %.3f %.3f %.3f\n\n", cell.a, cell.b,
-                cell.c, cell.alpha, cell.beta, cell.gamma);
-    std::printf("The twin tests: %.2f to %.2f A, %zu reflections (%zu "
-                "acentric, %zu centric)\n",
-                t.d_max, t.d_min, t.used, t.acentric, t.centric);
-    std::printf(
+    mxi::print("%s: %zu unique reflections merged, in %s\n",
+               args.positional[0].c_str(), data.hkl.size(),
+               group.name().c_str());
+    mxi::print("  cell %.3f %.3f %.3f %.3f %.3f %.3f\n\n", cell.a, cell.b,
+               cell.c, cell.alpha, cell.beta, cell.gamma);
+    mxi::print("The twin tests: %.2f to %.2f A, %zu reflections (%zu "
+               "acentric, %zu centric)\n",
+               t.d_max, t.d_min, t.used, t.acentric, t.centric);
+    mxi::print(
         "  as xtriage's: %s, %zu Wilson outlier%s removed\n\n",
         t.sharpened
             ? "on an absolute scale with the anisotropic fall-off removed"
             : "as merged (too few reflections to fit the fall-off)",
         t.outliers, t.outliers == 1 ? "" : "s");
-    std::printf("Moments of the normalised intensities\n");
-    std::printf("  %-14s %8s %10s %9s   %8s %10s %9s\n", "", "acentric",
-                "untwinned", "perfect", "centric", "untwinned", "perfect");
+    mxi::print("Moments of the normalised intensities\n");
+    mxi::print("  %-14s %8s %10s %9s   %8s %10s %9s\n", "", "acentric",
+               "untwinned", "perfect", "centric", "untwinned", "perfect");
     const Moments &a = t.acentric_moments, &c = t.centric_moments;
     moments_row("<I^2>/<I>^2", a.i2_over_i_squared, 2.000, 1.500,
                 c.i2_over_i_squared, 3.000, 2.000);
@@ -180,42 +181,42 @@ int run_triage(int argc, char **argv) {
     moments_row("<|E^2-1|>", a.e2_minus_one, 0.736, 0.541, c.e2_minus_one,
                 0.968, 0.736);
 
-    std::printf("\nThe cumulative intensity distribution, N(z)\n");
-    std::printf("  %4s %9s %9s %9s %9s\n", "z", "acentric", "Wilson", "centric",
-                "Wilson");
+    mxi::print("\nThe cumulative intensity distribution, N(z)\n");
+    mxi::print("  %4s %9s %9s %9s %9s\n", "z", "acentric", "Wilson", "centric",
+               "Wilson");
     for (std::size_t k = 0; k < t.nz.z.size(); ++k)
-      std::printf("  %4.1f %9.3f %9.3f %9.3f %9.3f\n", t.nz.z[k],
-                  t.nz.acentric[k], t.nz.acentric_theory[k], t.nz.centric[k],
-                  t.nz.centric_theory[k]);
-    std::printf("  largest difference: acentric %.3f, centric %.3f\n",
-                t.nz.max_deviation_acentric, t.nz.max_deviation_centric);
+      mxi::print("  %4.1f %9.3f %9.3f %9.3f %9.3f\n", t.nz.z[k],
+                 t.nz.acentric[k], t.nz.acentric_theory[k], t.nz.centric[k],
+                 t.nz.centric_theory[k]);
+    mxi::print("  largest difference: acentric %.3f, centric %.3f\n",
+               t.nz.max_deviation_acentric, t.nz.max_deviation_centric);
 
-    std::printf("\nThe L test (Padilla & Yeates 2003): %zu pairs of acentric "
-                "neighbours\n",
-                t.l_test.pairs);
-    std::printf("  <|L|> %.3f (untwinned 0.500, perfect twin 0.375)\n",
-                t.l_test.mean_abs_l);
-    std::printf("  <L^2> %.3f (untwinned 0.333, perfect twin 0.200)\n",
-                t.l_test.mean_l2);
-    std::printf("  multivariate Z %.2f (over 3.5, abnormal)\n",
-                t.l_test.z_score);
+    mxi::print("\nThe L test (Padilla & Yeates 2003): %zu pairs of acentric "
+               "neighbours\n",
+               t.l_test.pairs);
+    mxi::print("  <|L|> %.3f (untwinned 0.500, perfect twin 0.375)\n",
+               t.l_test.mean_abs_l);
+    mxi::print("  <L^2> %.3f (untwinned 0.333, perfect twin 0.200)\n",
+               t.l_test.mean_l2);
+    mxi::print("  multivariate Z %.2f (over 3.5, abnormal)\n",
+               t.l_test.z_score);
 
-    std::printf("\nTwin laws the lattice allows, within %.1f degrees\n",
-                options.max_delta);
+    mxi::print("\nTwin laws the lattice allows, within %.1f degrees\n",
+               options.max_delta);
     if (t.twin_laws.empty())
-      std::printf("  none\n");
+      mxi::print("  none\n");
     else {
-      std::printf("  %-14s %-4s %10s %7s %7s %9s\n", "operator", "type",
-                  "R metric", "pairs", "R obs", "H alpha");
+      mxi::print("  %-14s %-4s %10s %7s %7s %9s\n", "operator", "type",
+                 "R metric", "pairs", "R obs", "H alpha");
       for (const TwinLaw &law : t.twin_laws)
-        std::printf("  %-14s %-4s %10.5f %7zu %7.3f %9.3f\n", law.text.c_str(),
-                    law.merohedral ? "M" : "PM", law.r_metric, law.pairs,
-                    law.r_obs, law.h_alpha);
-      std::printf("  (M merohedral, PM pseudo-merohedral; H alpha the H test's "
-                  "twin fraction)\n");
+        mxi::print("  %-14s %-4s %10.5f %7zu %7.3f %9.3f\n", law.text.c_str(),
+                   law.merohedral ? "M" : "PM", law.r_metric, law.pairs,
+                   law.r_obs, law.h_alpha);
+      mxi::print("  (M merohedral, PM pseudo-merohedral; H alpha the H test's "
+                 "twin fraction)\n");
     }
     // The summary wrapped to the page, two spaces in.
-    std::printf("\nSummary\n");
+    mxi::print("\nSummary\n");
     std::string line;
     std::size_t at = 0;
     while (at < t.verdict.size()) {
@@ -223,17 +224,17 @@ int run_triage(int argc, char **argv) {
       const std::string word = t.verdict.substr(
           at, space == std::string::npos ? std::string::npos : space - at);
       if (!line.empty() && line.size() + 1 + word.size() > 76) {
-        std::printf("  %s\n", line.c_str());
+        mxi::print("  %s\n", line.c_str());
         line.clear();
       }
       line += (line.empty() ? "" : " ") + word;
       at = space == std::string::npos ? t.verdict.size() : space + 1;
     }
     if (!line.empty())
-      std::printf("  %s\n", line.c_str());
+      mxi::print("  %s\n", line.c_str());
     return 0;
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi triage: %s\n", error.what());
+    mxi::eprint("mxi triage: %s\n", error.what());
     return 1;
   }
 }

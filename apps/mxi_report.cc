@@ -18,6 +18,7 @@
 #include "args.hh"
 #include "derivatives.hh"
 #include "expt.hh"
+#include "output.hh"
 #include "processing.hh"
 #include "refl.hh"
 #include "rflx.hh"
@@ -31,7 +32,7 @@ namespace {
 const char *kPlotly = "https://cdn.plot.ly/plotly-2.27.0.min.js";
 
 void usage(const char *program) {
-  std::printf(
+  mxi::print(
       "usage: %s FILE.rflx [-o REPORT.html]\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
@@ -961,7 +962,7 @@ int run_report(int argc, char **argv) {
   // A refused option said, not passed over: this had not looked, so that an
   // option it did not know was ignored whenever the files came first.
   if (!args.ok) {
-    std::fprintf(stderr, "mxi report: %s\n", args.error.c_str());
+    mxi::eprint("mxi report: %s\n", args.error.c_str());
     usage(argv[0]);
     return 2;
   }
@@ -1079,11 +1080,11 @@ int run_report(int argc, char **argv) {
         << escape(input) << "</title><script src=\"" << kPlotly
         << "\"></script><style>" << kStyle << "</style></head><body>"
         << body.str() << "</body></html>\n";
-    std::printf("Wrote %s: %zu steps of processing\n", output.c_str(),
-                steps.size());
+    mxi::print("Wrote %s: %zu steps of processing\n", output.c_str(),
+               steps.size());
     return 0;
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "mxi report: %s\n", error.what());
+    mxi::eprint("mxi report: %s\n", error.what());
     return 1;
   }
 }

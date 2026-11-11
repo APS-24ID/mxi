@@ -1,5 +1,6 @@
 #include "args.hh"
 
+#include "output.hh"
 #include "parallel.hh"
 
 #include <cstdint>
@@ -30,7 +31,7 @@ Arguments parse_arguments(int argc, char **argv,
       const std::size_t slash = name.find_last_of('/');
       if (slash != std::string::npos)
         name = name.substr(slash + 1);
-      std::printf("%s %s\n", name.c_str(), MXI_VERSION);
+      mxi::print("%s %s\n", name.c_str(), MXI_VERSION);
       std::exit(0);
     }
   Arguments out;

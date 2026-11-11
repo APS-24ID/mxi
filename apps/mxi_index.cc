@@ -21,6 +21,7 @@
 #include "fft.hh"
 #include "index.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "processing.hh"
 #include "refine.hh"
 #include "rflx.hh"
@@ -33,7 +34,7 @@ namespace mxi {
 namespace {
 
 void usage() {
-  std::printf(
+  mxi::print(
       "usage: mxi index IMPORTED.expt STRONG.refl [options]\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
@@ -99,10 +100,10 @@ json::Value cell_json(const UnitCell &c) {
 // or distance shows here first.
 void say_geometry(const char *now, const GeometryFigures &before,
                   const GeometryFigures &after) {
-  std::printf("Beam centre %.2f, %.2f px and distance %.3f mm as given; %s "
-              "%.2f, %.2f px and %.3f mm\n",
-              before.beam_x, before.beam_y, before.distance, now, after.beam_x,
-              after.beam_y, after.distance);
+  mxi::print("Beam centre %.2f, %.2f px and distance %.3f mm as given; %s "
+             "%.2f, %.2f px and %.3f mm\n",
+             before.beam_x, before.beam_y, before.distance, now, after.beam_x,
+             after.beam_y, after.distance);
 }
 
 // The several lattices index_lattices found, said and written.
@@ -116,9 +117,8 @@ std::int32_t report_lattices(const ExperimentList &sweep, Table &reflections,
                              const std::vector<std::string> &known_ids = {},
                              const ExperimentList *carried = nullptr) {
   if (sweep.size() != 1) {
-    std::fprintf(stderr,
-                 "mxi index: --max-lattices takes one sweep for now, not %zu\n",
-                 sweep.size());
+    mxi::eprint("mxi index: --max-lattices takes one sweep for now, not %zu\n",
+                sweep.size());
     return 2;
   }
   const LatticesResult r =
@@ -126,18 +126,17 @@ std::int32_t report_lattices(const ExperimentList &sweep, Table &reflections,
                      ambiguous, ambiguity_sigma, known);
   for (std::size_t l = 0; l < r.found_in.size(); ++l) {
     if (l < r.known)
-      std::printf("Lattice %zu: given, indexing %zu spots\n", l + 1,
-                  r.indexed_of[l]);
+      mxi::print("Lattice %zu: given, indexing %zu spots\n", l + 1,
+                 r.indexed_of[l]);
     else
-      std::printf("Lattice %zu: indexed %zu of the %zu spots left\n", l + 1,
-                  r.indexed_of[l], r.found_in[l]);
+      mxi::print("Lattice %zu: indexed %zu of the %zu spots left\n", l + 1,
+                 r.indexed_of[l], r.found_in[l]);
   }
   if (!r.stopped.empty())
-    std::printf("Lattice %zu: %s\n", r.found_in.size() + 1, r.stopped.c_str());
+    mxi::print("Lattice %zu: %s\n", r.found_in.size() + 1, r.stopped.c_str());
   if (r.experiments.empty()) {
-    std::fprintf(stderr,
-                 "mxi index: no lattice found. Try --max-cell, or --d-min to "
-                 "restrict the resolution range used.\n");
+    mxi::eprint("mxi index: no lattice found. Try --max-cell, or --d-min to "
+                "restrict the resolution range used.\n");
     return 1;
   }
   // The lattices given keep their identifiers: the same experiments, more
@@ -149,21 +148,21 @@ std::int32_t report_lattices(const ExperimentList &sweep, Table &reflections,
       reflections.identifiers[l] = known_ids[l];
     }
   if (r.n_ambiguous > 0)
-    std::printf("%zu spots indexed by more than one lattice: %s\n",
-                r.n_ambiguous,
-                ambiguous == Ambiguous::Exclude
-                    ? "left out, not refined against (--ambiguous closest to "
-                      "give each to the nearer)"
-                    : "each given to the lattice it lies nearest");
-  std::printf("\n%zu lattice%s: %zu of %zu spots indexed (%.1f%%)\n",
-              joint.size(), joint.size() == 1 ? "" : "s", r.n_indexed,
-              reflections.nrows,
-              100.0 * static_cast<double>(r.n_indexed) /
-                  static_cast<double>(reflections.nrows));
-  std::printf("Refined together, one detector: RMSD %.3f px, %.3f px, %.3f "
-              "images over %zu spots\n",
-              r.refined.rmsd_x, r.refined.rmsd_y, r.refined.rmsd_z,
-              r.refined.n_used);
+    mxi::print("%zu spots indexed by more than one lattice: %s\n",
+               r.n_ambiguous,
+               ambiguous == Ambiguous::Exclude
+                   ? "left out, not refined against (--ambiguous closest to "
+                     "give each to the nearer)"
+                   : "each given to the lattice it lies nearest");
+  mxi::print("\n%zu lattice%s: %zu of %zu spots indexed (%.1f%%)\n",
+             joint.size(), joint.size() == 1 ? "" : "s", r.n_indexed,
+             reflections.nrows,
+             100.0 * static_cast<double>(r.n_indexed) /
+                 static_cast<double>(reflections.nrows));
+  mxi::print("Refined together, one detector: RMSD %.3f px, %.3f px, %.3f "
+             "images over %zu spots\n",
+             r.refined.rmsd_x, r.refined.rmsd_y, r.refined.rmsd_z,
+             r.refined.n_used);
   // Each lattice's spots, as assigned globally, and its cell.
   std::vector<std::size_t> own(joint.size(), 0);
   {
@@ -178,10 +177,9 @@ std::int32_t report_lattices(const ExperimentList &sweep, Table &reflections,
   for (std::size_t l = 0; l < joint.size(); ++l) {
     const UnitCell c = joint[l].crystal->cell();
     const double scatter = l < r.scatter.size() ? r.scatter[l] : 0.0;
-    std::printf("  lattice %zu: %zu spots; %.3f %.3f %.3f A, %.3f %.3f %.3f "
-                "deg; scatter %.5f 1/A\n",
-                l + 1, own[l], c.a, c.b, c.c, c.alpha, c.beta, c.gamma,
-                scatter);
+    mxi::print("  lattice %zu: %zu spots; %.3f %.3f %.3f A, %.3f %.3f %.3f "
+               "deg; scatter %.5f 1/A\n",
+               l + 1, own[l], c.a, c.b, c.c, c.alpha, c.beta, c.gamma, scatter);
     t_lattice.push_back(json::Value(static_cast<std::int64_t>(l + 1)));
     t_spots.push_back(json::Value(static_cast<std::int64_t>(own[l])));
     t_cell.push_back(cell_json(c));
@@ -215,7 +213,7 @@ std::int32_t report_lattices(const ExperimentList &sweep, Table &reflections,
   const json::Value summary_document = summary.document();
   rflx::write_outputs(out, &document, &reflections, "mxi_index",
                       &summary_document);
-  std::printf("Wrote %s\n", rflx::describe(out).c_str());
+  mxi::print("Wrote %s\n", rflx::describe(out).c_str());
   return 0;
 }
 
@@ -248,17 +246,15 @@ std::int32_t index_apart(const Arguments &args,
               ? static_cast<std::int64_t>(e["scan"].as_number())
               : -1);
       if (!seen.insert(key).second) {
-        std::fprintf(stderr,
-                     "mxi index: --no-joint wants a list of sweeps, one "
-                     "experiment each, as imported; these share a sweep\n");
+        mxi::eprint("mxi index: --no-joint wants a list of sweeps, one "
+                    "experiment each, as imported; these share a sweep\n");
         return 2;
       }
     }
   }
   const Table strong = read_reflections(args.positional[1]);
   if (!strong.has("id")) {
-    std::fprintf(stderr, "mxi index: %s has no id column\n",
-                 args.positional[1].c_str());
+    mxi::eprint("mxi index: %s has no id column\n", args.positional[1].c_str());
     return 1;
   }
   std::vector<std::string> made;
@@ -273,8 +269,8 @@ std::int32_t index_apart(const Arguments &args,
     argv.push_back(nullptr);
     return run_index(static_cast<std::int32_t>(words.size()), argv.data());
   };
-  std::printf("Indexing %zu sweeps apart (--no-joint), each its own crystal\n",
-              n);
+  mxi::print("Indexing %zu sweeps apart (--no-joint), each its own crystal\n",
+             n);
   std::vector<json::Value> lists;
   std::vector<Table> tables;
   std::size_t failed = 0;
@@ -306,16 +302,16 @@ std::int32_t index_apart(const Arguments &args,
         words.push_back(value);
     }
     words.insert(words.end(), {"-o", got});
-    std::printf("\n=== Sweep %zu of %zu: experiment %zu ===\n", i + 1, n, i);
-    std::fflush(stdout);
+    mxi::print("\n=== Sweep %zu of %zu: experiment %zu ===\n", i + 1, n, i);
+    mxi::flush();
     if (run(words) == 0) {
       lists.push_back(*rflx::read_experiments(got));
       tables.push_back(read_reflections(got));
     } else {
       ++failed;
-      std::printf("Sweep %zu: not indexed -- carried without a crystal, its "
-                  "spots unindexed\n",
-                  i);
+      mxi::print("Sweep %zu: not indexed -- carried without a crystal, its "
+                 "spots unindexed\n",
+                 i);
       lists.push_back(read_experiment_document(in_expt));
       tables.push_back(std::move(part));
     }
@@ -355,9 +351,9 @@ std::int32_t index_apart(const Arguments &args,
   rflx::write_outputs(outputs, &joined_expt, &joined, "mxi_index",
                       &summary_document);
   tidy();
-  std::printf("\n%zu sweeps indexed apart: %zu lattices, %zu sweep%s not "
-              "indexed\n",
-              n, crystals, failed, failed == 1 ? "" : "s");
+  mxi::print("\n%zu sweeps indexed apart: %zu lattices, %zu sweep%s not "
+             "indexed\n",
+             n, crystals, failed, failed == 1 ? "" : "s");
   return failed == n ? 1 : 0;
 }
 
@@ -419,14 +415,13 @@ int run_index(int argc, char **argv) {
     return 0;
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi index: %s\n", args.error.c_str());
+    mxi::eprint("mxi index: %s\n", args.error.c_str());
     return 2;
   }
   if (args.positional.size() != 2) {
-    std::fprintf(stderr,
-                 "mxi index: expected an .expt and a .refl, got %zu file "
-                 "arguments\n",
-                 args.positional.size());
+    mxi::eprint("mxi index: expected an .expt and a .refl, got %zu file "
+                "arguments\n",
+                args.positional.size());
     usage();
     return 2;
   }
@@ -447,10 +442,9 @@ int run_index(int argc, char **argv) {
     if (std::sscanf(args.value("--known-cell", "").c_str(),
                     "%lf,%lf,%lf,%lf,%lf,%lf", &v[0], &v[1], &v[2], &v[3],
                     &v[4], &v[5]) != 6) {
-      std::fprintf(stderr,
-                   "mxi index: --known-cell is a,b,c,alpha,beta,gamma, "
-                   "not '%s'\n",
-                   args.value("--known-cell", "").c_str());
+      mxi::eprint("mxi index: --known-cell is a,b,c,alpha,beta,gamma, "
+                  "not '%s'\n",
+                  args.value("--known-cell", "").c_str());
       return 2;
     }
     known.cell = {v[0], v[1], v[2], v[3], v[4], v[5]};
@@ -459,37 +453,35 @@ int run_index(int argc, char **argv) {
                                    : static_cast<char>(std::toupper(
                                          static_cast<unsigned char>(group[0])));
     if (std::string("PIFCABR").find(known.centring) == std::string::npos) {
-      std::fprintf(stderr,
-                   "mxi index: --known-space-group %s: a symbol starting "
-                   "with its lattice, P, I, F, C, A, B or R\n",
-                   group.c_str());
+      mxi::eprint("mxi index: --known-space-group %s: a symbol starting "
+                  "with its lattice, P, I, F, C, A, B or R\n",
+                  group.c_str());
       return 2;
     }
     const UnitCell reduced = reduced_primitive(known);
-    std::printf("Known cell: %.3f %.3f %.3f A, %.3f %.3f %.3f deg (%c); "
-                "reduced primitive %.3f %.3f %.3f A, %.3f %.3f %.3f deg; the "
-                "basis chosen from those matching it within %.0f per cent and "
-                "%.0f deg\n",
-                v[0], v[1], v[2], v[3], v[4], v[5], known.centring, reduced.a,
-                reduced.b, reduced.c, reduced.alpha, reduced.beta,
-                reduced.gamma, known.length_tolerance * 100.0,
-                known.angle_tolerance);
+    mxi::print("Known cell: %.3f %.3f %.3f A, %.3f %.3f %.3f deg (%c); "
+               "reduced primitive %.3f %.3f %.3f A, %.3f %.3f %.3f deg; the "
+               "basis chosen from those matching it within %.0f per cent and "
+               "%.0f deg\n",
+               v[0], v[1], v[2], v[3], v[4], v[5], known.centring, reduced.a,
+               reduced.b, reduced.c, reduced.alpha, reduced.beta, reduced.gamma,
+               known.length_tolerance * 100.0, known.angle_tolerance);
     options.known_cell = known;
   }
   // The real-space grid search (Gildea et al. 2014): the known cell's lengths
   // leave only directions to search, so it needs the known cell.
   if (args.has("--real-space-grid")) {
     if (!options.known_cell) {
-      std::fprintf(stderr, "mxi index: --real-space-grid searches for the "
-                           "directions of a known cell's edges: it needs "
-                           "--known-cell\n");
+      mxi::eprint("mxi index: --real-space-grid searches for the "
+                  "directions of a known cell's edges: it needs "
+                  "--known-cell\n");
       return 2;
     }
     options.real_space_grid = true;
     options.grid_step = args.number("--grid-step", options.grid_step);
-    std::printf("Real-space grid search for the basis vectors, directions %.2f "
-                "deg apart over a hemisphere, the best %zu kept\n",
-                options.grid_step, options.grid_keep);
+    mxi::print("Real-space grid search for the basis vectors, directions %.2f "
+               "deg apart over a hemisphere, the best %zu kept\n",
+               options.grid_step, options.grid_keep);
   }
   options.grid = static_cast<std::size_t>(args.number("--grid", 0));
   options.tolerance = args.number("--tolerance", 0.3);
@@ -513,11 +505,11 @@ int run_index(int argc, char **argv) {
     const double t_read_seconds = Timing::now() - t_run_start;
     // This step of the processing's summary, after its input's.
     Summary summary("mxi_index", args.positional[0]);
-    std::printf("Indexing %zu reflections from %zu experiment%s\n",
-                reflections.nrows, experiments.size(),
-                experiments.size() == 1 ? "" : "s");
+    mxi::print("Indexing %zu reflections from %zu experiment%s\n",
+               reflections.nrows, experiments.size(),
+               experiments.size() == 1 ? "" : "s");
     for (const std::string &d : reflections.dropped()) {
-      std::fprintf(stderr, "mxi index: not read: %s\n", d.c_str());
+      mxi::eprint("mxi index: not read: %s\n", d.c_str());
     }
 
     // Before indexing, because these are observations expressed through the
@@ -532,9 +524,8 @@ int run_index(int argc, char **argv) {
         static_cast<std::int32_t>(args.number("--max-lattices", 1));
     const std::string ambiguous = args.value("--ambiguous", "exclude");
     if (ambiguous != "exclude" && ambiguous != "closest") {
-      std::fprintf(stderr,
-                   "mxi index: --ambiguous is exclude or closest, not '%s'\n",
-                   ambiguous.c_str());
+      mxi::eprint("mxi index: --ambiguous is exclude or closest, not '%s'\n",
+                  ambiguous.c_str());
       return 2;
     }
     // Lattices given -- found before, refined since -- and more asked for: a
@@ -545,10 +536,9 @@ int run_index(int argc, char **argv) {
       const Lattices views = lattices_of(experiments);
       if (!views.list.empty()) {
         if (max_lattices <= static_cast<std::int32_t>(views.list.size())) {
-          std::fprintf(stderr,
-                       "mxi index: the list has %zu lattice%s already: "
-                       "--max-lattices more than that to look for more\n",
-                       views.list.size(), views.list.size() == 1 ? "" : "s");
+          mxi::eprint("mxi index: the list has %zu lattice%s already: "
+                      "--max-lattices more than that to look for more\n",
+                      views.list.size(), views.list.size() == 1 ? "" : "s");
           return 2;
         }
         std::vector<std::size_t> sweeps_of;
@@ -557,8 +547,8 @@ int run_index(int argc, char **argv) {
         std::sort(sweeps_of.begin(), sweeps_of.end());
         if (std::unique(sweeps_of.begin(), sweeps_of.end()) !=
             sweeps_of.begin() + 1) {
-          std::fprintf(stderr, "mxi index: lattices looked for again in one "
-                               "sweep at a time, not several\n");
+          mxi::eprint("mxi index: lattices looked for again in one "
+                      "sweep at a time, not several\n");
           return 2;
         }
         const auto one_of = [&](std::size_t at) {
@@ -577,9 +567,9 @@ int run_index(int argc, char **argv) {
           known.push_back(*x.crystal);
           known_ids.push_back(x.identifier);
         }
-        std::printf("Looking again for lattices, %zu given, with the geometry "
-                    "they refined\n",
-                    known.size());
+        mxi::print("Looking again for lattices, %zu given, with the geometry "
+                   "they refined\n",
+                   known.size());
         // Every spot the one sweep's, for the search; numbered again as the
         // lattices are found.
         std::fill(reflections.modify_int_column("id", "int", 1).ints.begin(),
@@ -608,17 +598,17 @@ int run_index(int argc, char **argv) {
     // The search's terms whether it succeeds or not: they are what a failure
     // is diagnosed by.
     if (result.max_cell > 0.0) {
-      std::printf("Searched to %.2f A, maximum cell %.1f A\n", result.d_min,
-                  result.max_cell);
+      mxi::print("Searched to %.2f A, maximum cell %.1f A\n", result.d_min,
+                 result.max_cell);
       detail("  FFT grid %zu^3\n", result.grid);
     }
     // The solutions the basis search weighed, as dials.index's table.
     if (!result.considered.empty()) {
-      std::printf("\nCandidate solutions, the most indexing first\n");
-      std::printf("  %8s %8s %8s %8s %8s %8s %10s %9s %8s\n", "a", "b", "c",
-                  "alpha", "beta", "gamma", "volume", "indexed", "");
+      mxi::print("\nCandidate solutions, the most indexing first\n");
+      mxi::print("  %8s %8s %8s %8s %8s %8s %10s %9s %8s\n", "a", "b", "c",
+                 "alpha", "beta", "gamma", "volume", "indexed", "");
       for (const BasisCandidate &b : result.considered)
-        std::printf(
+        mxi::print(
             "  %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %10.0f %8.1f%% %8s\n",
             b.cell.a, b.cell.b, b.cell.c, b.cell.alpha, b.cell.beta,
             b.cell.gamma, b.volume,
@@ -628,14 +618,12 @@ int run_index(int argc, char **argv) {
     }
     if (result.n_indexed == 0) {
       if (options.known_cell && result.known_cell_share == 0.0)
-        std::fprintf(stderr,
-                     "mxi index: no candidate basis matches --known-cell "
-                     "(within 10 per cent and 5 deg): check the cell and "
-                     "--known-space-group, or index without it.\n");
+        mxi::eprint("mxi index: no candidate basis matches --known-cell "
+                    "(within 10 per cent and 5 deg): check the cell and "
+                    "--known-space-group, or index without it.\n");
       else
-        std::fprintf(stderr,
-                     "mxi index: no lattice found. Try --max-cell, or --d-min "
-                     "to restrict the resolution range used.\n");
+        mxi::eprint("mxi index: no lattice found. Try --max-cell, or --d-min "
+                    "to restrict the resolution range used.\n");
       return 1;
     }
 
@@ -645,33 +633,32 @@ int run_index(int argc, char **argv) {
     // no unit, is how far fractional Miller indices sit from integers. It was
     // printed as "rmsd 0.0292" with nothing to say which it was.
     if (!result.cycles.empty()) {
-      std::printf("\n  %5s %10s %8s %8s %8s %8s %8s %8s\n", "cycle",
-                  "refined on", "rejected", "indexed", "RMSD x", "RMSD y",
-                  "RMSD z", "index");
-      std::printf("  %5s %10s %8s %8s %8s %8s %8s %8s\n", "", "", "", "",
-                  "(px)", "(px)", "(images)", "RMSD");
+      mxi::print("\n  %5s %10s %8s %8s %8s %8s %8s %8s\n", "cycle",
+                 "refined on", "rejected", "indexed", "RMSD x", "RMSD y",
+                 "RMSD z", "index");
+      mxi::print("  %5s %10s %8s %8s %8s %8s %8s %8s\n", "", "", "", "", "(px)",
+                 "(px)", "(images)", "RMSD");
       for (std::size_t c = 0; c < result.cycles.size(); ++c) {
         const IndexCycle &k = result.cycles[c];
-        std::printf("  %5zu %10zu %8zu %8zu %8.3f %8.3f %8.3f %8.4f%s\n", c + 1,
-                    k.refined_on, k.rejected, k.indexed, k.rmsd_x, k.rmsd_y,
-                    k.rmsd_z, k.rmsd_index,
-                    k.per_sweep ? "  each sweep's crystal apart" : "");
+        mxi::print("  %5zu %10zu %8zu %8zu %8.3f %8.3f %8.3f %8.4f%s\n", c + 1,
+                   k.refined_on, k.rejected, k.indexed, k.rmsd_x, k.rmsd_y,
+                   k.rmsd_z, k.rmsd_index,
+                   k.per_sweep ? "  each sweep's crystal apart" : "");
       }
-      std::printf("\n");
+      mxi::print("\n");
     }
     const UnitCell cell = result.crystal.cell();
-    std::printf("Indexed %zu of %zu reflections (%.1f%%)\n", result.n_indexed,
-                result.n_total, 100.0 * result.fraction_indexed());
+    mxi::print("Indexed %zu of %zu reflections (%.1f%%)\n", result.n_indexed,
+               result.n_total, 100.0 * result.fraction_indexed());
     // A known cell the data's own lattice is not: its bases indexed under half
     // what the best basis did. Said, not chosen in silence -- a wrong cell
     // still finds some spurious triple near it.
     if (options.known_cell && result.known_cell_share < 0.5)
-      std::printf(
-          "WARNING: the bases matching --known-cell index %.0f per cent "
-          "of what the best basis does: the crystal's lattice is "
-          "probably not that cell\n",
-          100.0 * result.known_cell_share);
-    std::printf(
+      mxi::print("WARNING: the bases matching --known-cell index %.0f per cent "
+                 "of what the best basis does: the crystal's lattice is "
+                 "probably not that cell\n",
+                 100.0 * result.known_cell_share);
+    mxi::print(
         "Unit cell: %.3f %.3f %.3f A, %.3f %.3f %.3f deg; volume %.0f A^3\n",
         cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma,
         cell.volume());
@@ -681,8 +668,8 @@ int run_index(int argc, char **argv) {
     if (!result.cycles.empty() && result.cycles.back().per_sweep)
       for (std::size_t i = 0; i < experiments.size(); ++i) {
         const UnitCell c = experiments[i].crystal->cell();
-        std::printf("  sweep %zu: %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n", i,
-                    c.a, c.b, c.c, c.alpha, c.beta, c.gamma);
+        mxi::print("  sweep %zu: %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n", i,
+                   c.a, c.b, c.c, c.alpha, c.beta, c.gamma);
       }
 
     set_indexed_flags(reflections);
@@ -741,7 +728,7 @@ int run_index(int argc, char **argv) {
     rflx::write_outputs(out, &document, &reflections, "mxi_index",
                         &summary_document);
     const double t_write_seconds = Timing::now() - t_write_start;
-    std::printf("Wrote %s\n", rflx::describe(out).c_str());
+    mxi::print("Wrote %s\n", rflx::describe(out).c_str());
 
     if (args.has("--timing")) {
       const IndexTiming &t = result.timing;
@@ -766,11 +753,11 @@ int run_index(int argc, char **argv) {
       timing.add("writing", t_write_seconds);
       timing.note(std::to_string(t.triples_scored) + " triples scored, " +
                   std::to_string(t.triples_skipped) + " skipped as degenerate");
-      timing.report(stdout);
+      timing.report(mxi::Stream::out);
     }
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi index: %s\n", e.what());
+    mxi::eprint("mxi index: %s\n", e.what());
     return 1;
   }
 }

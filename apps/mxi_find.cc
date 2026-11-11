@@ -107,16 +107,15 @@ void report_resolution(const std::vector<double> &dstar) {
   static std::vector<double> every; // every sweep's, so far
   every.insert(every.end(), dstar.begin(), dstar.end());
   const Shells mine = shells_of(dstar, 10);
-  std::printf("Spots by resolution\n  %8s %8s %8s\n", "d max", "d min",
-              "spots");
+  mxi::print("Spots by resolution\n  %8s %8s %8s\n", "d max", "d min", "spots");
   for (std::size_t k = 0; k < mine.count.size(); ++k) {
     if (mine.d_max[k] > 0.0)
-      std::printf("  %8.2f %8.2f %8zu\n", mine.d_max[k], mine.d_min[k],
-                  mine.count[k]);
+      mxi::print("  %8.2f %8.2f %8zu\n", mine.d_max[k], mine.d_min[k],
+                 mine.count[k]);
     else
-      std::printf("  %8s %8.2f %8zu\n", "inf", mine.d_min[k], mine.count[k]);
+      mxi::print("  %8s %8.2f %8zu\n", "inf", mine.d_min[k], mine.count[k]);
   }
-  std::printf("\n");
+  mxi::print("\n");
   const Shells all = shells_of(every, 50);
   std::vector<mxi::json::Value> c_max, c_min, c_n;
   for (std::size_t k = 0; k < all.count.size(); ++k) {
@@ -156,7 +155,7 @@ void report_resolution(const std::vector<double> &dstar) {
     }
   }
   if (!said.empty())
-    std::printf("Ice rings: the spots crowd %s A\n", said.c_str());
+    mxi::print("Ice rings: the spots crowd %s A\n", said.c_str());
   find_summary().set("ice_rings", mxi::json::Value(std::move(crowded)));
 }
 } // namespace
@@ -166,6 +165,7 @@ void report_resolution(const std::vector<double> &dstar) {
 
 #ifdef MXI_GPU
 #include "dext_gpu.hh"
+#include "output.hh"
 #endif
 
 namespace {
@@ -209,16 +209,16 @@ struct Options {
 // from a fast-math build is not one to compare against DIALS without knowing
 // that, so it is in the one line that identifies the binary.
 void report_version(const char *program) {
-  std::printf("%s %s (%s%s)\n", program, MXI_VERSION,
+  mxi::print("%s %s (%s%s)\n", program, MXI_VERSION,
 #ifdef MXI_GPU
-              mxi::gpu::backend(),
+             mxi::gpu::backend(),
 #else
-              "no GPU",
+             "no GPU",
 #endif
 #ifdef MXI_FAST_MATH
-              ", fast math"
+             ", fast math"
 #else
-              ""
+             ""
 #endif
   );
 }
@@ -226,8 +226,8 @@ void report_version(const char *program) {
 // To standard output when it was asked for, and to standard error when it is
 // the answer to a mistake: `mxi_find --help | less` showed nothing while it
 // all went to standard error.
-void usage(const char *program, std::FILE *to = stderr) {
-  std::fprintf(
+void usage(const char *program, mxi::Stream to = mxi::Stream::err) {
+  mxi::print_to(
       to,
       "usage: %s IMPORTED.rflx [options]\n"
       "  -j, --threads N   threads for everything this does in parallel; 0, "
@@ -367,11 +367,11 @@ bool parse_options(int argc, char **argv, Options *options) {
                                              "--progress-from"};
   mxi::Arguments args = mxi::parse_arguments(argc, argv, known, takes_value);
   if (args.help) {
-    usage(argv[0], stdout);
+    usage(argv[0], mxi::Stream::out);
     std::exit(0);
   }
   if (!args.ok) {
-    std::fprintf(stderr, "mxi find: %s\n", args.error.c_str());
+    mxi::eprint("mxi find: %s\n", args.error.c_str());
     return false;
   }
   // -j/--threads, as every command takes it (args.cc), or every core this
@@ -419,8 +419,8 @@ bool parse_options(int argc, char **argv, Options *options) {
   for (const std::string &input : args.positional) {
     if (looks_like_json(input) || mxi::rflx::has_experiments(input)) {
       if (!options->experiments.empty()) {
-        std::fprintf(stderr, "%s: two experiment lists, %s and %s\n", argv[0],
-                     options->experiments.c_str(), input.c_str());
+        mxi::eprint("%s: two experiment lists, %s and %s\n", argv[0],
+                    options->experiments.c_str(), input.c_str());
         return false;
       }
       options->experiments = input;
@@ -437,22 +437,20 @@ bool parse_options(int argc, char **argv, Options *options) {
     try {
       info = mxi::experiment_images(options->experiments);
     } catch (const std::exception &error) {
-      std::fprintf(stderr, "%s\n", error.what());
+      mxi::eprint("%s\n", error.what());
       return false;
     }
     options->sweeps = std::max<std::size_t>(info.experiments, 1);
     if (!options->master.empty() || info.experiments > 1) {
     } else if (!info.has_imageset) {
-      std::fprintf(stderr,
-                   "%s has no imageset, so it does not say where the images "
-                   "are; name the master file, or pass -x\n",
-                   options->experiments.c_str());
+      mxi::eprint("%s has no imageset, so it does not say where the images "
+                  "are; name the master file, or pass -x\n",
+                  options->experiments.c_str());
       return false;
     } else if (info.templated) {
-      std::fprintf(stderr,
-                   "%s names a file template, '%s', which is a numbered "
-                   "sequence rather than one NXmx file; this reads NXmx only\n",
-                   options->experiments.c_str(), info.image_file.c_str());
+      mxi::eprint("%s names a file template, '%s', which is a numbered "
+                  "sequence rather than one NXmx file; this reads NXmx only\n",
+                  options->experiments.c_str(), info.image_file.c_str());
       return false;
     } else {
       options->master = info.image_file;
@@ -639,7 +637,7 @@ mxi::series::Info open_series(mxi::series::Series *source,
     if (Clock::now() > deadline)
       throw std::runtime_error("timed out waiting for " + source->describe());
     if (!announced) {
-      std::fprintf(stdout, "Waiting for %s\n", source->describe().c_str());
+      mxi::print("Waiting for %s\n", source->describe().c_str());
       announced = true;
     }
     sleep_for(options.poll_milliseconds);
@@ -700,13 +698,12 @@ void reconcile(const mxi::ExperimentImages &experiments,
   // z, so a mismatch means z is measured against a range the images do not
   // cover.
   if (!experiments.imageset_matches_scan()) {
-    std::fprintf(stderr,
-                 "warning: %s lists %" PRIu64
-                 " frames in its imageset and %" PRId64 " in "
-                 "its scan; z follows the scan\n",
-                 options->experiments.c_str(),
-                 static_cast<std::uint64_t>(experiments.frames),
-                 static_cast<std::int64_t>(experiments.images()));
+    mxi::eprint("warning: %s lists %" PRIu64
+                " frames in its imageset and %" PRId64 " in "
+                "its scan; z follows the scan\n",
+                options->experiments.c_str(),
+                static_cast<std::uint64_t>(experiments.frames),
+                static_cast<std::int64_t>(experiments.images()));
   }
   // Gaps in single_file_indices mean the imageset is not the whole file in
   // order, which nothing here allows for: frames are read as a contiguous run,
@@ -771,17 +768,16 @@ void report_written(const Options &options, std::size_t rows) {
   const std::string &written =
       options.rflx.empty() ? options.output : options.rflx;
   if (rows == 0) {
-    std::fprintf(stderr,
-                 "No reflections found; %s is a well formed table with no rows "
-                 "in it, which dials.index will refuse\n",
-                 written.c_str());
+    mxi::eprint("No reflections found; %s is a well formed table with no rows "
+                "in it, which dials.index will refuse\n",
+                written.c_str());
     return;
   }
   std::error_code ignored;
   const std::uintmax_t bytes = std::filesystem::file_size(written, ignored);
-  std::fprintf(stdout, "Wrote %zu reflections to %s (%.1f MB%s)\n", rows,
-               written.c_str(), static_cast<double>(bytes) / 1e6,
-               options.shoeboxes ? ", most of it shoeboxes" : "");
+  mxi::print("Wrote %zu reflections to %s (%.1f MB%s)\n", rows, written.c_str(),
+             static_cast<double>(bytes) / 1e6,
+             options.shoeboxes ? ", most of it shoeboxes" : "");
 }
 
 // What becomes of one experiment's spots: written as the table, for one sweep,
@@ -833,9 +829,9 @@ std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
       const std::vector<std::uint64_t> pixels =
           mxi::untrusted_pixels(experiments.untrusted, info.width, info.height);
       source->add_masked(pixels);
-      std::printf("Untrusted regions: %s, %zu pixels\n",
-                  mxi::describe_untrusted(experiments.untrusted).c_str(),
-                  pixels.size());
+      mxi::print("Untrusted regions: %s, %zu pixels\n",
+                 mxi::describe_untrusted(experiments.untrusted).c_str(),
+                 pixels.size());
     }
 
     // Only the frames the scan covers. The array indices come from the
@@ -869,19 +865,18 @@ std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
       restricted = last - first + 1;
     }
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "%s\n", error.what());
+    mxi::eprint("%s\n", error.what());
     return 1;
   }
 
   if (restricted > 0 && restricted != info.images) {
-    std::fprintf(stdout,
-                 "Reading %" PRIu64 " of the %" PRIu64
-                 " images, the ones the scan covers\n",
-                 static_cast<std::uint64_t>(restricted),
-                 static_cast<std::uint64_t>(info.images));
+    mxi::print("Reading %" PRIu64 " of the %" PRIu64
+               " images, the ones the scan covers\n",
+               static_cast<std::uint64_t>(restricted),
+               static_cast<std::uint64_t>(info.images));
   }
-  std::fprintf(
-      stdout, "Finding spots on %" PRIu64 " images\n",
+  mxi::print(
+      "Finding spots on %" PRIu64 " images\n",
       static_cast<std::uint64_t>(restricted > 0 ? restricted : info.images));
   mxi::detail("Series %s: %" PRIu64 " images of %" PRIu64 " x %" PRIu64
               " pixels (fast x slow), from %s, "
@@ -957,7 +952,7 @@ std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
       } catch (const std::exception &error) {
         // The keys this thread would have taken are still in the queue for the
         // others; only if every thread fails does the run stop.
-        std::fprintf(stderr, "thread %d: %s\n", i, error.what());
+        mxi::eprint("thread %d: %s\n", i, error.what());
         return;
       }
 
@@ -1040,10 +1035,9 @@ std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
           const std::uint64_t n = failed++;
           have = false;
           if (n < 3)
-            std::fprintf(stderr, "%s: %s\n", key.c_str(), error.what());
+            mxi::eprint("%s: %s\n", key.c_str(), error.what());
           else if (n == 3)
-            std::fprintf(stderr,
-                         "(and more frames like them; counted below)\n");
+            mxi::eprint("(and more frames like them; counted below)\n");
           const std::lock_guard<std::mutex> lock(first_error_mutex);
           if (first_error.empty())
             first_error = error.what();
@@ -1090,9 +1084,8 @@ std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
     if (progress)
       progress->update(static_cast<double>(frames_done));
     if (chunk.abandoned()) {
-      std::fprintf(stderr,
-                   "every thread has gone, so the rest of the series cannot be "
-                   "read; stopping with what was grouped so far\n");
+      mxi::eprint("every thread has gone, so the rest of the series cannot be "
+                  "read; stopping with what was grouped so far\n");
       failed++;
       stop = true;
     }
@@ -1110,8 +1103,8 @@ std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
         labeller.add(z, found.pixels);
         t_group.add(mxi::Timing::now() - g0);
       } catch (const std::exception &error) {
-        std::fprintf(stderr, "grouping frame %" PRId64 ": %s\n",
-                     static_cast<std::int64_t>(found.number), error.what());
+        mxi::eprint("grouping frame %" PRId64 ": %s\n",
+                    static_cast<std::int64_t>(found.number), error.what());
         failed++;
         continue;
       }
@@ -1131,7 +1124,7 @@ std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
         added++;
       }
     } catch (const std::exception &error) {
-      std::fprintf(stderr, "%s\n", error.what());
+      mxi::eprint("%s\n", error.what());
     }
     if (added > 0) {
       progressed = Clock::now();
@@ -1147,8 +1140,8 @@ std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
     if (interrupted != 0 || complete || timed_out)
       stop = true;
     if (timed_out && !complete) {
-      std::fprintf(stderr, "No new images for %d seconds, giving up\n",
-                   options.timeout_seconds);
+      mxi::eprint("No new images for %d seconds, giving up\n",
+                  options.timeout_seconds);
     }
 
     // Whole chunks while more may arrive; whatever is left once nothing can.
@@ -1185,20 +1178,18 @@ std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
               static_cast<std::uint64_t>(failed.load()));
   // Images missing are data missing: said always, not under --verbose.
   if (!mxi::verbose() && (missing.load() > 0 || failed.load() > 0))
-    std::fprintf(stdout,
-                 "Read %" PRIu64 " of %" PRIu64 " images: %" PRIu64
-                 " never written, %" PRIu64 " "
-                 "failures\n",
-                 static_cast<std::uint64_t>(read.load()),
-                 static_cast<std::uint64_t>(dispatched.size()),
-                 static_cast<std::uint64_t>(missing.load()),
-                 static_cast<std::uint64_t>(failed.load()));
+    mxi::print("Read %" PRIu64 " of %" PRIu64 " images: %" PRIu64
+               " never written, %" PRIu64 " "
+               "failures\n",
+               static_cast<std::uint64_t>(read.load()),
+               static_cast<std::uint64_t>(dispatched.size()),
+               static_cast<std::uint64_t>(missing.load()),
+               static_cast<std::uint64_t>(failed.load()));
   if (out_of_order > 0) {
-    std::fprintf(stderr,
-                 "warning: %" PRIu64
-                 " frames arrived after a later one and were "
-                 "dropped\n",
-                 static_cast<std::uint64_t>(out_of_order));
+    mxi::eprint("warning: %" PRIu64
+                " frames arrived after a later one and were "
+                "dropped\n",
+                static_cast<std::uint64_t>(out_of_order));
   }
   // dials.find_spots' own summary, wording included, so that a log from this
   // and a log from that can be read the same way and compared line for line.
@@ -1209,30 +1200,28 @@ std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
   const std::uint64_t sized =
       counts.groups - counts.too_small - counts.too_large;
 
-  std::fprintf(stdout,
-               "Found %" PRIu64 " signal pixels on %" PRIu64 " frames\n",
-               static_cast<std::uint64_t>(counts.signal_pixels),
-               static_cast<std::uint64_t>(grouped));
-  std::fprintf(stdout, "Extracted %" PRIu64 " spots\n",
-               static_cast<std::uint64_t>(counts.groups));
-  std::fprintf(stdout, "Removed %" PRIu64 " spots with size < %zu pixels\n",
-               static_cast<std::uint64_t>(counts.too_small),
-               options.grouping.min_spot_size);
-  std::fprintf(stdout, "Removed %" PRIu64 " spots with size > %zu pixels\n",
-               static_cast<std::uint64_t>(counts.too_large),
-               options.grouping.max_spot_size);
-  std::fprintf(stdout, "Calculated %" PRIu64 " spot centroids\n",
-               static_cast<std::uint64_t>(sized));
-  std::fprintf(stdout, "Calculated %" PRIu64 " spot intensities\n",
-               static_cast<std::uint64_t>(sized));
+  mxi::print("Found %" PRIu64 " signal pixels on %" PRIu64 " frames\n",
+             static_cast<std::uint64_t>(counts.signal_pixels),
+             static_cast<std::uint64_t>(grouped));
+  mxi::print("Extracted %" PRIu64 " spots\n",
+             static_cast<std::uint64_t>(counts.groups));
+  mxi::print("Removed %" PRIu64 " spots with size < %zu pixels\n",
+             static_cast<std::uint64_t>(counts.too_small),
+             options.grouping.min_spot_size);
+  mxi::print("Removed %" PRIu64 " spots with size > %zu pixels\n",
+             static_cast<std::uint64_t>(counts.too_large),
+             options.grouping.max_spot_size);
+  mxi::print("Calculated %" PRIu64 " spot centroids\n",
+             static_cast<std::uint64_t>(sized));
+  mxi::print("Calculated %" PRIu64 " spot intensities\n",
+             static_cast<std::uint64_t>(sized));
   // Only when the filter ran: "Filtered 48 of 48" would otherwise read as a
   // filter that passed everything rather than one that was switched off.
   if (options.grouping.max_separation > 0.0) {
-    std::fprintf(stdout,
-                 "Filtered %" PRIu64 " of %" PRIu64
-                 " spots by peak-centroid distance\n",
-                 static_cast<std::uint64_t>(counts.accepted),
-                 static_cast<std::uint64_t>(sized));
+    mxi::print("Filtered %" PRIu64 " of %" PRIu64
+               " spots by peak-centroid distance\n",
+               static_cast<std::uint64_t>(counts.accepted),
+               static_cast<std::uint64_t>(sized));
   }
 
   // Spots per image, as dials.find_spots draws it: the part of this report a
@@ -1254,11 +1243,11 @@ std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
         if (image >= first && image <= last)
           ++per_image[static_cast<std::size_t>(image - first)];
       }
-      std::fprintf(stdout, "\nHistogram of spots per image:\n");
+      mxi::print("\nHistogram of spots per image:\n");
       for (const std::string &line :
            mxi::spots::spot_histogram(per_image, first))
-        std::fprintf(stdout, "%s\n", line.c_str());
-      std::fprintf(stdout, "\n");
+        mxi::print("%s\n", line.c_str());
+      mxi::print("\n");
       // Each sweep's, a list a sweep: the summary keeps them all.
       static mxi::json::Array per_sweep, firsts;
       mxi::json::Array each;
@@ -1327,8 +1316,7 @@ std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
   // No frame read at all: nothing to write, and an empty table would read as
   // images without spots. Said once, with why.
   if (read.load() == 0 && failed.load() > 0) {
-    std::fprintf(
-        stderr,
+    mxi::eprint(
         "mxi find: none of the %" PRIu64 " images could be read, so nothing "
         "is written. The first error: %s\n",
         static_cast<std::uint64_t>(dispatched.size()), first_error.c_str());
@@ -1350,58 +1338,47 @@ std::int32_t find_one(Options options, std::size_t index, mxi::Timing &timing,
     timing.add("reading and thresholding, wall", wall);
     timing.add("grouping what was left", t_finished - t_streamed);
     timing.add("writing", mxi::Timing::now() - t_written_from);
-    timing.report(stdout);
-    std::fprintf(stdout, "  across %d threads, %.3f s of wall each:\n",
-                 options.threads, wall);
-    std::fprintf(stdout, "    %-22s %s\n", "reading (HDF5)",
-                 share(t_read).c_str());
-    std::fprintf(stdout, "    %-22s %s\n", "decompressing",
-                 share(t_decompress).c_str());
-    std::fprintf(stdout, "    %-22s %s\n",
-                 options.gpu ? "thresholding (GPU)" : "thresholding",
-                 share(t_threshold).c_str());
+    timing.report(mxi::Stream::out);
+    mxi::print("  across %d threads, %.3f s of wall each:\n", options.threads,
+               wall);
+    mxi::print("    %-22s %s\n", "reading (HDF5)", share(t_read).c_str());
+    mxi::print("    %-22s %s\n", "decompressing", share(t_decompress).c_str());
+    mxi::print("    %-22s %s\n",
+               options.gpu ? "thresholding (GPU)" : "thresholding",
+               share(t_threshold).c_str());
     if (split) {
       const double parts = t_upload.seconds() + t_stage0.seconds() +
                            t_stage1.seconds() + t_stage2.seconds() +
                            t_fused.seconds() + t_readback.seconds() +
                            t_sort.seconds();
-      std::fprintf(stdout, "      %-20s %s\n", "uploading",
-                   share(t_upload).c_str());
-      std::fprintf(stdout, "      %-20s %s\n", "stage 0, device",
-                   share(t_stage0).c_str());
-      std::fprintf(stdout, "      %-20s %s\n", "stage 1, device",
-                   share(t_stage1).c_str());
-      std::fprintf(stdout, "      %-20s %s\n", "stage 2, device",
-                   share(t_stage2).c_str());
+      mxi::print("      %-20s %s\n", "uploading", share(t_upload).c_str());
+      mxi::print("      %-20s %s\n", "stage 0, device",
+                 share(t_stage0).c_str());
+      mxi::print("      %-20s %s\n", "stage 1, device",
+                 share(t_stage1).c_str());
+      mxi::print("      %-20s %s\n", "stage 2, device",
+                 share(t_stage2).c_str());
       if (t_fused.seconds() > 0.0)
-        std::fprintf(stdout, "      %-20s %s\n", "fused kernel, device",
-                     share(t_fused).c_str());
-      std::fprintf(stdout, "      %-20s %s\n", "reading back",
-                   share(t_readback).c_str());
-      std::fprintf(stdout, "      %-20s %s\n", "sorting",
-                   share(t_sort).c_str());
+        mxi::print("      %-20s %s\n", "fused kernel, device",
+                   share(t_fused).c_str());
+      mxi::print("      %-20s %s\n", "reading back", share(t_readback).c_str());
+      mxi::print("      %-20s %s\n", "sorting", share(t_sort).c_str());
       mxi::ThreadSeconds rest;
       rest.add(t_threshold.seconds() - parts);
-      std::fprintf(stdout, "      %-20s %s\n", "the rest: waiting",
-                   share(rest).c_str());
-      std::fprintf(stdout,
-                   "      (the device's own work, upload and kernels, summed "
-                   "over the frames: "
-                   "%.3f s, in %.3f s of wall)\n",
-                   t_upload.seconds() + t_stage0.seconds() +
-                       t_stage1.seconds() + t_stage2.seconds() +
-                       t_fused.seconds(),
-                   wall);
+      mxi::print("      %-20s %s\n", "the rest: waiting", share(rest).c_str());
+      mxi::print("      (the device's own work, upload and kernels, summed "
+                 "over the frames: "
+                 "%.3f s, in %.3f s of wall)\n",
+                 t_upload.seconds() + t_stage0.seconds() + t_stage1.seconds() +
+                     t_stage2.seconds() + t_fused.seconds(),
+                 wall);
     } else if (options.gpu) {
-      std::fprintf(
-          stdout,
+      mxi::print(
           "      (the threshold's own split is taken on CUDA only: on Metal, "
           "measuring it serialises its stages)\n");
     }
-    std::fprintf(
-        stdout,
-        "  and in the main thread: grouping %.3f s of the %.3f s wall\n",
-        t_group.seconds(), wall);
+    mxi::print("  and in the main thread: grouping %.3f s of the %.3f s wall\n",
+               t_group.seconds(), wall);
   }
 
   return failed.load() == 0 ? 0 : 1;
@@ -1423,7 +1400,7 @@ std::int32_t write_one(const Options &options,
     part.identifier = experiments.identifier;
     write_table(options, {part}, options.shoeboxes);
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "%s\n", error.what());
+    mxi::eprint("%s\n", error.what());
     return 1;
   }
   report_written(options, labeller.spots().size());
@@ -1472,11 +1449,10 @@ int mxi_find_main(int argc, char **argv) {
   // spot with its experiment's index as its id and each identifier in the
   // table's map.
   if (options.master_given) {
-    std::fprintf(stderr,
-                 "%s holds %zu experiments, each reading its own images; a "
-                 "master file named as well cannot belong to them all -- leave "
-                 "it out\n",
-                 options.experiments.c_str(), options.sweeps);
+    mxi::eprint("%s holds %zu experiments, each reading its own images; a "
+                "master file named as well cannot belong to them all -- leave "
+                "it out\n",
+                options.experiments.c_str(), options.sweeps);
     return 2;
   }
   struct Kept {
@@ -1492,20 +1468,19 @@ int mxi_find_main(int argc, char **argv) {
     try {
       e = mxi::experiment_images(options.experiments, i);
     } catch (const std::exception &error) {
-      std::fprintf(stderr, "%s\n", error.what());
+      mxi::eprint("%s\n", error.what());
       return 1;
     }
     if (!e.has_imageset || e.templated) {
-      std::fprintf(stderr,
-                   "experiment %zu of %s does not name one NXmx file for its "
-                   "images\n",
-                   i, options.experiments.c_str());
+      mxi::eprint("experiment %zu of %s does not name one NXmx file for its "
+                  "images\n",
+                  i, options.experiments.c_str());
       return 1;
     }
     Options one = options;
     one.master = e.image_file;
-    std::fprintf(stdout, "\nExperiment %zu of %zu: images %s\n", i + 1,
-                 options.sweeps, one.master.c_str());
+    mxi::print("\nExperiment %zu of %zu: images %s\n", i + 1, options.sweeps,
+               one.master.c_str());
     status |= find_one(one, i, timing,
                        [&](const mxi::spots::Labeller &labeller,
                            const mxi::series::Info &info,
@@ -1534,13 +1509,12 @@ int mxi_find_main(int argc, char **argv) {
   try {
     write_table(options, parts, options.shoeboxes);
   } catch (const std::exception &error) {
-    std::fprintf(stderr, "%s\n", error.what());
+    mxi::eprint("%s\n", error.what());
     return 1;
   }
-  std::fprintf(stdout, "\n");
+  mxi::print("\n");
   for (std::size_t i = 0; i < kept.size(); ++i)
-    std::fprintf(stdout, "  experiment %zu: %zu reflections\n", i,
-                 kept[i].spots.size());
+    mxi::print("  experiment %zu: %zu reflections\n", i, kept[i].spots.size());
   report_written(options, total);
   return 0;
 }

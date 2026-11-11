@@ -12,6 +12,7 @@
 #include <stdexcept>
 
 #include "expt.hh"
+#include "output.hh"
 #include "rflx.hh"
 
 namespace mxi {
@@ -28,7 +29,7 @@ void detail(const char *format, ...) {
     return;
   std::va_list args;
   va_start(args, format);
-  std::vprintf(format, args);
+  output_detail::vemit(Stream::out, format, args);
   va_end(args);
 }
 

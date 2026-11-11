@@ -14,6 +14,7 @@
 #include <mutex>
 
 #include "dext_gpu_internal.hh"
+#include "output.hh"
 
 namespace mxi::gpu {
 namespace {
@@ -71,9 +72,8 @@ void resolve_one(const char *name_suffix, std::atomic<Window> &into) {
   }
   // Not fatal: this changes how long a run takes, not what it reports, and
   // refusing to start a shift because of a typo would be the wrong trade.
-  std::fprintf(stderr,
-               "warning: %s=%s is not 'tile' or 'direct'; leaving it alone\n",
-               variable, asked);
+  mxi::eprint("warning: %s=%s is not 'tile' or 'direct'; leaving it alone\n",
+              variable, asked);
 }
 
 void resolve_windows() {
@@ -87,10 +87,9 @@ void resolve_windows() {
     else if (std::strcmp(asked, "0") == 0)
       chosen_fused.store(false, std::memory_order_relaxed);
     else
-      std::fprintf(stderr,
-                   "warning: MXI_GPU_FUSED=%s is not '1' or '0'; "
-                   "leaving it alone\n",
-                   asked);
+      mxi::eprint("warning: MXI_GPU_FUSED=%s is not '1' or '0'; "
+                  "leaving it alone\n",
+                  asked);
   }
 }
 
@@ -154,8 +153,8 @@ void announce_windows(Window stage0, Window stage2) {
   // report, which is a duplicate line and not a wrong one.
   if (announced.exchange(now, std::memory_order_relaxed) == now)
     return;
-  std::fprintf(stderr, "%s: stage0 %s window, stage2 %s window\n", backend(),
-               name(stage0), name(stage2));
+  mxi::eprint("%s: stage0 %s window, stage2 %s window\n", backend(),
+              name(stage0), name(stage2));
 }
 
 void announce_fused() {
@@ -164,7 +163,7 @@ void announce_fused() {
   // After the four window pairs, so a switch to or from it is a change.
   if (announced.exchange(4, std::memory_order_relaxed) == 4)
     return;
-  std::fprintf(stderr, "%s: the three stages fused, one kernel\n", backend());
+  mxi::eprint("%s: the three stages fused, one kernel\n", backend());
 }
 
 } // namespace internal

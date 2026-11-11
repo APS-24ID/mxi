@@ -24,6 +24,7 @@
 #include "json.hh"
 #include "laue.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "refl.hh"
 #include "rflx.hh"
 #include "summary_cut.hh"
@@ -191,19 +192,21 @@ int mxi_correlation_main(int argc, char **argv) {
   // A refused option said, not passed over: this had not looked, so that an
   // option it did not know was ignored whenever the files came first.
   if (!args.ok) {
-    std::fprintf(stderr, "mxi correlation: %s\n", args.error.c_str());
-    std::fputs(kUsage, stderr);
+    mxi::eprint("mxi correlation: %s\n", args.error.c_str());
+    mxi::put(mxi::Stream::err, kUsage);
     return 2;
   }
   if (args.has("--help") || args.has("-h") || args.positional.empty()) {
-    std::fputs(kUsage, args.has("--help") || args.has("-h") ? stdout : stderr);
+    mxi::put(args.has("--help") || args.has("-h") ? mxi::Stream::out
+                                                  : mxi::Stream::err,
+             kUsage);
     return args.positional.empty() && !args.has("--help") && !args.has("-h")
                ? 2
                : 0;
   }
   args.positional = rflx::as_pair(args.positional);
   if (args.positional.size() != 2) {
-    std::fputs(kUsage, stderr);
+    mxi::put(mxi::Stream::err, kUsage);
     return 2;
   }
   try {
@@ -216,7 +219,7 @@ int mxi_correlation_main(int argc, char **argv) {
         break;
       }
     if (first == nullptr) {
-      std::fprintf(stderr, "mxi correlation: no experiment has a crystal\n");
+      mxi::eprint("mxi correlation: no experiment has a crystal\n");
       return 1;
     }
     const SpaceGroup group =
@@ -233,8 +236,8 @@ int mxi_correlation_main(int argc, char **argv) {
     // others 12.8-15.7) correlated worst and fell out as an outlier, where
     // DIALS on the same scaled data found one cluster (20 October).
     if (!args.has("--no-normalise")) {
-      std::printf("Normalised by a Wilson model fitted to each data set (the\n"
-                  "isotropic equivalent of its anisotropic B):");
+      mxi::print("Normalised by a Wilson model fitted to each data set (the\n"
+                 "isotropic equivalent of its anisotropic B):");
       for (std::size_t s = 0; s < sets.size(); ++s) {
         const Mat3 &A = experiments[which[s]].crystal->A;
         P1Intensities p1;
@@ -264,25 +267,25 @@ int mxi_correlation_main(int argc, char **argv) {
           for (std::int32_t c2 = 0; c2 < 3; ++c2)
             trace += beta[r * 3 + c2] * G.m[c2 * 3 + r];
         if (fit.fitted)
-          std::printf(" %.2f", 2.0 * trace / 3.0);
+          mxi::print(" %.2f", 2.0 * trace / 3.0);
         else
-          std::printf(" (by shells)");
+          mxi::print(" (by shells)");
       }
-      std::printf(" A^2\n");
+      mxi::print(" A^2\n");
     }
     const auto min_pairs =
         static_cast<std::size_t>(args.number("--min-pairs", 3.0));
     const CorrelationMatrix m = correlation_matrix(sets, min_pairs);
     const std::size_t n = m.n;
-    std::printf("%zu data sets, in %s\n", n, group.name().c_str());
+    mxi::print("%zu data sets, in %s\n", n, group.name().c_str());
     std::vector<std::size_t> sizes;
     for (const MergedSet &s : sets)
       sizes.push_back(s.hkl.size());
     if (!sizes.empty()) {
       std::vector<std::size_t> sorted = sizes;
       std::sort(sorted.begin(), sorted.end());
-      std::printf("merged reflections a data set: %zu to %zu, median %zu\n",
-                  sorted.front(), sorted.back(), sorted[sorted.size() / 2]);
+      mxi::print("merged reflections a data set: %zu to %zu, median %zu\n",
+                 sorted.front(), sorted.back(), sorted[sorted.size() / 2]);
     }
     std::vector<double> rs, ns;
     for (std::size_t i = 0; i < n; ++i)
@@ -290,28 +293,28 @@ int mxi_correlation_main(int argc, char **argv) {
         if (m.w[i * n + j] > 0.0)
           rs.push_back(m.r[i * n + j]);
     const std::size_t pairs = n * (n - 1) / 2;
-    std::printf("%zu of %zu pairs have a correlation\n", rs.size(), pairs);
+    mxi::print("%zu of %zu pairs have a correlation\n", rs.size(), pairs);
     if (!rs.empty()) {
       std::sort(rs.begin(), rs.end());
-      std::printf("correlations: %.3f to %.3f, median %.3f\n", rs.front(),
-                  rs.back(), rs[rs.size() / 2]);
+      mxi::print("correlations: %.3f to %.3f, median %.3f\n", rs.front(),
+                 rs.back(), rs[rs.size() / 2]);
     }
     if (n <= 16 && n > 0) {
-      std::printf("\nthe correlation matrix, by experiment:\n%6s", "");
+      mxi::print("\nthe correlation matrix, by experiment:\n%6s", "");
       for (std::size_t j = 0; j < n; ++j)
-        std::printf(" %6zu", which[j]);
-      std::printf("\n");
+        mxi::print(" %6zu", which[j]);
+      mxi::print("\n");
       for (std::size_t i = 0; i < n; ++i) {
-        std::printf("%6zu", which[i]);
+        mxi::print("%6zu", which[i]);
         for (std::size_t j = 0; j < n; ++j) {
           if (i == j)
-            std::printf(" %6s", "-");
+            mxi::print(" %6s", "-");
           else if (m.w[i * n + j] > 0.0)
-            std::printf(" %6.3f", m.r[i * n + j]);
+            mxi::print(" %6.3f", m.r[i * n + j]);
           else
-            std::printf(" %6s", "none");
+            mxi::print(" %6s", "none");
         }
-        std::printf("\n");
+        mxi::print("\n");
       }
     }
     // Stage 2: the coordinates, their dimension, their principal components.
@@ -322,18 +325,18 @@ int mxi_correlation_main(int argc, char **argv) {
     const CosymCoordinates c = cosym_coordinates(m, options);
     if (c.dim > 0) {
       if (!c.functional.empty()) {
-        std::printf("\nthe cosym functional by dimension%s:\n",
-                    options.by_projection ? " (by projection)" : "");
+        mxi::print("\nthe cosym functional by dimension%s:\n",
+                   options.by_projection ? " (by projection)" : "");
         for (std::size_t k = 0; k < c.functional.size(); ++k)
-          std::printf("  %3.0f  %.6g\n", c.dimensions[k], c.functional[k]);
+          mxi::print("  %3.0f  %.6g\n", c.dimensions[k], c.functional[k]);
       }
-      std::printf("\n%zu dimensions%s; the functional there %.6g\n", c.dim,
-                  options.dimensions > 0 ? " (as asked)" : ", at the elbow",
-                  c.final_functional);
-      std::printf("the variance each principal component explains:");
+      mxi::print("\n%zu dimensions%s; the functional there %.6g\n", c.dim,
+                 options.dimensions > 0 ? " (as asked)" : ", at the elbow",
+                 c.final_functional);
+      mxi::print("the variance each principal component explains:");
       for (std::size_t k = 0; k < c.explained_variance_ratio.size(); ++k)
-        std::printf(" %.3f", c.explained_variance_ratio[k]);
-      std::printf("\n");
+        mxi::print(" %.3f", c.explained_variance_ratio[k]);
+      mxi::print("\n");
     }
     // Stage 3: OPTICS on the coordinates, the clusters and the outliers.
     SignificantClusters clusters;
@@ -358,39 +361,38 @@ int mxi_correlation_main(int argc, char **argv) {
         clusters.labels = clusters.model.labels;
         clusters.min_samples = ms;
       }
-      std::printf(
-          "\nOPTICS (Ankerst et al. 1999), xi %.3g, max distance %.3g: ", co.xi,
-          co.max_eps);
+      mxi::print("\nOPTICS (Ankerst et al. 1999), xi %.3g, max distance %.3g: ",
+                 co.xi, co.max_eps);
       if (args.has("--min-samples"))
-        std::printf("min_samples %zu, as asked\n", clusters.min_samples);
+        mxi::print("min_samples %zu, as asked\n", clusters.min_samples);
       else if (c.n < 5)
-        std::printf("fewer than five data sets, min_samples %zu, as DIALS's\n",
-                    clusters.min_samples);
+        mxi::print("fewer than five data sets, min_samples %zu, as DIALS's\n",
+                   clusters.min_samples);
       else if (clusters.single_cluster)
-        std::printf("no min_samples gave two clusters; one cluster, as DIALS's "
-                    "single-cluster heuristic finds it, min_samples %zu\n",
-                    clusters.min_samples);
+        mxi::print("no min_samples gave two clusters; one cluster, as DIALS's "
+                   "single-cluster heuristic finds it, min_samples %zu\n",
+                   clusters.min_samples);
       else
-        std::printf("min_samples %zu (the initial guess %zu), silhouette %.3f, "
-                    "score %.3f\n",
-                    clusters.min_samples, clusters.initial_min_samples,
-                    clusters.silhouette, clusters.score);
+        mxi::print("min_samples %zu (the initial guess %zu), silhouette %.3f, "
+                   "score %.3f\n",
+                   clusters.min_samples, clusters.initial_min_samples,
+                   clusters.silhouette, clusters.score);
       std::map<std::int32_t, std::vector<std::size_t>> members;
       for (std::size_t i = 0; i < clusters.labels.size(); ++i)
         members[clusters.labels[i]].push_back(which[i]);
       for (const auto &[label, list] : members) {
         if (label == -1)
           continue;
-        std::printf("  cluster %d, %zu data sets:", label, list.size());
+        mxi::print("  cluster %d, %zu data sets:", label, list.size());
         for (std::size_t e : list)
-          std::printf(" %zu", e);
-        std::printf("\n");
+          mxi::print(" %zu", e);
+        mxi::print("\n");
       }
       if (members.count(-1)) {
-        std::printf("  outliers, %zu:", members[-1].size());
+        mxi::print("  outliers, %zu:", members[-1].size());
         for (std::size_t e : members[-1])
-          std::printf(" %zu", e);
-        std::printf("\n");
+          mxi::print(" %zu", e);
+        mxi::print("\n");
       }
     }
     // Stage 4: the report.
@@ -571,7 +573,7 @@ int mxi_correlation_main(int argc, char **argv) {
       file << html.str();
       if (!file)
         throw std::runtime_error("cannot write " + html_path);
-      std::printf("\nWrote the report to %s\n", html_path.c_str());
+      mxi::print("\nWrote the report to %s\n", html_path.c_str());
     }
     // Stage 4: each cluster written as its own file -- its data sets, any
     // crystal-less sweep experiment of theirs (the same image set and scan),
@@ -586,7 +588,7 @@ int mxi_correlation_main(int argc, char **argv) {
       std::set<std::int32_t> labels(clusters.labels.begin(),
                                     clusters.labels.end());
       labels.erase(-1);
-      std::printf("\n");
+      mxi::print("\n");
       for (std::int32_t label : labels) {
         // The cluster's data sets, each with its sweep, and their rows
         // renumbered: as mxi_split writes them (src/combine.hh).
@@ -625,9 +627,9 @@ int mxi_correlation_main(int argc, char **argv) {
         }
         rflx::write(path, &sub, &table, "mxi_correlation", false,
                     cut ? &*cut : nullptr);
-        std::printf("Wrote %s: cluster %d, %zu data sets, %zu reflections\n",
-                    path.c_str(), label, members_count(clusters.labels, label),
-                    table.nrows);
+        mxi::print("Wrote %s: cluster %d, %zu data sets, %zu reflections\n",
+                   path.c_str(), label, members_count(clusters.labels, label),
+                   table.nrows);
       }
     }
     if (args.has("--json")) {
@@ -692,11 +694,11 @@ int mxi_correlation_main(int argc, char **argv) {
       doc["min_samples_scores"] = json::Value(std::move(search));
       json::dump_file(args.value("--json", "correlation.json"),
                       json::Value(std::move(doc)));
-      std::printf("\nWrote the matrix to %s\n",
-                  args.value("--json", "correlation.json").c_str());
+      mxi::print("\nWrote the matrix to %s\n",
+                 args.value("--json", "correlation.json").c_str());
     }
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi correlation: %s\n", e.what());
+    mxi::eprint("mxi correlation: %s\n", e.what());
     return 1;
   }
   return 0;

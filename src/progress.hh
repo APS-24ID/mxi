@@ -26,6 +26,8 @@
 #include <cstring>
 #include <string>
 
+#include "output.hh"
+
 namespace mxi {
 
 class Progress {
@@ -60,9 +62,9 @@ public:
       tenth_ = tenth;
       const double left =
           done_ > 0.0 ? elapsed * (total_ - done_) / done_ : 0.0;
-      std::printf("  %3d%%: %.0f of %.0f %s, %.0f s; about %.0f s left\n",
-                  tenth * 10, done_, total_, unit_.c_str(), elapsed, left);
-      std::fflush(stdout);
+      mxi::print("  %3d%%: %.0f of %.0f %s, %.0f s; about %.0f s left\n",
+                 tenth * 10, done_, total_, unit_.c_str(), elapsed, left);
+      mxi::flush();
     }
   }
 

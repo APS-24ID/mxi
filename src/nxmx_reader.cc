@@ -32,6 +32,7 @@
 
 #include "hdf5_handle.hh"
 #include "image_series.hh"
+#include "output.hh"
 
 namespace mxi::series {
 namespace {
@@ -515,11 +516,10 @@ read_pixel_mask(hid_t file, std::uint64_t height, std::uint64_t width) {
     if (space >= 0)
       H5Sclose(space);
     if (rank != 2 || dims[0] != height || dims[1] != width) {
-      std::fprintf(stderr,
-                   "the detector's pixel_mask at %s is not the frame's shape, "
-                   "%" PRIu64 " by %" PRIu64 ": not used\n",
-                   path, static_cast<std::uint64_t>(height),
-                   static_cast<std::uint64_t>(width));
+      mxi::eprint("the detector's pixel_mask at %s is not the frame's shape, "
+                  "%" PRIu64 " by %" PRIu64 ": not used\n",
+                  path, static_cast<std::uint64_t>(height),
+                  static_cast<std::uint64_t>(width));
       H5Dclose(dataset);
       continue;
     }

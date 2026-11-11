@@ -18,6 +18,7 @@
 #include "args.hh"
 #include "combine.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "processing.hh"
 #include "refl.hh"
 #include "rflx.hh"
@@ -53,13 +54,13 @@ int mxi_combine_main(int argc, char **argv) {
     mirror_to_log("mxi_combine.log");
   const Arguments args = parse_arguments(argc, argv, {"-o", "--help"}, {"-o"});
   if (args.help) {
-    std::printf("%s", kUsage);
+    mxi::print("%s", kUsage);
     return 0;
   }
   if (!args.ok || args.positional.size() < 2) {
-    std::fprintf(stderr, "mxi combine: %s\n%s",
-                 args.ok ? "two files or more to join" : args.error.c_str(),
-                 kUsage);
+    mxi::eprint("mxi combine: %s\n%s",
+                args.ok ? "two files or more to join" : args.error.c_str(),
+                kUsage);
     return 2;
   }
   try {
@@ -78,8 +79,8 @@ int mxi_combine_main(int argc, char **argv) {
       if (!experiments || !table)
         throw std::runtime_error(path + " has no reflections to join");
       const std::size_t n = (*experiments)["experiment"].as_array().size();
-      std::printf("%s: %zu experiments, %zu reflections\n", path.c_str(), n,
-                  table->nrows);
+      mxi::print("%s: %zu experiments, %zu reflections\n", path.c_str(), n,
+                 table->nrows);
       json::Object input;
       input["path"] = json::Value(path);
       input["experiments"] = json::Value(static_cast<std::int64_t>(n));
@@ -95,8 +96,8 @@ int mxi_combine_main(int argc, char **argv) {
     }
     const Combined combined = combine_experiments(documents, tables);
     for (const std::string &name : combined.dropped)
-      std::printf("Left out the column %s: not in every input alike\n",
-                  name.c_str());
+      mxi::print("Left out the column %s: not in every input alike\n",
+                 name.c_str());
     // The summary starts again: one step, naming each input with its own steps.
     Summary summary("mxi_combine", "");
     summary.set("inputs", json::Value(std::move(inputs)));
@@ -104,12 +105,12 @@ int mxi_combine_main(int argc, char **argv) {
     const std::string out = args.value("-o", "combined.rflx");
     rflx::write(out, &combined.document, &combined.reflections, "mxi_combine",
                 false, &document);
-    std::printf("Wrote %s: %zu experiments, %zu reflections\n", out.c_str(),
-                combined.document["experiment"].as_array().size(),
-                combined.reflections.nrows);
+    mxi::print("Wrote %s: %zu experiments, %zu reflections\n", out.c_str(),
+               combined.document["experiment"].as_array().size(),
+               combined.reflections.nrows);
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi combine: %s\n", e.what());
+    mxi::eprint("mxi combine: %s\n", e.what());
     return 1;
   }
 }

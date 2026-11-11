@@ -16,6 +16,7 @@
 #include "json.hh"
 #include "log_mirror.hh"
 #include "nxmx_import.hh"
+#include "output.hh"
 #include "processing.hh"
 #include "rflx.hh"
 
@@ -68,9 +69,9 @@ void describe(const std::string &master, const mxi::json::Value &expt,
   using namespace mxi;
   const auto &e = expt.as_object();
   const auto num = [](const json::Value &v) { return v.as_number(); };
-  std::printf("mxi import: %s\n", master.c_str());
-  std::printf("  wavelength %.6f A\n",
-              num(e.at("beam").as_array()[0].as_object().at("wavelength")));
+  mxi::print("mxi import: %s\n", master.c_str());
+  mxi::print("  wavelength %.6f A\n",
+             num(e.at("beam").as_array()[0].as_object().at("wavelength")));
   for (const json::Value &pv :
        e.at("detector").as_array()[0].as_object().at("panels").as_array()) {
     const auto &p = pv.as_object();
@@ -88,48 +89,48 @@ void describe(const std::string &master, const mxi::json::Value &expt,
     nx /= nn, ny /= nn, nz /= nn;
     const double d = ox * nx + oy * ny + oz * nz;
     // Where the beam, along -z, meets the plane: t (0,0,-1).n = d.
-    std::printf("  panel %s: %" PRId64 " x %" PRId64
-                " pixels of %.4f x %.4f mm, %s %.3f "
-                "mm thick, mu %.4f/mm\n",
-                p.at("name").as_string().c_str(),
-                static_cast<std::int64_t>(a("image_size", 0)),
-                static_cast<std::int64_t>(a("image_size", 1)),
-                a("pixel_size", 0), a("pixel_size", 1),
-                p.at("material").as_string().c_str(), num(p.at("thickness")),
-                num(p.at("mu")));
+    mxi::print("  panel %s: %" PRId64 " x %" PRId64
+               " pixels of %.4f x %.4f mm, %s %.3f "
+               "mm thick, mu %.4f/mm\n",
+               p.at("name").as_string().c_str(),
+               static_cast<std::int64_t>(a("image_size", 0)),
+               static_cast<std::int64_t>(a("image_size", 1)),
+               a("pixel_size", 0), a("pixel_size", 1),
+               p.at("material").as_string().c_str(), num(p.at("thickness")),
+               num(p.at("mu")));
     if (std::fabs(nz) > 1e-9) {
       const double t = d / (-nz);
       const double hx = -ox, hy = -oy, hz = -t - oz;
       const double bx = (hx * fx + hy * fy + hz * fz) / a("pixel_size", 0);
       const double by = (hx * sx + hy * sy + hz * sz) / a("pixel_size", 1);
-      std::printf("    distance %.3f mm; the beam meets it at pixel %.2f, "
-                  "%.2f; trusted to %.0f\n",
-                  std::fabs(d), bx, by, a("trusted_range", 1));
+      mxi::print("    distance %.3f mm; the beam meets it at pixel %.2f, "
+                 "%.2f; trusted to %.0f\n",
+                 std::fabs(d), bx, by, a("trusted_range", 1));
     }
   }
   const auto &g = e.at("goniometer").as_array()[0].as_object();
-  std::printf("  goniometer:");
+  mxi::print("  goniometer:");
   const auto &names = g.at("names").as_array();
   for (std::size_t i = 0; i < names.size(); ++i)
-    std::printf(" %s%s", names[i].as_string().c_str(),
-                static_cast<std::int32_t>(i) ==
-                        static_cast<std::int32_t>(num(g.at("scan_axis")))
-                    ? " (scan)"
-                    : "");
-  std::printf("\n");
+    mxi::print(" %s%s", names[i].as_string().c_str(),
+               static_cast<std::int32_t>(i) ==
+                       static_cast<std::int32_t>(num(g.at("scan_axis")))
+                   ? " (scan)"
+                   : "");
+  mxi::print("\n");
   const auto &s = e.at("scan").as_array()[0].as_object();
   const auto &osc = s.at("properties").as_object().at("oscillation").as_array();
   const auto &range = s.at("image_range").as_array();
   const double width = osc.size() > 1 ? num(osc[1]) - num(osc[0]) : 0.0;
-  std::printf("  scan: images %" PRId64 " to %" PRId64
-              ", from %.4f deg, %.4f deg each, "
-              "%.1f deg in all\n",
-              static_cast<std::int64_t>(num(range[0])),
-              static_cast<std::int64_t>(num(range[1])),
-              osc.empty() ? 0.0 : num(osc[0]), width,
-              width * (num(range[1]) - num(range[0]) + 1.0));
+  mxi::print("  scan: images %" PRId64 " to %" PRId64
+             ", from %.4f deg, %.4f deg each, "
+             "%.1f deg in all\n",
+             static_cast<std::int64_t>(num(range[0])),
+             static_cast<std::int64_t>(num(range[1])),
+             osc.empty() ? 0.0 : num(osc[0]), width,
+             width * (num(range[1]) - num(range[0]) + 1.0));
   for (const std::string &n : notes)
-    std::printf("  note: %s\n", n.c_str());
+    mxi::print("  note: %s\n", n.c_str());
 }
 
 // Each sweep split into n of consecutive images, as even as they can be (a
@@ -212,13 +213,13 @@ int mxi_import_main(int argc, char **argv) {
       "--mu", "--trusted-max", "--image-range", "--split"};
   const Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (args.has("--help")) {
-    std::printf("%s", kUsage);
+    mxi::print("%s", kUsage);
     return 0;
   }
   if (!args.ok || args.positional.empty()) {
     if (!args.ok)
-      std::fprintf(stderr, "mxi import: %s\n", args.error.c_str());
-    std::fprintf(stderr, "%s", kUsage);
+      mxi::eprint("mxi import: %s\n", args.error.c_str());
+    mxi::eprint("%s", kUsage);
     return 2;
   }
   try {
@@ -257,14 +258,14 @@ int mxi_import_main(int argc, char **argv) {
       if (n > 1) {
         document = split_sweeps(document, n);
         const json::Array &scans = document["scan"].as_array();
-        std::printf("Split into %zu sweeps:", scans.size());
+        mxi::print("Split into %zu sweeps:", scans.size());
         for (std::size_t k = 0; k < scans.size() && k < 6; ++k) {
           const json::Array &r = scans[k]["image_range"].as_array();
-          std::printf(" %" PRId64 "-%" PRId64,
-                      static_cast<std::int64_t>(r.at(0).as_number()),
-                      static_cast<std::int64_t>(r.at(1).as_number()));
+          mxi::print(" %" PRId64 "-%" PRId64,
+                     static_cast<std::int64_t>(r.at(0).as_number()),
+                     static_cast<std::int64_t>(r.at(1).as_number()));
         }
-        std::printf("%s\n", scans.size() > 6 ? " ..." : "");
+        mxi::print("%s\n", scans.size() > 6 ? " ..." : "");
       }
     }
     // The first step of the processing's summary: each sweep as imported.
@@ -300,11 +301,11 @@ int mxi_import_main(int argc, char **argv) {
     rflx::write_outputs(out, &document, nullptr, "mxi_import",
                         &summary_document);
     if (lists.size() > 1)
-      std::printf("%zu sweeps, one experiment each\n", lists.size());
-    std::printf("Wrote %s\n", rflx::describe(out, true, false).c_str());
+      mxi::print("%zu sweeps, one experiment each\n", lists.size());
+    mxi::print("Wrote %s\n", rflx::describe(out, true, false).c_str());
     return 0;
   } catch (const std::exception &ex) {
-    std::fprintf(stderr, "mxi import: %s\n", ex.what());
+    mxi::eprint("mxi import: %s\n", ex.what());
     return 1;
   }
 }

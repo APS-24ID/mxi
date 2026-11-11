@@ -14,6 +14,7 @@
 #include "args.hh"
 #include "json.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "processing.hh"
 #include "refl.hh"
 #include "rflx.hh"
@@ -59,16 +60,16 @@ int mxi_untrusted_main(int argc, char **argv) {
   const Arguments args = parse_arguments(
       argc, argv, {"-o", "--set", "--clear", "--help"}, {"-o", "--set"});
   if (args.help) {
-    std::printf("%s", kUsage);
+    mxi::print("%s", kUsage);
     return 0;
   }
   if (!args.ok || args.positional.size() != 1 ||
       (args.has("--set") && args.has("--clear"))) {
-    std::fprintf(stderr, "mxi untrusted: %s\n%s",
-                 !args.ok                      ? args.error.c_str()
-                 : args.positional.size() != 1 ? "one experiment list"
-                                               : "--set or --clear, not both",
-                 kUsage);
+    mxi::eprint("mxi untrusted: %s\n%s",
+                !args.ok                      ? args.error.c_str()
+                : args.positional.size() != 1 ? "one experiment list"
+                                              : "--set or --clear, not both",
+                kUsage);
     return 2;
   }
   try {
@@ -110,11 +111,11 @@ int mxi_untrusted_main(int argc, char **argv) {
 
     for (std::size_t k = 0; k < sets.size(); ++k) {
       const json::Value &s = sets[k];
-      std::printf("image set %zu, %s: %s\n", k,
-                  s["template"].is_string()
-                      ? base_name(s["template"].as_string()).c_str()
-                      : "?",
-                  describe_untrusted(s["untrusted"]).c_str());
+      mxi::print("image set %zu, %s: %s\n", k,
+                 s["template"].is_string()
+                     ? base_name(s["template"].as_string()).c_str()
+                     : "?",
+                 describe_untrusted(s["untrusted"]).c_str());
     }
     if (!changing)
       return 0;
@@ -131,10 +132,10 @@ int mxi_untrusted_main(int argc, char **argv) {
     rflx::write(temporary, &*document, table ? &*table : nullptr,
                 "mxi_untrusted", false, &steps);
     std::filesystem::rename(temporary, out);
-    std::printf("Wrote %s\n", out.c_str());
+    mxi::print("Wrote %s\n", out.c_str());
     return 0;
   } catch (const std::exception &e) {
-    std::fprintf(stderr, "mxi untrusted: %s\n", e.what());
+    mxi::eprint("mxi untrusted: %s\n", e.what());
     return 1;
   }
 }

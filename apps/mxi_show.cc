@@ -108,12 +108,12 @@ void show_table(const std::string &name, const json::Value &t) {
   }
   std::printf("    %s\n     ", name.c_str());
   for (std::size_t c = 0; c < heads.size(); ++c)
-    std::printf(" %*s", static_cast<int>(width[c]), heads[c].c_str());
+    std::printf(" %*s", static_cast<std::int32_t>(width[c]), heads[c].c_str());
   std::printf("\n");
   for (std::size_t r = 0; r < rows; ++r) {
     std::printf("     ");
     for (std::size_t c = 0; c < heads.size(); ++c)
-      std::printf(" %*s", static_cast<int>(width[c]),
+      std::printf(" %*s", static_cast<std::int32_t>(width[c]),
                   r < cells[c].size() ? cells[c][r].c_str() : "");
     std::printf("\n");
   }

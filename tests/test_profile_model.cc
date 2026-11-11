@@ -213,7 +213,7 @@ TEST(sigma_d_is_the_root_mean_of_the_variances_in_degrees) {
   std::vector<Shoebox> boxes;
   std::vector<Vec3> s1;
   // Three identical spots, so the root mean is just the one value.
-  for (int i = 0; i < 3; ++i) {
+  for (std::int32_t i = 0; i < 3; ++i) {
     Shoebox box;
     box.panel = 0;
     box.bbox[0] = 500;
@@ -276,7 +276,7 @@ TEST(a_planted_reflecting_range_comes_back) {
                                  ((std::uint64_t{1u} << 53) - 1)) /
              static_cast<double>(std::uint64_t{1u} << 53);
     };
-    for (int i = 0; i < 20000; ++i) {
+    for (std::int32_t i = 0; i < 20000; ++i) {
       const double u1 = std::fmax(uniform(), 1e-12);
       const double u2 = uniform();
       const double normal = std::sqrt(-2.0 * std::log(u1)) *
@@ -296,12 +296,12 @@ TEST(samples_near_the_rotation_axis_are_dropped) {
   // likelihood if kept.
   const double oscillation = Scan::radians(0.1);
   std::vector<RangeSample> samples;
-  for (int i = 0; i < 500; ++i) {
+  for (std::int32_t i = 0; i < 500; ++i) {
     samples.push_back({Scan::radians(0.02 * ((i % 7) - 3)), 0.8});
   }
   const double clean = reflecting_range(samples, oscillation, 0.05);
   // Add a hundred samples sitting on the axis, with wild offsets.
-  for (int i = 0; i < 100; ++i) {
+  for (std::int32_t i = 0; i < 100; ++i) {
     samples.push_back({Scan::radians(5.0 * ((i % 3) - 1)), 0.001});
   }
   const double polluted = reflecting_range(samples, oscillation, 0.05);
@@ -503,7 +503,7 @@ TEST(a_spot_on_its_own_beam_lands_in_the_middle_of_the_grid) {
   ProfileGrid grid = make_grid(4, 0.03, 0.12, 3.0);
   add_to_grid(e, box, s1, phi, &grid, 5);
 
-  const int middle = grid.n;
+  const std::int32_t middle = grid.n;
   double inside = 0.0;
   for (double v : grid.value)
     inside += v;
@@ -551,7 +551,7 @@ TEST(the_transform_conserves_counts) {
   const double phi =
       Scan::radians(e.scan.osc_start) + 21.0 * Scan::radians(e.scan.osc_width);
 
-  for (int subdivisions : {1, 3, 5}) {
+  for (std::int32_t subdivisions : {1, 3, 5}) {
     ProfileGrid grid = make_grid(6, 0.03, 0.12, 4.0);
     add_to_grid(e, box, s1, phi, &grid, subdivisions);
     check::close(grid.counts_added, total, 1e-9 * total,

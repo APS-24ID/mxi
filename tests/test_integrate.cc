@@ -27,7 +27,8 @@ Panel silicon_panel() {
 }
 
 //: A box with a flat background and a block of signal in the middle.
-Shoebox planted(double background, double signal_per_pixel, int signal_pixels) {
+Shoebox planted(double background, double signal_per_pixel,
+                std::int32_t signal_pixels) {
   Shoebox box;
   box.panel = 0;
   box.bbox[0] = 0;
@@ -41,7 +42,7 @@ Shoebox planted(double background, double signal_per_pixel, int signal_pixels) {
   box.background.assign(n, 0.0f);
   box.mask.assign(n, static_cast<std::uint8_t>(shoebox_mask::kValid |
                                                shoebox_mask::kBackground));
-  int placed = 0;
+  std::int32_t placed = 0;
   for (std::int32_t z = 1; z < 2 && placed < signal_pixels; ++z) {
     for (std::int32_t y = 5; y < 10 && placed < signal_pixels; ++y) {
       for (std::int32_t x = 5; x < 10 && placed < signal_pixels; ++x) {
@@ -97,7 +98,7 @@ TEST(a_planted_intensity_comes_back) {
   // own tests, on data that are.
   const double background = 2.0;
   const double excess = 37.0;
-  const int pixels = 25;
+  const std::int32_t pixels = 25;
   Shoebox box = planted(background, excess, pixels);
   IntegrateOptions options;
   options.background.tuning = 1e6;
@@ -383,8 +384,8 @@ TEST(the_position_uncertainty_is_honest_on_spots_at_known_positions) {
   for (double signal : {300.0, 3000.0}) {
     for (double background : {0.3, 3.0}) {
       double sum2[3] = {0.0, 0.0, 0.0};
-      int n = 0;
-      for (int trial = 0; trial < 1500; ++trial) {
+      std::int32_t n = 0;
+      for (std::int32_t trial = 0; trial < 1500; ++trial) {
         const double cx = 10.0 + where(rng);
         const double cy = 10.0 + where(rng);
         const double cz = 5.5 + where(rng);
@@ -402,9 +403,9 @@ TEST(the_position_uncertainty_is_honest_on_spots_at_known_positions) {
         box.mask.assign(size, shoebox_mask::kValid | shoebox_mask::kBackground);
         std::vector<double> shape(size, 0.0);
         double total = 0.0;
-        for (int z = 0; z < 11; ++z) {
-          for (int y = 0; y < 21; ++y) {
-            for (int x = 0; x < 21; ++x) {
+        for (std::int32_t z = 0; z < 11; ++z) {
+          for (std::int32_t y = 0; y < 21; ++y) {
+            for (std::int32_t x = 0; x < 21; ++x) {
               const double dx = (x + 0.5 - cx) / 1.3;
               const double dy = (y + 0.5 - cy) / 1.3;
               const double dz = (z + 0.5 - cz) / 0.8;
@@ -419,8 +420,8 @@ TEST(the_position_uncertainty_is_honest_on_spots_at_known_positions) {
           }
         }
         for (std::size_t i = 0; i < size; ++i) {
-          std::poisson_distribution<int> counts(background +
-                                                signal * shape[i] / total);
+          std::poisson_distribution<std::int32_t> counts(
+              background + signal * shape[i] / total);
           box.data[i] = static_cast<float>(counts(rng));
         }
         IntegrateOptions options;
@@ -432,12 +433,12 @@ TEST(the_position_uncertainty_is_honest_on_spots_at_known_positions) {
                              r.unbiased_z - cz};
         const double v[3] = {r.unbiased_variance_fast, r.unbiased_variance_slow,
                              r.unbiased_variance_z};
-        for (int k = 0; k < 3; ++k)
+        for (std::int32_t k = 0; k < 3; ++k)
           sum2[k] += d[k] * d[k] / v[k];
         ++n;
       }
       check::is_true(n > 1000, "nearly every trial has a centre");
-      for (int k = 0; k < 3; ++k) {
+      for (std::int32_t k = 0; k < 3; ++k) {
         const double pull = std::sqrt(sum2[k] / n);
         // Within ten per cent of one either way: an overconfident variance is
         // the failure that matters, and a conservative one is nearly as bad
@@ -459,7 +460,7 @@ TEST(an_undetected_reflection_has_no_centre_rather_than_a_wild_one) {
   std::mt19937 rng(11);
   std::size_t claimed = 0;
   std::size_t outside = 0;
-  for (int trial = 0; trial < 2000; ++trial) {
+  for (std::int32_t trial = 0; trial < 2000; ++trial) {
     Shoebox box;
     box.panel = 0;
     box.bbox[0] = 100;
@@ -472,16 +473,16 @@ TEST(an_undetected_reflection_has_no_centre_rather_than_a_wild_one) {
     box.data.assign(size, 0.0f);
     box.background.assign(size, 0.0f);
     box.mask.assign(size, shoebox_mask::kValid | shoebox_mask::kBackground);
-    for (int z = 0; z < 11; ++z) {
-      for (int y = 5; y < 16; ++y) {
-        for (int x = 5; x < 16; ++x) {
+    for (std::int32_t z = 0; z < 11; ++z) {
+      for (std::int32_t y = 5; y < 16; ++y) {
+        for (std::int32_t x = 5; x < 16; ++x) {
           box.mask[box.at(x, y, z)] =
               shoebox_mask::kValid | shoebox_mask::kForeground;
         }
       }
     }
     // Nothing but background: there is no reflection here to find.
-    std::poisson_distribution<int> counts(0.3);
+    std::poisson_distribution<std::int32_t> counts(0.3);
     for (std::size_t i = 0; i < size; ++i) {
       box.data[i] = static_cast<float>(counts(rng));
     }
@@ -573,7 +574,8 @@ namespace mxi {
 namespace {
 
 //: The planted box's background redrawn as Poisson about mean_at(x), seeded.
-template <typename F> Shoebox poisson_background(F mean_at, unsigned seed) {
+template <typename F>
+Shoebox poisson_background(F mean_at, std::uint32_t seed) {
   Shoebox box = planted(0.0, 50.0, 25);
   std::mt19937 rng(seed);
   for (std::int32_t z = 0; z < box.nz(); ++z)
@@ -581,7 +583,7 @@ template <typename F> Shoebox poisson_background(F mean_at, unsigned seed) {
       for (std::int32_t x = 0; x < box.nx(); ++x) {
         const std::size_t at = box.at(x, y, z);
         if (box.mask[at] & shoebox_mask::kBackground) {
-          std::poisson_distribution<int> draw(mean_at(x));
+          std::poisson_distribution<std::int32_t> draw(mean_at(x));
           box.data[at] = static_cast<float>(draw(rng));
         }
       }

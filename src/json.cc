@@ -229,16 +229,16 @@ private:
       case 'u': {
         if (at_ + 4 > text_.size())
           fail("truncated \\u escape");
-        unsigned code = 0;
-        for (int i = 0; i < 4; ++i) {
+        std::uint32_t code = 0;
+        for (std::int32_t i = 0; i < 4; ++i) {
           const char h = text_[at_++];
           code *= 16;
           if (h >= '0' && h <= '9')
-            code += static_cast<unsigned>(h - '0');
+            code += static_cast<std::uint32_t>(h - '0');
           else if (h >= 'a' && h <= 'f')
-            code += static_cast<unsigned>(h - 'a' + 10);
+            code += static_cast<std::uint32_t>(h - 'a' + 10);
           else if (h >= 'A' && h <= 'F')
-            code += static_cast<unsigned>(h - 'A' + 10);
+            code += static_cast<std::uint32_t>(h - 'A' + 10);
           else
             fail("bad hex digit in \\u escape");
         }
@@ -301,8 +301,9 @@ private:
   }
 };
 
-void write(std::ostringstream &os, const Value &v, int indent, int depth) {
-  const auto newline = [&](int d) {
+void write(std::ostringstream &os, const Value &v, std::int32_t indent,
+           std::int32_t depth) {
+  const auto newline = [&](std::int32_t d) {
     if (indent > 0) {
       os << "\n";
       os << std::string(static_cast<std::size_t>(indent * d), ' ');
@@ -428,13 +429,14 @@ Value parse_file(const std::string &path) {
   return parse(buffer.str());
 }
 
-std::string dump(const Value &value, int indent) {
+std::string dump(const Value &value, std::int32_t indent) {
   std::ostringstream os;
   write(os, value, indent, 0);
   return os.str();
 }
 
-void dump_file(const std::string &path, const Value &value, int indent) {
+void dump_file(const std::string &path, const Value &value,
+               std::int32_t indent) {
   std::ofstream out(path, std::ios::binary);
   if (!out)
     throw std::runtime_error("cannot write " + path);

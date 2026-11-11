@@ -30,7 +30,7 @@
 #include <mach-o/dyld.h>
 #endif
 
-#define MXI_PROGRAM(name) int mxi_##name##_main(int argc, char **argv);
+#define MXI_PROGRAM(name) std::int32_t mxi_##name##_main(int argc, char **argv);
 MXI_PROGRAM(import)
 MXI_PROGRAM(find)
 MXI_PROGRAM(index)
@@ -63,7 +63,7 @@ namespace {
 
 struct Command {
   const char *name;
-  int (*run)(int, char **);
+  std::int32_t (*run)(std::int32_t, char **);
   const char *what;
   bool diagnostic;
 };
@@ -138,8 +138,8 @@ const char *python_script(const char *command) {
 }
 
 // Runs the Python command beside this binary, its arguments passed on.
-int python_command(const char *command, int argc, char **argv,
-                   const char *self) {
+std::int32_t python_command(const char *command, int argc, char **argv,
+                            const char *self) {
   const std::string here = mxi::executable_path(self);
   const std::size_t slash = here.rfind('/');
   const std::string script =
@@ -147,7 +147,7 @@ int python_command(const char *command, int argc, char **argv,
       "/" + python_script(command);
   std::vector<char *> args;
   args.push_back(const_cast<char *>(script.c_str()));
-  for (int i = 1; i < argc; ++i)
+  for (std::int32_t i = 1; i < argc; ++i)
     args.push_back(argv[i]);
   args.push_back(nullptr);
   ::execv(script.c_str(), args.data());

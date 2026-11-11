@@ -76,7 +76,7 @@ bool looks_like_json(const std::string &path) {
   std::FILE *file = std::fopen(path.c_str(), "rb");
   if (file == nullptr)
     return false;
-  int c = 0;
+  std::int32_t c = 0;
   while ((c = std::fgetc(file)) != EOF && std::isspace(c))
     ;
   std::fclose(file);
@@ -166,7 +166,7 @@ int mxi_max_main(int argc, char **argv) {
         join_total{0}, over_total{0};
     std::mutex best_mutex;
     std::uint64_t best = 0, best_frame = 0;
-    unsigned bit_depth = 0;
+    std::uint32_t bit_depth = 0;
     std::string failure;
     const double t0 = now();
     std::vector<std::thread> workers;

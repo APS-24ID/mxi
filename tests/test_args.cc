@@ -29,8 +29,8 @@ Arguments run(const std::vector<std::string> &words) {
       "--beam", "--strong-only", "--outlier-sigma", "--output-expt"};
   static const std::set<std::string> takes_value = {"--outlier-sigma",
                                                     "--output-expt"};
-  return parse_arguments(static_cast<int>(argv.size()), argv.data(), known,
-                         takes_value);
+  return parse_arguments(static_cast<std::int32_t>(argv.size()), argv.data(),
+                         known, takes_value);
 }
 
 } // namespace

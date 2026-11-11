@@ -88,7 +88,7 @@ void check_same_cell(const UnitCell &got, const UnitCell &want,
   double b[3] = {want.a, want.b, want.c};
   std::sort(a, a + 3);
   std::sort(b, b + 3);
-  for (int i = 0; i < 3; ++i) {
+  for (std::int32_t i = 0; i < 3; ++i) {
     check::close(a[i], b[i], tolerance * b[i], "cell edge");
   }
   check::close(got.volume(), want.volume(), 3.0 * tolerance * want.volume(),
@@ -322,9 +322,9 @@ TEST(estimate_max_cell_recovers_a_known_spacing) {
   // and is a lower bound on the cell before that.
   std::vector<Vec3> points;
   const double spacing = 1.0 / 60.0;
-  for (int h = -5; h <= 5; ++h) {
-    for (int k = -5; k <= 5; ++k) {
-      for (int l = -5; l <= 5; ++l) {
+  for (std::int32_t h = -5; h <= 5; ++h) {
+    for (std::int32_t k = -5; k <= 5; ++k) {
+      for (std::int32_t l = -5; l <= 5; ++l) {
         points.push_back({h * spacing, k * spacing, l * spacing});
       }
     }
@@ -343,7 +343,7 @@ TEST(index_refuses_rather_than_inventing_a_lattice) {
   Column &xyz = spots.real_column("xyzobs.px.value", "vec3<double>", 3);
   Column &panel = spots.int_column("panel", "std::size_t", 1);
   Column &id = spots.int_column("id", "int", 1);
-  unsigned state = 12345;
+  std::uint32_t state = 12345;
   const auto next = [&state]() {
     state = state * 1664525u + 1013904223u;
     return static_cast<double>(state >> 8) / static_cast<double>(1u << 24);
@@ -408,7 +408,7 @@ TEST(macrocycles_keep_a_weak_population_from_dragging_the_model) {
   (void)panel;
   (void)id;
 
-  const auto recover = [&](int cycles, bool strong) {
+  const auto recover = [&](std::int32_t cycles, bool strong) {
     ExperimentList list;
     Experiment blank = truth;
     blank.crystal.reset();
@@ -479,9 +479,9 @@ TEST(max_cell_is_not_fooled_by_the_same_reflection_measured_again) {
   // thousand Angstroms, which finds no candidate vectors at all.
   std::vector<Vec3> one;
   const double d = 1.0 / 67.0;
-  for (int h = -8; h <= 8; ++h) {
-    for (int k = -8; k <= 8; ++k) {
-      for (int l = -8; l <= 8; ++l) {
+  for (std::int32_t h = -8; h <= 8; ++h) {
+    for (std::int32_t k = -8; k <= 8; ++k) {
+      for (std::int32_t l = -8; l <= 8; ++l) {
         if (!h && !k && !l)
           continue;
         one.push_back({h * d, k * d, l * d});
@@ -504,8 +504,8 @@ TEST(max_cell_is_not_fooled_by_the_same_reflection_measured_again) {
 
   for (double scale : {1e-4, 1e-3}) {
     std::vector<Vec3> many;
-    std::vector<int> groups;
-    for (int turn = 0; turn < 10; ++turn) {
+    std::vector<std::int32_t> groups;
+    for (std::int32_t turn = 0; turn < 10; ++turn) {
       for (const Vec3 &p : one) {
         many.push_back(
             {p.x + jitter(scale), p.y + jitter(scale), p.z + jitter(scale)});
@@ -546,7 +546,7 @@ TEST(a_sweep_shorter_than_a_block_is_all_one_group) {
   for (std::size_t i = 0; i < t.nrows; ++i) {
     obs.reals[i * 3 + 2] = static_cast<double>(i) * 4.0; // 0 to 16 degrees
   }
-  const std::vector<int> groups = observation_groups(list, t);
+  const std::vector<std::int32_t> groups = observation_groups(list, t);
   for (std::size_t i = 1; i < groups.size(); ++i) {
     check::equal(static_cast<std::int64_t>(groups[i]),
                  static_cast<std::int64_t>(groups[0]),
@@ -562,7 +562,7 @@ TEST(a_sweep_shorter_than_a_block_is_all_one_group) {
   for (std::size_t i = 0; i < t.nrows; ++i) {
     obs.reals[i * 3 + 2] = static_cast<double>(i) * 70.0; // 0 to 280 degrees
   }
-  const std::vector<int> spread = observation_groups(list, t);
+  const std::vector<std::int32_t> spread = observation_groups(list, t);
   check::is_true(spread.front() != spread.back(),
                  "the two ends of a rotation are different blocks");
   check::equal(static_cast<std::int64_t>(spread[0]),
@@ -582,9 +582,9 @@ TEST(a_reflection_is_seen_twice_in_one_rotation_and_the_blocks_know_it) {
   // true 135. Those are the numbers this reproduces.
   std::vector<Vec3> one;
   const double d = 1.0 / 90.0;
-  for (int h = -10; h <= 10; ++h) {
-    for (int k = -10; k <= 10; ++k) {
-      for (int l = -10; l <= 10; ++l) {
+  for (std::int32_t h = -10; h <= 10; ++h) {
+    for (std::int32_t k = -10; k <= 10; ++k) {
+      for (std::int32_t l = -10; l <= 10; ++l) {
         if (!h && !k && !l)
           continue;
         one.push_back({h * d, k * d, l * d});
@@ -604,17 +604,17 @@ TEST(a_reflection_is_seen_twice_in_one_rotation_and_the_blocks_know_it) {
   };
 
   std::vector<Vec3> many;
-  std::vector<int> by_turn;
-  std::vector<int> by_block;
-  for (int turn = 0; turn < 10; ++turn) {
+  std::vector<std::int32_t> by_turn;
+  std::vector<std::int32_t> by_block;
+  for (std::int32_t turn = 0; turn < 10; ++turn) {
     // The two passages of one reflection, a hundred and fifty degrees apart.
     for (double phi : {20.0, 170.0}) {
       for (const Vec3 &p : one) {
         many.push_back(
             {p.x + jitter(5e-4), p.y + jitter(5e-4), p.z + jitter(5e-4)});
         const double angle = turn * 360.0 + phi;
-        by_turn.push_back(static_cast<int>(angle / 360.0));
-        by_block.push_back(static_cast<int>(angle / 30.0));
+        by_turn.push_back(static_cast<std::int32_t>(angle / 360.0));
+        by_block.push_back(static_cast<std::int32_t>(angle / 30.0));
       }
     }
   }
@@ -635,7 +635,7 @@ TEST(a_sweep_of_several_turns_predicts_each_reflection_once_per_turn) {
   // Predicting it once left a tenth of the reflections: on a real ten rotation
   // sweep, 749786 predictions where DIALS made 7516507. The ratio was 10.02,
   // which is the number of turns and is what gave it away.
-  const auto sweep = [](int turns) {
+  const auto sweep = [](std::int32_t turns) {
     Experiment e;
     e.beam.direction = {0.0, 0.0, 1.0};
     e.beam.wavelength = 0.9537;
@@ -663,7 +663,7 @@ TEST(a_sweep_of_several_turns_predicts_each_reflection_once_per_turn) {
   const std::size_t one = predict(sweep(1), options).size();
   check::is_true(one > 1000, "a single turn predicts something");
 
-  for (int turns : {2, 5, 10}) {
+  for (std::int32_t turns : {2, 5, 10}) {
     const Experiment e = sweep(turns);
     const std::vector<Prediction> v = predict(e, options);
     check::equal(static_cast<std::int64_t>(v.size()),
@@ -697,7 +697,7 @@ TEST(a_scan_varying_crystal_also_predicts_once_per_turn) {
   //
   // So this asserts what the other test asserts, on a crystal that varies --
   // which is every real one.
-  const auto sweep = [](int turns) {
+  const auto sweep = [](std::int32_t turns) {
     Experiment e;
     e.beam.direction = {0.0, 0.0, 1.0};
     e.beam.wavelength = 0.9537;
@@ -731,7 +731,7 @@ TEST(a_scan_varying_crystal_also_predicts_once_per_turn) {
   const std::size_t one = predict(sweep(1), options).size();
   check::is_true(one > 1000, "a single turn predicts something");
 
-  for (int turns : {2, 5, 10}) {
+  for (std::int32_t turns : {2, 5, 10}) {
     const Experiment e = sweep(turns);
     const std::vector<Prediction> v = predict(e, options);
     check::equal(static_cast<std::int64_t>(v.size()),
@@ -743,7 +743,7 @@ TEST(a_scan_varying_crystal_also_predicts_once_per_turn) {
     // hold about the same number.
     std::vector<std::size_t> per_turn(static_cast<std::size_t>(turns), 0);
     for (const Prediction &p : v) {
-      const int turn = static_cast<int>(p.z / 3600.0);
+      const std::int32_t turn = static_cast<std::int32_t>(p.z / 3600.0);
       if (turn >= 0 && turn < turns)
         ++per_turn[static_cast<std::size_t>(turn)];
     }
@@ -770,7 +770,7 @@ TEST(a_crystal_that_moves_does_not_collapse_its_turns_together) {
   // Found by mxeq explain on a real ten rotation comparison, which said that
   // 85.7 per cent of our unpartnered observations had a same-index,
   // same-flag partner within the radius -- the signature of duplicates.
-  const int turns = 4;
+  const std::int32_t turns = 4;
   Experiment e;
   e.beam.direction = {0.0, 0.0, 1.0};
   e.beam.wavelength = 0.9537;
@@ -806,7 +806,9 @@ TEST(a_crystal_that_moves_does_not_collapse_its_turns_together) {
   // No two observations of one reflection with the same flag within five
   // frames: those are a whole turn apart, or they are the same observation
   // predicted twice.
-  std::map<std::tuple<int, int, int, bool>, std::vector<double>> groups;
+  std::map<std::tuple<std::int32_t, std::int32_t, std::int32_t, bool>,
+           std::vector<double>>
+      groups;
   for (const Prediction &q : v)
     groups[{q.h, q.k, q.l, q.entering}].push_back(q.z);
   std::size_t collapsed = 0;
@@ -896,7 +898,7 @@ TEST(the_max_cell_is_the_histograms_peak_edge_times_1_3_as_dials_takes_it) {
   // A, the longest 1 per cent dropped, about five to a bin; the far edge of
   // the last bin above a quarter of the tallest, times 1.3.
   std::vector<double> direct;
-  for (int i = 0; i < 200; ++i)
+  for (std::int32_t i = 0; i < 200; ++i)
     direct.push_back(6.90 +
                      0.001 * (i % 100)); // the lattice's spacing, 6.90 to 6.999
   const double peak = max_cell_from_neighbours(direct);
@@ -907,9 +909,9 @@ TEST(the_max_cell_is_the_histograms_peak_edge_times_1_3_as_dials_takes_it) {
   // over the whole range, as DIALS bins them -- so the edge may move by one
   // bin, here some 0.43 A; but it stays at the peak, not with the tail.
   std::vector<double> tailed = direct;
-  for (int i = 0; i < 40; ++i)
+  for (std::int32_t i = 0; i < 40; ++i)
     tailed.push_back(9.0 + 0.5 * i);
-  for (int i = 0; i < 10; ++i)
+  for (std::int32_t i = 0; i < 10; ++i)
     tailed.push_back(0.5);
   const double with_tail = max_cell_from_neighbours(tailed);
   check::is_true(with_tail >= peak - 1e-9 && with_tail < 1.3 * 7.5,
@@ -961,10 +963,10 @@ std::vector<Vec3> long_axis_points(bool strays) {
       Mat3::from_rows({43.6, 0.0, 0.0}, {0.0, 43.6, 0.0}, {0.0, 0.0, 212.0});
   const Mat3 A = rows.inverse();
   std::vector<Vec3> points;
-  int n = 0;
-  for (int h = -8; h <= 8; ++h)
-    for (int k = -8; k <= 8; ++k)
-      for (int l = -40; l <= 40; ++l) {
+  std::int32_t n = 0;
+  for (std::int32_t h = -8; h <= 8; ++h)
+    for (std::int32_t k = -8; k <= 8; ++k)
+      for (std::int32_t l = -40; l <= 40; ++l) {
         if (h == 0 && k == 0 && l == 0)
           continue;
         const Vec3 r = A * Vec3{double(h), double(k), double(l)};
@@ -1060,7 +1062,7 @@ TEST(two_lattices_in_one_sweep_are_both_found) {
                           ? std::to_string(r.scatter[0]) + " " +
                                 std::to_string(r.scatter[1])
                           : std::string("?")));
-  int matched = 0;
+  std::int32_t matched = 0;
   for (const Crystal *t : {&*a.crystal, &*b.crystal})
     for (const Experiment &e : r.experiments)
       matched += same_lattice(*t, *e.crystal) ? 1 : 0;

@@ -340,7 +340,7 @@ std::string material_symbol(const std::string &raw) {
 std::string uuid4() {
   std::random_device rd;
   std::mt19937_64 gen((static_cast<std::uint64_t>(rd()) << 32) ^ rd());
-  std::uniform_int_distribution<int> hex(0, 15);
+  std::uniform_int_distribution<std::int32_t> hex(0, 15);
   const char *digits = "0123456789abcdef";
   std::string s = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
   for (char &c : s) {
@@ -420,7 +420,7 @@ std::optional<std::string> unreachable(hid_t file, const std::string &path) {
   if (got >= 0 && info.type == H5L_TYPE_EXTERNAL && info.u.val_size > 0) {
     std::vector<char> value(info.u.val_size);
     const char *target_file = nullptr, *target = nullptr;
-    unsigned flags = 0;
+    std::uint32_t flags = 0;
     if (H5Lget_val(file, path.c_str(), value.data(), value.size(),
                    H5P_DEFAULT) >= 0 &&
         H5Lunpack_elink_val(value.data(), value.size(), &flags, &target_file,
@@ -465,7 +465,7 @@ struct LinkedFrames {
 };
 std::optional<LinkedFrames> linked_frames(hid_t file) {
   LinkedFrames out;
-  for (int k = 1;; ++k) {
+  for (std::int32_t k = 1;; ++k) {
     char name[64];
     std::snprintf(name, sizeof name, "/entry/data/data_%06d", k);
     if (H5Lexists(file, name, H5P_DEFAULT) <= 0)
@@ -493,9 +493,8 @@ std::optional<LinkedFrames> linked_frames(hid_t file) {
 // shape. None if none of them is there.
 std::optional<std::pair<std::int64_t, std::int64_t>>
 frame_shape(hid_t file, const std::string &detector) {
-  const auto dims_of =
-      [&](const std::string &path,
-          int rank) -> std::optional<std::pair<std::int64_t, std::int64_t>> {
+  const auto dims_of = [&](const std::string &path, std::int32_t rank)
+      -> std::optional<std::pair<std::int64_t, std::int64_t>> {
     if (H5Lexists(file, path.c_str(), H5P_DEFAULT) <= 0)
       return std::nullopt;
     H5 d(H5Dopen2(file, path.c_str(), H5P_DEFAULT), H5Dclose);
@@ -705,7 +704,7 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
     trusted_max = *o.trusted_max;
   } else {
     std::optional<double> detector_limit;
-    std::optional<int> bits;
+    std::optional<std::int32_t> bits;
     std::string bits_from;
     const std::vector<std::string> limits = {
         detector + "/saturation_value",
@@ -721,7 +720,7 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
     for (const char *name : {"/bit_depth_image", "/bit_depth_readout"}) {
       const std::string p = detector + name;
       if (exists(f, p)) {
-        bits = static_cast<int>(read_doubles(f, p).at(0));
+        bits = static_cast<std::int32_t>(read_doubles(f, p).at(0));
         bits_from = p;
         break;
       }
@@ -730,7 +729,7 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
     }
     if (!bits) {
       // The data files' own type: the first linked one there.
-      for (int k = 1; k <= 9 && !bits; ++k) {
+      for (std::int32_t k = 1; k <= 9 && !bits; ++k) {
         char name[32];
         std::snprintf(name, sizeof name, "/entry/data/data_%06d", k);
         if (!exists(f, name))
@@ -740,7 +739,7 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
           continue;
         H5 t(H5Dget_type(d.get()), H5Tclose);
         if (t.ok() && H5Tget_class(t.get()) == H5T_INTEGER) {
-          bits = static_cast<int>(8 * H5Tget_size(t.get()));
+          bits = static_cast<std::int32_t>(8 * H5Tget_size(t.get()));
           bits_from = std::string(name) + "'s type";
         }
       }
@@ -990,7 +989,7 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
   if (!nearly && sample_start.empty())
     throw std::runtime_error("/entry/sample has no depends_on: no goniometer");
   json::Array axes, angles, names;
-  int scan_axis = -1;
+  std::int32_t scan_axis = -1;
   std::vector<double> scan_values;
   if (nearly) {
     // dxtbx's fixer: omega about (-1, 0, 0) -- (0, 1, 0) on detector
@@ -1004,7 +1003,7 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
         number == "E-32-0105" ? Vec3{0.0, 1.0, 0.0} : Vec3{-1.0, 0.0, 0.0};
     double step =
         read_doubles(f, "/entry/sample/goniometer/omega_range_average").at(0);
-    step = static_cast<int>(step * 100 + 0.5) / 100.0;
+    step = static_cast<std::int32_t>(step * 100 + 0.5) / 100.0;
     std::int64_t images = 0;
     if (linked) {
       images = linked->images;
@@ -1042,7 +1041,7 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
       if (scan_axis >= 0)
         throw std::runtime_error("more than one goniometer axis moves: " +
                                  s.name + " and the scan axis before it");
-      scan_axis = static_cast<int>(axes.size());
+      scan_axis = static_cast<std::int32_t>(axes.size());
       scan_values = s.values;
     }
     // As the file gives it, as dials.import writes it: normalised where used.

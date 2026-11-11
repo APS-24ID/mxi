@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <numeric>
 #include <random>
@@ -171,9 +172,9 @@ ScaleData build_scale_data(const ExperimentList &experiments,
     const double part = partiality[i];
     if (!(part >= options.partiality_cutoff))
       return;
-    const Miller h{static_cast<int>(miller.ints[i * 3]),
-                   static_cast<int>(miller.ints[i * 3 + 1]),
-                   static_cast<int>(miller.ints[i * 3 + 2])};
+    const Miller h{static_cast<std::int32_t>(miller.ints[i * 3]),
+                   static_cast<std::int32_t>(miller.ints[i * 3 + 1]),
+                   static_cast<std::int32_t>(miller.ints[i * 3 + 2])};
     if ((h[0] == 0 && h[1] == 0 && h[2] == 0) || group.absent(h))
       return;
     double factor = 1.0;
@@ -343,7 +344,7 @@ std::vector<double> merged_intensities(const ScaleData &data,
 std::vector<std::size_t> select_for_fitting(const ScaleData &data,
                                             std::size_t min_groups,
                                             std::size_t min_observations,
-                                            unsigned seed) {
+                                            std::uint32_t seed) {
   std::vector<std::vector<std::size_t>> members(data.unique.size());
   for (std::size_t i = 0; i < data.size(); ++i)
     if (!data.outlier[i])
@@ -606,7 +607,7 @@ ScaleFitResult fit_scale_model(ScaleModel &model, const ScaleData &data,
   double phi = target(model, data, members, use, options, &g, &merged);
   result.target_start = phi;
   double mu = 1e-3;
-  for (int it = 0; it < options.max_iterations; ++it) {
+  for (std::int32_t it = 0; it < options.max_iterations; ++it) {
     result.iterations = it + 1;
     // Normal equations of the residuals sqrt(w)(I - g <I>), differentiated
     // with <I> as a function of the parameters (variable projection, in
@@ -618,7 +619,7 @@ ScaleFitResult fit_scale_model(ScaleModel &model, const ScaleData &data,
     std::vector<double> N, b;
     normal_equations(model, data, members, g, merged, options, N, b);
     bool improved = false;
-    for (int tries = 0; tries < 12 && !improved; ++tries) {
+    for (std::int32_t tries = 0; tries < 12 && !improved; ++tries) {
       std::vector<double> A = N, step = b;
       for (std::size_t a = 0; a < n; ++a)
         A[a * n + a] += mu * std::fmax(N[a * n + a], 1e-12);
@@ -787,7 +788,7 @@ double brent_minimum(F f, double lo, double hi, double tol) {
   double x = a + golden * (b - a), w = x, v = x;
   double fx = f(x), fw = fx, fv = fx;
   double d = 0.0, e = 0.0;
-  for (int it = 0; it < 100; ++it) {
+  for (std::int32_t it = 0; it < 100; ++it) {
     const double m = 0.5 * (a + b);
     const double t1 = 1e-10 * std::abs(x) + tol / 3.0, t2 = 2.0 * t1;
     if (std::abs(x - m) <= t2 - 0.5 * (b - a))
@@ -929,14 +930,15 @@ ErrorModel refine_error_model_individual(const ScaleData &data,
     lo = std::fmin(lo, v);
     hi = std::fmax(hi, v);
   }
-  const int nbins = 20;
-  std::vector<int> bin(use.size());
+  const std::int32_t nbins = 20;
+  std::vector<std::int32_t> bin(use.size());
   for (std::size_t k = 0; k < use.size(); ++k) {
     const double v = std::fmax(data.b_intensity(use[k]), 1e-3);
-    bin[k] = hi > lo ? std::min(nbins - 1,
-                                static_cast<int>(nbins * std::log(v / lo) /
-                                                 std::log(hi / lo)))
-                     : 0;
+    bin[k] = hi > lo
+                 ? std::min(nbins - 1,
+                            static_cast<std::int32_t>(nbins * std::log(v / lo) /
+                                                      std::log(hi / lo)))
+                 : 0;
   }
   std::vector<double> dev;
   // The normal probability plot's quantiles depend only on the count, which a
@@ -945,7 +947,7 @@ ErrorModel refine_error_model_individual(const ScaleData &data,
   for (std::size_t k = 0; k < use.size(); ++k)
     quantile_of[k] = normal_quantile((static_cast<double>(k) + 0.5) /
                                      static_cast<double>(use.size()));
-  for (int round = 0; round < 20; ++round) {
+  for (std::int32_t round = 0; round < 20; ++round) {
     const double a0 = em.a, b0 = em.b;
     // a: the slope of the central normal probability plot, |x| < 1.5.
     deviations(em.a, em.b, &dev);
@@ -974,7 +976,7 @@ ErrorModel refine_error_model_individual(const ScaleData &data,
         ++count[bin[k]];
       }
       double f = 0.0;
-      for (int j = 0; j < nbins; ++j) {
+      for (std::int32_t j = 0; j < nbins; ++j) {
         if (count[j] < 10)
           continue;
         const double c = static_cast<double>(count[j]);
@@ -1071,18 +1073,19 @@ ErrorModel refine_error_model(const ScaleData &data,
     lo = std::fmin(lo, v);
     hi = std::fmax(hi, v);
   }
-  const int nbins = 20;
-  std::vector<int> bin(use.size());
+  const std::int32_t nbins = 20;
+  std::vector<std::int32_t> bin(use.size());
   for (std::size_t k = 0; k < use.size(); ++k) {
     // Binned by the reflection's merged intensity, as dials.scale: by the
     // observation's own, one that scattered high joined a higher bin, and
     // every bin's deviations read wide -- a = 1.18 for 1.0, b = 0.15 planted.
     const std::size_t h = data.group[use[k]];
     const double v = std::fmax(s.num[h] / s.den[h], 1e-3);
-    bin[k] = hi > lo ? std::min(nbins - 1,
-                                static_cast<int>(nbins * std::log(v / lo) /
-                                                 std::log(hi / lo)))
-                     : 0;
+    bin[k] = hi > lo
+                 ? std::min(nbins - 1,
+                            static_cast<std::int32_t>(nbins * std::log(v / lo) /
+                                                      std::log(hi / lo)))
+                 : 0;
   }
   // a and b together, by regression, as dials.scale's default: in each
   // intensity bin the deviations' mean square should be a^2 (P + b^2 Q),
@@ -1102,7 +1105,7 @@ ErrorModel refine_error_model(const ScaleData &data,
     ++count[bin[k]];
   }
   double Spp = 0.0, Spq = 0.0, Sqq = 0.0, Spy = 0.0, Sqy = 0.0;
-  for (int j = 0; j < nbins; ++j) {
+  for (std::int32_t j = 0; j < nbins; ++j) {
     if (count[j] < 10)
       continue;
     const double c = static_cast<double>(count[j]);
@@ -1131,7 +1134,7 @@ ErrorModel refine_error_model(const ScaleData &data,
            "square, p the variance as given, q the intensity squared\n");
     detail("  %4s %8s %10s %12s %12s %12s %12s %8s\n", "bin", "n", "<I>", "y",
            "p", "q", "fit", "y/fit");
-    for (int j = 0; j < nbins; ++j) {
+    for (std::int32_t j = 0; j < nbins; ++j) {
       if (count[j] == 0)
         continue;
       const double c = static_cast<double>(count[j]);
@@ -1196,14 +1199,14 @@ ErrorModel refine_error_model(const ScaleData &data,
         return s.num[data.group[x]] / s.den[data.group[x]] <
                s.num[data.group[y]] / s.den[data.group[y]];
       });
-      const int nb = 20;
+      const std::int32_t nb = 20;
       double M[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, v[3] = {0, 0, 0};
       struct Row {
         std::size_t n;
         double ih, y, pb, ps, q;
       };
       std::vector<Row> rows;
-      for (int j = 0; j < nb; ++j) {
+      for (std::int32_t j = 0; j < nb; ++j) {
         const std::size_t from = all.size() * static_cast<std::size_t>(j) / nb,
                           to =
                               all.size() * static_cast<std::size_t>(j + 1) / nb;
@@ -1228,21 +1231,22 @@ ErrorModel refine_error_model(const ScaleData &data,
         if (!(r.y > 0.0))
           continue;
         const double w = n / (r.y * r.y), x[3] = {r.pb, r.ps, r.q};
-        for (int a = 0; a < 3; ++a) {
+        for (std::int32_t a = 0; a < 3; ++a) {
           v[a] += w * x[a] * r.y;
-          for (int b = 0; b < 3; ++b)
+          for (std::int32_t b = 0; b < 3; ++b)
             M[a][b] += w * x[a] * x[b];
         }
       }
       // Solved by Cholesky; b at its bound refitted without it.
-      const auto solve = [](double A[3][3], double rhs[3], int n, double *out) {
+      const auto solve = [](double A[3][3], double rhs[3], std::int32_t n,
+                            double *out) {
         std::vector<double> m(static_cast<std::size_t>(n * n)), r(rhs, rhs + n);
-        for (int a = 0; a < n; ++a)
-          for (int b = 0; b < n; ++b)
+        for (std::int32_t a = 0; a < n; ++a)
+          for (std::int32_t b = 0; b < n; ++b)
             m[static_cast<std::size_t>(a * n + b)] = A[a][b];
         if (!solve_spd(m.data(), r.data(), static_cast<std::size_t>(n)))
           return false;
-        for (int a = 0; a < n; ++a)
+        for (std::int32_t a = 0; a < n; ++a)
           out[a] = r[static_cast<std::size_t>(a)];
         return true;
       };
@@ -1311,7 +1315,7 @@ void apply_error_model(ScaleData &data, const ErrorModel &model) {
 
 std::vector<CalibrationRow> calibration(const ScaleData &data,
                                         const std::vector<double> &g,
-                                        bool by_resolution, int bins) {
+                                        bool by_resolution, std::int32_t bins) {
   const std::size_t groups = data.unique.size();
   std::vector<std::vector<std::size_t>> members(groups);
   for (std::size_t i = 0; i < data.size(); ++i)
@@ -1330,7 +1334,7 @@ std::vector<CalibrationRow> calibration(const ScaleData &data,
       const double x = data.intensity[i] / g[i];
       const double v[2] = {data.variance_before[i] + data.scale_term_at(i),
                            data.variance[i]};
-      for (int k = 0; k < 2; ++k)
+      for (std::int32_t k = 0; k < 2; ++k)
         if (v[k] > 0.0) {
           const double w = g[i] * g[i] / v[k];
           W[k] += w;
@@ -1344,7 +1348,7 @@ std::vector<CalibrationRow> calibration(const ScaleData &data,
                            data.variance[i]};
       double d[2] = {0, 0};
       bool ok = true;
-      for (int k = 0; k < 2; ++k) {
+      for (std::int32_t k = 0; k < 2; ++k) {
         const double w = v[k] > 0.0 ? g[i] * g[i] / v[k] : 0.0;
         const double rest = W[k] - w;
         if (!(v[k] > 0.0) || !(rest > 0.0)) {
@@ -1374,7 +1378,7 @@ std::vector<CalibrationRow> calibration(const ScaleData &data,
     const double mad = 1.4826 * x[x.size() / 2];
     return mad * mad;
   };
-  for (int b = 0; b < bins; ++b) {
+  for (std::int32_t b = 0; b < bins; ++b) {
     const std::size_t from = devs.size() * static_cast<std::size_t>(b) / bins,
                       to = devs.size() * static_cast<std::size_t>(b + 1) / bins;
     CalibrationRow r;
@@ -1689,11 +1693,10 @@ MergingShell merge_groups(const ScaleData &data, const std::vector<double> &g,
   return m;
 }
 
-std::vector<MergingShell> merging_statistics(const ScaleData &data,
-                                             const std::vector<double> &g,
-                                             const SpaceGroup &group,
-                                             const Crystal &crystal, int shells,
-                                             MergingShell *overall) {
+std::vector<MergingShell>
+merging_statistics(const ScaleData &data, const std::vector<double> &g,
+                   const SpaceGroup &group, const Crystal &crystal,
+                   std::int32_t shells, MergingShell *overall) {
   shells = std::max(shells, 1);
   // One d for everything: the crystal's, at each group's unique index. The d
   // column is the scan-varying crystal's at each observation, and mixing the
@@ -1719,7 +1722,7 @@ std::vector<MergingShell> merging_statistics(const ScaleData &data,
   const auto shell_of = [&](double d) {
     const double v = 1.0 / (d * d * d);
     const auto s =
-        hi > lo ? static_cast<int>((v - lo) / (hi - lo) * shells) : 0;
+        hi > lo ? static_cast<std::int32_t>((v - lo) / (hi - lo) * shells) : 0;
     return static_cast<std::size_t>(std::min(std::max(s, 0), shells - 1));
   };
   std::vector<std::vector<std::size_t>> in_shell(out.size());
@@ -1742,12 +1745,15 @@ std::vector<MergingShell> merging_statistics(const ScaleData &data,
   all.d_min = out.back().d_min;
   // Possible reflections, and the acentric ones among them.
   const UnitCell cell = crystal.cell();
-  const int hmax = static_cast<int>(std::ceil(cell.a / all.d_min)),
-            kmax = static_cast<int>(std::ceil(cell.b / all.d_min)),
-            lmax = static_cast<int>(std::ceil(cell.c / all.d_min));
-  for (int hh = -hmax; hh <= hmax; ++hh)
-    for (int kk = -kmax; kk <= kmax; ++kk)
-      for (int ll = -lmax; ll <= lmax; ++ll) {
+  const std::int32_t hmax = static_cast<std::int32_t>(
+                         std::ceil(cell.a / all.d_min)),
+                     kmax = static_cast<std::int32_t>(
+                         std::ceil(cell.b / all.d_min)),
+                     lmax = static_cast<std::int32_t>(
+                         std::ceil(cell.c / all.d_min));
+  for (std::int32_t hh = -hmax; hh <= hmax; ++hh)
+    for (std::int32_t kk = -kmax; kk <= kmax; ++kk)
+      for (std::int32_t ll = -lmax; ll <= lmax; ++ll) {
         if (hh == 0 && kk == 0 && ll == 0)
           continue;
         const double d = crystal.d_spacing(hh, kk, ll);

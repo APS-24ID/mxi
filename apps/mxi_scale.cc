@@ -229,7 +229,7 @@ int run_scale(int argc, char **argv) {
     ScaleRunOptions options;
     options.combine = !args.has("--profile-only");
     options.absorption = !args.has("--no-absorption");
-    options.lmax = static_cast<int>(args.number("--l-max", -1.0));
+    options.lmax = static_cast<std::int32_t>(args.number("--l-max", -1.0));
     // dials.scale's absorption levels: the degree a wide sweep takes and the
     // restraint on its harmonics, sum P_lm^2.
     options.level_lmax = level == "low" ? 4 : 6;
@@ -460,7 +460,8 @@ int run_scale(int argc, char **argv) {
     std::printf("%zu outliers\n", run.outliers);
 
     MergingShell all;
-    const int shells = static_cast<int>(args.number("--shells", 20.0));
+    const std::int32_t shells =
+        static_cast<std::int32_t>(args.number("--shells", 20.0));
     const std::vector<MergingShell> table = merging_statistics(
         data, run.g, group, *experiments[0].crystal, shells, &all);
     phase("merging statistics");
@@ -560,7 +561,7 @@ int run_scale(int argc, char **argv) {
                             const char *fmt, double scale) {
         char x[4][32];
         const MergingShell *m[4] = {&all, &low, &high, &suggested};
-        for (int k = 0; k < 4; ++k)
+        for (std::int32_t k = 0; k < 4; ++k)
           std::snprintf(x[k], sizeof x[k], fmt, scale * (m[k]->*f));
         if (cut)
           std::printf("%-44s %8s %7s %7s %9s\n", what, x[0], x[1], x[2], x[3]);

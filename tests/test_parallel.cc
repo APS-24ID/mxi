@@ -38,7 +38,7 @@ TEST(the_pool_gives_the_same_sum_every_call_and_on_any_count) {
   set_parallel_threads(1);
   const double one = blocked_sum();
   set_parallel_threads(8);
-  for (int k = 0; k < 300; ++k)
+  for (std::int32_t k = 0; k < 300; ++k)
     if (blocked_sum() != one) {
       set_parallel_threads(0);
       check::fail("call " + std::to_string(k) + " differed");
@@ -53,7 +53,7 @@ TEST(parallel_work_started_inside_a_block_runs_serially) {
   // A block that itself calls for_each_block must not wait on the pool it is
   // running in: it runs its inner work serially, and everything is done once.
   set_parallel_threads(4);
-  std::atomic<int> count{0};
+  std::atomic<std::int32_t> count{0};
   for_each_block(8, [&](std::size_t) {
     for_each_block(8, [&](std::size_t) { count.fetch_add(1); });
   });
@@ -73,7 +73,7 @@ TEST(an_exception_in_a_block_reaches_the_caller_and_the_pool_carries_on) {
   } catch (const std::runtime_error &e) {
     caught = std::string(e.what()) == "block 17";
   }
-  std::atomic<int> after{0};
+  std::atomic<std::int32_t> after{0};
   for_each_block(64, [&](std::size_t) { after.fetch_add(1); });
   set_parallel_threads(0);
   check::is_true(caught, "the caller gets the exception");
@@ -95,7 +95,7 @@ TEST(parallel_work_started_inside_a_block_finishes_whichever_thread_runs_it) {
   // surely takes some, and the test says it did.
   set_parallel_threads(4);
   const std::thread::id caller = std::this_thread::get_id();
-  std::atomic<int> by_caller{0};
+  std::atomic<std::int32_t> by_caller{0};
   std::vector<std::int64_t> sums(16, 0);
   for_each_index(16, [&](std::size_t i) {
     std::this_thread::sleep_for(std::chrono::milliseconds(2));

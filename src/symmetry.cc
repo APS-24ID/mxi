@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <cmath>
+#include <cstdint>
 #include <stdexcept>
 
 #include <gemmi/symmetry.hpp>
@@ -43,7 +44,7 @@ std::string SpaceGroup::hall() const {
   return std::string(" ") + impl_->group->hall;
 }
 std::string SpaceGroup::laue() const { return impl_->group->laue_str(); }
-int SpaceGroup::number() const { return impl_->group->number; }
+std::int32_t SpaceGroup::number() const { return impl_->group->number; }
 std::size_t SpaceGroup::order() const { return impl_->ops.sym_ops.size(); }
 
 Miller SpaceGroup::unique(const Miller &hkl) const {
@@ -148,7 +149,7 @@ Miller ChangeOfBasis::apply(const Miller &hkl) const {
       throw std::runtime_error(
           "reindexed to a fractional index: the new cell is "
           "not a supercell of the old");
-    out[j] = static_cast<int>(r);
+    out[j] = static_cast<std::int32_t>(r);
   }
   return out;
 }
@@ -173,9 +174,9 @@ void reindex(ExperimentList &experiments, Table &reflections,
     return;
   Column miller = reflections.at("miller_index");
   for (std::size_t i = 0; i < reflections.nrows; ++i) {
-    const Miller h{static_cast<int>(miller.ints[i * 3]),
-                   static_cast<int>(miller.ints[i * 3 + 1]),
-                   static_cast<int>(miller.ints[i * 3 + 2])};
+    const Miller h{static_cast<std::int32_t>(miller.ints[i * 3]),
+                   static_cast<std::int32_t>(miller.ints[i * 3 + 1]),
+                   static_cast<std::int32_t>(miller.ints[i * 3 + 2])};
     if (h[0] == 0 && h[1] == 0 && h[2] == 0)
       continue;
     const Miller n = cb.apply(h);
@@ -200,15 +201,15 @@ namespace {
 
 Rotation from_gemmi(const gemmi::Op::Rot &r) {
   Rotation out{};
-  for (int i = 0; i < 3; ++i)
-    for (int j = 0; j < 3; ++j)
+  for (std::int32_t i = 0; i < 3; ++i)
+    for (std::int32_t j = 0; j < 3; ++j)
       out[static_cast<std::size_t>(i * 3 + j)] = r[i][j] / gemmi::Op::DEN;
   return out;
 }
 
 // The upper-triangular B with B^T B = G, by Cholesky.
 Mat3 cholesky_upper(const Mat3 &g) {
-  const auto at = [&](int i, int j) {
+  const auto at = [&](std::int32_t i, std::int32_t j) {
     return g.m[static_cast<std::size_t>(i * 3 + j)];
   };
   const double r00 = std::sqrt(at(0, 0));
@@ -241,10 +242,10 @@ Mat3 regularised(const Mat3 &A, const std::vector<Rotation> &rotations) {
 
 Rotation multiply(const Rotation &a, const Rotation &b) {
   Rotation out{};
-  for (int i = 0; i < 3; ++i)
-    for (int j = 0; j < 3; ++j) {
-      int v = 0;
-      for (int k = 0; k < 3; ++k)
+  for (std::int32_t i = 0; i < 3; ++i)
+    for (std::int32_t j = 0; j < 3; ++j) {
+      std::int32_t v = 0;
+      for (std::int32_t k = 0; k < 3; ++k)
         v += a[static_cast<std::size_t>(i * 3 + k)] *
              b[static_cast<std::size_t>(k * 3 + j)];
       out[static_cast<std::size_t>(i * 3 + j)] = v;
@@ -277,11 +278,11 @@ gemmi::UnitCell to_gemmi(const UnitCell &c) {
   return gemmi::UnitCell(c.a, c.b, c.c, c.alpha, c.beta, c.gamma);
 }
 
-std::string axis_text(const std::array<int, 3> &v) {
+std::string axis_text(const std::array<std::int32_t, 3> &v) {
   std::string out;
   const char *names = "abc";
-  for (int i = 0; i < 3; ++i) {
-    const int c = v[static_cast<std::size_t>(i)];
+  for (std::int32_t i = 0; i < 3; ++i) {
+    const std::int32_t c = v[static_cast<std::size_t>(i)];
     if (c == 0)
       continue;
     if (c < 0)
@@ -299,7 +300,7 @@ std::string axis_text(const std::array<int, 3> &v) {
 
 Miller apply(const Rotation &r, const Miller &h) {
   Miller out{};
-  for (int j = 0; j < 3; ++j)
+  for (std::int32_t j = 0; j < 3; ++j)
     out[static_cast<std::size_t>(j)] =
         r[static_cast<std::size_t>(0 * 3 + j)] * h[0] +
         r[static_cast<std::size_t>(1 * 3 + j)] * h[1] +
@@ -347,8 +348,8 @@ std::optional<Setting> reference_setting(const std::vector<Rotation> &rotations,
   base.cen_ops.push_back({0, 0, 0});
   for (const Rotation &r : rotations) {
     gemmi::Op op = gemmi::Op::identity();
-    for (int i = 0; i < 3; ++i)
-      for (int j = 0; j < 3; ++j)
+    for (std::int32_t i = 0; i < 3; ++i)
+      for (std::int32_t j = 0; j < 3; ++j)
         op.rot[i][j] = r[static_cast<std::size_t>(i * 3 + j)] * gemmi::Op::DEN;
     base.sym_ops.push_back(op);
     gemmi::Op inverted = op;
@@ -361,25 +362,26 @@ std::optional<Setting> reference_setting(const std::vector<Rotation> &rotations,
   // it, where no rotation of the group fixes them: a two-fold reverses them,
   // and for a three- or six-fold they are found by the cell's metric.
   const gemmi::UnitCell metric = to_gemmi(cell);
-  const auto cartesian = [&](const std::array<int, 3> &v) {
+  const auto cartesian = [&](const std::array<std::int32_t, 3> &v) {
     return metric.orth.mat.multiply(gemmi::Vec3(v[0], v[1], v[2]));
   };
-  std::vector<std::array<int, 3>> all;
-  for (int x = -2; x <= 2; ++x)
-    for (int y = -2; y <= 2; ++y)
-      for (int z = -2; z <= 2; ++z)
+  std::vector<std::array<std::int32_t, 3>> all;
+  for (std::int32_t x = -2; x <= 2; ++x)
+    for (std::int32_t y = -2; y <= 2; ++y)
+      for (std::int32_t z = -2; z <= 2; ++z)
         if (x != 0 || y != 0 || z != 0)
           all.push_back({x, y, z});
-  const auto image = [](const Rotation &r, const std::array<int, 3> &v) {
-    std::array<int, 3> out{};
-    for (int i = 0; i < 3; ++i)
+  const auto image = [](const Rotation &r,
+                        const std::array<std::int32_t, 3> &v) {
+    std::array<std::int32_t, 3> out{};
+    for (std::int32_t i = 0; i < 3; ++i)
       out[static_cast<std::size_t>(i)] =
           r[static_cast<std::size_t>(i * 3)] * v[0] +
           r[static_cast<std::size_t>(i * 3 + 1)] * v[1] +
           r[static_cast<std::size_t>(i * 3 + 2)] * v[2];
     return out;
   };
-  std::vector<std::array<int, 3>> candidates, fixed_axes;
+  std::vector<std::array<std::int32_t, 3>> candidates, fixed_axes;
   for (const auto &v : all)
     for (const Rotation &r : rotations)
       if (r != kIdentity && image(r, v) == v) {
@@ -417,25 +419,26 @@ std::optional<Setting> reference_setting(const std::vector<Rotation> &rotations,
 
   const std::size_t want = base.sym_ops.size();
   std::optional<Setting> best;
-  int best_cost = 1 << 30;
+  std::int32_t best_cost = 1 << 30;
   double best_beta = 1e9;
-  int best_negatives = 1 << 30;
-  int best_order = 1 << 30; // monoclinic: acute beta, then a > c, count against
+  std::int32_t best_negatives = 1 << 30;
+  std::int32_t best_order =
+      1 << 30; // monoclinic: acute beta, then a > c, count against
   for (const auto &u : candidates)
     for (const auto &v : candidates)
       for (const auto &w : candidates) {
-        const int det = u[0] * (v[1] * w[2] - v[2] * w[1]) -
-                        v[0] * (u[1] * w[2] - u[2] * w[1]) +
-                        w[0] * (u[1] * v[2] - u[2] * v[1]);
+        const std::int32_t det = u[0] * (v[1] * w[2] - v[2] * w[1]) -
+                                 v[0] * (u[1] * w[2] - u[2] * w[1]) +
+                                 w[0] * (u[1] * v[2] - u[2] * v[1]);
         if (det <= 0 || det > 4)
           continue;
-        int cost = 0;
-        for (int i = 0; i < 3; ++i)
+        std::int32_t cost = 0;
+        for (std::int32_t i = 0; i < 3; ++i)
           cost += std::abs(u[static_cast<std::size_t>(i)]) +
                   std::abs(v[static_cast<std::size_t>(i)]) +
                   std::abs(w[static_cast<std::size_t>(i)]);
-        int negatives = 0;
-        for (int i = 0; i < 3; ++i)
+        std::int32_t negatives = 0;
+        for (std::int32_t i = 0; i < 3; ++i)
           negatives += (u[static_cast<std::size_t>(i)] < 0) +
                        (v[static_cast<std::size_t>(i)] < 0) +
                        (w[static_cast<std::size_t>(i)] < 0);
@@ -443,7 +446,7 @@ std::optional<Setting> reference_setting(const std::vector<Rotation> &rotations,
           continue;
         // M: columns the new axes. The operators move by cob = M^-1.
         gemmi::Op m = gemmi::Op::identity();
-        for (int i = 0; i < 3; ++i) {
+        for (std::int32_t i = 0; i < 3; ++i) {
           m.rot[i][0] = u[static_cast<std::size_t>(i)] * gemmi::Op::DEN;
           m.rot[i][1] = v[static_cast<std::size_t>(i)] * gemmi::Op::DEN;
           m.rot[i][2] = w[static_cast<std::size_t>(i)] * gemmi::Op::DEN;
@@ -452,8 +455,8 @@ std::optional<Setting> reference_setting(const std::vector<Rotation> &rotations,
         ops.change_basis_backward(m);
         bool integral = true;
         for (const gemmi::Op &op : ops.sym_ops)
-          for (int i = 0; i < 3 && integral; ++i)
-            for (int j = 0; j < 3; ++j)
+          for (std::int32_t i = 0; i < 3 && integral; ++i)
+            for (std::int32_t j = 0; j < 3; ++j)
               if (op.rot[i][j] % gemmi::Op::DEN != 0)
                 integral = false;
         if (!integral)
@@ -507,15 +510,16 @@ std::optional<Setting> reference_setting(const std::vector<Rotation> &rotations,
         // -b-c,a+b,a+c).
         const auto inversions = [&] {
           const double l[3] = {made.a, made.b, made.c};
-          int k = 0;
-          for (int x = 0; x < 3; ++x)
-            for (int y = x + 1; y < 3; ++y)
+          std::int32_t k = 0;
+          for (std::int32_t x = 0; x < 3; ++x)
+            for (std::int32_t y = x + 1; y < 3; ++y)
               k += l[x] > l[y] * 1.005 ? 1 : 0;
           return k;
         };
-        const int order = monoclinic ? (made.beta < 90.0 - 1e-6 ? 2 : 0) +
-                                           (made.a > made.c + 1e-6 ? 1 : 0)
-                                     : inversions();
+        const std::int32_t order = monoclinic
+                                       ? (made.beta < 90.0 - 1e-6 ? 2 : 0) +
+                                             (made.a > made.c + 1e-6 ? 1 : 0)
+                                       : inversions();
         // Fewest coefficients; then, for monoclinic, beta nearest 90 and the
         // order above; then the fewest negative signs, so that the operator
         // reads as DIALS' do.
@@ -543,7 +547,7 @@ std::optional<Setting> reference_setting(const std::vector<Rotation> &rotations,
 UnitCell reindexed_cell(const UnitCell &cell, const ChangeOfBasis &cb) {
   const gemmi::UnitCell g = to_gemmi(cell);
   gemmi::Vec3 axes[3];
-  for (int j = 0; j < 3; ++j)
+  for (std::int32_t j = 0; j < 3; ++j)
     axes[j] = g.orth.mat.multiply(
         gemmi::Vec3(cb.M.m[static_cast<std::size_t>(0 * 3 + j)],
                     cb.M.m[static_cast<std::size_t>(1 * 3 + j)],
@@ -591,8 +595,8 @@ space_groups_with_patterson(const SpaceGroup &patterson) {
   return out;
 }
 
-std::vector<std::array<int, 9>> SpaceGroup::rotations() const {
-  std::vector<std::array<int, 9>> out;
+std::vector<std::array<std::int32_t, 9>> SpaceGroup::rotations() const {
+  std::vector<std::array<std::int32_t, 9>> out;
   for (const gemmi::Op &op : impl_->ops.sym_ops)
     out.push_back(from_gemmi(op.rot));
   return out;

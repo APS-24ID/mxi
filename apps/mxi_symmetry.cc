@@ -36,14 +36,15 @@ namespace {
 // coordinates as h' = h R has it act on indices, leaves where it was: the
 // cross product of two independent rows of R - 1, divided by their common
 // factor, its first non-zero component positive.
-std::string describe_element(const Rotation &r, int order) {
+std::string describe_element(const Rotation &r, std::int32_t order) {
   std::int64_t m[3][3];
-  for (int i = 0; i < 3; ++i)
-    for (int j = 0; j < 3; ++j)
+  for (std::int32_t i = 0; i < 3; ++i)
+    for (std::int32_t j = 0; j < 3; ++j)
       m[i][j] = r[static_cast<std::size_t>(i * 3 + j)] - (i == j ? 1 : 0);
   std::int64_t axis[3] = {0, 0, 0};
-  for (int a = 0; a < 3 && axis[0] == 0 && axis[1] == 0 && axis[2] == 0; ++a)
-    for (int b = a + 1; b < 3; ++b) {
+  for (std::int32_t a = 0;
+       a < 3 && axis[0] == 0 && axis[1] == 0 && axis[2] == 0; ++a)
+    for (std::int32_t b = a + 1; b < 3; ++b) {
       const std::int64_t u[3] = {m[a][1] * m[b][2] - m[a][2] * m[b][1],
                                  m[a][2] * m[b][0] - m[a][0] * m[b][2],
                                  m[a][0] * m[b][1] - m[a][1] * m[b][0]};
@@ -81,10 +82,10 @@ namespace {
 std::string as_hkl(const Rotation &g) {
   const char *names = "hkl";
   std::string out = "h,k,l to ";
-  for (int i = 0; i < 3; ++i) {
+  for (std::int32_t i = 0; i < 3; ++i) {
     std::string term;
-    for (int j = 0; j < 3; ++j) {
-      const int v = g[3 * j + i]; // (R^T h)_i = sum_j R_ji h_j
+    for (std::int32_t j = 0; j < 3; ++j) {
+      const std::int32_t v = g[3 * j + i]; // (R^T h)_i = sum_j R_ji h_j
       if (v == 0)
         continue;
       if (v < 0)
@@ -202,9 +203,9 @@ int run_symmetry(int argc, char **argv) {
           const Column &hkl = reflections.at("miller_index");
           for (std::size_t r = 0; r < reflections.nrows; ++r) {
             bool whole = true;
-            for (int j = 0; j < 3; ++j) {
+            for (std::int32_t j = 0; j < 3; ++j) {
               double v = 0.0;
-              for (int i = 0; i < 3; ++i)
+              for (std::int32_t i = 0; i < 3; ++i)
                 v += cb.M(i, j) * static_cast<double>(hkl.ints[r * 3 + i]);
               whole = whole && std::fabs(v - std::round(v)) < 1e-6;
             }
@@ -252,7 +253,8 @@ int run_symmetry(int argc, char **argv) {
         throw std::runtime_error(
             "experiment " + std::to_string(i) +
             "'s cell differs from the first's by " +
-            std::to_string(static_cast<int>(std::round(100.0 * worst))) +
+            std::to_string(
+                static_cast<std::int32_t>(std::round(100.0 * worst))) +
             " per cent: index the sweeps together, so that they share one "
             "cell and one setting");
     }
@@ -345,8 +347,8 @@ int run_symmetry(int argc, char **argv) {
         // Its indices h to R^T h, and its crystal A to A (R^T)^-1, so that
         // A h is unchanged -- every scan point too.
         Mat3 rt;
-        for (int a = 0; a < 3; ++a)
-          for (int b = 0; b < 3; ++b)
+        for (std::int32_t a = 0; a < 3; ++a)
+          for (std::int32_t b = 0; b < 3; ++b)
             rt.m[3 * a + b] = g[3 * b + a];
         const Mat3 undo = rt.inverse();
         Crystal &crystal = *experiments[j].crystal;
@@ -358,10 +360,11 @@ int run_symmetry(int argc, char **argv) {
         for (std::size_t r = 0; r < reflections.nrows; ++r) {
           if (id.integer(r) != static_cast<std::int64_t>(j))
             continue;
-          const Miller h = apply(g, {static_cast<int>(miller.ints[3 * r]),
-                                     static_cast<int>(miller.ints[3 * r + 1]),
-                                     static_cast<int>(miller.ints[3 * r + 2])});
-          for (int k = 0; k < 3; ++k)
+          const Miller h =
+              apply(g, {static_cast<std::int32_t>(miller.ints[3 * r]),
+                        static_cast<std::int32_t>(miller.ints[3 * r + 1]),
+                        static_cast<std::int32_t>(miller.ints[3 * r + 2])});
+          for (std::int32_t k = 0; k < 3; ++k)
             miller.ints[3 * r + static_cast<std::size_t>(k)] = h[k];
         }
       }

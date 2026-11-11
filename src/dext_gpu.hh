@@ -169,15 +169,15 @@ void host_free(void *pointer);
 // no double precision, so its 32-bit instantiation refuses rather than quietly
 // running the dispersion test in float and disagreeing with the CPU.
 template <typename T>
-int find(const T *image_in, std::vector<SignalPixel> &signal_out,
-         std::size_t height, std::size_t width);
+std::int32_t find(const T *image_in, std::vector<SignalPixel> &signal_out,
+                  std::size_t height, std::size_t width);
 
-extern template int find<std::uint16_t>(const std::uint16_t *,
-                                        std::vector<SignalPixel> &, std::size_t,
-                                        std::size_t);
-extern template int find<std::uint32_t>(const std::uint32_t *,
-                                        std::vector<SignalPixel> &, std::size_t,
-                                        std::size_t);
+extern template std::int32_t find<std::uint16_t>(const std::uint16_t *,
+                                                 std::vector<SignalPixel> &,
+                                                 std::size_t, std::size_t);
+extern template std::int32_t find<std::uint32_t>(const std::uint32_t *,
+                                                 std::vector<SignalPixel> &,
+                                                 std::size_t, std::size_t);
 
 } // namespace mxi::gpu
 

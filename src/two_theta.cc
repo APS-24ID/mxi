@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #include "linalg.hh"
 
@@ -24,8 +25,8 @@ double inverse_d2(const UnitCell &c, const Miller &h) {
   const double x[3] = {static_cast<double>(h[0]), static_cast<double>(h[1]),
                        static_cast<double>(h[2])};
   double out = 0.0;
-  for (int i = 0; i < 3; ++i)
-    for (int j = 0; j < 3; ++j)
+  for (std::int32_t i = 0; i < 3; ++i)
+    for (std::int32_t j = 0; j < 3; ++j)
       out += x[i] * S(i, j) * x[j];
   return out;
 }
@@ -35,20 +36,20 @@ double inverse_d2(const UnitCell &c, const Miller &h) {
 // the cell it starts from.
 struct Parametrisation {
   CrystalSystem system;
-  int unique = 1;            // monoclinic: 0 alpha, 1 beta, 2 gamma
+  std::int32_t unique = 1;   // monoclinic: 0 alpha, 1 beta, 2 gamma
   bool rhombohedral = false; // trigonal on rhombohedral axes
   // For each cell parameter, which refined parameter it is (-1: fixed).
-  std::array<int, 6> source{};
+  std::array<std::int32_t, 6> source{};
   std::array<double, 6> fixed{};
 
   std::vector<double> start(const UnitCell &c) const {
     const std::array<double, 6> v = {c.a, c.b, c.c, c.alpha, c.beta, c.gamma};
-    int n = 0;
-    for (int s : source)
+    std::int32_t n = 0;
+    for (std::int32_t s : source)
       n = std::max(n, s + 1);
     std::vector<double> p(static_cast<std::size_t>(n), 0.0);
-    std::vector<int> seen(static_cast<std::size_t>(n), 0);
-    for (int k = 0; k < 6; ++k)
+    std::vector<std::int32_t> seen(static_cast<std::size_t>(n), 0);
+    for (std::int32_t k = 0; k < 6; ++k)
       if (source[static_cast<std::size_t>(k)] >= 0) {
         const auto s =
             static_cast<std::size_t>(source[static_cast<std::size_t>(k)]);
@@ -98,7 +99,7 @@ Parametrisation parametrise(CrystalSystem system, const UnitCell &c) {
   case CrystalSystem::monoclinic: {
     const double d[3] = {std::fabs(c.alpha - 90.0), std::fabs(c.beta - 90.0),
                          std::fabs(c.gamma - 90.0)};
-    out.unique = static_cast<int>(std::max_element(d, d + 3) - d);
+    out.unique = static_cast<std::int32_t>(std::max_element(d, d + 3) - d);
     out.source = {0, 1, 2, -1, -1, -1};
     out.source[static_cast<std::size_t>(3 + out.unique)] = 3;
     break;
@@ -118,7 +119,7 @@ double two_theta_of(const UnitCell &c, const TwoThetaObservation &o) {
 
 } // namespace
 
-CrystalSystem crystal_system_of(int n) {
+CrystalSystem crystal_system_of(std::int32_t n) {
   if (n <= 2)
     return CrystalSystem::triclinic;
   if (n <= 15)
@@ -161,7 +162,7 @@ TwoThetaResult refine_two_theta(const std::vector<TwoThetaObservation> &obs,
   const Parametrisation param = parametrise(system, start);
   std::vector<double> p = param.start(start);
   const std::size_t np = p.size(), n = obs.size();
-  out.parameters = static_cast<int>(np);
+  out.parameters = static_cast<std::int32_t>(np);
   out.reflections = n;
   if (n <= np + 1) {
     out.why = "too few reflections";
@@ -171,7 +172,7 @@ TwoThetaResult refine_two_theta(const std::vector<TwoThetaObservation> &obs,
   double chi2 = 0.0;
   // Gauss-Newton: the derivatives by central differences, cheap at a handful
   // of parameters.
-  for (int iteration = 0; iteration < 30; ++iteration) {
+  for (std::int32_t iteration = 0; iteration < 30; ++iteration) {
     const UnitCell c = param.cell(p);
     for (std::size_t i = 0; i < n; ++i)
       r[i] = obs[i].two_theta - two_theta_of(c, obs[i]);
@@ -323,9 +324,9 @@ TwoThetaResult two_theta_refine(const ExperimentList &experiments,
     if (!(var > 0.0))
       continue;
     TwoThetaObservation o;
-    for (int k = 0; k < 3; ++k)
-      o.hkl[static_cast<std::size_t>(k)] =
-          static_cast<int>(hkl.ints[r * 3 + static_cast<std::size_t>(k)]);
+    for (std::int32_t k = 0; k < 3; ++k)
+      o.hkl[static_cast<std::size_t>(k)] = static_cast<std::int32_t>(
+          hkl.ints[r * 3 + static_cast<std::size_t>(k)]);
     o.two_theta = t;
     o.variance = var;
     o.wavelength = x.beam.wavelength;

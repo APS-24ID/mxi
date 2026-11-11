@@ -33,13 +33,13 @@ Transformed planted_grid(const GridSpec &spec, double intensity,
   t.data.assign(spec.size(), 0.0);
   t.background.assign(spec.size(), background);
   t.coverage.assign(spec.size(), 1.0);
-  const int side = spec.side();
+  const std::int32_t side = spec.side();
   const double middle = 0.5 * static_cast<double>(side - 1);
   double sum = 0.0;
   std::vector<double> shape(spec.size(), 0.0);
-  for (int i3 = 0; i3 < side; ++i3) {
-    for (int i2 = 0; i2 < side; ++i2) {
-      for (int i1 = 0; i1 < side; ++i1) {
+  for (std::int32_t i3 = 0; i3 < side; ++i3) {
+    for (std::int32_t i2 = 0; i2 < side; ++i2) {
+      for (std::int32_t i1 = 0; i1 < side; ++i1) {
         const double d1 = (i1 - middle) / 1.5;
         const double d2 = (i2 - middle) / 1.5;
         const double d3 = (i3 - middle) / 1.5;
@@ -143,9 +143,9 @@ TEST(a_grid_point_no_pixel_reached_is_not_a_zero) {
 
   // Blank the outermost plane, as a module gap or a box edge would.
   Transformed gapped = full;
-  const int side = spec.side();
-  for (int i2 = 0; i2 < side; ++i2) {
-    for (int i1 = 0; i1 < side; ++i1) {
+  const std::int32_t side = spec.side();
+  for (std::int32_t i2 = 0; i2 < side; ++i2) {
+    for (std::int32_t i1 = 0; i1 < side; ++i1) {
       const std::size_t at = spec.at(i1, i2, 0);
       gapped.coverage[at] = 0.0;
       gapped.data[at] = 0.0;
@@ -165,7 +165,7 @@ TEST(the_profile_is_the_average_shape_not_the_average_spot) {
   const GridSpec spec = small_spec();
   ReferenceProfiles reference = make_reference(spec, 1, 1, 1, 0.0, 100.0);
   // Ninety-nine weak spots of one shape.
-  for (int i = 0; i < 99; ++i) {
+  for (std::int32_t i = 0; i < 99; ++i) {
     check::is_true(add_reference(&reference, 0, planted_grid(spec, 10.0, 0.0)),
                    "added a weak one");
   }
@@ -193,7 +193,7 @@ TEST(the_profile_is_the_average_shape_not_the_average_spot) {
 TEST(a_region_with_too_few_spots_borrows_its_blocks_detector_average) {
   const GridSpec spec = small_spec();
   ReferenceProfiles reference = make_reference(spec, 3, 1, 1, 0.0, 100.0);
-  for (int i = 0; i < 40; ++i) {
+  for (std::int32_t i = 0; i < 40; ++i) {
     add_reference(&reference, 4, planted_grid(spec, 100.0, 0.0));
   }
   finalise_reference(&reference, 10);
@@ -225,7 +225,7 @@ TEST(the_profile_varies_smoothly_across_a_cell_boundary) {
     if (region % 3 == 1) {
       std::rotate(t.data.begin(), t.data.begin() + 1, t.data.end());
     }
-    for (int i = 0; i < 20; ++i)
+    for (std::int32_t i = 0; i < 20; ++i)
       add_reference(&reference, region, t);
   }
   finalise_reference(&reference, 5);
@@ -304,7 +304,7 @@ TEST(the_scan_is_divided_as_well_as_the_detector) {
                "one detector region, four scan blocks");
 
   // A different profile in the first block and the last.
-  for (int i = 0; i < 20; ++i) {
+  for (std::int32_t i = 0; i < 20; ++i) {
     add_reference(&reference, reference.region_of(panel, 0, 450.0, 450.0, 10.0),
                   planted_grid(spec, 100.0, 0.0));
     Transformed late = planted_grid(spec, 100.0, 0.0);
@@ -357,11 +357,11 @@ TEST(a_grid_point_with_almost_nothing_in_it_does_not_decide_the_fit) {
   Transformed t = planted_grid(spec, 5.0e4, 0.3);
   // A skin of points that a pixel barely reached: real coverage, a background
   // scaled down with it, and a count that happens to fall below it.
-  const int side = spec.side();
+  const std::int32_t side = spec.side();
   std::size_t skin = 0;
-  for (int i3 = 0; i3 < side; ++i3) {
-    for (int i2 = 0; i2 < side; ++i2) {
-      for (int i1 = 0; i1 < side; ++i1) {
+  for (std::int32_t i3 = 0; i3 < side; ++i3) {
+    for (std::int32_t i2 = 0; i2 < side; ++i2) {
+      for (std::int32_t i1 = 0; i1 < side; ++i1) {
         if (i1 != 0 && i2 != 0 && i3 != 0)
           continue;
         const std::size_t at = spec.at(i1, i2, i3);
@@ -606,9 +606,9 @@ TEST(the_fast_profile_on_pixels_is_the_direct_one) {
   g.subdivisions = 5;
   std::vector<double> reference(g.size());
   double total = 0.0;
-  for (int k = 0; k < g.side(); ++k)
-    for (int j = 0; j < g.side(); ++j)
-      for (int i = 0; i < g.side(); ++i) {
+  for (std::int32_t k = 0; k < g.side(); ++k)
+    for (std::int32_t j = 0; j < g.side(); ++j)
+      for (std::int32_t i = 0; i < g.side(); ++i) {
         const double a = (i - g.n) / 1.3, b = (j - g.n) / 1.1,
                      c = (k - g.n) / 1.7;
         const double value =
@@ -754,7 +754,7 @@ TEST(a_sparse_region_borrows_its_own_blocks_average_not_the_scans) {
   // Block 1's reflections are a different shape: more of them at the centre.
   Transformed other = planted_grid(spec, 100.0, 0.0);
   other.data[spec.at(3, 3, 3)] *= 3.0;
-  for (int i = 0; i < 40; ++i) {
+  for (std::int32_t i = 0; i < 40; ++i) {
     add_reference(&reference, a, planted_grid(spec, 100.0, 0.0));
     add_reference(&reference, b, other);
   }
@@ -782,7 +782,7 @@ TEST(an_empty_block_borrows_the_nearest_earlier_block) {
                     in2 = reference.index_of(0, 2, 1, 1);
   Transformed other = planted_grid(spec, 100.0, 0.0);
   other.data[spec.at(3, 3, 3)] *= 3.0;
-  for (int i = 0; i < 40; ++i) {
+  for (std::int32_t i = 0; i < 40; ++i) {
     add_reference(&reference, in0, planted_grid(spec, 100.0, 0.0));
     add_reference(&reference, in2, other);
   }

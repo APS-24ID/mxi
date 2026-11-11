@@ -22,12 +22,13 @@ namespace {
 // number of their signs flipped.
 std::vector<Rotation> p23() {
   std::vector<Rotation> out;
-  const int perms[3][3] = {{0, 1, 2}, {1, 2, 0}, {2, 0, 1}};
-  const int signs[4][3] = {{1, 1, 1}, {1, -1, -1}, {-1, 1, -1}, {-1, -1, 1}};
+  const std::int32_t perms[3][3] = {{0, 1, 2}, {1, 2, 0}, {2, 0, 1}};
+  const std::int32_t signs[4][3] = {
+      {1, 1, 1}, {1, -1, -1}, {-1, 1, -1}, {-1, -1, 1}};
   for (const auto &p : perms)
     for (const auto &s : signs) {
       Rotation r{};
-      for (int i = 0; i < 3; ++i)
+      for (std::int32_t i = 0; i < 3; ++i)
         r[3 * i + p[i]] = s[i];
       out.push_back(r);
     }
@@ -37,7 +38,7 @@ std::vector<Rotation> p23() {
 // A data set: intensities constant on P23's orbits and Friedel pairs, each
 // reflection present with probability one half, a little noise; its indices
 // those of the true ones under `twist` -- the setting it was indexed in.
-P1Intensities planted(const Rotation &twist, unsigned seed) {
+P1Intensities planted(const Rotation &twist, std::uint32_t seed) {
   std::mt19937 rng(seed);
   std::mt19937 truth(7); // the crystal's own intensities, the same every time
   std::exponential_distribution<double> wilson(1.0);
@@ -48,7 +49,7 @@ P1Intensities planted(const Rotation &twist, unsigned seed) {
   const auto orbit_value = [&](const Miller &h) {
     Miller rep = h;
     for (const Rotation &g : group)
-      for (int s : {1, -1}) {
+      for (std::int32_t s : {1, -1}) {
         Miller x = apply(g, h);
         x = {s * x[0], s * x[1], s * x[2]};
         rep = std::min(rep, x);
@@ -59,9 +60,9 @@ P1Intensities planted(const Rotation &twist, unsigned seed) {
     return it->second;
   };
   P1Intensities d;
-  for (int h = -8; h <= 8; ++h)
-    for (int k = -8; k <= 8; ++k)
-      for (int l = -8; l <= 8; ++l) {
+  for (std::int32_t h = -8; h <= 8; ++h)
+    for (std::int32_t k = -8; k <= 8; ++k)
+      for (std::int32_t l = -8; l <= 8; ++l) {
         if (h == 0 && k == 0 && l == 0)
           continue;
         const double I = orbit_value({h, k, l}); // drawn for every reflection

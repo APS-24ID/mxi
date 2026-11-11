@@ -59,7 +59,7 @@ Experiment refined_experiment() {
 
   std::vector<Vec3> axes;
   std::vector<double> angles;
-  for (int i = 0; i < 3; ++i) {
+  for (std::int32_t i = 0; i < 3; ++i) {
     axes.push_back(v(real::kGonioAxes[i]));
     angles.push_back(real::kGonioAngles[i]);
   }
@@ -209,7 +209,7 @@ TEST(real_scan_angle_matches_the_dials_millimetre_column) {
 
 TEST(real_entering_flag_matches_dials) {
   const Experiment e = refined_experiment();
-  int agree = 0, total = 0;
+  std::int32_t agree = 0, total = 0;
   for (const real::Row &r : real::rows()) {
     const Vec3 r0 =
         e.crystal->A * Vec3{static_cast<double>(r.h), static_cast<double>(r.k),
@@ -220,7 +220,7 @@ TEST(real_entering_flag_matches_dials) {
     // Take the root nearer the observed angle; the other is the same
     // reflection on its way out.
     const double phi = e.scan.phi_from_z(r.px_z);
-    const int nearer =
+    const std::int32_t nearer =
         std::abs(x.phi[0] - phi) <= std::abs(x.phi[1] - phi) ? 0 : 1;
     if (x.entering[nearer] == r.entering)
       ++agree;
@@ -263,7 +263,7 @@ TEST(real_prediction_reproduces_dials_xyzcal_exactly) {
   PredictOptions options;
   options.allow_outside_scan = true;
   double worst = 0.0;
-  int found = 0;
+  std::int32_t found = 0;
   for (const real::Row &r : real::rows()) {
     const std::vector<Prediction> p =
         predict_indices(e, {{{r.h, r.k, r.l}}}, options);
@@ -336,7 +336,7 @@ TEST(oscillation_width_comes_from_the_endpoints_not_the_first_pair) {
   // from the first two elements would let one bad value at the start set the
   // width for the entire scan.
   std::vector<double> oscillation;
-  for (int i = 0; i < 300; ++i)
+  for (std::int32_t i = 0; i < 300; ++i)
     oscillation.push_back(0.1 * i);
   oscillation[1] += 0.05;
   const Scan s = Scan::from_oscillation(oscillation, 1, 300);

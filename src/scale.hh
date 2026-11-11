@@ -5,6 +5,7 @@
 // 2 and 3).
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -140,10 +141,11 @@ std::vector<double> merged_intensities(const ScaleData &data,
 //: min_observations observations among them, or all are used.
 std::vector<std::size_t>
 select_for_fitting(const ScaleData &data, std::size_t min_groups = 2000,
-                   std::size_t min_observations = 50000, unsigned seed = 1);
+                   std::size_t min_observations = 50000,
+                   std::uint32_t seed = 1);
 
 struct ScaleFitOptions {
-  int max_iterations = 50;
+  std::int32_t max_iterations = 50;
   //: Weights of the restraints toward zero, sum B_i^2 and sum P_lm^2:
   //: dials.scale's decay_restraint and, for the absorption surface, its
   //: surface_weight at the default absorption level, low -- 5e5. It was 1000,
@@ -161,7 +163,7 @@ struct ScaleFitOptions {
 };
 
 struct ScaleFitResult {
-  int iterations = 0;
+  std::int32_t iterations = 0;
   bool converged = false;
   double target_start = 0.0, target_end = 0.0;
   std::size_t observations = 0;
@@ -266,7 +268,7 @@ struct CalibrationRow {
 };
 std::vector<CalibrationRow> calibration(const ScaleData &data,
                                         const std::vector<double> &g,
-                                        bool by_resolution, int bins);
+                                        bool by_resolution, std::int32_t bins);
 
 //: I = w I_prf + (1 - w) I_sum with w = 1 / (1 + (I_sum / I_mid)^3), eqns 13
 //: and 14; the variance as for fully correlated estimates, which they are,
@@ -317,11 +319,10 @@ MergingShell merge_groups(const ScaleData &data, const std::vector<double> &g,
 //: space, highest resolution LAST -- and overall, with completeness: every
 //: reflection the crystal's cell allows to d_min, in the asymmetric unit and
 //: not absent, and the acentric ones among them.
-std::vector<MergingShell> merging_statistics(const ScaleData &data,
-                                             const std::vector<double> &g,
-                                             const SpaceGroup &group,
-                                             const Crystal &crystal, int shells,
-                                             MergingShell *overall);
+std::vector<MergingShell>
+merging_statistics(const ScaleData &data, const std::vector<double> &g,
+                   const SpaceGroup &group, const Crystal &crystal,
+                   std::int32_t shells, MergingShell *overall);
 
 struct ScaleRunOptions {
   //: Each variance from the model's intensity once there is one
@@ -333,10 +334,10 @@ struct ScaleRunOptions {
   //: The absorption surface's degree: -1 for the sweep's default -- 4 from 60
   //: degrees, none below -- or 0 for none; lmax (lmax + 2) terms, 24 at 4 and
   //: 48 at 6.
-  int lmax = -1;
+  std::int32_t lmax = -1;
   //: The degree a sweep wide enough for absorption takes when lmax is not
   //: given: 4 at dials.scale's absorption level low, 6 at medium and high.
-  int level_lmax = 4;
+  std::int32_t level_lmax = 4;
   double d_min = 0.0;
   double d_max = 0.0; //: low resolution limit; 0, none
   ScaleFitOptions fit;

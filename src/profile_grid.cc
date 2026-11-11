@@ -1,6 +1,7 @@
 #include "profile_grid.hh"
 
 #include <cmath>
+#include <cstdint>
 
 namespace mxi {
 
@@ -21,7 +22,7 @@ void ProfileGrid::normalise() {
     v /= total;
 }
 
-ProfileGrid make_grid(int n, double sigma_d, double sigma_m,
+ProfileGrid make_grid(std::int32_t n, double sigma_d, double sigma_m,
                       double half_width) {
   ProfileGrid grid;
   grid.n = n;
@@ -33,8 +34,8 @@ ProfileGrid make_grid(int n, double sigma_d, double sigma_m,
 }
 
 void add_to_grid(const Experiment &e, const Shoebox &box, const Vec3 &s1,
-                 double phi_calculated, ProfileGrid *grid, int subdivisions,
-                 bool recentre) {
+                 double phi_calculated, ProfileGrid *grid,
+                 std::int32_t subdivisions, bool recentre) {
   if (grid == nullptr || subdivisions < 1)
     return;
   if (box.panel < 0 ||
@@ -46,7 +47,7 @@ void add_to_grid(const Experiment &e, const Shoebox &box, const Vec3 &s1,
   if (!frame.valid)
     return;
 
-  const int side = grid->side();
+  const std::int32_t side = grid->side();
   const double span_d = grid->half_width * grid->sigma_d;
   const double span_m = grid->half_width * grid->sigma_m;
   if (!(span_d > 0.0) || !(span_m > 0.0))
@@ -98,8 +99,8 @@ void add_to_grid(const Experiment &e, const Shoebox &box, const Vec3 &s1,
         if (!(count > 0.0))
           continue;
 
-        for (int sy = 0; sy < subdivisions; ++sy) {
-          for (int sx = 0; sx < subdivisions; ++sx) {
+        for (std::int32_t sy = 0; sy < subdivisions; ++sy) {
+          for (std::int32_t sx = 0; sx < subdivisions; ++sx) {
             // The centre of this subdivision, in pixels.
             const double px = static_cast<double>(box.bbox[0] + x) +
                               (static_cast<double>(sx) + 0.5) /
@@ -111,10 +112,10 @@ void add_to_grid(const Experiment &e, const Shoebox &box, const Vec3 &s1,
                 epsilon_of(e, frame, p, px, py, phi_low, phi_calculated);
             eps.e1 -= centre1;
             eps.e2 -= centre2;
-            const int i1 =
-                static_cast<int>(std::floor((eps.e1 + span_d) / step_d));
-            const int i2 =
-                static_cast<int>(std::floor((eps.e2 + span_d) / step_d));
+            const std::int32_t i1 = static_cast<std::int32_t>(
+                std::floor((eps.e1 + span_d) / step_d));
+            const std::int32_t i2 = static_cast<std::int32_t>(
+                std::floor((eps.e2 + span_d) / step_d));
             const double portion = count * share;
             grid->counts_added += portion;
             if (i1 < 0 || i1 >= side || i2 < 0 || i2 >= side) {
@@ -125,7 +126,7 @@ void add_to_grid(const Experiment &e, const Shoebox &box, const Vec3 &s1,
             // Share along e3 by how much of the image's angular range falls in
             // each plane. Geometric, with no model in it.
             bool landed = false;
-            for (int i3 = 0; i3 < side; ++i3) {
+            for (std::int32_t i3 = 0; i3 < side; ++i3) {
               const double low = -span_m + static_cast<double>(i3) * step_m;
               const double high = low + step_m;
               const double overlap =
@@ -173,7 +174,7 @@ SpotMoments spot_moments(const Experiment &e, const Shoebox &box,
   double sum = 0.0, m1 = 0.0, m2 = 0.0, m3 = 0.0;
   double s11 = 0.0, s22 = 0.0, s33 = 0.0;
   double ma = 0.0, mc = 0.0, saa = 0.0, scc = 0.0;
-  for (int pass = 0; pass < 2; ++pass) {
+  for (std::int32_t pass = 0; pass < 2; ++pass) {
     for (std::int32_t z = 0; z < box.nz(); ++z) {
       const double image = static_cast<double>(box.bbox[4] + z) + 0.5;
       const double phi = Scan::radians(e.scan.osc_start) +

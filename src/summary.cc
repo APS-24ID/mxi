@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <numeric>
 
 #include "refl.hh"
@@ -112,7 +113,7 @@ std::vector<double> ranks(const std::vector<double> &v) {
 
 } // namespace
 
-IntegrationSummary summarise(const SummaryInput &in, int shells) {
+IntegrationSummary summarise(const SummaryInput &in, std::int32_t shells) {
   IntegrationSummary out;
   const std::size_t n = in.d.size();
   shells = std::max(shells, 1);

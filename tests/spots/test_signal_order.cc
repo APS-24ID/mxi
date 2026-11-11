@@ -25,7 +25,7 @@ namespace {
 
 namespace {
 
-int failures = 0;
+std::int32_t failures = 0;
 
 void check(bool condition, const std::string &what) {
   if (condition) {
@@ -53,7 +53,7 @@ SignalPixel make(std::uint32_t index) {
 // Modelled rather than assumed -- by_index must not depend on it -- but it is
 // the realistic case to measure.
 std::vector<SignalPixel> emit_order(std::size_t height, std::size_t width,
-                                    std::size_t n, unsigned seed) {
+                                    std::size_t n, std::uint32_t seed) {
   std::mt19937 rng(seed);
   std::uniform_int_distribution<std::size_t> row(0, height - 1);
   std::uniform_int_distribution<std::size_t> tile(0, width / 32 - 1);
@@ -104,7 +104,7 @@ void agrees(std::vector<SignalPixel> pixels, const std::string &what) {
 
 } // namespace
 
-int run() {
+std::int32_t run() {
   const std::size_t height = 4362;
   const std::size_t width = 4148;
   const std::size_t frame = height * width;
@@ -169,7 +169,7 @@ int run() {
 
     double mine = 1e9;
     double theirs = 1e9;
-    for (int r = 0; r < 5; r++) {
+    for (std::int32_t r = 0; r < 5; r++) {
       std::vector<SignalPixel> pixels = source;
       auto started = std::chrono::steady_clock::now();
       mxi::signal_order::by_index(pixels, work);

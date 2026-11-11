@@ -62,7 +62,7 @@ public:
   template <class T, std::enable_if_t<std::is_integral_v<T> &&
                                           !std::is_same_v<T, bool> &&
                                           !std::is_same_v<T, char>,
-                                      int> = 0>
+                                      std::int32_t> = 0>
   Value(T i)
       : type_(Type::Number), number_(static_cast<double>(i)), integral_(true) {}
 
@@ -126,8 +126,9 @@ Value parse_file(const std::string &path);
 // `indent` of zero writes it on one line. DIALS writes .expt files indented,
 // and matching that makes a diff between one of ours and one of theirs
 // readable, which is worth the bytes.
-std::string dump(const Value &value, int indent = 1);
-void dump_file(const std::string &path, const Value &value, int indent = 1);
+std::string dump(const Value &value, std::int32_t indent = 1);
+void dump_file(const std::string &path, const Value &value,
+               std::int32_t indent = 1);
 
 } // namespace json
 } // namespace mxi

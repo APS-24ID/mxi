@@ -2,6 +2,7 @@
 
 #include "parallel.hh"
 
+#include <cstdint>
 #include <cstdio>
 
 #include <cstdlib>
@@ -23,7 +24,7 @@ Arguments parse_arguments(int argc, char **argv,
                           const std::set<std::string> &optional_value) {
   // --version, for every program: its name and mxi's version, and nothing
   // else done (once only mxi_find answered it).
-  for (int i = 1; i < argc; ++i)
+  for (std::int32_t i = 1; i < argc; ++i)
     if (std::string(argv[i]) == "--version") {
       std::string name = argv[0];
       const std::size_t slash = name.find_last_of('/');
@@ -41,7 +42,7 @@ Arguments parse_arguments(int argc, char **argv,
         return false;
     return true;
   };
-  for (int i = 1; i < argc; ++i) {
+  for (std::int32_t i = 1; i < argc; ++i) {
     // -j N and --threads N, one option, taken by every command alike: the
     // threads for everything the command does in parallel, 0 (the default)
     // being every core this job may use (parallel.hh). Commands had asked it

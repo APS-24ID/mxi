@@ -25,10 +25,10 @@ const Rotation kIdentityRotation{1, 0, 0, 0, 1, 0, 0, 0, 1};
 
 Rotation times(const Rotation &a, const Rotation &b) {
   Rotation out{};
-  for (int i = 0; i < 3; ++i)
-    for (int j = 0; j < 3; ++j) {
-      int v = 0;
-      for (int k = 0; k < 3; ++k)
+  for (std::int32_t i = 0; i < 3; ++i)
+    for (std::int32_t j = 0; j < 3; ++j) {
+      std::int32_t v = 0;
+      for (std::int32_t k = 0; k < 3; ++k)
         v += a[static_cast<std::size_t>(i * 3 + k)] *
              b[static_cast<std::size_t>(k * 3 + j)];
       out[static_cast<std::size_t>(i * 3 + j)] = v;
@@ -78,9 +78,9 @@ double quantile_of(std::vector<double> v, double q) {
 
 } // namespace
 
-int rotation_order(const Rotation &r) {
+std::int32_t rotation_order(const Rotation &r) {
   Rotation p = r;
-  for (int n = 1; n <= 6; ++n) {
+  for (std::int32_t n = 1; n <= 6; ++n) {
     if (p == kIdentityRotation)
       return n;
     p = times(p, r);
@@ -93,12 +93,12 @@ std::vector<Rotation> symmetry_elements(const std::vector<Rotation> &lattice) {
   for (const Rotation &r : lattice) {
     if (std::find(out.begin(), out.end(), r) != out.end())
       continue;
-    const int n = rotation_order(r);
+    const std::int32_t n = rotation_order(r);
     // A rotation of order above two stands with its inverse, r^(n-1).
     bool inverse_listed = false;
     if (n > 2) {
       Rotation inv = r;
-      for (int k = 1; k < n - 1; ++k)
+      for (std::int32_t k = 1; k < n - 1; ++k)
         inv = times(inv, r);
       inverse_listed = std::find(out.begin(), out.end(), inv) != out.end();
     }
@@ -165,7 +165,7 @@ WilsonFit fit_wilson(const P1Intensities &data) {
     double sum = 0.0;
     for (std::size_t r = 0; r < rows.size(); ++r) {
       double x = t[0] + lf2[r];
-      for (int j = 0; j < 6; ++j)
+      for (std::int32_t j = 0; j < 6; ++j)
         x -= q[r][static_cast<std::size_t>(j)] *
              t[static_cast<std::size_t>(j + 1)];
       sum += ipos[r] * std::exp(-x) + x;
@@ -173,53 +173,53 @@ WilsonFit fit_wilson(const P1Intensities &data) {
     return sum;
   };
   double current = nll(theta);
-  for (int it = 0; it < 100; ++it) {
+  for (std::int32_t it = 0; it < 100; ++it) {
     double g[7] = {0}, H[7][7] = {{0}};
     for (std::size_t r = 0; r < rows.size(); ++r) {
       double x = theta[0] + lf2[r];
-      for (int j = 0; j < 6; ++j)
+      for (std::int32_t j = 0; j < 6; ++j)
         x -= q[r][static_cast<std::size_t>(j)] *
              theta[static_cast<std::size_t>(j + 1)];
       const double ratio = ipos[r] * std::exp(-x); // I / S
       double a[7] = {1.0};
-      for (int j = 0; j < 6; ++j)
+      for (std::int32_t j = 0; j < 6; ++j)
         a[j + 1] = -q[r][static_cast<std::size_t>(j)];
-      for (int u = 0; u < 7; ++u) {
+      for (std::int32_t u = 0; u < 7; ++u) {
         g[u] += (1.0 - ratio) * a[u];
-        for (int v = 0; v < 7; ++v)
+        for (std::int32_t v = 0; v < 7; ++v)
           H[u][v] += ratio * a[u] * a[v];
       }
     }
     // Solve H step = -g by Gaussian elimination with partial pivoting.
     double m[7][8];
-    for (int u = 0; u < 7; ++u) {
-      for (int v = 0; v < 7; ++v)
+    for (std::int32_t u = 0; u < 7; ++u) {
+      for (std::int32_t v = 0; v < 7; ++v)
         m[u][v] = H[u][v] + (u == v ? 1e-12 * (1.0 + std::fabs(H[u][u])) : 0.0);
       m[u][7] = -g[u];
     }
-    for (int col = 0; col < 7; ++col) {
-      int pivot = col;
-      for (int r = col + 1; r < 7; ++r)
+    for (std::int32_t col = 0; col < 7; ++col) {
+      std::int32_t pivot = col;
+      for (std::int32_t r = col + 1; r < 7; ++r)
         if (std::fabs(m[r][col]) > std::fabs(m[pivot][col]))
           pivot = r;
-      for (int v = 0; v < 8; ++v)
+      for (std::int32_t v = 0; v < 8; ++v)
         std::swap(m[col][v], m[pivot][v]);
       if (std::fabs(m[col][col]) < 1e-300)
         return fit;
-      for (int r = 0; r < 7; ++r) {
+      for (std::int32_t r = 0; r < 7; ++r) {
         if (r == col)
           continue;
         const double f = m[r][col] / m[col][col];
-        for (int v = col; v < 8; ++v)
+        for (std::int32_t v = col; v < 8; ++v)
           m[r][v] -= f * m[col][v];
       }
     }
     std::array<double, 7> step;
-    for (int u = 0; u < 7; ++u)
+    for (std::int32_t u = 0; u < 7; ++u)
       step[static_cast<std::size_t>(u)] = m[u][7] / m[u][u];
     double scale = 1.0, next = current;
     std::array<double, 7> trial = theta;
-    for (int halving = 0; halving < 40; ++halving) {
+    for (std::int32_t halving = 0; halving < 40; ++halving) {
       for (std::size_t u = 0; u < 7; ++u)
         trial[u] = theta[u] + scale * step[u];
       next = nll(trial);
@@ -238,7 +238,7 @@ WilsonFit fit_wilson(const P1Intensities &data) {
   }
   fit.fitted = std::isfinite(current);
   fit.log_scale = theta[0];
-  for (int j = 0; j < 6; ++j)
+  for (std::int32_t j = 0; j < 6; ++j)
     fit.b[j] = theta[static_cast<std::size_t>(j + 1)];
   return fit;
 }
@@ -312,9 +312,9 @@ double p_cc_given_present(double cc, double sigma_cc, double expected) {
 double p_cc_given_absent(double cc, double sigma_cc) {
   // integral over x in [0, 1] of pdf(cc; x) (1 - x^2)^(1/2), over that of
   // (1 - x^2)^(1/2), which is pi/4; by the midpoint rule on 2000 steps.
-  const int steps = 2000;
+  const std::int32_t steps = 2000;
   double sum = 0.0;
-  for (int k = 0; k < steps; ++k) {
+  for (std::int32_t k = 0; k < steps; ++k) {
     const double x = (k + 0.5) / steps;
     sum +=
         trunc_cauchy_pdf(cc, -1.0, 1.0, x, sigma_cc) * std::sqrt(1.0 - x * x);
@@ -327,7 +327,7 @@ namespace {
 //: A Miller index as one integer, 21 bits an index: a hash table's key, where
 //: an ordered map compared indices down a tree for every lookup.
 std::uint64_t pack(const Miller &m) {
-  const auto bits = [](int v) {
+  const auto bits = [](std::int32_t v) {
     return static_cast<std::uint64_t>(static_cast<std::uint32_t>(v) & 0x1FFFFF);
   };
   return (bits(m[0]) << 42) | (bits(m[1]) << 21) | bits(m[2]);
@@ -352,7 +352,7 @@ double identity_cc(const P1Intensities &data, const Where &where) {
 
 LaueScores score_laue_groups(const P1Intensities &data,
                              const std::vector<Rotation> &lattice,
-                             unsigned seed) {
+                             std::uint32_t seed) {
   LaueScores out;
   double mark = Timing::now();
   Where where;
@@ -390,7 +390,7 @@ LaueScores score_laue_groups(const P1Intensities &data,
       std::uniform_int_distribution<std::size_t> pick(0, pairs - 1);
       for (std::size_t n = min_n; n <= max_n; ++n) {
         double ms = 0.0;
-        for (int rep = 0; rep < 200; ++rep) {
+        for (std::int32_t rep = 0; rep < 200; ++rep) {
           Accumulator acc;
           for (std::size_t j = 0; j < n; ++j) {
             const std::size_t p = pick(rng);
@@ -449,7 +449,7 @@ LaueScores score_laue_groups(const P1Intensities &data,
     std::vector<Rotation> ops{r};
     if (e.order > 2) {
       Rotation inv = r;
-      for (int k = 1; k < e.order - 1; ++k)
+      for (std::int32_t k = 1; k < e.order - 1; ++k)
         inv = times(inv, r);
       ops.push_back(inv);
     }

@@ -84,7 +84,7 @@ int run_residuals(int argc, char **argv) {
                  args.positional.size());
     return 2;
   }
-  const int bins = static_cast<int>(args.number("--bins", 8));
+  const std::int32_t bins = static_cast<std::int32_t>(args.number("--bins", 8));
   const double clip = args.number("--clip", 1.5);
   // Module layout, in pixels: active width and gap along each axis. The Eiger2
   // 16M is 4 x 1028 + 3 x 12 = 4148 fast, 8 x 512 + 7 x 38 = 4362 slow.
@@ -168,7 +168,7 @@ int run_residuals(int argc, char **argv) {
         "  radius (px)        n     radial   tangential        dx        dy\n");
 
     const std::size_t per = points.size() / static_cast<std::size_t>(bins);
-    for (int b = 0; b < bins; ++b) {
+    for (std::int32_t b = 0; b < bins; ++b) {
       const std::size_t from = static_cast<std::size_t>(b) * per;
       const std::size_t to = (b + 1 == bins) ? points.size() : from + per;
       std::vector<double> radial, tangential, dx, dy;
@@ -209,7 +209,7 @@ int run_residuals(int argc, char **argv) {
       double bx[3] = {tx, txx, txy};
       double by[3] = {ty, tyx, tyy};
       double a2[9];
-      for (int i = 0; i < 9; ++i)
+      for (std::int32_t i = 0; i < 9; ++i)
         a2[i] = a[i];
       if (solve_spd(a, bx, 3) && solve_spd(a2, by, 3)) {
         const double scale_fast = bx[1], scale_slow = by[2];
@@ -223,7 +223,7 @@ int run_residuals(int argc, char **argv) {
                     1000 * turn);
         std::printf("    shear        %+8.4f mrad\n", 1000 * shear);
         std::printf("\n  radial residual AFTER removing the affine part:\n");
-        for (int b = 0; b < bins; ++b) {
+        for (std::int32_t b = 0; b < bins; ++b) {
           const std::size_t from = static_cast<std::size_t>(b) * per;
           const std::size_t to = (b + 1 == bins) ? points.size() : from + per;
           std::vector<double> left;
@@ -247,7 +247,7 @@ int run_residuals(int argc, char **argv) {
     if (mod[0] > 0 && mod[2] > 0) {
       std::printf("\n  step across module boundaries (150 px either side):\n");
       const double band = 150.0;
-      for (int axis = 0; axis < 2; ++axis) {
+      for (std::int32_t axis = 0; axis < 2; ++axis) {
         const std::int64_t width = mod[axis * 2];
         const std::int64_t gap = mod[axis * 2 + 1];
         for (std::int64_t edge = width; edge < 5000; edge += width + gap) {

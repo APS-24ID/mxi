@@ -148,7 +148,7 @@ void print_residuals(const mxi::Table &t,
       ++left_out;
       continue;
     }
-    for (int k = 0; k < 3; ++k)
+    for (std::int32_t k = 0; k < 3; ++k)
       d[k].push_back(cal.reals[i * 3 + k] - obs.reals[i * 3 + k]);
   }
   if (d[0].empty())
@@ -165,7 +165,7 @@ void print_residuals(const mxi::Table &t,
   std::printf("  %-12s %9s %9s %9s %9s %9s\n", "", "min", "Q1", "median", "Q3",
               "max");
   const char *names[3] = {"x (px)", "y (px)", "z (images)"};
-  for (int k = 0; k < 3; ++k) {
+  for (std::int32_t k = 0; k < 3; ++k) {
     std::printf("  %-12s %9.4f %9.4f %9.4f %9.4f %9.4f\n", names[k],
                 quantile(d[k], 0.0), quantile(d[k], 0.25), quantile(d[k], 0.5),
                 quantile(d[k], 0.75), quantile(d[k], 1.0));
@@ -183,9 +183,9 @@ int run_refine(int argc, char **argv);
 // mxi_index --no-joint and mxi_integrate's sweeps are; then the lists joined
 // in the original order, a slice an experiment, and the reflections' ids
 // mapped back. Each group's refinement figures kept in the summary.
-int refine_apart(const Arguments &args,
-                 const std::set<std::string> &takes_value,
-                 const std::vector<std::vector<std::size_t>> &groups) {
+std::int32_t refine_apart(const Arguments &args,
+                          const std::set<std::string> &takes_value,
+                          const std::vector<std::vector<std::size_t>> &groups) {
   const rflx::Outputs outputs = rflx::outputs(args, "refined");
   const std::string base = outputs.rflx.empty() ? outputs.refl : outputs.rflx;
   const json::Value document = read_experiment_document(args.positional[0]);
@@ -206,7 +206,7 @@ int refine_apart(const Arguments &args,
     for (std::string &w : words)
       argv.push_back(w.data());
     argv.push_back(nullptr);
-    return run_refine(static_cast<int>(words.size()), argv.data());
+    return run_refine(static_cast<std::int32_t>(words.size()), argv.data());
   };
   std::printf("Refining %zu experiments sweep by sweep, %zu runs, each "
               "sweep's beam and detector its own (--joint for one refinement "
@@ -417,7 +417,8 @@ int run_refine(int argc, char **argv) {
   options.unit_weights = args.has("--unit-weights");
   options.strong_only = args.has("--strong-only");
   options.analytic = !args.has("--numerical");
-  options.macrocycles = static_cast<int>(args.number("--macrocycles", 3));
+  options.macrocycles =
+      static_cast<std::int32_t>(args.number("--macrocycles", 3));
   options.outlier_sigma = args.number("--outlier-sigma", 4.0);
   options.z_weight = args.number("--z-weight", 1.0);
   options.min_volume = args.number("--min-volume", 0.05);
@@ -572,7 +573,7 @@ int run_refine(int argc, char **argv) {
                     std::atan2(c0.dot(pv), c0.dot(pu)) * 180.0 / M_PI);
       }
       json::Array jc, je, jlo, jhi;
-      for (int k = 0; k < 6; ++k) {
+      for (std::int32_t k = 0; k < 6; ++k) {
         jc.push_back(json::Value(v[static_cast<std::size_t>(k)]));
         je.push_back(json::Value(e[static_cast<std::size_t>(k)]));
       }

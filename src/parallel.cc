@@ -25,12 +25,12 @@ std::size_t available_cores() {
   cpu_set_t set;
   CPU_ZERO(&set);
   if (sched_getaffinity(0, sizeof set, &set) == 0) {
-    const int n = CPU_COUNT(&set);
+    const std::int32_t n = CPU_COUNT(&set);
     if (n > 0)
       return static_cast<std::size_t>(n);
   }
 #endif
-  const unsigned n = std::thread::hardware_concurrency();
+  const std::uint32_t n = std::thread::hardware_concurrency();
   return n > 0 ? n : 1;
 }
 

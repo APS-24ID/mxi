@@ -6,6 +6,7 @@
 // (imgCIF) frame. What the file gets wrong or leaves out, the overrides say.
 
 #include <array>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -21,7 +22,8 @@ struct ImportOverrides {
   std::optional<std::array<double, 2>> beam_centre; //: pixels, fast and slow
   std::optional<double> mu;          //: 1/mm, the sensor's attenuation
   std::optional<double> trusted_max; //: the top of the trusted range
-  std::optional<std::array<int, 2>> image_range; //: first and last, from 1
+  std::optional<std::array<std::int32_t, 2>>
+      image_range; //: first and last, from 1
 };
 
 //: The experiment list, and notes on what was assumed or overridden -- each a

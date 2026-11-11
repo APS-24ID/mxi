@@ -67,7 +67,7 @@ std::string escape(const std::string &s) {
   return out;
 }
 
-std::string number(double v, int places = -1) {
+std::string number(double v, std::int32_t places = -1) {
   char text[64];
   if (!std::isfinite(v))
     return "&ndash;";
@@ -254,7 +254,7 @@ public:
   }
 
 private:
-  int count_ = 0;
+  std::int32_t count_ = 0;
 };
 
 json::Value trace(const json::Array &x, const json::Array &y,
@@ -642,7 +642,7 @@ std::string section_symmetry(const json::Value &s) {
 
 // The merging summary as DIALS lays it out: statistics down, shells across.
 std::string merging_summary(const json::Value &t) {
-  static const std::vector<std::pair<std::string, int>> rows = {
+  static const std::vector<std::pair<std::string, std::int32_t>> rows = {
       {"d_min", 2},
       {"d_max", 2},
       {"completeness", 1},
@@ -823,16 +823,17 @@ std::string section_scale(const json::Value &s, Figures &f,
       // The absorption surface, S = 1 + sum a_k Y_k at each direction of the
       // crystal frame, five degrees a step.
       for (const auto &[tag, a] : surfaces) {
-        const int lmax = static_cast<int>((*a)["lmax"].as_number());
+        const std::int32_t lmax =
+            static_cast<std::int32_t>((*a)["lmax"].as_number());
         const json::Array &ap = (*a)["parameters"].as_array();
         json::Array azimuth, polar, rows;
-        for (int az = -180; az <= 180; az += 5)
+        for (std::int32_t az = -180; az <= 180; az += 5)
           azimuth.push_back(json::Value(static_cast<double>(az)));
         std::vector<double> y;
-        for (int pol = 0; pol <= 180; pol += 5) {
+        for (std::int32_t pol = 0; pol <= 180; pol += 5) {
           polar.push_back(json::Value(static_cast<double>(pol)));
           json::Array row;
-          for (int az = -180; az <= 180; az += 5) {
+          for (std::int32_t az = -180; az <= 180; az += 5) {
             const double th = pol * M_PI / 180.0, ph = az * M_PI / 180.0;
             real_spherical_harmonics(lmax,
                                      Vec3{std::sin(th) * std::cos(ph),

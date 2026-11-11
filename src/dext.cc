@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdint>
 #include <limits>
 
 #include "dext.hh"
@@ -6,8 +7,9 @@
 // region: DISPERSION EXTENDED
 
 template <typename T>
-int dext(const T *image_in, std::vector<SignalPixel> &signal_out,
-         std::size_t height, std::size_t width, dext_scratch<T> &scratch) {
+std::int32_t dext(const T *image_in, std::vector<SignalPixel> &signal_out,
+                  std::size_t height, std::size_t width,
+                  dext_scratch<T> &scratch) {
   using W = accumulator_t<T>; // wide accumulator
   using R = real_t<T>; // float for std::uint16_t, double for std::uint32_t
 
@@ -224,9 +226,11 @@ int dext(const T *image_in, std::vector<SignalPixel> &signal_out,
   return 0;
 }
 
-template int dext<std::uint16_t>(const std::uint16_t *,
-                                 std::vector<SignalPixel> &, std::size_t,
-                                 std::size_t, dext_scratch<std::uint16_t> &);
-template int dext<std::uint32_t>(const std::uint32_t *,
-                                 std::vector<SignalPixel> &, std::size_t,
-                                 std::size_t, dext_scratch<std::uint32_t> &);
+template std::int32_t dext<std::uint16_t>(const std::uint16_t *,
+                                          std::vector<SignalPixel> &,
+                                          std::size_t, std::size_t,
+                                          dext_scratch<std::uint16_t> &);
+template std::int32_t dext<std::uint32_t>(const std::uint32_t *,
+                                          std::vector<SignalPixel> &,
+                                          std::size_t, std::size_t,
+                                          dext_scratch<std::uint32_t> &);

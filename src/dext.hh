@@ -94,25 +94,26 @@ constexpr std::size_t dext_scratch_bytes(std::size_t height,
 // ---------------------------------------------------------------------------
 
 template <typename T>
-int dext(const T *image_in, std::vector<SignalPixel> &signal_out,
-         std::size_t height, std::size_t width, dext_scratch<T> &scratch);
+std::int32_t dext(const T *image_in, std::vector<SignalPixel> &signal_out,
+                  std::size_t height, std::size_t width,
+                  dext_scratch<T> &scratch);
 
 // Convenience form: allocates and discards a scratch on every call. Use the
 // form above in a streaming loop.
 template <typename T>
-int dext(const T *image_in, std::vector<SignalPixel> &signal_out,
-         std::size_t height, std::size_t width) {
+std::int32_t dext(const T *image_in, std::vector<SignalPixel> &signal_out,
+                  std::size_t height, std::size_t width) {
   dext_scratch<T> scratch;
   return dext(image_in, signal_out, height, width, scratch);
 }
 
-extern template int dext<std::uint16_t>(const std::uint16_t *,
-                                        std::vector<SignalPixel> &, std::size_t,
-                                        std::size_t,
-                                        dext_scratch<std::uint16_t> &);
-extern template int dext<std::uint32_t>(const std::uint32_t *,
-                                        std::vector<SignalPixel> &, std::size_t,
-                                        std::size_t,
-                                        dext_scratch<std::uint32_t> &);
+extern template std::int32_t dext<std::uint16_t>(const std::uint16_t *,
+                                                 std::vector<SignalPixel> &,
+                                                 std::size_t, std::size_t,
+                                                 dext_scratch<std::uint16_t> &);
+extern template std::int32_t dext<std::uint32_t>(const std::uint32_t *,
+                                                 std::vector<SignalPixel> &,
+                                                 std::size_t, std::size_t,
+                                                 dext_scratch<std::uint32_t> &);
 
 #endif // MXI_DEXT_HH

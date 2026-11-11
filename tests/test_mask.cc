@@ -228,7 +228,7 @@ TEST(the_ellipsoid_is_inside_the_box_and_is_pi_over_six_of_it) {
     // Same bounding box either way: the ellipsoid is inscribed, so it does not
     // need a smaller one and must not get a different one, or the two pictures
     // would not be comparable.
-    for (int k = 0; k < 6; ++k) {
+    for (std::int32_t k = 0; k < 6; ++k) {
       check::equal(static_cast<std::int64_t>(as_ellipsoid.bbox[k]),
                    static_cast<std::int64_t>(as_box.bbox[k]), "same box");
     }
@@ -429,7 +429,7 @@ TEST(a_neighbours_foreground_is_marked_overlapped_and_nothing_else) {
     far.px_fast += 500.0;
     const std::vector<std::uint8_t> kept = box.mask;
     std::int32_t far_bbox[6];
-    for (int k = 0; k < 6; ++k)
+    for (std::int32_t k = 0; k < 6; ++k)
       far_bbox[k] = own.bbox[k] + (k < 2 ? 500 : 0);
     mark_overlapped(e, far, options, far_bbox, &box);
     check::is_true(box.mask == kept, "a box it does not meet: unchanged");

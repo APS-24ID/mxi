@@ -23,7 +23,7 @@ MergedSet set_of(const std::vector<double> &intensity,
                  const std::vector<double> &sigma) {
   MergedSet s;
   for (std::size_t k = 0; k < intensity.size(); ++k)
-    s.hkl.push_back(Miller{static_cast<int>(k) + 1, 0, 0});
+    s.hkl.push_back(Miller{static_cast<std::int32_t>(k) + 1, 0, 0});
   s.intensity = intensity;
   s.sigma = sigma;
   return s;
@@ -67,9 +67,9 @@ TEST(the_matrix_weights_sum_to_the_pairs_that_have_one) {
   std::mt19937 rng(3);
   std::normal_distribution<double> noise(0.0, 1.0);
   std::vector<MergedSet> sets;
-  for (int d = 0; d < 5; ++d) {
+  for (std::int32_t d = 0; d < 5; ++d) {
     std::vector<double> I, s;
-    for (int k = 0; k < 200; ++k) {
+    for (std::int32_t k = 0; k < 200; ++k) {
       I.push_back(100.0 + 50.0 * std::sin(k) + noise(rng) * 5.0);
       s.push_back(5.0);
     }
@@ -98,16 +98,16 @@ TEST(two_planted_groups_correlate_within_more_than_between) {
   std::mt19937 rng(5);
   std::normal_distribution<double> noise(0.0, 1.0);
   std::vector<double> truth, shift_a, shift_b;
-  for (int k = 0; k < 400; ++k) {
+  for (std::int32_t k = 0; k < 400; ++k) {
     truth.push_back(200.0 * std::exp(noise(rng) * 0.8));
     shift_a.push_back(noise(rng) * 40.0);
     shift_b.push_back(noise(rng) * 40.0);
   }
   std::vector<MergedSet> sets;
-  for (int d = 0; d < 8; ++d) {
+  for (std::int32_t d = 0; d < 8; ++d) {
     const std::vector<double> &shift = d < 4 ? shift_a : shift_b;
     std::vector<double> I, s;
-    for (int k = 0; k < 400; ++k) {
+    for (std::int32_t k = 0; k < 400; ++k) {
       I.push_back(truth[k] + shift[k] + noise(rng) * 10.0);
       s.push_back(10.0);
     }
@@ -115,7 +115,7 @@ TEST(two_planted_groups_correlate_within_more_than_between) {
   }
   const CorrelationMatrix m = correlation_matrix(sets);
   double within = 0.0, between = 0.0;
-  int nw = 0, nb = 0;
+  std::int32_t nw = 0, nb = 0;
   for (std::size_t i = 0; i < 8; ++i)
     for (std::size_t j = i + 1; j < 8; ++j) {
       if ((i < 4) == (j < 4)) {
@@ -135,12 +135,12 @@ namespace {
 
 // Three groups of data sets: common intensities, each group perturbed its own
 // way, every set noisy -- as bovine, porcine and human insulin.
-CorrelationMatrix three_groups(std::size_t each, unsigned seed) {
+CorrelationMatrix three_groups(std::size_t each, std::uint32_t seed) {
   std::mt19937 rng(seed);
   std::normal_distribution<double> noise(0.0, 1.0);
   std::vector<double> truth;
   std::vector<std::vector<double>> shifts(3);
-  for (int k = 0; k < 400; ++k) {
+  for (std::int32_t k = 0; k < 400; ++k) {
     truth.push_back(200.0 * std::exp(noise(rng) * 0.8));
     for (auto &s : shifts)
       s.push_back(noise(rng) * 40.0);
@@ -148,7 +148,7 @@ CorrelationMatrix three_groups(std::size_t each, unsigned seed) {
   std::vector<MergedSet> sets;
   for (std::size_t d = 0; d < 3 * each; ++d) {
     std::vector<double> I, s;
-    for (int k = 0; k < 400; ++k) {
+    for (std::int32_t k = 0; k < 400; ++k) {
       I.push_back(truth[k] + shifts[d / each][k] + noise(rng) * 10.0);
       s.push_back(10.0);
     }
@@ -166,7 +166,7 @@ TEST(the_cosym_start_is_numpys_at_seed_230) {
                            0.9358842864512585};
   const CorrelationMatrix m = three_groups(2, 1);
   const std::vector<double> x = minimise_cosym(m, 1, 0, 0, 230);
-  for (int k = 0; k < 5; ++k)
+  for (std::int32_t k = 0; k < 5; ++k)
     check::is_true(x[k] == numpy[k], "draw " + std::to_string(k));
 }
 
@@ -263,7 +263,7 @@ TEST(optics_is_scikit_learns) {
                        c.name + ": " + what + " of " + std::to_string(k));
     }
     std::vector<double> kept;
-    std::vector<int> kept_labels;
+    std::vector<std::int32_t> kept_labels;
     for (std::size_t i = 0; i < c.n; ++i)
       if (r.labels[i] != -1) {
         kept_labels.push_back(r.labels[i]);
@@ -281,9 +281,9 @@ TEST(three_planted_groups_are_three_clusters) {
   const CorrelationMatrix m = three_groups(8, 4);
   const CosymCoordinates c = cosym_coordinates(m, CosymOptions{});
   const SignificantClusters s = significant_clusters(c, ClusterOptions{});
-  std::set<int> found;
+  std::set<std::int32_t> found;
   for (std::size_t g = 0; g < 3; ++g) {
-    const int label = s.labels[g * 8];
+    const std::int32_t label = s.labels[g * 8];
     check::is_true(label != -1, "group " + std::to_string(g) + " clustered");
     for (std::size_t i = g * 8; i < g * 8 + 8; ++i)
       check::is_true(s.labels[i] == label,
@@ -394,7 +394,7 @@ TEST(ward_linkage_and_its_dendrogram_are_scipys) {
   check::equal(static_cast<std::int64_t>(z.size()), std::int64_t{8},
                "eight merges");
   for (std::size_t r = 0; r < z.size(); ++r)
-    for (int k = 0; k < 4; ++k)
+    for (std::int32_t k = 0; k < 4; ++k)
       check::close(z[r][k], expected[r][k], 1e-12,
                    "row " + std::to_string(r) + ", column " +
                        std::to_string(k));

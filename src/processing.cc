@@ -48,13 +48,13 @@ GeometryFigures geometry_figures(const Experiment &e) {
   return g;
 }
 
-std::string with_esd(double value, double esd, int plain) {
+std::string with_esd(double value, double esd, std::int32_t plain) {
   char text[64];
   if (!(esd > 0.0) || !std::isfinite(esd)) {
     std::snprintf(text, sizeof text, "%.*f", plain, value);
     return text;
   }
-  int places = static_cast<int>(-std::floor(std::log10(esd)));
+  std::int32_t places = static_cast<std::int32_t>(-std::floor(std::log10(esd)));
   if (esd * std::pow(10.0, places) < 2.0)
     ++places;
   places = std::max(0, std::min(places, 8));

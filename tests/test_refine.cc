@@ -94,11 +94,11 @@ TEST(residual_is_zero_for_an_exact_model) {
 
   double worst = 0.0;
   for (std::size_t i = 0; i < t.nrows; ++i) {
-    const Residual r =
-        centroid_residual(truth, 0, static_cast<int>(miller.integer(i, 0)),
-                          static_cast<int>(miller.integer(i, 1)),
-                          static_cast<int>(miller.integer(i, 2)),
-                          xyz.real(i, 0), xyz.real(i, 1), xyz.real(i, 2));
+    const Residual r = centroid_residual(
+        truth, 0, static_cast<std::int32_t>(miller.integer(i, 0)),
+        static_cast<std::int32_t>(miller.integer(i, 1)),
+        static_cast<std::int32_t>(miller.integer(i, 2)), xyz.real(i, 0),
+        xyz.real(i, 1), xyz.real(i, 2));
     check::is_true(r.valid, "every prediction must be reproducible");
     worst = std::fmax(worst, std::abs(r.dx));
     worst = std::fmax(worst, std::abs(r.dy));
@@ -118,11 +118,11 @@ TEST(residual_picks_the_root_nearer_the_observation) {
   const Column &miller = t.at("miller_index");
   std::size_t large = 0;
   for (std::size_t i = 0; i < t.nrows; ++i) {
-    const Residual r =
-        centroid_residual(truth, 0, static_cast<int>(miller.integer(i, 0)),
-                          static_cast<int>(miller.integer(i, 1)),
-                          static_cast<int>(miller.integer(i, 2)),
-                          xyz.real(i, 0), xyz.real(i, 1), xyz.real(i, 2));
+    const Residual r = centroid_residual(
+        truth, 0, static_cast<std::int32_t>(miller.integer(i, 0)),
+        static_cast<std::int32_t>(miller.integer(i, 1)),
+        static_cast<std::int32_t>(miller.integer(i, 2)), xyz.real(i, 0),
+        xyz.real(i, 1), xyz.real(i, 2));
     if (r.valid && std::abs(r.dz) > 1.0)
       ++large;
   }
@@ -444,11 +444,11 @@ TEST(prediction_and_the_refinement_target_agree_exactly) {
   const Column &miller = t.at("miller_index");
   double worst = 0.0;
   for (std::size_t i = 0; i < t.nrows; ++i) {
-    const Residual r =
-        centroid_residual(truth, 0, static_cast<int>(miller.integer(i, 0)),
-                          static_cast<int>(miller.integer(i, 1)),
-                          static_cast<int>(miller.integer(i, 2)),
-                          xyz.real(i, 0), xyz.real(i, 1), xyz.real(i, 2));
+    const Residual r = centroid_residual(
+        truth, 0, static_cast<std::int32_t>(miller.integer(i, 0)),
+        static_cast<std::int32_t>(miller.integer(i, 1)),
+        static_cast<std::int32_t>(miller.integer(i, 2)), xyz.real(i, 0),
+        xyz.real(i, 1), xyz.real(i, 2));
     if (!r.valid)
       continue;
     worst = std::fmax(worst, std::hypot(r.dx, r.dy));
@@ -477,11 +477,11 @@ TEST(a_scan_varying_model_agrees_except_where_the_angle_is_ill_conditioned) {
 
   std::vector<double> offsets;
   for (std::size_t i = 0; i < t.nrows; ++i) {
-    const Residual r =
-        centroid_residual(truth, 0, static_cast<int>(miller.integer(i, 0)),
-                          static_cast<int>(miller.integer(i, 1)),
-                          static_cast<int>(miller.integer(i, 2)),
-                          xyz.real(i, 0), xyz.real(i, 1), xyz.real(i, 2));
+    const Residual r = centroid_residual(
+        truth, 0, static_cast<std::int32_t>(miller.integer(i, 0)),
+        static_cast<std::int32_t>(miller.integer(i, 1)),
+        static_cast<std::int32_t>(miller.integer(i, 2)), xyz.real(i, 0),
+        xyz.real(i, 1), xyz.real(i, 2));
     if (r.valid)
       offsets.push_back(std::hypot(r.dx, r.dy));
   }
@@ -551,9 +551,9 @@ TEST(the_cutoff_keeps_the_reflections_far_from_the_rotation_axis) {
   std::size_t below = 0, above = 0;
   for (std::size_t i = 0; i < t.nrows; ++i) {
     const PredictionState s = prediction_state(
-        truth, 0, static_cast<int>(miller.integer(i, 0)),
-        static_cast<int>(miller.integer(i, 1)),
-        static_cast<int>(miller.integer(i, 2)), xyz.real(i, 2));
+        truth, 0, static_cast<std::int32_t>(miller.integer(i, 0)),
+        static_cast<std::int32_t>(miller.integer(i, 1)),
+        static_cast<std::int32_t>(miller.integer(i, 2)), xyz.real(i, 2));
     if (!s.valid)
       continue;
     if (std::abs(s.volume) < 0.05) {
@@ -613,11 +613,11 @@ TEST(the_cell_and_the_detector_distance_are_degenerate_in_position) {
     double sx = 0.0, sz = 0.0;
     std::size_t n = 0;
     for (std::size_t i = 0; i < t.nrows; ++i) {
-      const Residual r =
-          centroid_residual(scaled, 0, static_cast<int>(miller.integer(i, 0)),
-                            static_cast<int>(miller.integer(i, 1)),
-                            static_cast<int>(miller.integer(i, 2)),
-                            xyz.real(i, 0), xyz.real(i, 1), xyz.real(i, 2));
+      const Residual r = centroid_residual(
+          scaled, 0, static_cast<std::int32_t>(miller.integer(i, 0)),
+          static_cast<std::int32_t>(miller.integer(i, 1)),
+          static_cast<std::int32_t>(miller.integer(i, 2)), xyz.real(i, 0),
+          xyz.real(i, 1), xyz.real(i, 2));
       if (!r.valid)
         continue;
       sx += r.dx * r.dx;
@@ -753,8 +753,8 @@ TEST(the_normal_equations_are_the_same_on_any_number_of_threads) {
     std::vector<double> out{p.origin.x, p.origin.y, p.origin.z};
     if (list[0].crystal) {
       const Mat3 &A = list[0].crystal->A;
-      for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j)
+      for (std::int32_t i = 0; i < 3; ++i) {
+        for (std::int32_t j = 0; j < 3; ++j)
           out.push_back(A(i, j));
       }
     }

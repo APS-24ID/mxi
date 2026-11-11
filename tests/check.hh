@@ -82,9 +82,9 @@ struct Register {
 //: Every test, or with `only` those whose name contains it -- to run one
 //: alone, as when chasing a test that hangs. Each is reported as it finishes,
 //: flushed, so that a run stopped part way shows how far it got.
-inline int run_all(const std::string &only = "") {
-  int failed = 0;
-  int skipped = 0;
+inline std::int32_t run_all(const std::string &only = "") {
+  std::int32_t failed = 0;
+  std::int32_t skipped = 0;
   std::size_t ran = 0;
   for (const Case &c : registry()) {
     if (!only.empty() && c.name.find(only) == std::string::npos)

@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <set>
 #include <string>
@@ -112,7 +113,8 @@ int run_forward(int argc, char **argv) {
     options.sigma_d = args.number("--sigma-b", 0.0);
     options.sigma_m = args.number("--sigma-m", 0.0);
     options.sensor = !args.has("--no-sensor");
-    options.depth_samples = static_cast<int>(args.number("--depth-samples", 8));
+    options.depth_samples =
+        static_cast<std::int32_t>(args.number("--depth-samples", 8));
     if (!(options.sigma_d > 0.0)) {
       std::vector<Shoebox> selected;
       for (std::size_t i : chosen)

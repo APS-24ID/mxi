@@ -163,7 +163,7 @@ double reflecting_range(const std::vector<RangeSample> &samples,
   double c = low + phi * (high - low);
   double fb = negative_log_likelihood(b);
   double fc = negative_log_likelihood(c);
-  for (int i = 0; i < 200 && (high - low) > 1e-12; ++i) {
+  for (std::int32_t i = 0; i < 200 && (high - low) > 1e-12; ++i) {
     if (fb < fc) {
       high = c;
       c = b;
@@ -326,7 +326,7 @@ Capture capture_fractions(const Experiment &e,
               static_cast<double>(box.bbox[2] + y) + 0.5, phi,
               phi_calculated[i]);
           total += count;
-          for (int k = 0; k < 4; ++k) {
+          for (std::int32_t k = 0; k < 4; ++k) {
             const double limit = static_cast<double>(k + 1);
             const bool on_detector = std::fabs(eps.e1) <= limit * sigma_d &&
                                      std::fabs(eps.e2) <= limit * sigma_d;
@@ -344,7 +344,7 @@ Capture capture_fractions(const Experiment &e,
   }
   out.counts = total;
   if (total > 0.0) {
-    for (int k = 0; k < 4; ++k) {
+    for (std::int32_t k = 0; k < 4; ++k) {
       out.fraction[k] = inside[k] / total;
       out.detector[k] = in_detector[k] / total;
       out.rotation[k] = in_rotation[k] / total;

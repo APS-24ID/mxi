@@ -1,6 +1,7 @@
 #include "decompress.hh"
 
 #include <bitshuffle.h>
+#include <cstdint>
 #include <lz4.h>
 
 #include <cstring>
@@ -25,10 +26,10 @@ bool read_filter_header(std::span<const std::uint8_t> data,
   if (data.size() < kFilterHeader)
     return false;
   std::uint64_t size = 0;
-  for (int i = 0; i < 8; i++)
+  for (std::int32_t i = 0; i < 8; i++)
     size = (size << 8) | data[i];
   std::uint32_t block = 0;
-  for (int i = 8; i < 12; i++)
+  for (std::int32_t i = 8; i < 12; i++)
     block = (block << 8) | data[i];
   header->uncompressed_size = size;
   header->block_size = block;
@@ -50,7 +51,7 @@ void lz4_blocks(std::span<const std::uint8_t> in, std::span<std::uint8_t> out,
     if (read + 4 > in.size())
       throw std::runtime_error("lz4 data truncated");
     std::uint32_t compressed = 0;
-    for (int i = 0; i < 4; i++)
+    for (std::int32_t i = 0; i < 4; i++)
       compressed = (compressed << 8) | in[read + i];
     read += 4;
     if (compressed == 0 || read + compressed > in.size()) {
@@ -60,10 +61,11 @@ void lz4_blocks(std::span<const std::uint8_t> in, std::span<std::uint8_t> out,
     const std::size_t remaining = out.size() - written;
     const std::size_t expected =
         remaining < block_size ? remaining : block_size;
-    const int produced = LZ4_decompress_safe(
-        reinterpret_cast<const char *>(in.data() + read),
-        reinterpret_cast<char *>(out.data() + written),
-        static_cast<int>(compressed), static_cast<int>(expected));
+    const std::int32_t produced =
+        LZ4_decompress_safe(reinterpret_cast<const char *>(in.data() + read),
+                            reinterpret_cast<char *>(out.data() + written),
+                            static_cast<std::int32_t>(compressed),
+                            static_cast<std::int32_t>(expected));
     if (produced < 0)
       throw std::runtime_error(fail("lz4 decompression", produced));
     read += compressed;
@@ -74,12 +76,12 @@ void lz4_blocks(std::span<const std::uint8_t> in, std::span<std::uint8_t> out,
 } // namespace
 
 std::size_t frame_bytes(std::size_t height, std::size_t width,
-                        unsigned bit_depth) {
+                        std::uint32_t bit_depth) {
   return height * width * bit_depth / 8;
 }
 
 void image(std::span<const std::uint8_t> data, std::string_view algorithm,
-           unsigned bit_depth, std::size_t height, std::size_t width,
+           std::uint32_t bit_depth, std::size_t height, std::size_t width,
            std::span<std::uint8_t> out) {
   const std::size_t expected = frame_bytes(height, width, bit_depth);
   const std::size_t element = bit_depth / 8;

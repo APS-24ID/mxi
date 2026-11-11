@@ -1,6 +1,7 @@
 #include "spots.hh"
 
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -283,7 +284,7 @@ void Labeller::emit(const std::uint32_t *members, std::size_t n) {
     counts += static_cast<double>(pixel.value);
     net += static_cast<double>(pixel.value) -
            static_cast<double>(pixel.background);
-    for (int axis = 0; axis < 3; axis++)
+    for (std::int32_t axis = 0; axis < 3; axis++)
       weighted[axis] += value * position[axis];
 
     // The brightest pixel, ties to the lowest (z, y, x). DIALS takes
@@ -313,7 +314,7 @@ void Labeller::emit(const std::uint32_t *members, std::size_t n) {
   spot.intensity_variance = counts;
 
   if (sum > 0.0) {
-    for (int axis = 0; axis < 3; axis++)
+    for (std::int32_t axis = 0; axis < 3; axis++)
       spot.position[axis] = weighted[axis] / sum;
 
     double delta_sq[3] = {0.0, 0.0, 0.0};
@@ -324,7 +325,7 @@ void Labeller::emit(const std::uint32_t *members, std::size_t n) {
           static_cast<double>(pixel.index % width_) + 0.5,
           static_cast<double>(pixel.index / width_) + 0.5,
           static_cast<double>(pixel.frame) + 0.5};
-      for (int axis = 0; axis < 3; axis++) {
+      for (std::int32_t axis = 0; axis < 3; axis++) {
         const double delta = position[axis] - spot.position[axis];
         delta_sq[axis] += value * delta * delta;
       }
@@ -335,12 +336,12 @@ void Labeller::emit(const std::uint32_t *members, std::size_t n) {
     // sum^2 == sum of squares. It catches that and reports 1/12 with no
     // variance, so the same case has to give the same answer here.
     if (sum * sum > sum_sq) {
-      for (int axis = 0; axis < 3; axis++) {
+      for (std::int32_t axis = 0; axis < 3; axis++) {
         const double variance = delta_sq[axis] * sum / (sum * sum - sum_sq);
         spot.variance[axis] = variance / sum + kPixelVariance;
       }
     } else {
-      for (int axis = 0; axis < 3; axis++)
+      for (std::int32_t axis = 0; axis < 3; axis++)
         spot.variance[axis] = kPixelVariance;
     }
 

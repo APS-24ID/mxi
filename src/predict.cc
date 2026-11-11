@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstdint>
 #include <thread>
 
 namespace mxi {
@@ -74,22 +75,22 @@ Intersections ewald_intersections(const Experiment &e, const Vec3 &r0) {
   // if it is backwards, every `entering` flag is inverted and every keyed join
   // against DIALS output pairs the wrong two observations. See
   // docs/conventions.md.
-  for (int i = 0; i < 2; ++i) {
+  for (std::int32_t i = 0; i < 2; ++i) {
     const Vec3 rotated = rotation(m2, out.phi[i]) * u;
     out.entering[i] = s0p.dot(m2.cross(rotated)) < 0.0;
   }
   return out;
 }
 
-std::array<int, 3> index_bounds(const Crystal &crystal, double d_min,
-                                int max_index) {
+std::array<std::int32_t, 3> index_bounds(const Crystal &crystal, double d_min,
+                                         std::int32_t max_index) {
   const Mat3 real = crystal.A.inverse();
-  std::array<int, 3> bounds{};
-  for (int i = 0; i < 3; ++i) {
+  std::array<std::int32_t, 3> bounds{};
+  for (std::int32_t i = 0; i < 3; ++i) {
     const double length = real.row(static_cast<std::size_t>(i)).norm();
     const double limit = d_min > 0.0 ? length / d_min : 0.0;
     bounds[static_cast<std::size_t>(i)] =
-        std::min(max_index, static_cast<int>(std::ceil(limit)) + 1);
+        std::min(max_index, static_cast<std::int32_t>(std::ceil(limit)) + 1);
   }
   return bounds;
 }
@@ -193,7 +194,7 @@ Converged converge_root(const Experiment &e, const Vec3 &h, double phi_seed,
   const auto in_this_turn = [&](double root) {
     return root + two_pi * std::round((out.phi - root) / two_pi);
   };
-  for (int pass = 0; pass < 3; ++pass) {
+  for (std::int32_t pass = 0; pass < 3; ++pass) {
     const Vec3 trial = e.setting_at(e.scan.z_from_phi(out.phi)) * h;
     const Intersections cross = ewald_intersections(e, trial);
     if (!cross.any)
@@ -202,7 +203,7 @@ Converged converge_root(const Experiment &e, const Vec3 &h, double phi_seed,
     const double second = in_this_turn(cross.phi[1]);
     // Stay on the root we started from: the same side of the sphere, which is
     // what distinguishes the two crossings, and then the nearer in angle.
-    int which;
+    std::int32_t which;
     if (cross.entering[0] == entering_seed &&
         cross.entering[1] != entering_seed) {
       which = 0;
@@ -221,8 +222,9 @@ Converged converge_root(const Experiment &e, const Vec3 &h, double phi_seed,
 }
 
 // Turn one Ewald intersection into a Prediction, or reject it.
-bool build(const Experiment &e, const PredictOptions &options, int h, int k,
-           int l, const Vec3 &r0, double phi, bool entering, Prediction *out) {
+bool build(const Experiment &e, const PredictOptions &options, std::int32_t h,
+           std::int32_t k, std::int32_t l, const Vec3 &r0, double phi,
+           bool entering, Prediction *out) {
   if (!options.allow_outside_scan) {
     const double start = e.scan.phi_start();
     const double end = e.scan.phi_end();
@@ -281,18 +283,20 @@ bool build(const Experiment &e, const PredictOptions &options, int h, int k,
 //: phi + 2 pi k, because with a scan-varying crystal the setting matrix at
 //: turn nine is not the one at turn zero and the reflection is not in quite
 //: the same place.
-void emit_turns(const Experiment &e, const PredictOptions &options, int h,
-                int k, int l, const Vec3 &hkl, const Converged &first,
-                bool entering, std::vector<Prediction> *out) {
+void emit_turns(const Experiment &e, const PredictOptions &options,
+                std::int32_t h, std::int32_t k, std::int32_t l, const Vec3 &hkl,
+                const Converged &first, bool entering,
+                std::vector<Prediction> *out) {
   const double lo = std::min(e.scan.phi_start(), e.scan.phi_end());
   const double span = std::abs(e.scan.phi_end() - e.scan.phi_start());
   const double two_pi = 2.0 * kPi;
-  const int turns =
+  const std::int32_t turns =
       options.allow_outside_scan
           ? 1
-          : std::max(1, static_cast<int>(std::floor(span / two_pi)) + 1);
+          : std::max(1,
+                     static_cast<std::int32_t>(std::floor(span / two_pi)) + 1);
   const double base = wrap_from(first.phi, lo);
-  for (int turn = 0; turn < turns; ++turn) {
+  for (std::int32_t turn = 0; turn < turns; ++turn) {
     const double seed = base + two_pi * static_cast<double>(turn);
     if (!options.allow_outside_scan && seed > lo + span)
       break;
@@ -330,13 +334,13 @@ void emit_turns(const Experiment &e, const PredictOptions &options, int h,
 
 std::vector<Prediction>
 predict_indices(const Experiment &e,
-                const std::vector<std::array<int, 3>> &indices,
+                const std::vector<std::array<std::int32_t, 3>> &indices,
                 const PredictOptions &options) {
   std::vector<Prediction> out;
   if (!e.crystal)
     return out;
 
-  for (const std::array<int, 3> &hkl : indices) {
+  for (const std::array<std::int32_t, 3> &hkl : indices) {
     if (hkl[0] == 0 && hkl[1] == 0 && hkl[2] == 0)
       continue;
     const Vec3 h{static_cast<double>(hkl[0]), static_cast<double>(hkl[1]),
@@ -344,7 +348,7 @@ predict_indices(const Experiment &e,
     const Intersections cross = ewald_intersections(e, e.crystal->A * h);
     if (!cross.any)
       continue;
-    for (int i = 0; i < 2; ++i) {
+    for (std::int32_t i = 0; i < 2; ++i) {
       const Converged c =
           converge_root(e, h, into_scan(e, cross.phi[i]), cross.entering[i]);
       if (!c.any)
@@ -373,8 +377,8 @@ double detector_q_max(const Experiment &e) {
   for (const Panel &p : e.detector.panels) {
     const double w = p.pixel_size[0] * static_cast<double>(p.image_size[0]);
     const double v = p.pixel_size[1] * static_cast<double>(p.image_size[1]);
-    for (int i = 0; i < 2; ++i)
-      for (int j = 0; j < 2; ++j) {
+    for (std::int32_t i = 0; i < 2; ++i)
+      for (std::int32_t j = 0; j < 2; ++j) {
         const Vec3 corner = p.origin + p.fast * (w * i) + p.slow * (v * j);
         const double length = corner.norm();
         if (!(length > 0.0))
@@ -405,8 +409,8 @@ double setting_spread(const Experiment &e) {
   for (double z = 0.0; z <= images; z += 0.25) {
     const Mat3 m = e.setting_at(z) * inverse;
     double f = 0.0;
-    for (int r = 0; r < 3; ++r)
-      for (int col = 0; col < 3; ++col) {
+    for (std::int32_t r = 0; r < 3; ++r)
+      for (std::int32_t col = 0; col < 3; ++col) {
         const double d = m.m[r * 3 + col] - (r == col ? 1.0 : 0.0);
         f += d * d;
       }
@@ -487,7 +491,7 @@ std::vector<Prediction> predict(const Experiment &e,
     if (reach > 0.0)
       q_max = std::min(q_max, reach * (1.0 + 2.0 * eta) * 1.01);
   }
-  const std::array<int, 3> bounds =
+  const std::array<std::int32_t, 3> bounds =
       index_bounds(*e.crystal, 1.0 / q_max, options.max_index);
   const Mat3 &A = e.crystal->A;
 
@@ -501,15 +505,15 @@ std::vector<Prediction> predict(const Experiment &e,
   if (threads == 0)
     threads =
         parallel_threads(); // -j/--threads, or every core this job may use
-  const int first_h = -bounds[0];
+  const std::int32_t first_h = -bounds[0];
   const std::size_t rows = static_cast<std::size_t>(2 * bounds[0] + 1);
   std::vector<std::vector<Prediction>> by_h(rows);
 
   const auto one_h = [&](std::size_t row) {
-    const int h = first_h + static_cast<int>(row);
+    const std::int32_t h = first_h + static_cast<std::int32_t>(row);
     std::vector<Prediction> &out = by_h[row];
-    for (int k = -bounds[1]; k <= bounds[1]; ++k) {
-      for (int l = -bounds[2]; l <= bounds[2]; ++l) {
+    for (std::int32_t k = -bounds[1]; k <= bounds[1]; ++k) {
+      for (std::int32_t l = -bounds[2]; l <= bounds[2]; ++l) {
         if (h == 0 && k == 0 && l == 0)
           continue;
         const Vec3 hkl{static_cast<double>(h), static_cast<double>(k),
@@ -526,7 +530,7 @@ std::vector<Prediction> predict(const Experiment &e,
         const double margin = prune && !options.allow_outside_scan
                                   ? crossing_margin(e, r0, eta)
                                   : HUGE_VAL;
-        for (int i = 0; i < 2; ++i) {
+        for (std::int32_t i = 0; i < 2; ++i) {
           if (outside_scan(e, cross.phi[i], margin))
             continue;
           const Converged c = converge_root(e, hkl, into_scan(e, cross.phi[i]),

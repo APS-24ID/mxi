@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdint>
 
 #include "signal_order.hh"
 
@@ -39,7 +40,7 @@ void by_index(std::vector<SignalPixel> &pixels, scratch &work) {
   // comparisons, few enough that the histogram stays in cache. Derived from the
   // count, so a sparse frame does not pay for a histogram sized for a dense
   // one.
-  unsigned shift = 0;
+  std::uint32_t shift = 0;
   while ((largest >> shift) > n / 4 + 1)
     shift++;
   const std::size_t buckets = (largest >> shift) + 1;

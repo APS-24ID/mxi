@@ -74,7 +74,7 @@ void describe(const std::string &master, const mxi::json::Value &expt,
   for (const json::Value &pv :
        e.at("detector").as_array()[0].as_object().at("panels").as_array()) {
     const auto &p = pv.as_object();
-    const auto a = [&](const char *k, int i) {
+    const auto a = [&](const char *k, std::int32_t i) {
       return num(p.at(k).as_array()[i]);
     };
     const double fx = a("fast_axis", 0), fy = a("fast_axis", 1),
@@ -112,7 +112,8 @@ void describe(const std::string &master, const mxi::json::Value &expt,
   const auto &names = g.at("names").as_array();
   for (std::size_t i = 0; i < names.size(); ++i)
     std::printf(" %s%s", names[i].as_string().c_str(),
-                static_cast<int>(i) == static_cast<int>(num(g.at("scan_axis")))
+                static_cast<std::int32_t>(i) ==
+                        static_cast<std::int32_t>(num(g.at("scan_axis")))
                     ? " (scan)"
                     : "");
   std::printf("\n");
@@ -236,8 +237,8 @@ int mxi_import_main(int argc, char **argv) {
     }
     if (args.has("--image-range")) {
       const auto v = pair_of(args.value("--image-range", ""), "--image-range");
-      o.image_range =
-          std::array<int, 2>{static_cast<int>(v[0]), static_cast<int>(v[1])};
+      o.image_range = std::array<std::int32_t, 2>{
+          static_cast<std::int32_t>(v[0]), static_cast<std::int32_t>(v[1])};
     }
     const rflx::Outputs out = rflx::outputs(args, "imported");
     // One experiment a master, each with models of its own, joined as

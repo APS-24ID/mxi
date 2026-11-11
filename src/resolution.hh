@@ -6,6 +6,7 @@
 // stops being significant, from a logistic curve fitted to which bins are.
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "scale.hh"
@@ -28,12 +29,11 @@ struct ResolutionBin {
 //: more
 //: -- Wilson outliers -- are left out, as dials.estimate_resolution leaves
 //: them.
-std::vector<ResolutionBin> cc_half_bins(const ScaleData &data,
-                                        const std::vector<double> &g,
-                                        const Crystal &crystal, int bins = 50,
-                                        std::size_t min_per_bin = 10,
-                                        double significance_level = 0.1,
-                                        std::size_t *wilson_outliers = nullptr);
+std::vector<ResolutionBin>
+cc_half_bins(const ScaleData &data, const std::vector<double> &g,
+             const Crystal &crystal, std::int32_t bins = 50,
+             std::size_t min_per_bin = 10, double significance_level = 0.1,
+             std::size_t *wilson_outliers = nullptr);
 
 struct ResolutionEstimate {
   //: 0 where there is none: the fit crossed nothing, or nothing was

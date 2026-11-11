@@ -18,6 +18,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 
 #include "target.hh"
 
@@ -58,7 +59,8 @@ template <typename T> inline bool invert(const T (&m)[9], T (&out)[9]) {
 } // namespace target_detail
 
 template <typename T>
-TargetState<T> target_state(const TargetModel<T> &m, int h, int k, int l, T z) {
+TargetState<T> target_state(const TargetModel<T> &m, std::int32_t h,
+                            std::int32_t k, std::int32_t l, T z) {
   using target_detail::cross;
   using target_detail::dot;
   using target_detail::invert;
@@ -103,7 +105,7 @@ TargetState<T> target_state(const TargetModel<T> &m, int h, int k, int l, T z) {
 
   s.phi = phi_obs;
   T best = static_cast<T>(1e30);
-  for (int i = 0; i < 2; ++i) {
+  for (std::int32_t i = 0; i < 2; ++i) {
     const T root = i == 0 ? centre - offset : centre + offset;
     T gap = std::fmod(root - phi_obs, two_pi);
     if (gap > T(0.5) * two_pi)
@@ -121,7 +123,7 @@ TargetState<T> target_state(const TargetModel<T> &m, int h, int k, int l, T z) {
   mat_mul(m.setting, rot, tmp);
   mat_mul(tmp, m.fixed, s.R);
   mat_vec(s.R, s.r0, s.r_phi);
-  for (int i = 0; i < 3; ++i)
+  for (std::int32_t i = 0; i < 3; ++i)
     s.s1[i] = m.s0[i] + s.r_phi[i];
 
   // d with the panel basis as COLUMNS, so d (X, Y, 1)^T = alpha s1.
@@ -160,7 +162,8 @@ inline void finish(const TargetState<T> &s, const T (&dr_phi)[3],
 
 template <typename T>
 void crystal_derivatives_t(const TargetModel<T> &m, const TargetState<T> &s,
-                           int h, int k, int l, Derivative3<T> (&out)[9]) {
+                           std::int32_t h, std::int32_t k, std::int32_t l,
+                           Derivative3<T> (&out)[9]) {
   using target_detail::cross;
   using target_detail::dot;
   using target_detail::finish;
@@ -171,15 +174,15 @@ void crystal_derivatives_t(const TargetModel<T> &m, const TargetState<T> &s,
   T e_cross_r[3];
   cross(m.axis, s.r_phi, e_cross_r);
 
-  for (int i = 0; i < 3; ++i) {
-    for (int j = 0; j < 3; ++j) {
+  for (std::int32_t i = 0; i < 3; ++i) {
+    for (std::int32_t j = 0; j < 3; ++j) {
       T dr0[3] = {T(0), T(0), T(0)};
       dr0[i] = hkl[j];
       T R_dr0[3];
       mat_vec(s.R, dr0, R_dr0);
       const T dphi = -dot(R_dr0, s.s1) / s.volume;
       T dr_phi[3];
-      for (int c = 0; c < 3; ++c)
+      for (std::int32_t c = 0; c < 3; ++c)
         dr_phi[c] = e_cross_r[c] * dphi + R_dr0[c];
       out[i * 3 + j].dphi = dphi;
       finish(s, dr_phi, &out[i * 3 + j]);
@@ -196,7 +199,7 @@ void detector_derivatives_t(const TargetModel<T> &m, const TargetState<T> &s,
     return;
   const T w = s.v[2];
 
-  for (int k = 0; k < 6; ++k) {
+  for (std::int32_t k = 0; k < 6; ++k) {
     T dfast[3] = {T(0), T(0), T(0)};
     T dslow[3] = {T(0), T(0), T(0)};
     T dorigin[3] = {T(0), T(0), T(0)};
@@ -245,7 +248,7 @@ void beam_derivatives_t(const TargetModel<T> &m, const TargetState<T> &s,
     cross(x_axis, d, u);
   }
   const T u_length = std::sqrt(dot(u, u));
-  for (int i = 0; i < 3; ++i)
+  for (std::int32_t i = 0; i < 3; ++i)
     u[i] /= u_length;
   T v[3];
   cross(d, u, v);
@@ -253,13 +256,13 @@ void beam_derivatives_t(const TargetModel<T> &m, const TargetState<T> &s,
   T e_cross_r[3];
   cross(m.axis, s.r_phi, e_cross_r);
   const T *basis[2] = {u, v};
-  for (int k = 0; k < 2; ++k) {
+  for (std::int32_t k = 0; k < 2; ++k) {
     T ds0[3];
-    for (int i = 0; i < 3; ++i)
+    for (std::int32_t i = 0; i < 3; ++i)
       ds0[i] = -basis[k][i] / wavelength;
     const T dphi = -dot(s.r_phi, ds0) / s.volume;
     T dr_phi[3];
-    for (int i = 0; i < 3; ++i)
+    for (std::int32_t i = 0; i < 3; ++i)
       dr_phi[i] = e_cross_r[i] * dphi + ds0[i];
     out[k].dphi = dphi;
     finish(s, dr_phi, &out[k]);

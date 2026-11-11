@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace mxi {
 
@@ -12,9 +13,9 @@ double huber(double r, double c) { return r > c ? c : (r < -c ? -c : r); }
 //: Where to stop summing a Poisson. Ten standard deviations past the mean and
 //: thirty besides, which covers the small-mean case where the distribution is
 //: nearly all at zero and the standard deviation is no guide.
-int summation_limit(double mu) {
+std::int32_t summation_limit(double mu) {
   const double limit = mu + 10.0 * std::sqrt(std::fmax(mu, 0.0)) + 30.0;
-  return static_cast<int>(std::ceil(limit));
+  return static_cast<std::int32_t>(std::ceil(limit));
 }
 
 } // namespace
@@ -23,11 +24,11 @@ double glm_c1(double mu, double tuning) {
   if (!(mu > 0.0))
     return 0.0;
   const double root = std::sqrt(mu);
-  const int top = summation_limit(mu);
+  const std::int32_t top = summation_limit(mu);
   // Poisson by recurrence from P(0) = exp(-mu): no factorials, no overflow.
   double p = std::exp(-mu);
   double total = 0.0;
-  for (int j = 0; j <= top; ++j) {
+  for (std::int32_t j = 0; j <= top; ++j) {
     total += huber((static_cast<double>(j) - mu) / root, tuning) * p;
     p *= mu / static_cast<double>(j + 1);
   }
@@ -38,10 +39,10 @@ double glm_c2(double mu, double tuning) {
   if (!(mu > 0.0))
     return 0.0;
   const double root = std::sqrt(mu);
-  const int top = summation_limit(mu);
+  const std::int32_t top = summation_limit(mu);
   double p = std::exp(-mu);
   double total = 0.0;
-  for (int j = 0; j <= top; ++j) {
+  for (std::int32_t j = 0; j <= top; ++j) {
     const double d = static_cast<double>(j) - mu;
     total += huber(d / root, tuning) * d * p;
     p *= mu / static_cast<double>(j + 1);
@@ -74,7 +75,7 @@ BackgroundResult glm_background(const std::vector<double> &values,
   }
 
   double theta = std::log(mean);
-  for (int i = 0; i < options.max_iterations; ++i) {
+  for (std::int32_t i = 0; i < options.max_iterations; ++i) {
     const double mu = std::exp(theta);
     const double root = std::sqrt(mu);
     double score = 0.0;
@@ -122,7 +123,7 @@ glm_background_counted(const std::vector<std::pair<double, double>> &counted,
     return out;
   }
   double theta = std::log(mean);
-  for (int i = 0; i < options.max_iterations; ++i) {
+  for (std::int32_t i = 0; i < options.max_iterations; ++i) {
     const double mu = std::exp(theta);
     const double root = std::sqrt(mu);
     double score = 0.0;

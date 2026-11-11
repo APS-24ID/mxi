@@ -8,8 +8,9 @@
 
 namespace mxi {
 
-PredictionState prediction_state(const Experiment &e, std::size_t panel, int h,
-                                 int k, int l, double z) {
+PredictionState prediction_state(const Experiment &e, std::size_t panel,
+                                 std::int32_t h, std::int32_t k, std::int32_t l,
+                                 double z) {
   PredictionState s;
   if (!e.crystal || panel >= e.detector.size())
     return s;
@@ -26,7 +27,7 @@ PredictionState prediction_state(const Experiment &e, std::size_t panel, int h,
   const double phi_obs = e.scan.phi_from_z(z);
   const double two_pi = 2.0 * 3.14159265358979323846;
   double best_gap = 1e30;
-  for (int i = 0; i < 2; ++i) {
+  for (std::int32_t i = 0; i < 2; ++i) {
     double gap = std::fmod(cross.phi[i] - phi_obs, two_pi);
     if (gap > 0.5 * two_pi)
       gap -= two_pi;
@@ -86,7 +87,9 @@ bool offset_in(const PredictionState &s) {
 } // namespace
 
 std::array<CentroidDerivative, 9> crystal_derivatives(const PredictionState &s,
-                                                      int h, int k, int l) {
+                                                      std::int32_t h,
+                                                      std::int32_t k,
+                                                      std::int32_t l) {
   std::array<CentroidDerivative, 9> out{};
   if (!s.valid || s.volume == 0.0)
     return out;

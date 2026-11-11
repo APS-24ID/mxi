@@ -69,7 +69,7 @@ struct IntegratedReflection {
   bool valid = false;
   //: The background fit's iterations and its time, for --timing's account of
   //: background and summation (ferritin: 17 s, a third of integration).
-  int background_iterations = 0;
+  std::int32_t background_iterations = 0;
   double background_seconds = 0.0;
   //: Background-subtracted sum over the foreground, uncorrected.
   double intensity = 0.0;
@@ -154,7 +154,8 @@ double quantum_efficiency(const Panel &panel, const Vec3 &s1);
 //: static cell agrees to 1.2e-15 for every reflection, `1/|s1 - s0|` to 2.6e-4
 //: and the scan-varying `A` to 2.6e-4. Redundant information, and expected
 //: anyway -- dials.scale stops with an unknown column error without it.
-double resolution(const Crystal &crystal, int h, int k, int l);
+double resolution(const Crystal &crystal, std::int32_t h, std::int32_t k,
+                  std::int32_t l);
 
 //: The fraction of a reflection's rocking curve that the shoebox recorded.
 //:

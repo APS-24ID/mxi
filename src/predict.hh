@@ -28,7 +28,7 @@
 namespace mxi {
 
 struct Prediction {
-  int h = 0, k = 0, l = 0;
+  std::int32_t h = 0, k = 0, l = 0;
   bool entering = false;
   std::size_t panel = 0;
   double phi = 0.0; // radians
@@ -46,7 +46,7 @@ struct PredictOptions {
   bool allow_outside_scan = false;
   // Cap on the Miller index box, as a guard against a wildly wrong cell
   // turning a prediction into an out-of-memory.
-  int max_index = 500;
+  std::int32_t max_index = 500;
   //: Threads to predict on: 0 for one per core, 1 for none.
   //:
   //: One independent unit of work per h, and nothing in the body touches
@@ -86,13 +86,13 @@ std::vector<Prediction> predict(const Experiment &e,
 // have been" without enumerating a whole sphere.
 std::vector<Prediction>
 predict_indices(const Experiment &e,
-                const std::vector<std::array<int, 3>> &indices,
+                const std::vector<std::array<std::int32_t, 3>> &indices,
                 const PredictOptions &options = {});
 
 // The Miller index box that covers a given resolution, from the real-space
 // cell: |h_i| <= |a_i| / d_min, because h_i is the dot product of the i-th
 // real-space basis vector with the scattering vector.
-std::array<int, 3> index_bounds(const Crystal &crystal, double d_min,
-                                int max_index);
+std::array<std::int32_t, 3> index_bounds(const Crystal &crystal, double d_min,
+                                         std::int32_t max_index);
 
 } // namespace mxi

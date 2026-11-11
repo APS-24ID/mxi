@@ -47,14 +47,14 @@ public:
   bool on() const { return on_; }
 
   //: A phase measured elsewhere; depth indents it under the one before.
-  void add(const std::string &name, double seconds, int depth = 0) {
+  void add(const std::string &name, double seconds, std::int32_t depth = 0) {
     phases_.push_back({name, seconds, depth, peak_memory_mb()});
   }
 
   //: A scope timed to its end: `{ auto t = timing.scope("reading"); ... }`.
   class Scope {
   public:
-    Scope(Timing *t, std::string name, int depth)
+    Scope(Timing *t, std::string name, std::int32_t depth)
         : t_(t), name_(std::move(name)), depth_(depth), start_(now()) {}
     Scope(const Scope &) = delete;
     Scope &operator=(const Scope &) = delete;
@@ -63,10 +63,10 @@ public:
   private:
     Timing *t_;
     std::string name_;
-    int depth_;
+    std::int32_t depth_;
     double start_;
   };
-  Scope scope(const std::string &name, int depth = 0) {
+  Scope scope(const std::string &name, std::int32_t depth = 0) {
     return Scope(this, name, depth);
   }
 
@@ -96,7 +96,7 @@ private:
   struct Phase {
     std::string name;
     double seconds;
-    int depth;
+    std::int32_t depth;
     double peak_mb; //: the process's peak memory as the phase ended
   };
   bool on_;

@@ -5,6 +5,7 @@
 // and the same on any number of threads.
 
 #include <cmath>
+#include <cstdint>
 #include <random>
 #include <vector>
 
@@ -52,34 +53,34 @@ TEST(nearest_neighbours_as_every_pair_finds_them) {
   std::vector<std::vector<Vec3>> sets;
   { // a lattice, jittered
     std::vector<Vec3> s;
-    for (int h = -9; h <= 9; ++h)
-      for (int k = -9; k <= 9; ++k)
-        for (int l = -9; l <= 9; ++l)
+    for (std::int32_t h = -9; h <= 9; ++h)
+      for (std::int32_t k = -9; k <= 9; ++k)
+        for (std::int32_t l = -9; l <= 9; ++l)
           s.push_back(
               Vec3{h * 0.02 + g(rng), k * 0.023 + g(rng), l * 0.019 + g(rng)});
     sets.push_back(s);
   }
   { // uniform scatter
     std::vector<Vec3> s;
-    for (int i = 0; i < 3000; ++i)
+    for (std::int32_t i = 0; i < 3000; ++i)
       s.push_back(Vec3{u(rng), u(rng), u(rng)});
     sets.push_back(s);
   }
   { // a plane: z all one
     std::vector<Vec3> s;
-    for (int i = 0; i < 2000; ++i)
+    for (std::int32_t i = 0; i < 2000; ++i)
       s.push_back(Vec3{u(rng), u(rng), 0.1});
     sets.push_back(s);
   }
   { // clusters, and coincident pairs
     std::vector<Vec3> s;
-    for (int c = 0; c < 20; ++c) {
+    for (std::int32_t c = 0; c < 20; ++c) {
       const Vec3 centre{u(rng), u(rng), u(rng)};
-      for (int i = 0; i < 60; ++i)
+      for (std::int32_t i = 0; i < 60; ++i)
         s.push_back(
             Vec3{centre.x + g(rng), centre.y + g(rng), centre.z + g(rng)});
     }
-    for (int i = 0; i < 200; ++i)
+    for (std::int32_t i = 0; i < 200; ++i)
       s.push_back(s[static_cast<std::size_t>(i) * 3]);
     sets.push_back(s);
   }

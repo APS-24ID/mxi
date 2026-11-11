@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 
 #include "geometry.hh"
 
@@ -121,10 +122,10 @@ inline void rodrigues(const T (&u)[3], T angle, T (&out)[9]) {
 
 template <typename T>
 inline void mat_mul(const T (&a)[9], const T (&b)[9], T (&out)[9]) {
-  for (int i = 0; i < 3; ++i) {
-    for (int j = 0; j < 3; ++j) {
+  for (std::int32_t i = 0; i < 3; ++i) {
+    for (std::int32_t j = 0; j < 3; ++j) {
       T sum = T(0);
-      for (int k = 0; k < 3; ++k)
+      for (std::int32_t k = 0; k < 3; ++k)
         sum += a[i * 3 + k] * b[k * 3 + j];
       out[i * 3 + j] = sum;
     }
@@ -136,8 +137,9 @@ inline void mat_mul(const T (&a)[9], const T (&b)[9], T (&out)[9]) {
 // The whole chain: reciprocal lattice point, Ewald solution, rotation, panel
 // intersection, parallax, residual. Mirrors `centroid_residual` step for step.
 template <typename T>
-TargetResidual<T> evaluate_target(const TargetModel<T> &m, int h, int k, int l,
-                                  T px_fast, T px_slow, T z) {
+TargetResidual<T> evaluate_target(const TargetModel<T> &m, std::int32_t h,
+                                  std::int32_t k, std::int32_t l, T px_fast,
+                                  T px_slow, T z) {
   using target_detail::cross;
   using target_detail::dot;
   using target_detail::mat_mul;
@@ -188,7 +190,7 @@ TargetResidual<T> evaluate_target(const TargetModel<T> &m, int h, int k, int l,
   // The root nearer the observation.
   T phi = phi_obs;
   T best = static_cast<T>(1e30);
-  for (int i = 0; i < 2; ++i) {
+  for (std::int32_t i = 0; i < 2; ++i) {
     const T root = i == 0 ? centre - offset : centre + offset;
     T gap = std::fmod(root - phi_obs, two_pi);
     if (gap > T(0.5) * two_pi)

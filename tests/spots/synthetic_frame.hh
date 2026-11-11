@@ -65,13 +65,13 @@ inline void plant(Frame *frame, std::size_t i, std::size_t j,
                   std::uint16_t peak) {
   // A three-by-three spot with a shoulder, clipped at the border rather than
   // skipped: a spot that runs off the edge is the case the halo gets wrong.
-  static const int weight[5][5] = {{0, 1, 2, 1, 0},
-                                   {1, 4, 8, 4, 1},
-                                   {2, 8, 16, 8, 2},
-                                   {1, 4, 8, 4, 1},
-                                   {0, 1, 2, 1, 0}};
-  for (int di = -2; di <= 2; di++) {
-    for (int dj = -2; dj <= 2; dj++) {
+  static const std::int32_t weight[5][5] = {{0, 1, 2, 1, 0},
+                                            {1, 4, 8, 4, 1},
+                                            {2, 8, 16, 8, 2},
+                                            {1, 4, 8, 4, 1},
+                                            {0, 1, 2, 1, 0}};
+  for (std::int32_t di = -2; di <= 2; di++) {
+    for (std::int32_t dj = -2; dj <= 2; dj++) {
       const std::int64_t _i = static_cast<std::int64_t>(i) + di;
       const std::int64_t _j = static_cast<std::int64_t>(j) + dj;
       if (_i < 0 || _j < 0 || _i >= static_cast<std::int64_t>(frame->height) ||
@@ -79,7 +79,7 @@ inline void plant(Frame *frame, std::size_t i, std::size_t j,
         continue;
       const std::size_t k = static_cast<std::size_t>(_i) * frame->width +
                             static_cast<std::size_t>(_j);
-      const int w = weight[di + 2][dj + 2];
+      const std::int32_t w = weight[di + 2][dj + 2];
       const std::uint32_t value =
           frame->pixels[k] + static_cast<std::uint32_t>(peak) *
                                  static_cast<std::uint32_t>(w) / 16u;
@@ -149,7 +149,7 @@ inline Frame make_frame(const std::string &name, std::size_t height,
     for (std::size_t i = height / 4; i < height / 4 + 5 && i < height; i++)
       for (std::size_t j = 0; j < width; j++)
         frame.pixels[i * width + j] = 0xfffe;
-    for (int n = 0; n < 20; n++) {
+    for (std::int32_t n = 0; n < 20; n++) {
       const std::size_t k = random.next() % (height * width);
       frame.pixels[k] = 0xffff;
     }

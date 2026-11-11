@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <map>
 #include <set>
@@ -68,9 +69,9 @@ TriageData merged(const Table &t, const SpaceGroup &group,
     const double v = V.reals[r];
     if (!(v > 0.0) || !std::isfinite(I.reals[r]))
       continue;
-    const Miller m{static_cast<int>(hkl.ints[r * 3]),
-                   static_cast<int>(hkl.ints[r * 3 + 1]),
-                   static_cast<int>(hkl.ints[r * 3 + 2])};
+    const Miller m{static_cast<std::int32_t>(hkl.ints[r * 3]),
+                   static_cast<std::int32_t>(hkl.ints[r * 3 + 1]),
+                   static_cast<std::int32_t>(hkl.ints[r * 3 + 2])};
     groups[group.unique(m)].emplace_back(I.reals[r], std::sqrt(v));
   }
   for (const auto &[m, obs] : groups) {

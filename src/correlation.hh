@@ -74,8 +74,9 @@ CorrelationMatrix correlation_matrix(const std::vector<MergedSet> &sets,
 double cosym_functional(const CorrelationMatrix &m,
                         const std::vector<double> &x, std::size_t dim);
 std::vector<double> minimise_cosym(const CorrelationMatrix &m, std::size_t dim,
-                                   int max_iterations, int max_calls,
-                                   unsigned seed, double *functional = nullptr);
+                                   std::int32_t max_iterations,
+                                   std::int32_t max_calls, std::uint32_t seed,
+                                   double *functional = nullptr);
 
 //: The functional at x for judging a dimension, as DIALS's: with outlier
 //: rejection, only the elements w (r - x.x)^2 below q2 + (q3 - q1), quantiles
@@ -93,13 +94,13 @@ struct CosymOptions {
   std::size_t dimensions = 0;          //: 0: chosen by the elbow
   bool outlier_rejection = true;       //: in judging a dimension
   bool by_projection = false; //: one minimisation projected (DIALS #3248)
-  int max_iterations = 100;
+  std::int32_t max_iterations = 100;
   //: A dimension's minimisation in the scan: no limit, as DIALS's by default --
   //: its min(20, max_calls) applies only where max_calls is set, which by
   //: default it is not (read once as 20 a dimension: the curve rough, the
   //: elbow wrong).
-  int scan_max_calls = 0;
-  unsigned seed = 230;
+  std::int32_t scan_max_calls = 0;
+  std::uint32_t seed = 230;
 };
 
 //: Stage 2 whole, as dials.correlation_matrix: the functional for each
@@ -129,7 +130,7 @@ struct OpticsResult {
   std::vector<std::size_t> ordering;
   std::vector<double> reachability, core_distance; //: by point
   std::vector<std::int64_t> predecessor;           //: by point, -1 for none
-  std::vector<int> labels;                         //: by point, -1 noise
+  std::vector<std::int32_t> labels;                //: by point, -1 noise
   std::vector<std::pair<std::size_t, std::size_t>> clusters; //: in ordering
 };
 OpticsResult optics(const std::vector<double> &points, std::size_t n,
@@ -139,7 +140,7 @@ OpticsResult optics(const std::vector<double> &points, std::size_t n,
 //: The mean silhouette of the points labelled (not -1), as scikit-learn's
 //: silhouette_score: (b - a) / max(a, b), a point alone in its cluster 0.
 double silhouette(const std::vector<double> &points, std::size_t d,
-                  const std::vector<int> &labels);
+                  const std::vector<std::int32_t> &labels);
 
 struct ClusterOptions {
   double xi = 0.05;
@@ -157,7 +158,7 @@ struct ClusterOptions {
 //: (DIALS samples the same range by optuna, 20 random and 30 TPE trials) --
 //: and, the best below zero, DIALS's single-cluster heuristic.
 struct SignificantClusters {
-  std::vector<int> labels; //: by data set, -1 an outlier
+  std::vector<std::int32_t> labels; //: by data set, -1 an outlier
   std::size_t min_samples = 0, initial_min_samples = 0;
   double silhouette = 0.0, score = -1.0;
   bool single_cluster = false;

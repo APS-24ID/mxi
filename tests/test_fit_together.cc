@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <random>
 #include <vector>
@@ -39,20 +40,20 @@ Volume sample(const std::vector<Spot> &spots, std::mt19937 &random) {
   std::vector<double> norm;
   for (const Spot &s : spots) {
     double n = 0.0;
-    for (int z = 0; z < v.nz; ++z)
-      for (int y = 0; y < v.ny; ++y)
-        for (int x = 0; x < v.nx; ++x)
+    for (std::int32_t z = 0; z < v.nz; ++z)
+      for (std::int32_t y = 0; y < v.ny; ++y)
+        for (std::int32_t x = 0; x < v.nx; ++x)
           n += gauss(s, x + 0.5, y + 0.5, z + 0.5);
     norm.push_back(n);
   }
-  for (int z = 0; z < v.nz; ++z)
-    for (int y = 0; y < v.ny; ++y)
-      for (int x = 0; x < v.nx; ++x) {
+  for (std::int32_t z = 0; z < v.nz; ++z)
+    for (std::int32_t y = 0; y < v.ny; ++y)
+      for (std::int32_t x = 0; x < v.nx; ++x) {
         double mean = v.background;
         for (std::size_t k = 0; k < spots.size(); ++k)
           mean += spots[k].intensity *
                   gauss(spots[k], x + 0.5, y + 0.5, z + 0.5) / norm[k];
-        std::poisson_distribution<int> poisson(mean);
+        std::poisson_distribution<std::int32_t> poisson(mean);
         v.counts[(static_cast<std::size_t>(z) * v.ny + y) * v.nx + x] =
             static_cast<float>(poisson(random));
       }
@@ -64,20 +65,26 @@ Volume sample(const std::vector<Spot> &spots, std::mt19937 &random) {
 // the counts were; the background the true one.
 OverlapMember box_of(const Spot &s, const Volume &v, Shoebox *box) {
   box->panel = 0;
-  box->bbox[0] = std::max(0, static_cast<int>(std::floor(s.x - 5 * kSx)));
-  box->bbox[1] = std::min(v.nx, static_cast<int>(std::ceil(s.x + 5 * kSx)));
-  box->bbox[2] = std::max(0, static_cast<int>(std::floor(s.y - 5 * kSy)));
-  box->bbox[3] = std::min(v.ny, static_cast<int>(std::ceil(s.y + 5 * kSy)));
-  box->bbox[4] = std::max(0, static_cast<int>(std::floor(s.z - 5 * kSz)));
-  box->bbox[5] = std::min(v.nz, static_cast<int>(std::ceil(s.z + 5 * kSz)));
+  box->bbox[0] =
+      std::max(0, static_cast<std::int32_t>(std::floor(s.x - 5 * kSx)));
+  box->bbox[1] =
+      std::min(v.nx, static_cast<std::int32_t>(std::ceil(s.x + 5 * kSx)));
+  box->bbox[2] =
+      std::max(0, static_cast<std::int32_t>(std::floor(s.y - 5 * kSy)));
+  box->bbox[3] =
+      std::min(v.ny, static_cast<std::int32_t>(std::ceil(s.y + 5 * kSy)));
+  box->bbox[4] =
+      std::max(0, static_cast<std::int32_t>(std::floor(s.z - 5 * kSz)));
+  box->bbox[5] =
+      std::min(v.nz, static_cast<std::int32_t>(std::ceil(s.z + 5 * kSz)));
   const std::size_t n = box->size();
   box->data.assign(n, 0.0f);
   box->background.assign(n, static_cast<float>(v.background));
   box->mask.assign(n, 0);
   double norm = 0.0;
-  for (int z = 0; z < v.nz; ++z)
-    for (int y = 0; y < v.ny; ++y)
-      for (int x = 0; x < v.nx; ++x)
+  for (std::int32_t z = 0; z < v.nz; ++z)
+    for (std::int32_t y = 0; y < v.ny; ++y)
+      for (std::int32_t x = 0; x < v.nx; ++x)
         norm += gauss(s, x + 0.5, y + 0.5, z + 0.5);
   OverlapMember m;
   m.box = box;
@@ -127,11 +134,11 @@ TEST(overlapping_spots_fitted_together_are_unbiased_and_calibrated) {
   // together, neither does.
   const Spot weak{17, 15, 6, 1000}, strong{20.6, 15, 6, 8000};
   std::mt19937 random(11);
-  const int trials = 400;
+  const std::int32_t trials = 400;
   double alone_sum = 0, together_sum = 0, z_sum = 0, z2_sum = 0, strong_sum = 0,
          isolated_sum = 0, isolated_z2 = 0, expected = weak.intensity,
          expected_strong = strong.intensity;
-  for (int trial = 0; trial < trials; ++trial) {
+  for (std::int32_t trial = 0; trial < trials; ++trial) {
     const Volume v = sample({weak, strong}, random);
     Shoebox a, b;
     const OverlapMember ma = box_of(weak, v, &a), mb = box_of(strong, v, &b);
@@ -201,9 +208,9 @@ TEST(the_summed_intensity_corrected_for_its_neighbours) {
   // not, and the variance with neighbours_variance added is right.
   const Spot weak{17, 15, 6, 1000}, strong{20.6, 15, 6, 8000};
   std::mt19937 random(23);
-  const int trials = 400;
+  const std::int32_t trials = 400;
   double raw_sum = 0, corrected_sum = 0, z_sum = 0, z2_sum = 0, expected = 0;
-  for (int trial = 0; trial < trials; ++trial) {
+  for (std::int32_t trial = 0; trial < trials; ++trial) {
     const Volume v = sample({weak, strong}, random);
     Shoebox a, b;
     const OverlapMember ma = box_of(weak, v, &a), mb = box_of(strong, v, &b);

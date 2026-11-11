@@ -154,9 +154,10 @@ int run_grid(int argc, char **argv) {
     std::printf("sigma_b %.6f  sigma_m %.6f  over %zu spots\n", sigma_b,
                 sigma_m, chosen.size());
 
-    const int n = static_cast<int>(args.number("--n", 4));
+    const std::int32_t n = static_cast<std::int32_t>(args.number("--n", 4));
     const double half = args.number("--half-width", 3.0);
-    const int subdivisions = static_cast<int>(args.number("--subdivisions", 5));
+    const std::int32_t subdivisions =
+        static_cast<std::int32_t>(args.number("--subdivisions", 5));
     const std::size_t neighbours =
         static_cast<std::size_t>(args.number("--neighbours", 200));
     const bool recentre = args.has("--recentre");

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <numeric>
 #include <random>
 
@@ -13,7 +14,7 @@ namespace {
 //: and exact, which is what a handful of calls wants.
 double normal_upper(double p) {
   double lo = -40.0, hi = 40.0;
-  for (int it = 0; it < 200; ++it) {
+  for (std::int32_t it = 0; it < 200; ++it) {
     const double mid = 0.5 * (lo + hi);
     (0.5 * std::erfc(mid / std::sqrt(2.0)) > p ? lo : hi) = mid;
   }
@@ -50,26 +51,26 @@ bool fit_two(Model model, const std::vector<double> &x,
     return c;
   };
   double c = cost(p), mu = 1e-3;
-  for (int it = 0; it < 200; ++it) {
+  for (std::int32_t it = 0; it < 200; ++it) {
     double JtJ[2][2] = {{0, 0}, {0, 0}}, Jtr[2] = {0, 0};
     for (std::size_t i = 0; i < x.size(); ++i) {
       const double f = model(x[i], p);
       double j[2];
-      for (int k = 0; k < 2; ++k) {
+      for (std::int32_t k = 0; k < 2; ++k) {
         double q[2] = {p[0], p[1]};
         const double h = 1e-7 * std::fmax(1.0, std::abs(p[k]));
         q[k] += h;
         j[k] = (model(x[i], q) - f) / h / sigma[i];
       }
       const double r = (y[i] - f) / sigma[i];
-      for (int a = 0; a < 2; ++a) {
+      for (std::int32_t a = 0; a < 2; ++a) {
         Jtr[a] += j[a] * r;
-        for (int b = 0; b < 2; ++b)
+        for (std::int32_t b = 0; b < 2; ++b)
           JtJ[a][b] += j[a] * j[b];
       }
     }
     bool better = false;
-    for (int tries = 0; tries < 20 && !better; ++tries) {
+    for (std::int32_t tries = 0; tries < 20 && !better; ++tries) {
       const double a = JtJ[0][0] * (1 + mu), d = JtJ[1][1] * (1 + mu),
                    b = JtJ[0][1];
       const double det = a * d - b * b;
@@ -113,8 +114,9 @@ double student_t_quantile(double p_upper, double nu) {
 
 std::vector<ResolutionBin>
 cc_half_bins(const ScaleData &data, const std::vector<double> &g,
-             const Crystal &crystal, int nbins, std::size_t min_per_bin,
-             double significance_level, std::size_t *wilson_outliers) {
+             const Crystal &crystal, std::int32_t nbins,
+             std::size_t min_per_bin, double significance_level,
+             std::size_t *wilson_outliers) {
   std::vector<std::vector<std::size_t>> members(data.stats_unique().size());
   for (std::size_t i = 0; i < data.size(); ++i)
     if (!data.outlier[i])

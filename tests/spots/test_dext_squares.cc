@@ -51,7 +51,7 @@ namespace {
 
 namespace {
 
-int failures = 0;
+std::int32_t failures = 0;
 
 void check(const std::string &what, std::uint64_t actual,
            std::uint64_t expected) {
@@ -101,8 +101,8 @@ std::uint64_t largest_window_square(const std::vector<std::uint16_t> &frame) {
 // reflection on a pixel array detector looks like closely enough for this.
 void plant(std::vector<std::uint16_t> *frame, std::size_t slow,
            std::size_t fast, double peak) {
-  for (int di = -3; di <= 3; di++) {
-    for (int dj = -3; dj <= 3; dj++) {
+  for (std::int32_t di = -3; di <= 3; di++) {
+    for (std::int32_t dj = -3; dj <= 3; dj++) {
       const std::int64_t i = static_cast<std::int64_t>(slow) + di;
       const std::int64_t j = static_cast<std::int64_t>(fast) + dj;
       if (i < 0 || j < 0 || i >= static_cast<std::int64_t>(kHeight) ||
@@ -121,7 +121,7 @@ void plant(std::vector<std::uint16_t> *frame, std::size_t slow,
 
 } // namespace
 
-int run() {
+std::int32_t run() {
   // The three ways to reach 2^32, as arithmetic rather than as prose. If the
   // kernel size ever changes, the third of these changes with it.
   const std::uint64_t limit = std::uint64_t{1u} << 32;

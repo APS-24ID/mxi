@@ -39,8 +39,9 @@ double now_seconds() {
 }
 } // namespace
 
-Residual centroid_residual(const Experiment &e, std::size_t panel, int h, int k,
-                           int l, double px_fast, double px_slow, double z) {
+Residual centroid_residual(const Experiment &e, std::size_t panel,
+                           std::int32_t h, std::int32_t k, std::int32_t l,
+                           double px_fast, double px_slow, double z) {
   Residual out;
   if (!e.crystal)
     return out;
@@ -68,7 +69,7 @@ Residual centroid_residual(const Experiment &e, std::size_t panel, int h, int k,
   const double two_pi = 2.0 * 3.14159265358979323846;
   double best = 0.0;
   double best_gap = 1e30;
-  for (int i = 0; i < 2; ++i) {
+  for (std::int32_t i = 0; i < 2; ++i) {
     double gap = std::fmod(cross.phi[i] - phi_obs, two_pi);
     if (gap > 0.5 * two_pi)
       gap -= two_pi;
@@ -104,7 +105,7 @@ struct TargetRow {
   std::size_t row = 0;
   std::size_t experiment = 0;
   std::size_t panel = 0;
-  int h = 0, k = 0, l = 0;
+  std::int32_t h = 0, k = 0, l = 0;
   double px_fast = 0.0, px_slow = 0.0, z = 0.0;
   double weight[3] = {1.0, 1.0, 1.0};
   bool active = true;
@@ -156,9 +157,9 @@ std::vector<TargetRow> gather(const ExperimentList &experiments,
       continue;
     TargetRow o;
     o.row = i;
-    o.h = static_cast<int>(miller.integer(i, 0));
-    o.k = static_cast<int>(miller.integer(i, 1));
-    o.l = static_cast<int>(miller.integer(i, 2));
+    o.h = static_cast<std::int32_t>(miller.integer(i, 0));
+    o.k = static_cast<std::int32_t>(miller.integer(i, 1));
+    o.l = static_cast<std::int32_t>(miller.integer(i, 2));
     if (!o.h && !o.k && !o.l)
       continue;
     o.experiment = has_id ? static_cast<std::size_t>(std::max<std::int64_t>(
@@ -854,11 +855,13 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
   std::vector<double> residual;
   double lambda = 1e-3;
 
-  for (int macro = 0; macro < std::max(1, options.macrocycles); ++macro) {
+  for (std::int32_t macro = 0; macro < std::max(1, options.macrocycles);
+       ++macro) {
     double previous = residuals_of(experiments, observations, &residual) +
                       restraint_of(experiments);
 
-    for (int iteration = 0; iteration < options.max_iterations; ++iteration) {
+    for (std::int32_t iteration = 0; iteration < options.max_iterations;
+         ++iteration) {
       const std::vector<double> step = step_sizes(experiments, layout);
 
       // Numerical Jacobian: one forward difference per parameter. Central
@@ -1014,7 +1017,7 @@ RefineResult refine(ExperimentList &experiments, const Table &reflections,
       g_normal_seconds += now_seconds() - t_normal;
 
       bool stepped = false;
-      for (int attempt = 0; attempt < 8; ++attempt) {
+      for (std::int32_t attempt = 0; attempt < 8; ++attempt) {
         const double t_solve = now_seconds();
         std::vector<double> damped = normal;
         for (std::size_t a = 0; a < n; ++a)
@@ -1438,9 +1441,9 @@ std::vector<std::size_t> update_predictions(const ExperimentList &experiments,
   Column &cal = reflections.real_column("xyzcal.px", "vec3<double>", 3);
   Column &cal_mm = reflections.real_column("xyzcal.mm", "vec3<double>", 3);
   for (std::size_t i = 0; i < reflections.nrows; ++i) {
-    const int h = static_cast<int>(miller.integer(i, 0));
-    const int k = static_cast<int>(miller.integer(i, 1));
-    const int l = static_cast<int>(miller.integer(i, 2));
+    const std::int32_t h = static_cast<std::int32_t>(miller.integer(i, 0));
+    const std::int32_t k = static_cast<std::int32_t>(miller.integer(i, 1));
+    const std::int32_t l = static_cast<std::int32_t>(miller.integer(i, 2));
     if (!h && !k && !l)
       continue;
     const std::size_t id =

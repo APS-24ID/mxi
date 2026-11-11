@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace mxi {
 
@@ -19,7 +20,7 @@ std::vector<double> render_shoebox(const Experiment &e, const Shoebox &box,
     return out;
   if (!(options.sigma_d > 0.0) || !(options.sigma_m > 0.0))
     return out;
-  const int subdivisions = std::max(1, options.subdivisions);
+  const std::int32_t subdivisions = std::max(1, options.subdivisions);
 
   out.assign(box.size(), 0.0);
   const double width = Scan::radians(e.scan.osc_width);
@@ -34,7 +35,7 @@ std::vector<double> render_shoebox(const Experiment &e, const Shoebox &box,
   if (options.sensor && p.mu > 0.0 && p.thickness > 0.0) {
     const double transmitted = std::exp(-p.mu * p.thickness);
     const double survive = 1.0 - transmitted;
-    const int n = std::max(1, options.depth_samples);
+    const std::int32_t n = std::max(1, options.depth_samples);
     if (n == 1) {
       // One sample means every photon at the MEAN depth: the shift with none
       // of the spread, which is exactly what the parallax correction does.
@@ -43,7 +44,7 @@ std::vector<double> render_shoebox(const Experiment &e, const Shoebox &box,
       depth.push_back(1.0 / p.mu - p.thickness * transmitted / survive);
       depth_weight.push_back(1.0);
     } else {
-      for (int i = 0; i < n; ++i) {
+      for (std::int32_t i = 0; i < n; ++i) {
         const double q =
             (static_cast<double>(i) + 0.5) / static_cast<double>(n);
         depth.push_back(-std::log(1.0 - q * survive) / p.mu);
@@ -77,8 +78,8 @@ std::vector<double> render_shoebox(const Experiment &e, const Shoebox &box,
     for (std::int32_t y = 0; y < box.ny(); ++y) {
       for (std::int32_t x = 0; x < box.nx(); ++x) {
         // Subdivisions of the pixel this photon would be RECORDED in.
-        for (int sy = 0; sy < subdivisions; ++sy) {
-          for (int sx = 0; sx < subdivisions; ++sx) {
+        for (std::int32_t sy = 0; sy < subdivisions; ++sy) {
+          for (std::int32_t sx = 0; sx < subdivisions; ++sx) {
             const double px = static_cast<double>(box.bbox[0] + x) +
                               (static_cast<double>(sx) + 0.5) /
                                   static_cast<double>(subdivisions);
@@ -143,7 +144,7 @@ Moments moments_of(const Shoebox &box, const std::vector<double> &counts,
     return out;
   double sum = 0.0, mf = 0.0, ms = 0.0, mz = 0.0;
   double sf = 0.0, ss = 0.0, sz = 0.0;
-  for (int pass = 0; pass < 2; ++pass) {
+  for (std::int32_t pass = 0; pass < 2; ++pass) {
     for (std::int32_t z = 0; z < box.nz(); ++z) {
       for (std::int32_t y = 0; y < box.ny(); ++y) {
         for (std::int32_t x = 0; x < box.nx(); ++x) {

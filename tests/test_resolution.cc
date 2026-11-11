@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdint>
 
 #include "../src/resolution.hh"
 #include "check.hh"
@@ -19,7 +20,7 @@ namespace {
 //: Fifty bins from 1/d^2 = 0.02 to 0.6, CC half on the tanh given, n each.
 std::vector<ResolutionBin> planted_bins(double r, double s0, std::size_t n) {
   std::vector<ResolutionBin> bins;
-  for (int k = 0; k < 50; ++k) {
+  for (std::int32_t k = 0; k < 50; ++k) {
     ResolutionBin b;
     b.d_star_sq = 0.02 + 0.58 * k / 49.0;
     b.d_min = 1.0 / std::sqrt(b.d_star_sq);

@@ -219,7 +219,7 @@ class FrameQueue {
 public:
   struct Decoded {
     std::int64_t number = -1;
-    unsigned bit_depth = 0;
+    std::uint32_t bit_depth = 0;
     std::size_t height = 0;
     std::size_t width = 0;
     std::vector<std::uint8_t> pixels;
@@ -420,8 +420,9 @@ int run_integrate(int argc, char **argv);
 // than of a function, because the integration is still one body in
 // run_integrate: the models are written to --output-expt between the two, and
 // the second run reads them as any later program would.
-int integrate_with_postrefinement(const Arguments &args, const char *program,
-                                  const std::set<std::string> &takes_value) {
+std::int32_t
+integrate_with_postrefinement(const Arguments &args, const char *program,
+                              const std::set<std::string> &takes_value) {
   // The result where the user asked (docs/rflx.md); the first run's, and the
   // post-refined models between the two runs, beside it, removed at the end.
   const rflx::Outputs outputs = rflx::outputs(args, "integrated");
@@ -476,13 +477,13 @@ int integrate_with_postrefinement(const Arguments &args, const char *program,
     for (std::string &w : words)
       argv.push_back(w.data());
     argv.push_back(nullptr);
-    return run_integrate(static_cast<int>(words.size()), argv.data());
+    return run_integrate(static_cast<std::int32_t>(words.size()), argv.data());
   };
 
   std::printf("Integrating with the models as given, then refining against the "
               "centres that measures, then integrating again\n\n");
   std::printf("=== Integration with the models as given ===\n");
-  int status = run(command(args.positional[0], true));
+  std::int32_t status = run(command(args.positional[0], true));
   if (status != 0)
     return status;
 
@@ -544,9 +545,9 @@ int integrate_with_postrefinement(const Arguments &args, const char *program,
 // pass over its images, its own crystal-less experiment carried through
 // (docs/multi-lattice.md, stage 2) -- and the runs joined, in the order the
 // list had its experiments. A sweep of one lattice is the run it always was.
-int integrate_sweeps(const Arguments &args, const char *program,
-                     const std::set<std::string> &takes_value,
-                     const json::Value &document) {
+std::int32_t integrate_sweeps(const Arguments &args, const char *program,
+                              const std::set<std::string> &takes_value,
+                              const json::Value &document) {
   const rflx::Outputs outputs = rflx::outputs(args, "integrated");
   const std::string base = outputs.rflx.empty() ? outputs.refl : outputs.rflx;
   const json::Array &experiments =
@@ -563,7 +564,7 @@ int integrate_sweeps(const Arguments &args, const char *program,
     for (std::string &w : words)
       argv.push_back(w.data());
     argv.push_back(nullptr);
-    return run_integrate(static_cast<int>(words.size()), argv.data());
+    return run_integrate(static_cast<std::int32_t>(words.size()), argv.data());
   };
   const auto profiles_of = [](const std::string &path, std::size_t sweep) {
     const std::size_t slash = path.find_last_of('/');
@@ -672,7 +673,7 @@ int integrate_sweeps(const Arguments &args, const char *program,
         std::printf(" %zu", i);
       std::printf(" ===\n");
       std::fflush(stdout);
-      const int status = run(words);
+      const std::int32_t status = run(words);
       if (status != 0) {
         tidy();
         return status;
@@ -746,9 +747,9 @@ int integrate_sweeps(const Arguments &args, const char *program,
   }
 }
 
-int integrate_several(const Arguments &args, const char *program,
-                      const std::set<std::string> &takes_value,
-                      const json::Value &document) {
+std::int32_t integrate_several(const Arguments &args, const char *program,
+                               const std::set<std::string> &takes_value,
+                               const json::Value &document) {
   // --save-profiles: each sweep learns its own reference profiles, so each
   // writes its own file, its index before the extension -- profiles.txt as
   // profiles_0.txt, profiles_1.txt.
@@ -780,7 +781,7 @@ int integrate_several(const Arguments &args, const char *program,
     for (std::string &w : words)
       argv.push_back(w.data());
     argv.push_back(nullptr);
-    return run_integrate(static_cast<int>(words.size()), argv.data());
+    return run_integrate(static_cast<std::int32_t>(words.size()), argv.data());
   };
 
   try {
@@ -869,7 +870,7 @@ int integrate_several(const Arguments &args, const char *program,
         words.insert(words.end(), {"--profile-only", "--output-expt", out});
         std::printf("\n=== Lattice %zu's profile model ===\n", i + 1);
         std::fflush(stdout);
-        const int status = run(words);
+        const std::int32_t status = run(words);
         if (status != 0) {
           tidy();
           return status;
@@ -901,7 +902,7 @@ int integrate_several(const Arguments &args, const char *program,
                    {"-o", got_refl, "--output-expt", got_expt, "--sweep-run"});
       std::printf("\n=== Experiment %zu of %zu ===\n", i + 1, n);
       std::fflush(stdout);
-      const int status = run(words);
+      const std::int32_t status = run(words);
       if (status != 0) {
         tidy();
         return status;
@@ -1887,7 +1888,7 @@ int run_integrate(int argc, char **argv) {
       // module edge.
       flags.ints[row] = flag::kPredicted | summation_flags(r);
       entering.ints[row] = p.s1.dot(axis.cross(s0)) > 0.0 ? 1 : 0;
-      for (int k = 0; k < 6; ++k)
+      for (std::int32_t k = 0; k < 6; ++k)
         bbox.ints[row * 6 + k] = box->bbox[k];
       n_fg.ints[row] = static_cast<std::int64_t>(r.n_foreground);
       n_bg.ints[row] = static_cast<std::int64_t>(r.n_background);
@@ -1899,7 +1900,7 @@ int run_integrate(int argc, char **argv) {
       cal_mm.reals[row * 3 + 0] = mm.first;
       cal_mm.reals[row * 3 + 1] = mm.second;
       cal_mm.reals[row * 3 + 2] = p.phi;
-      for (int k = 0; k < 3; ++k)
+      for (std::int32_t k = 0; k < 3; ++k)
         s1_column.reals[row * 3 + k] = p.s1[k];
       isum.reals[row] = r.intensity;
       ivar.reals[row] = r.variance;
@@ -2097,12 +2098,12 @@ int run_integrate(int argc, char **argv) {
       // the reference broader than its spot, and a third of that was the
       // grid's smoothing -- gone at six for nothing in time, merging as well
       // (docs/outstanding.md, item 2).
-      grids[l].n = static_cast<int>(args.number("--grid-points", 6.0));
+      grids[l].n = static_cast<std::int32_t>(args.number("--grid-points", 6.0));
       grids[l].sigma_d = lattice_masks[l].sigma_d;
       grids[l].sigma_m = lattice_masks[l].sigma_m;
       grids[l].half_width = lattice_masks[l].n_sigma;
       grids[l].subdivisions =
-          static_cast<int>(args.number("--subdivisions", 5.0));
+          static_cast<std::int32_t>(args.number("--subdivisions", 5.0));
     }
     // One scan block per 10 degrees of the range integrated, unless told: the
     // profile drifts along the scan, so a block should be a fixed ANGLE rather
@@ -2112,10 +2113,12 @@ int run_integrate(int argc, char **argv) {
     // the old default, made 72 degree blocks of a 360 degree scan.
     const double range_degrees =
         std::abs(e.scan.osc_width) * std::max(last_image - first_image, 1.0);
-    const int scan_blocks =
+    const std::int32_t scan_blocks =
         args.has("--scan-blocks")
-            ? std::max(1, static_cast<int>(args.number("--scan-blocks", 1.0)))
-            : std::max(1, static_cast<int>(std::lround(range_degrees / 10.0)));
+            ? std::max(1, static_cast<std::int32_t>(
+                              args.number("--scan-blocks", 1.0)))
+            : std::max(1, static_cast<std::int32_t>(
+                              std::lround(range_degrees / 10.0)));
     // Reference profiles a lattice, each learned from its own reflections
     // alone and laid out alike -- the same regions, the same scan blocks -- so
     // that what depends on a reflection's place alone is the same for every
@@ -2123,7 +2126,7 @@ int run_integrate(int argc, char **argv) {
     std::vector<ReferenceProfiles> references;
     for (std::size_t l = 0; l < n_lattices; ++l)
       references.push_back(make_reference(
-          grids[l], static_cast<int>(args.number("--regions", 3.0)),
+          grids[l], static_cast<std::int32_t>(args.number("--regions", 3.0)),
           scan_blocks, e.detector.size(), first_image, last_image));
     ReferenceProfiles &reference = references[0];
     const bool fitting = !args.has("--summation-only");
@@ -2142,11 +2145,11 @@ int run_integrate(int argc, char **argv) {
     // its fit waits for -- the neighbours the interpolation uses, exactly --
     // and the frame after which every box learning into a block has closed.
     // All known before a frame is read: they depend on positions alone.
-    const int n_blocks = std::max(reference.blocks, 1);
+    const std::int32_t n_blocks = std::max(reference.blocks, 1);
     std::vector<std::int32_t> block_done(
         static_cast<std::size_t>(n_blocks),
         std::numeric_limits<std::int32_t>::min());
-    std::vector<int> learns_into, waits_for;
+    std::vector<std::int32_t> learns_into, waits_for;
     if (single_pass) {
       learns_into.assign(planned.size(), 0);
       waits_for.assign(planned.size(), 0);
@@ -2156,7 +2159,7 @@ int run_integrate(int argc, char **argv) {
             reference,
             reference.region_of(panel, static_cast<std::size_t>(q.panel),
                                 q.px_fast, q.px_slow, q.z));
-        int last = 0;
+        std::int32_t last = 0;
         for (const Neighbour &nb :
              neighbours_of(reference, panel, static_cast<std::size_t>(q.panel),
                            q.px_fast, q.px_slow, q.z))
@@ -2176,20 +2179,20 @@ int run_integrate(int argc, char **argv) {
     // does. finalise_reference's rule, a block at a time.
     // A lattice at a time: one lattice's empty block borrows its own latest
     // average, never another lattice's, whose grid is on another scale.
-    int finalised_through = -1;
-    std::vector<std::vector<int>> waiting_empty(n_lattices);
+    std::int32_t finalised_through = -1;
+    std::vector<std::vector<std::int32_t>> waiting_empty(n_lattices);
     std::vector<std::vector<double>> latest_average(n_lattices);
     std::vector<char> have_average(n_lattices, 0);
     const auto finalise_closed = [&](std::int32_t closed_to) {
       while (finalised_through + 1 < n_blocks &&
              block_done[static_cast<std::size_t>(finalised_through + 1)] <=
                  closed_to) {
-        const int b = ++finalised_through;
+        const std::int32_t b = ++finalised_through;
         for (std::size_t l = 0; l < n_lattices; ++l) {
           ReferenceProfiles &own = references[l];
           std::vector<double> average;
           if (block_average(own, b, &average)) {
-            for (int w : waiting_empty[l])
+            for (std::int32_t w : waiting_empty[l])
               finalise_block(&own, w, 10, average);
             waiting_empty[l].clear();
             finalise_block(&own, b, 10, average);
@@ -2206,8 +2209,8 @@ int run_integrate(int argc, char **argv) {
     // Every block up to this one is final.
     // Every lattice's: no lattice still waiting on any of them.
     const auto final_through = [&]() {
-      int through = finalised_through;
-      for (const std::vector<int> &waiting : waiting_empty)
+      std::int32_t through = finalised_through;
+      for (const std::vector<std::int32_t> &waiting : waiting_empty)
         if (!waiting.empty())
           through = std::min(through, waiting.front() - 1);
       return through;
@@ -2353,7 +2356,7 @@ int run_integrate(int argc, char **argv) {
 
     std::vector<Shoebox> boxes;
     std::size_t at = 0;
-    int pass = 0;
+    std::int32_t pass = 0;
     std::size_t references_used = 0;
     double t_transform = 0.0, t_fit = 0.0;
     // Boxes OUTLIVE a chunk of frames. Each chunk opens the boxes that start
@@ -2411,7 +2414,7 @@ int run_integrate(int argc, char **argv) {
     double gpu_bytes = 0.0;
     // Batches started on the device and not yet collected, oldest first.
     struct PendingFit {
-      int ticket;
+      std::int32_t ticket;
       std::vector<std::size_t> rows;
     };
     std::deque<PendingFit> pending_fits;
@@ -2496,7 +2499,7 @@ int run_integrate(int argc, char **argv) {
           // a task a box).
           const double t_slot = Timing::now();
           if (on_device)
-            while (static_cast<int>(pending_fits.size()) >= kFitSlots)
+            while (static_cast<std::int32_t>(pending_fits.size()) >= kFitSlots)
               collect_oldest_fit();
           const double slot_wait = Timing::now() - t_slot;
           t_gpu_slot.add(slot_wait);
@@ -2511,9 +2514,9 @@ int run_integrate(int argc, char **argv) {
           // back to reading frames while it fits, and its fits are collected
           // when a slot is wanted again or the last boxes are done. The GPU and
           // the CPU took turns before, each idle while the other worked.
-          int ticket = -1;
+          std::int32_t ticket = -1;
           if (on_device) {
-            while (static_cast<int>(pending_fits.size()) >= kFitSlots)
+            while (static_cast<std::int32_t>(pending_fits.size()) >= kFitSlots)
               collect_oldest_fit();
             ticket = fit_batch_submit(fit_batch);
           }
@@ -2625,7 +2628,7 @@ int run_integrate(int argc, char **argv) {
                                          sizeof(std::uint32_t) +
                                      c.hits.size() * sizeof(std::uint16_t));
       most_held_bytes = std::max(most_held_bytes, bytes);
-      const int ready = final_through();
+      const std::int32_t ready = final_through();
       std::vector<std::size_t> now;
       for (std::size_t k = 0; k < held.size(); ++k)
         if (everything || waits_for[held_rows[k]] <= ready)
@@ -3097,7 +3100,7 @@ int run_integrate(int argc, char **argv) {
         if (single_pass) {
           finalise_closed(std::numeric_limits<std::int32_t>::max());
           for (std::size_t l = 0; l < n_lattices; ++l) {
-            for (int w : waiting_empty[l])
+            for (std::int32_t w : waiting_empty[l])
               finalise_block(
                   &references[l], w, 10,
                   std::vector<double>(references[l].spec.size(), 0.0));
@@ -3444,7 +3447,7 @@ int run_integrate(int argc, char **argv) {
         // the rest of integrate_shoebox, and the rest of closing a box; and
         // the fit's iterations.
         double fit = 0.0, shoebox = 0.0, closing = 0.0;
-        std::vector<int> iterations;
+        std::vector<std::int32_t> iterations;
         for (std::size_t r = 0; r < planned.size(); ++r) {
           if (close_time[r] <= 0.0f)
             continue;
@@ -3460,7 +3463,7 @@ int run_integrate(int argc, char **argv) {
                 q * static_cast<double>(iterations.size() - 1))];
           };
           double mean = 0.0;
-          for (int v : iterations)
+          for (std::int32_t v : iterations)
             mean += v;
           mean /= static_cast<double>(iterations.size());
           std::printf("  background and summation, in thread-seconds: the "

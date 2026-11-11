@@ -18,11 +18,12 @@ TEST(every_equivalent_of_a_reflection_in_m3_is_one_reflection) {
   const Miller h{1, 2, 3};
   const Miller u = g.unique(h);
   std::set<Miller> images;
-  const int signs[4][3] = {{1, 1, 1}, {1, -1, -1}, {-1, 1, -1}, {-1, -1, 1}};
-  for (int c = 0; c < 3; ++c) {
+  const std::int32_t signs[4][3] = {
+      {1, 1, 1}, {1, -1, -1}, {-1, 1, -1}, {-1, -1, 1}};
+  for (std::int32_t c = 0; c < 3; ++c) {
     const Miller p{h[c % 3], h[(c + 1) % 3], h[(c + 2) % 3]};
     for (const auto &s : signs) {
-      for (int inv : {1, -1}) {
+      for (std::int32_t inv : {1, -1}) {
         const Miller e{inv * s[0] * p[0], inv * s[1] * p[1], inv * s[2] * p[2]};
         images.insert(e);
         check::is_true(g.unique(e) == u,
@@ -121,7 +122,7 @@ UnitCell cell_of(const Mat3 &A) {
 // U of A = U B, B upper triangular: what regularising must keep.
 Mat3 orientation(const Mat3 &A) {
   const Mat3 g = A.transpose() * A;
-  const auto at = [&](int i, int j) {
+  const auto at = [&](std::int32_t i, std::int32_t j) {
     return g.m[static_cast<std::size_t>(i * 3 + j)];
   };
   const double r00 = std::sqrt(at(0, 0)), r01 = at(0, 1) / r00,

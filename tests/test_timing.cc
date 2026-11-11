@@ -11,9 +11,9 @@ namespace mxi {
 TEST(thread_seconds_sum_what_every_thread_adds) {
   ThreadSeconds total;
   std::vector<std::thread> threads;
-  for (int t = 0; t < 8; ++t)
+  for (std::int32_t t = 0; t < 8; ++t)
     threads.emplace_back([&] {
-      for (int k = 0; k < 1000; ++k)
+      for (std::int32_t k = 0; k < 1000; ++k)
         total.add(0.001);
     });
   for (std::thread &t : threads)

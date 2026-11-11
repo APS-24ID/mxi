@@ -9,15 +9,16 @@ namespace mxi {
 namespace {
 
 //: Gauss-Legendre nodes and weights on [-1, 1], by Newton's method on P_n.
-void gauss_legendre(int n, std::vector<double> *x, std::vector<double> *w) {
+void gauss_legendre(std::int32_t n, std::vector<double> *x,
+                    std::vector<double> *w) {
   const double pi = std::acos(-1.0);
   x->assign(static_cast<std::size_t>(n), 0.0);
   w->assign(static_cast<std::size_t>(n), 0.0);
-  for (int i = 0; i < n; ++i) {
+  for (std::int32_t i = 0; i < n; ++i) {
     double z = std::cos(pi * (i + 0.75) / (n + 0.5)), pp = 0.0;
-    for (int it = 0; it < 100; ++it) {
+    for (std::int32_t it = 0; it < 100; ++it) {
       double p1 = 1.0, p2 = 0.0;
-      for (int j = 1; j <= n; ++j) {
+      for (std::int32_t j = 1; j <= n; ++j) {
         const double p3 = p2;
         p2 = p1;
         p1 = ((2.0 * j - 1.0) * z * p2 - (j - 1.0) * p3) / j;
@@ -54,7 +55,7 @@ TEST(the_harmonics_to_degree_four_are_orthonormal) {
   // integrate products of these harmonics exactly: the Gram matrix of all 24
   // must be the identity to rounding. Any wrong normalisation or recurrence
   // term shows as an entry off by far more.
-  const int lmax = 4;
+  const std::int32_t lmax = 4;
   const std::size_t n = harmonic_count(lmax);
   check::equal(static_cast<std::int64_t>(n), 24,
                "24 to degree four, as the paper counts");
@@ -64,7 +65,7 @@ TEST(the_harmonics_to_degree_four_are_orthonormal) {
   const double pi = std::acos(-1.0);
   for (std::size_t i = 0; i < xs.size(); ++i) {
     const double z = xs[i], s = std::sqrt(1.0 - z * z);
-    for (int j = 0; j < 32; ++j) {
+    for (std::int32_t j = 0; j < 32; ++j) {
       const double phi = 2.0 * pi * j / 32.0;
       real_spherical_harmonics(lmax, {s * std::cos(phi), s * std::sin(phi), z},
                                &y);
@@ -162,7 +163,7 @@ TEST(the_harmonics_to_degrees_six_and_eight_are_orthonormal) {
   // For --l-max: the same quadrature, exact for these products too -- degree
   // 16 at most in cos(theta), against 31 for sixteen Gauss-Legendre points, and
   // order 16 in phi against 31 for thirty-two steps.
-  for (const int lmax : {6, 8}) {
+  for (const std::int32_t lmax : {6, 8}) {
     const std::size_t n = harmonic_count(lmax);
     check::equal(static_cast<std::int64_t>(n),
                  static_cast<std::int64_t>(lmax * (lmax + 2)),
@@ -173,7 +174,7 @@ TEST(the_harmonics_to_degrees_six_and_eight_are_orthonormal) {
     const double pi = std::acos(-1.0);
     for (std::size_t i = 0; i < xs.size(); ++i) {
       const double z = xs[i], s = std::sqrt(1.0 - z * z);
-      for (int j = 0; j < 32; ++j) {
+      for (std::int32_t j = 0; j < 32; ++j) {
         const double phi = 2.0 * pi * j / 32.0;
         real_spherical_harmonics(lmax,
                                  {s * std::cos(phi), s * std::sin(phi), z}, &y);

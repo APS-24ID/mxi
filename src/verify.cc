@@ -13,7 +13,7 @@ namespace mxi {
 
 namespace {
 
-double d_of(const Mat3 &A, int h, int k, int l) {
+double d_of(const Mat3 &A, std::int32_t h, std::int32_t k, std::int32_t l) {
   const Vec3 q = A * Vec3{static_cast<double>(h), static_cast<double>(k),
                           static_cast<double>(l)};
   const double n = q.norm();
@@ -53,7 +53,7 @@ VerifyResult verify_lattice(const ExperimentList &experiments, std::size_t id,
     one_sweep = one_sweep && experiments.sweep(i) == sweep;
 
   struct Spot {
-    int h, k, l;
+    std::int32_t h, k, l;
     double z;
     bool indexed_here; // indexed to this lattice, with these indices
   };
@@ -77,9 +77,9 @@ VerifyResult verify_lattice(const ExperimentList &experiments, std::size_t id,
     const std::size_t panel =
         panels ? static_cast<std::size_t>(panels->ints[r]) : 0;
     const Vec3 f = A_inverse * reciprocal_lattice_point(e, panel, x, y, z);
-    const int h = static_cast<int>(std::lround(f.x));
-    const int k = static_cast<int>(std::lround(f.y));
-    const int l = static_cast<int>(std::lround(f.z));
+    const std::int32_t h = static_cast<std::int32_t>(std::lround(f.x));
+    const std::int32_t k = static_cast<std::int32_t>(std::lround(f.y));
+    const std::int32_t l = static_cast<std::int32_t>(std::lround(f.z));
     if ((h == 0 && k == 0 && l == 0) ||
         std::max({std::fabs(f.x - h), std::fabs(f.y - k),
                   std::fabs(f.z - l)}) >= options.tolerance)
@@ -136,7 +136,9 @@ VerifyResult verify_lattice(const ExperimentList &experiments, std::size_t id,
   result.all.d_min = result.d_min;
 
   // Each spot to the nearest in rotation of its reflection's crossings.
-  std::map<std::tuple<int, int, int>, std::vector<std::size_t>> crossings;
+  std::map<std::tuple<std::int32_t, std::int32_t, std::int32_t>,
+           std::vector<std::size_t>>
+      crossings;
   for (std::size_t i = 0; i < predicted.size(); ++i)
     crossings[{predicted[i].h, predicted[i].k, predicted[i].l}].push_back(i);
   std::vector<char> seen(predicted.size(), 0);

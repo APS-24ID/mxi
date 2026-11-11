@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <utility>
 
@@ -54,8 +55,9 @@ inline double exact_floor(double t) {
 }
 
 PixelCells pixel_cells(const Experiment &e, const KabschFrame &frame,
-                       const Panel &p, const Shoebox &box, int sub, int side,
-                       double span_d, double step_d, double phi_calculated) {
+                       const Panel &p, const Shoebox &box, std::int32_t sub,
+                       std::int32_t side, double span_d, double step_d,
+                       double phi_calculated) {
   const std::int32_t nx = box.nx(), ny = box.ny();
   const std::size_t cw = static_cast<std::size_t>(nx) + 1;
   std::vector<double> c1(cw * (static_cast<std::size_t>(ny) + 1));
@@ -86,9 +88,9 @@ PixelCells pixel_cells(const Experiment &e, const KabschFrame &frame,
       static_cast<std::size_t>(sub) * static_cast<std::size_t>(sub);
   std::vector<double> w00(subs), w10(subs), w01(subs), w11(subs), uu(subs),
       vv(subs);
-  for (int sy = 0; sy < sub; ++sy) {
+  for (std::int32_t sy = 0; sy < sub; ++sy) {
     const double v = (static_cast<double>(sy) + 0.5) / static_cast<double>(sub);
-    for (int sx = 0; sx < sub; ++sx) {
+    for (std::int32_t sx = 0; sx < sub; ++sx) {
       const double u =
           (static_cast<double>(sx) + 0.5) / static_cast<double>(sub);
       const std::size_t n =
@@ -151,8 +153,8 @@ PixelCells pixel_cells(const Experiment &e, const KabschFrame &frame,
           f1 = exact_floor(t1);
           f2 = exact_floor(t2);
         }
-        const int i1 = static_cast<int>(f1);
-        const int i2 = static_cast<int>(f2);
+        const std::int32_t i1 = static_cast<std::int32_t>(f1);
+        const std::int32_t i2 = static_cast<std::int32_t>(f2);
         if (i1 < 0 || i1 >= side || i2 < 0 || i2 >= side)
           continue;
         const std::uint32_t id = static_cast<std::uint32_t>(i2 * side + i1);
@@ -183,11 +185,11 @@ PixelCells pixel_cells(const Experiment &e, const KabschFrame &frame,
 //: which still counts toward how much of the reflection lies outside it.
 struct Planes {
   bool spans = false;
-  std::vector<std::pair<int, double>> planes; // j, overlap / e3 range
+  std::vector<std::pair<std::int32_t, double>> planes; // j, overlap / e3 range
 };
 
 Planes plane_weights(const Experiment &e, const KabschFrame &frame,
-                     const Shoebox &box, std::int32_t z, int side,
+                     const Shoebox &box, std::int32_t z, std::int32_t side,
                      double span_m, double step_m, double phi_calculated) {
   Planes out;
   const double osc = Scan::radians(e.scan.osc_width);
@@ -203,9 +205,12 @@ Planes plane_weights(const Experiment &e, const KabschFrame &frame,
   if (!(e3_span > 0.0))
     return out;
   out.spans = true;
-  const int j_low = static_cast<int>(std::floor((e3_low + span_m) / step_m));
-  const int j_high = static_cast<int>(std::floor((e3_high + span_m) / step_m));
-  for (int j = std::max(j_low, 0); j <= std::min(j_high, side - 1); ++j) {
+  const std::int32_t j_low =
+      static_cast<std::int32_t>(std::floor((e3_low + span_m) / step_m));
+  const std::int32_t j_high =
+      static_cast<std::int32_t>(std::floor((e3_high + span_m) / step_m));
+  for (std::int32_t j = std::max(j_low, 0); j <= std::min(j_high, side - 1);
+       ++j) {
     const double plane_low = -span_m + static_cast<double>(j) * step_m;
     const double plane_high = plane_low + step_m;
     const double overlap =
@@ -233,7 +238,7 @@ Transformed transform_shoebox_direct(const Experiment &e, const Shoebox &box,
   if (!frame.valid)
     return out;
 
-  const int side = spec.side();
+  const std::int32_t side = spec.side();
   const double span_d = spec.half_width * spec.sigma_d;
   const double span_m = spec.half_width * spec.sigma_m;
   if (!(span_d > 0.0) || !(span_m > 0.0))
@@ -257,9 +262,9 @@ Transformed transform_shoebox_direct(const Experiment &e, const Shoebox &box,
   // a 234 second run before this.
   const std::int32_t fine_x = box.nx() * spec.subdivisions;
   const std::int32_t fine_y = box.ny() * spec.subdivisions;
-  std::vector<int> face_i1(static_cast<std::size_t>(fine_x) *
-                           static_cast<std::size_t>(fine_y));
-  std::vector<int> face_i2(face_i1.size());
+  std::vector<std::int32_t> face_i1(static_cast<std::size_t>(fine_x) *
+                                    static_cast<std::size_t>(fine_y));
+  std::vector<std::int32_t> face_i2(face_i1.size());
   {
     // phi does not matter for eps1 and eps2, so any value in the box will do;
     // the reflection's own is the natural one.
@@ -276,8 +281,10 @@ Transformed transform_shoebox_direct(const Experiment &e, const Shoebox &box,
         const std::size_t at =
             static_cast<std::size_t>(fy) * static_cast<std::size_t>(fine_x) +
             static_cast<std::size_t>(fx);
-        face_i1[at] = static_cast<int>(std::floor((eps.e1 + span_d) / step_d));
-        face_i2[at] = static_cast<int>(std::floor((eps.e2 + span_d) / step_d));
+        face_i1[at] =
+            static_cast<std::int32_t>(std::floor((eps.e1 + span_d) / step_d));
+        face_i2[at] =
+            static_cast<std::int32_t>(std::floor((eps.e2 + span_d) / step_d));
       }
     }
   }
@@ -324,14 +331,14 @@ Transformed transform_shoebox_direct(const Experiment &e, const Shoebox &box,
           total += std::max(count - back, 0.0);
         }
 
-        for (int sy = 0; sy < spec.subdivisions; ++sy) {
-          for (int sx = 0; sx < spec.subdivisions; ++sx) {
+        for (std::int32_t sy = 0; sy < spec.subdivisions; ++sy) {
+          for (std::int32_t sx = 0; sx < spec.subdivisions; ++sx) {
             const std::size_t on_face =
                 static_cast<std::size_t>(y * spec.subdivisions + sy) *
                     static_cast<std::size_t>(fine_x) +
                 static_cast<std::size_t>(x * spec.subdivisions + sx);
-            const int i1 = face_i1[on_face];
-            const int i2 = face_i2[on_face];
+            const std::int32_t i1 = face_i1[on_face];
+            const std::int32_t i2 = face_i2[on_face];
             if (i1 < 0 || i1 >= side || i2 < 0 || i2 >= side)
               continue;
 
@@ -339,12 +346,12 @@ Transformed transform_shoebox_direct(const Experiment &e, const Shoebox &box,
             // grid planes it overlaps in proportion to the overlap. A whole
             // image dropped into one plane is what makes a rocking curve look
             // like a step.
-            const int j_low =
-                static_cast<int>(std::floor((e3_low + span_m) / step_m));
-            const int j_high =
-                static_cast<int>(std::floor((e3_high + span_m) / step_m));
-            for (int j = std::max(j_low, 0); j <= std::min(j_high, side - 1);
-                 ++j) {
+            const std::int32_t j_low = static_cast<std::int32_t>(
+                std::floor((e3_low + span_m) / step_m));
+            const std::int32_t j_high = static_cast<std::int32_t>(
+                std::floor((e3_high + span_m) / step_m));
+            for (std::int32_t j = std::max(j_low, 0);
+                 j <= std::min(j_high, side - 1); ++j) {
               const double plane_low =
                   -span_m + static_cast<double>(j) * step_m;
               const double plane_high = plane_low + step_m;
@@ -392,7 +399,7 @@ Transformed transform_shoebox(const Experiment &e, const Shoebox &box,
   const KabschFrame frame = kabsch_frame(e, s1);
   if (!frame.valid)
     return out;
-  const int side = spec.side();
+  const std::int32_t side = spec.side();
   const double span_d = spec.half_width * spec.sigma_d;
   const double span_m = spec.half_width * spec.sigma_m;
   if (!(span_d > 0.0) || !(span_m > 0.0))
@@ -460,7 +467,7 @@ namespace {
 
 //: Where a coordinate sits in a division, in units of cells, measured from the
 //: centre of the first cell. Cell centres are then at 0, 1, 2, ...
-double cell_position(double value, double size, int divisions) {
+double cell_position(double value, double size, std::int32_t divisions) {
   const double n = static_cast<double>(std::max(divisions, 1));
   const double extent = size > 0.0 ? size : 1.0;
   return std::clamp(value / extent * n - 0.5, 0.0, n - 1.0);
@@ -468,8 +475,9 @@ double cell_position(double value, double size, int divisions) {
 
 } // namespace
 
-std::size_t ReferenceProfiles::index_of(std::size_t which_panel, int block,
-                                        int j, int i) const {
+std::size_t ReferenceProfiles::index_of(std::size_t which_panel,
+                                        std::int32_t block, std::int32_t j,
+                                        std::int32_t i) const {
   const std::size_t d = static_cast<std::size_t>(std::max(divisions, 1));
   const std::size_t b = static_cast<std::size_t>(std::max(blocks, 1));
   const std::size_t panel = std::min(which_panel, panels - 1);
@@ -499,7 +507,7 @@ profile_on_pixels_direct(const Experiment &e, const Shoebox &box,
   if (!frame.valid)
     return out;
 
-  const int side = spec.side();
+  const std::int32_t side = spec.side();
   const double span_d = spec.half_width * spec.sigma_d;
   const double span_m = spec.half_width * spec.sigma_m;
   if (!(span_d > 0.0) || !(span_m > 0.0))
@@ -516,9 +524,9 @@ profile_on_pixels_direct(const Experiment &e, const Shoebox &box,
   // depend only on where a subdivision sits on the detector.
   const std::int32_t fine_x = box.nx() * spec.subdivisions;
   const std::int32_t fine_y = box.ny() * spec.subdivisions;
-  std::vector<int> face_i1(static_cast<std::size_t>(fine_x) *
-                           static_cast<std::size_t>(fine_y));
-  std::vector<int> face_i2(face_i1.size());
+  std::vector<std::int32_t> face_i1(static_cast<std::size_t>(fine_x) *
+                                    static_cast<std::size_t>(fine_y));
+  std::vector<std::int32_t> face_i2(face_i1.size());
   for (std::int32_t fy = 0; fy < fine_y; ++fy) {
     const double py = static_cast<double>(box.bbox[2]) +
                       (static_cast<double>(fy) + 0.5) /
@@ -532,8 +540,10 @@ profile_on_pixels_direct(const Experiment &e, const Shoebox &box,
       const std::size_t at =
           static_cast<std::size_t>(fy) * static_cast<std::size_t>(fine_x) +
           static_cast<std::size_t>(fx);
-      face_i1[at] = static_cast<int>(std::floor((eps.e1 + span_d) / step_d));
-      face_i2[at] = static_cast<int>(std::floor((eps.e2 + span_d) / step_d));
+      face_i1[at] =
+          static_cast<std::int32_t>(std::floor((eps.e1 + span_d) / step_d));
+      face_i2[at] =
+          static_cast<std::int32_t>(std::floor((eps.e2 + span_d) / step_d));
     }
   }
 
@@ -557,22 +567,22 @@ profile_on_pixels_direct(const Experiment &e, const Shoebox &box,
         // is geometry and does not depend on whether the detector recorded
         // anything there. What is missing is the count, not the shape.
         double value = 0.0;
-        for (int sy = 0; sy < spec.subdivisions; ++sy) {
-          for (int sx = 0; sx < spec.subdivisions; ++sx) {
+        for (std::int32_t sy = 0; sy < spec.subdivisions; ++sy) {
+          for (std::int32_t sx = 0; sx < spec.subdivisions; ++sx) {
             const std::size_t on_face =
                 static_cast<std::size_t>(y * spec.subdivisions + sy) *
                     static_cast<std::size_t>(fine_x) +
                 static_cast<std::size_t>(x * spec.subdivisions + sx);
-            const int i1 = face_i1[on_face];
-            const int i2 = face_i2[on_face];
+            const std::int32_t i1 = face_i1[on_face];
+            const std::int32_t i2 = face_i2[on_face];
             if (i1 < 0 || i1 >= side || i2 < 0 || i2 >= side)
               continue;
-            const int j_low =
-                static_cast<int>(std::floor((e3_low + span_m) / step_m));
-            const int j_high =
-                static_cast<int>(std::floor((e3_high + span_m) / step_m));
-            for (int j = std::max(j_low, 0); j <= std::min(j_high, side - 1);
-                 ++j) {
+            const std::int32_t j_low = static_cast<std::int32_t>(
+                std::floor((e3_low + span_m) / step_m));
+            const std::int32_t j_high = static_cast<std::int32_t>(
+                std::floor((e3_high + span_m) / step_m));
+            for (std::int32_t j = std::max(j_low, 0);
+                 j <= std::min(j_high, side - 1); ++j) {
               const double plane_low =
                   -span_m + static_cast<double>(j) * step_m;
               const double plane_high = plane_low + step_m;
@@ -613,7 +623,7 @@ std::vector<double> profile_on_pixels(const Experiment &e, const Shoebox &box,
   const KabschFrame frame = kabsch_frame(e, s1);
   if (!frame.valid)
     return out;
-  const int side = spec.side();
+  const std::int32_t side = spec.side();
   const double span_d = spec.half_width * spec.sigma_d;
   const double span_m = spec.half_width * spec.sigma_m;
   if (!(span_d > 0.0) || !(span_m > 0.0))
@@ -674,7 +684,7 @@ double least_variance() { return g_least_variance; }
 
 ProfileFit fit_on_pixels(const Shoebox &box,
                          const std::vector<double> &pixel_profile, double gain,
-                         int iterations) {
+                         std::int32_t iterations) {
   ProfileFit out;
   if (pixel_profile.size() != box.size())
     return out;
@@ -728,7 +738,7 @@ ProfileFit fit_on_pixels(const Shoebox &box,
 
   double variance = 0.0;
   double profile_over_v = 0.0, profile2_over_v = 0.0; // the last round's
-  for (int round = 0; round < std::max(iterations, 1); ++round) {
+  for (std::int32_t round = 0; round < std::max(iterations, 1); ++round) {
     double numerator = 0.0, denominator = 0.0, weight = 0.0, sandwich = 0.0;
     for (std::size_t i = 0; i < box.size(); ++i) {
       if ((box.mask[i] & shoebox_mask::kForeground) == 0)
@@ -858,11 +868,11 @@ std::size_t ReferenceProfiles::region_of(const Panel &panel,
       static_cast<double>(std::max<std::int64_t>(panel.image_size[0], 1));
   const double slow_size =
       static_cast<double>(std::max<std::int64_t>(panel.image_size[1], 1));
-  const int i = static_cast<int>(
+  const std::int32_t i = static_cast<std::int32_t>(
       std::lround(cell_position(px_fast, fast_size, divisions)));
-  const int j = static_cast<int>(
+  const std::int32_t j = static_cast<std::int32_t>(
       std::lround(cell_position(px_slow, slow_size, divisions)));
-  const int b = static_cast<int>(std::lround(cell_position(
+  const std::int32_t b = static_cast<std::int32_t>(std::lround(cell_position(
       z - first_image, std::max(last_image - first_image, 1.0), blocks)));
   return index_of(which_panel, b, j, i);
 }
@@ -887,13 +897,14 @@ std::vector<Neighbour> neighbours_of(const ReferenceProfiles &reference,
   // falling linearly between their centres. At an edge both land on the same
   // cell and the weights add back to one there, which is the fallback rather
   // than a special case.
-  const auto pair = [](double v, int limit) {
-    const int low = std::clamp(static_cast<int>(std::floor(v)), 0, limit - 1);
-    const int high = std::clamp(low + 1, 0, limit - 1);
+  const auto pair = [](double v, std::int32_t limit) {
+    const std::int32_t low =
+        std::clamp(static_cast<std::int32_t>(std::floor(v)), 0, limit - 1);
+    const std::int32_t high = std::clamp(low + 1, 0, limit - 1);
     const double up = (high == low) ? 0.0 : v - static_cast<double>(low);
-    return std::array<std::pair<int, double>, 2>{
-        std::pair<int, double>{low, 1.0 - up},
-        std::pair<int, double>{high, up}};
+    return std::array<std::pair<std::int32_t, double>, 2>{
+        std::pair<std::int32_t, double>{low, 1.0 - up},
+        std::pair<std::int32_t, double>{high, up}};
   };
 
   const auto in_x = pair(x, std::max(reference.divisions, 1));
@@ -957,8 +968,8 @@ std::vector<double> profile_at(const ReferenceProfiles &reference,
   return out;
 }
 
-ReferenceProfiles make_reference(const GridSpec &spec, int divisions,
-                                 int blocks, std::size_t panels,
+ReferenceProfiles make_reference(const GridSpec &spec, std::int32_t divisions,
+                                 std::int32_t blocks, std::size_t panels,
                                  double first_image, double last_image) {
   ReferenceProfiles out;
   out.spec = spec;
@@ -1002,14 +1013,15 @@ bool add_reference(ReferenceProfiles *reference, std::size_t region,
   return true;
 }
 
-int block_of_cell(const ReferenceProfiles &reference, std::size_t cell) {
+std::int32_t block_of_cell(const ReferenceProfiles &reference,
+                           std::size_t cell) {
   const std::size_t d =
       static_cast<std::size_t>(std::max(reference.divisions, 1));
   const std::size_t b = static_cast<std::size_t>(std::max(reference.blocks, 1));
-  return static_cast<int>((cell / (d * d)) % b);
+  return static_cast<std::int32_t>((cell / (d * d)) % b);
 }
 
-bool block_average(const ReferenceProfiles &reference, int block,
+bool block_average(const ReferenceProfiles &reference, std::int32_t block,
                    std::vector<double> *average) {
   const std::size_t n = reference.spec.size();
   average->assign(n, 0.0);
@@ -1031,8 +1043,8 @@ bool block_average(const ReferenceProfiles &reference, int block,
   return any;
 }
 
-void finalise_block(ReferenceProfiles *reference, int block, std::size_t least,
-                    const std::vector<double> &average) {
+void finalise_block(ReferenceProfiles *reference, std::int32_t block,
+                    std::size_t least, const std::vector<double> &average) {
   for (std::size_t r = 0; r < reference->profile.size(); ++r) {
     if (block_of_cell(*reference, r) != block)
       continue;
@@ -1055,24 +1067,24 @@ void finalise_block(ReferenceProfiles *reference, int block, std::size_t least,
 void finalise_reference(ReferenceProfiles *reference, std::size_t least) {
   if (reference == nullptr)
     return;
-  const int blocks = std::max(reference->blocks, 1);
+  const std::int32_t blocks = std::max(reference->blocks, 1);
   // Every block's average first, from the counts as learned, before any cell is
   // normalised.
   std::vector<std::vector<double>> average(static_cast<std::size_t>(blocks));
   std::vector<bool> has(static_cast<std::size_t>(blocks), false);
-  for (int b = 0; b < blocks; ++b)
+  for (std::int32_t b = 0; b < blocks; ++b)
     has[static_cast<std::size_t>(b)] =
         block_average(*reference, b, &average[static_cast<std::size_t>(b)]);
-  for (int b = 0; b < blocks; ++b) {
+  for (std::int32_t b = 0; b < blocks; ++b) {
     // An empty block borrows the nearest earlier block with spots, else the
     // nearest later one: earlier first, so that a block finalised as the
     // images stream past never waits for more than its own reflections, unless
     // every block before it is empty.
-    int from = -1;
-    for (int k = b; k >= 0 && from < 0; --k)
+    std::int32_t from = -1;
+    for (std::int32_t k = b; k >= 0 && from < 0; --k)
       if (has[static_cast<std::size_t>(k)])
         from = k;
-    for (int k = b + 1; k < blocks && from < 0; ++k)
+    for (std::int32_t k = b + 1; k < blocks && from < 0; ++k)
       if (has[static_cast<std::size_t>(k)])
         from = k;
     const std::vector<double> none(reference->spec.size(), 0.0);
@@ -1083,7 +1095,8 @@ void finalise_reference(ReferenceProfiles *reference, std::size_t least) {
 }
 
 ProfileFit fit_profile(const std::vector<double> &reference,
-                       const Transformed &t, double gain, int iterations) {
+                       const Transformed &t, double gain,
+                       std::int32_t iterations) {
   ProfileFit out;
   if (!t.valid || reference.size() != t.data.size())
     return out;
@@ -1103,7 +1116,7 @@ ProfileFit fit_profile(const std::vector<double> &reference,
   scale /= profile_sum;
 
   double variance = 0.0;
-  for (int round = 0; round < std::max(iterations, 1); ++round) {
+  for (std::int32_t round = 0; round < std::max(iterations, 1); ++round) {
     double numerator = 0.0;
     double denominator = 0.0;
     double sandwich = 0.0; // sum(p^2 w^2 V): the variance whatever the weights
@@ -1232,7 +1245,7 @@ bool invert(std::vector<double> a, std::size_t n, std::vector<double> *out) {
 } // namespace
 
 std::vector<ProfileFit> fit_together(const std::vector<OverlapMember> &members,
-                                     double gain, int iterations) {
+                                     double gain, std::int32_t iterations) {
   const std::size_t k_n = members.size();
   std::vector<ProfileFit> out(k_n);
   if (k_n == 0)
@@ -1332,9 +1345,9 @@ std::vector<ProfileFit> fit_together(const std::vector<OverlapMember> &members,
   }
 
   std::vector<double> a_inv, cov(k_n * k_n, 0.0);
-  int rounds = 0;
+  std::int32_t rounds = 0;
   std::vector<double> last_w(voxels.size(), 0.0), last_var(voxels.size(), 0.0);
-  for (int round = 0; round < std::max(iterations, 1); ++round) {
+  for (std::int32_t round = 0; round < std::max(iterations, 1); ++round) {
     std::vector<double> a(k_n * k_n, 0.0), r(k_n, 0.0),
         sandwich(k_n * k_n, 0.0);
     for (std::size_t j = 0; j < voxels.size(); ++j) {

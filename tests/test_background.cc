@@ -29,7 +29,7 @@ std::vector<double> poisson_sample(double mu, std::size_t n,
     // Knuth: multiply uniforms until the product falls below exp(-mu).
     const double limit = std::exp(-mu);
     double product = 1.0;
-    int k = -1;
+    std::int32_t k = -1;
     do {
       product *= std::fmax(uniform(), 1e-300);
       ++k;
@@ -54,11 +54,11 @@ TEST(the_counted_fit_is_the_pixel_fit_to_rounding) {
   // few outliers, it must agree with the fit over every pixel.
   std::mt19937 rng(17);
   for (double level : {0.01, 0.3, 2.0, 12.0, 50.0}) {
-    std::poisson_distribution<int> draw(level);
+    std::poisson_distribution<std::int32_t> draw(level);
     std::vector<double> pixels;
-    for (int i = 0; i < 4000; ++i)
+    for (std::int32_t i = 0; i < 4000; ++i)
       pixels.push_back(static_cast<double>(draw(rng)));
-    for (int i = 0; i < 20; ++i)
+    for (std::int32_t i = 0; i < 20; ++i)
       pixels.push_back(level * 20.0 + 100.0); // outliers
     std::map<double, double> histogram;
     for (double v : pixels)
@@ -101,11 +101,11 @@ TEST(the_correction_terms_are_what_they_are_defined_to_be) {
     const double root = std::sqrt(mu);
     double c1 = 0.0, c2 = 0.0;
     // Straight from the definition: factorials in long double, no recurrence.
-    for (int j = 0; j < 400; ++j) {
+    for (std::int32_t j = 0; j < 400; ++j) {
       long double logp =
           -static_cast<long double>(mu) +
           static_cast<long double>(j) * std::log((long double)mu);
-      for (int k = 2; k <= j; ++k)
+      for (std::int32_t k = 2; k <= j; ++k)
         logp -= std::log((long double)k);
       const double p = static_cast<double>(std::exp(logp));
       const double d = static_cast<double>(j) - mu;
@@ -136,8 +136,8 @@ TEST(the_glm_is_unbiased_on_clean_poisson_data) {
   // exactly what the traditional methods do.
   for (double mu : {0.1, 0.3, 1.0, 3.0}) {
     double total = 0.0;
-    const int trials = 40;
-    for (int t = 0; t < trials; ++t) {
+    const std::int32_t trials = 40;
+    for (std::int32_t t = 0; t < trials; ++t) {
       const std::vector<double> v = poisson_sample(mu, 3000, 1000 + t);
       total += glm_background(v).mean;
     }

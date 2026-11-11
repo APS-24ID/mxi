@@ -5,6 +5,7 @@
 // every program. Header-only, so that the spot finder, which does not link the
 // pipeline's library, prints the same table.
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -82,14 +83,22 @@ public:
       return;
     const double total = now() - began_;
     mxi::print_to(out, "\nTiming\n");
+    // The names' column as wide as the widest name, not a fixed 42: a line
+    // is that and 36 more, inside 80 columns for any name of 44 or fewer
+    // (Graeme: mxi process's table too wide for an 80-column window).
+    std::size_t width = std::string("total").size();
+    for (const Phase &p : phases_)
+      width = std::max(width,
+                       static_cast<std::size_t>(2 * p.depth) + p.name.size());
+    const std::int32_t w = static_cast<std::int32_t>(width);
     for (const Phase &p : phases_) {
       const std::string name =
           std::string(static_cast<std::size_t>(2 * p.depth), ' ') + p.name;
-      mxi::print_to(out, "  %-42s %9.3f s  %5.1f%%  peak %8.0f MB\n",
+      mxi::print_to(out, "  %-*s %8.3f s %5.1f%%  peak %6.0f MB\n", w,
                     name.c_str(), p.seconds,
                     total > 0.0 ? 100.0 * p.seconds / total : 0.0, p.peak_mb);
     }
-    mxi::print_to(out, "  %-42s %9.3f s\n", "total", total);
+    mxi::print_to(out, "  %-*s %8.3f s\n", w, "total", total);
     for (const std::string &n : notes_)
       mxi::print_to(out, "  %s\n", n.c_str());
   }

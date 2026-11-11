@@ -143,6 +143,24 @@ inline bool open_log(const char *path) {
   return true;
 }
 
+//: How many logs are open: mxi process notes it before a step, and closes
+//: what the step opened after it (close_logs_to).
+inline std::size_t log_depth() {
+  output_detail::State &s = output_detail::state();
+  const std::lock_guard<std::mutex> hold(s.lock);
+  return s.logs.size();
+}
+
+//: Every log opened since there were `depth`, closed, the last first.
+inline void close_logs_to(std::size_t depth) {
+  output_detail::State &s = output_detail::state();
+  const std::lock_guard<std::mutex> hold(s.lock);
+  while (s.logs.size() > depth) {
+    std::fclose(s.logs.back());
+    s.logs.pop_back();
+  }
+}
+
 //: The last log opened, closed; the one before it written again.
 inline void close_log() {
   output_detail::State &s = output_detail::state();

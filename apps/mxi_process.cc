@@ -14,26 +14,28 @@
 // November). The file's own writer, its root attribute "creator", says
 // which step that was; its summary's last step only where there is none.
 //
-// Each step is a process of its own -- this program again, by its own path
-// (self_path.hh) -- so that nothing differs from running them by hand, and no
-// setting of one step's (its threads) is another's.
+// Each step is a call, in this process, of the command it is (commands.hh)
+// with the arguments it would have been given typed -- not, as it was until 7
+// November, a process of its own (Graeme: no process starting another, the
+// code the simpler and Windows the nearer; docs/windows.md). Each step's log
+// is opened on top of this one's and closed when it returns; every step is
+// given -j, so no step's threads are another's. What it costs: a step that
+// crashes takes the run with it, without the message below of where it
+// stopped; a step that fails, and returns, keeps it.
 
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <exception>
 #include <set>
-#include <spawn.h>
 #include <string>
-#include <sys/wait.h>
 #include <vector>
 
 #include "args.hh"
+#include "commands.hh"
 #include "log_mirror.hh"
 #include "output.hh"
 #include "rflx.hh"
-#include "self_path.hh"
-
-extern char **environ;
 
 namespace {
 
@@ -77,29 +79,35 @@ std::string shown(const Step &s) {
   return out;
 }
 
-// Runs this program as `mxi STEP ARGS...`, its output to ours; its exit code,
-// or 128 + the signal that ended it, or -1 where it could not be started.
-std::int32_t run(const std::string &self, const Step &s) {
-  std::vector<std::string> words = {self, s.name};
+// Runs a step as `mxi STEP ARGS...` would, in this process: its command
+// called with argv as mxi's dispatch gives it, its log closed when it
+// returns. Its exit code; 1, said, where it throws what nothing caught, or
+// where mxi has no such command.
+std::int32_t run(const Step &s) {
+  const mxi::Command command = mxi::command_named(s.name.c_str());
+  if (command == nullptr) {
+    mxi::eprint("mxi process: mxi has no command %s\n", s.name.c_str());
+    return 1;
+  }
+  std::vector<std::string> words = {"mxi " + s.name};
   words.insert(words.end(), s.args.begin(), s.args.end());
   std::vector<char *> argv;
   for (std::string &w : words)
     argv.push_back(w.data());
   argv.push_back(nullptr);
+  const std::size_t logs = mxi::log_depth();
+  std::int32_t code = 1;
+  try {
+    code = command(static_cast<int>(words.size()), argv.data());
+  } catch (const std::exception &e) {
+    mxi::eprint("mxi %s: %s\n", s.name.c_str(), e.what());
+  } catch (...) {
+    mxi::eprint("mxi %s: stopped by an error of no kind known\n",
+                s.name.c_str());
+  }
   mxi::flush();
-  mxi::flush();
-  pid_t pid = 0;
-  if (posix_spawn(&pid, self.c_str(), nullptr, nullptr, argv.data(), environ) !=
-      0)
-    return -1;
-  std::int32_t status = 0;
-  if (waitpid(pid, &status, 0) < 0)
-    return -1;
-  if (WIFEXITED(status))
-    return WEXITSTATUS(status);
-  if (WIFSIGNALED(status))
-    return 128 + WTERMSIG(status);
-  return -1;
+  mxi::close_logs_to(logs);
+  return code;
 }
 
 // The step after the one that wrote a .rflx: by its writer, "creator"; where
@@ -310,32 +318,26 @@ int mxi_process_main(int argc, char **argv) {
     shared += " --d-min-auto";
   if (!threads.empty())
     shared += " -j " + threads[1];
-  const std::string self = executable_path(argv[0]);
   const std::size_t n = steps.size();
   for (std::size_t i = 0; i < n; ++i) {
     const Step &s = steps[i];
     mxi::print("\n== mxi process: step %zu of %zu: %s\n\n", i + 1, n,
                shown(s).c_str());
-    const std::int32_t code = run(self, s);
+    const std::int32_t code = run(s);
     if (code != 0) {
       mxi::print("\n");
-      if (code < 0)
-        mxi::eprint("mxi process: stopped at step %zu of %zu, mxi %s: it could "
-                    "not be started (%s)\n",
-                    i + 1, n, s.name.c_str(), self.c_str());
-      else
-        mxi::eprint("mxi process: stopped at step %zu of %zu, mxi %s, which "
-                    "failed (exit %d): its output is above, and in "
-                    "mxi_%s.log. Once it is put right, run it again --\n"
-                    "  %s\n"
-                    "-- and the steps after it, or all that remains:\n"
-                    "  mxi process %s%s\n",
-                    i + 1, n, s.name.c_str(), code, s.name.c_str(),
-                    shown(s).c_str(),
-                    s.name == "import" ? join(args.positional).c_str()
-                                       : s.args.front().c_str(),
-                    shared.c_str());
-      return code < 0 ? 1 : code;
+      mxi::eprint("mxi process: stopped at step %zu of %zu, mxi %s, which "
+                  "failed (exit %d): its output is above, and in "
+                  "mxi_%s.log. Once it is put right, run it again --\n"
+                  "  %s\n"
+                  "-- and the steps after it, or all that remains:\n"
+                  "  mxi process %s%s\n",
+                  i + 1, n, s.name.c_str(), code, s.name.c_str(),
+                  shown(s).c_str(),
+                  s.name == "import" ? join(args.positional).c_str()
+                                     : s.args.front().c_str(),
+                  shared.c_str());
+      return code;
     }
   }
   mxi::print("\nmxi process: all %zu steps done: the scaled data and their "

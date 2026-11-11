@@ -4,6 +4,23 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
+## Unreleased -- since 1.2.0
+
+**Changed**
+- `mxi process` runs each step in code, the command called in its own process,
+  where each step had been a process of its own: each step's output and log as
+  before; a step that fails stops the run with the same message, but one that
+  crashes now takes the run with it, without the message of where it stopped.
+- What mxi prints goes to the terminal and the program's log through mxi's own
+  functions, in the same call, where stdout and stderr had themselves been
+  replaced -- with functions Windows has not. Logs and terminal byte for byte
+  as before; what another library writes straight to stderr (HDF5's error
+  stack, where not turned off) now reaches the terminal, not the log.
+- Every integer in the code an explicitly sized type -- `std::int64_t` where
+  `long` was, `std::int32_t` where `int` was -- the same types on Linux and
+  macOS, so no change in what mxi does; on Windows the four uses of `long`
+  that would have been wrong there (docs/windows.md) are right.
+
 ## 1.2.0 -- 7 November 2026
 
 **New**

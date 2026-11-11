@@ -17,8 +17,13 @@ mxi process master.nxs --dry-run                 # the commands, printed, none r
 
 ## The sequence, and where each option goes
 
-Each step is its own process -- `mxi` again, run as `mxi STEP ...` -- so that it
-does exactly what it would by hand, and no step's settings are another's.
+Each step is the command it names, called in this process with the arguments
+it would have had typed, `mxi STEP ...` -- its own output, its own log, and
+nothing different from running it by hand; until 7 November each was a process
+of its own. A step that fails says so and stops the run with the message
+below; a step that crashes takes the run with it, without that message (the
+price of no process starting another, which makes the code simpler and a
+Windows build nearer: docs/windows.md).
 
 ```mermaid
 flowchart LR

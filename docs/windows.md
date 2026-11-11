@@ -133,7 +133,8 @@ default, Microsoft's old runtime, knows no `%zu`; the current one, the planned
 build's, does) -- and the platform layer's Windows half built and run under
 Wine (`tests/windows/platform_windows.cc`): 2000 reads at offsets from four
 threads, every byte right; the end of a file; no file; peak memory; a log
-holding what was printed. Wine is not Windows, but the same API is called.
+holding what was printed. Wine is not Windows, but the same API is called. And `scripts/check_libcxx.sh`: every source and test against libc++, Apple's
+C++ library, for what GCC's own library lets through (126 files, none failing).
 Left for the build job: CMake for clang-cl (its flags), vcpkg's Windows
 triplet, the workflow's job; HDF5 and paths that are not ASCII.
 

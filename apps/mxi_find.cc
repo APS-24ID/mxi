@@ -52,6 +52,7 @@
 #include "expt.hh"
 #include "histogram.hh"
 #include "log_mirror.hh"
+#include "output.hh"
 #include "parallel.hh"
 #include "processing.hh"
 #include "progress.hh"
@@ -165,7 +166,6 @@ void report_resolution(const std::vector<double> &dstar) {
 
 #ifdef MXI_GPU
 #include "dext_gpu.hh"
-#include "output.hh"
 #endif
 
 namespace {

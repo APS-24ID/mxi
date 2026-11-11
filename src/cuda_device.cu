@@ -2,6 +2,7 @@
 
 #include "cuda_device.hh"
 
+#include <cstdint>
 #include <cuda_runtime.h>
 
 #include <cstdio>
@@ -11,12 +12,12 @@
 namespace mxi::cuda {
 
 bool available() {
-  int devices = 0;
+  std::int32_t devices = 0;
   return cudaGetDeviceCount(&devices) == cudaSuccess && devices > 0;
 }
 
 std::string unavailable_reason() {
-  int devices = 0;
+  std::int32_t devices = 0;
   const cudaError_t error = cudaGetDeviceCount(&devices);
   if (error == cudaSuccess && devices > 0)
     return std::string();
@@ -24,7 +25,7 @@ std::string unavailable_reason() {
                         ? std::string(cudaGetErrorName(error)) + ", " +
                               cudaGetErrorString(error)
                         : std::string("CUDA found no devices");
-  int driver = 0, runtime = 0;
+  std::int32_t driver = 0, runtime = 0;
   cudaDriverGetVersion(&driver);
   cudaRuntimeGetVersion(&runtime);
   char versions[160];
@@ -46,7 +47,7 @@ std::string unavailable_reason() {
 }
 
 std::string device_name() {
-  int count = 0;
+  std::int32_t count = 0;
   cudaDeviceProp prop;
   if (cudaGetDeviceCount(&count) == cudaSuccess && count > 0 &&
       cudaGetDeviceProperties(&prop, 0) == cudaSuccess)

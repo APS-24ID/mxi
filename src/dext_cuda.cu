@@ -17,6 +17,7 @@
 #include "cuda_device.hh"
 #include "dext_gpu.hh"
 
+#include <cstdint>
 #include <cstdlib>
 #include <cuda_runtime.h>
 
@@ -55,26 +56,27 @@ void ok(cudaError_t status, const char *what) {
 // than through an integral image. Writes 1 where the window looks like signal,
 // and 1 for a masked pixel so that the erode below cannot grow through it.
 template <typename T>
-__global__ void stage0(const T *image_in, T *mask_out, int height, int width) {
+__global__ void stage0(const T *image_in, T *mask_out, std::int32_t height,
+                       std::int32_t width) {
   using W = accumulator_t<T>;
   using R = real_t<T>;
 
-  const int knl = 3;
+  const std::int32_t knl = 3;
   const R sigma_b = R(6.0);
-  const int i = threadIdx.y + blockDim.y * blockIdx.y;
-  const int j = threadIdx.x + blockDim.x * blockIdx.x;
+  const std::int32_t i = threadIdx.y + blockDim.y * blockIdx.y;
+  const std::int32_t j = threadIdx.x + blockDim.x * blockIdx.x;
   if (i >= height || j >= width)
     return;
-  const int k = i * width + j;
+  const std::int32_t k = i * width + j;
   const T masked = masked_value<T>();
 
   W m_sum = 0;
   W i_sum = 0;
   W i2_sum = 0;
-  for (int di = -knl; di <= knl; di++) {
-    for (int dj = -knl; dj <= knl; dj++) {
-      const int _i = i + di;
-      const int _j = j + dj;
+  for (std::int32_t di = -knl; di <= knl; di++) {
+    for (std::int32_t dj = -knl; dj <= knl; dj++) {
+      const std::int32_t _i = i + di;
+      const std::int32_t _j = j + dj;
       if (_i >= 0 && _i < height && _j >= 0 && _j < width) {
         const T pixel = image_in[_i * width + _j];
         const W valid = pixel >= masked ? W(0) : W(1);
@@ -118,17 +120,17 @@ __global__ void stage0(const T *image_in, T *mask_out, int height, int width) {
 // differences a whole-frame table that has certainly wrapped, agrees with the
 // direct kernel above.
 template <typename T>
-__global__ void stage0_tile(const T *image_in, T *mask_out, int height,
-                            int width) {
+__global__ void stage0_tile(const T *image_in, T *mask_out, std::int32_t height,
+                            std::int32_t width) {
   using W = accumulator_t<T>;
   using R = real_t<T>;
 
-  const int knl = 3;
+  const std::int32_t knl = 3;
   const R sigma_b = R(6.0);
-  const int i = threadIdx.y + blockDim.y * blockIdx.y;
-  const int j = threadIdx.x + blockDim.x * blockIdx.x;
-  const int n = threadIdx.x + blockDim.x * threadIdx.y;
-  const int N = 32 + 3 + 3;
+  const std::int32_t i = threadIdx.y + blockDim.y * blockIdx.y;
+  const std::int32_t j = threadIdx.x + blockDim.x * blockIdx.x;
+  const std::int32_t n = threadIdx.x + blockDim.x * threadIdx.y;
+  const std::int32_t N = 32 + 3 + 3;
   const T masked = masked_value<T>();
 
   __shared__ W M[N][N];
@@ -140,9 +142,9 @@ __global__ void stage0_tile(const T *image_in, T *mask_out, int height,
     W tm = 0;
     W ti = 0;
     W ti2 = 0;
-    const int _i = n - knl + blockDim.y * blockIdx.y;
-    for (int m = 0; m < N; m++) {
-      const int _j = m - knl + blockDim.x * blockIdx.x;
+    const std::int32_t _i = n - knl + blockDim.y * blockIdx.y;
+    for (std::int32_t m = 0; m < N; m++) {
+      const std::int32_t _j = m - knl + blockDim.x * blockIdx.x;
       if (_i >= 0 && _j >= 0 && _i < height && _j < width) {
         const T pixel = image_in[_i * width + _j];
         const W valid = pixel >= masked ? W(0) : W(1);
@@ -164,7 +166,7 @@ __global__ void stage0_tile(const T *image_in, T *mask_out, int height,
     W tm = 0;
     W ti = 0;
     W ti2 = 0;
-    for (int m = 0; m < N; m++) {
+    for (std::int32_t m = 0; m < N; m++) {
       tm += M[m][n];
       ti += I[m][n];
       ti2 += I2[m][n];
@@ -180,12 +182,12 @@ __global__ void stage0_tile(const T *image_in, T *mask_out, int height,
   // but every thread still has to reach both barriers.
   if (i >= height || j >= width)
     return;
-  const int k = i * width + j;
+  const std::int32_t k = i * width + j;
 
-  const int j0 = static_cast<int>(threadIdx.x) - 1;
-  const int j1 = static_cast<int>(threadIdx.x) + 2 * knl;
-  const int i0 = static_cast<int>(threadIdx.y) - 1;
-  const int i1 = static_cast<int>(threadIdx.y) + 2 * knl;
+  const std::int32_t j0 = static_cast<std::int32_t>(threadIdx.x) - 1;
+  const std::int32_t j1 = static_cast<std::int32_t>(threadIdx.x) + 2 * knl;
+  const std::int32_t i0 = static_cast<std::int32_t>(threadIdx.y) - 1;
+  const std::int32_t i1 = static_cast<std::int32_t>(threadIdx.y) + 2 * knl;
 
   W m_sum = M[i1][j1];
   W i_sum = I[i1][j1];
@@ -221,14 +223,14 @@ __global__ void stage0_tile(const T *image_in, T *mask_out, int height,
 // whole 5 x 5 neighbourhood did.
 template <typename T>
 __global__ void stage1(const T *image_in, const T *mask_in, T *mask_out,
-                       int height, int width) {
-  const int knl = 2;
-  const int i = threadIdx.y + blockDim.y * blockIdx.y;
-  const int j = threadIdx.x + blockDim.x * blockIdx.x;
+                       std::int32_t height, std::int32_t width) {
+  const std::int32_t knl = 2;
+  const std::int32_t i = threadIdx.y + blockDim.y * blockIdx.y;
+  const std::int32_t j = threadIdx.x + blockDim.x * blockIdx.x;
   if (i >= height || j >= width)
     return;
 
-  const int k = i * width + j;
+  const std::int32_t k = i * width + j;
   if (image_in[k] >= masked_value<T>()) {
     mask_out[k] = T(1);
     return;
@@ -238,10 +240,10 @@ __global__ void stage1(const T *image_in, const T *mask_in, T *mask_out,
     return;
   }
 
-  for (int di = -knl; di <= knl; di++) {
-    for (int dj = -knl; dj <= knl; dj++) {
-      const int _i = i + di;
-      const int _j = j + dj;
+  for (std::int32_t di = -knl; di <= knl; di++) {
+    for (std::int32_t dj = -knl; dj <= knl; dj++) {
+      const std::int32_t _i = i + di;
+      const std::int32_t _j = j + dj;
       if (_i >= 0 && _i < height && _j >= 0 && _j < width) {
         if (!mask_in[_i * width + _j]) {
           mask_out[k] = T(0);
@@ -262,8 +264,8 @@ __global__ void stage1(const T *image_in, const T *mask_in, T *mask_out,
 template <typename T>
 __device__ inline void
 emit_signal(const T *image_in, const T *mask_in, SignalPixel *out,
-            unsigned *counter, unsigned capacity, int k, bool in_range,
-            accumulator_t<T> m_sum, accumulator_t<T> i_sum) {
+            std::uint32_t *counter, std::uint32_t capacity, std::int32_t k,
+            bool in_range, accumulator_t<T> m_sum, accumulator_t<T> i_sum) {
   using R = real_t<T>;
   const R sigma_s = R(3.0);
   const T masked = masked_value<T>();
@@ -283,11 +285,11 @@ emit_signal(const T *image_in, const T *mask_in, SignalPixel *out,
   // One atomic per warp rather than one per pixel: the warp votes, the leader
   // claims that many slots, and each emitting lane takes the slot at its rank
   // among the set bits below it. With a 32 x 32 block the lane is threadIdx.x.
-  const unsigned lane = threadIdx.x;
-  const unsigned ballot = __ballot_sync(0xffffffffu, signal);
-  const unsigned rank = __popc(ballot & ((1u << lane) - 1u));
+  const std::uint32_t lane = threadIdx.x;
+  const std::uint32_t ballot = __ballot_sync(0xffffffffu, signal);
+  const std::uint32_t rank = __popc(ballot & ((1u << lane) - 1u));
 
-  unsigned base = 0;
+  std::uint32_t base = 0;
   if (lane == 0 && ballot != 0u)
     base = atomicAdd(counter, __popc(ballot));
   base = __shfl_sync(0xffffffffu, base, 0);
@@ -297,10 +299,10 @@ emit_signal(const T *image_in, const T *mask_in, SignalPixel *out,
   // truncated list.
   if (signal && base + rank < capacity) {
     SignalPixel pixel;
-    pixel.index = static_cast<unsigned>(k);
-    pixel.value = static_cast<unsigned>(p);
+    pixel.index = static_cast<std::uint32_t>(k);
+    pixel.value = static_cast<std::uint32_t>(p);
     pixel.background = static_cast<float>(mean);
-    pixel.population = static_cast<unsigned short>(m_sum);
+    pixel.population = static_cast<std::uint16_t>(m_sum);
     pixel.reserved = 0;
     out[base + rank] = pixel;
   }
@@ -313,16 +315,16 @@ emit_signal(const T *image_in, const T *mask_in, SignalPixel *out,
 // much occupancy, summing directly as stage0 does is the alternative.
 template <typename T>
 __global__ void stage2(const T *image_in, const T *mask_in, SignalPixel *out,
-                       unsigned *counter, unsigned capacity, int height,
-                       int width) {
+                       std::uint32_t *counter, std::uint32_t capacity,
+                       std::int32_t height, std::int32_t width) {
   using W = accumulator_t<T>;
 
-  const int knl = 5;
-  const int i = threadIdx.y + blockDim.y * blockIdx.y;
-  const int j = threadIdx.x + blockDim.x * blockIdx.x;
-  const int n = threadIdx.x + blockDim.x * threadIdx.y;
-  const int k = i * width + j;
-  const int N = 32 + 5 + 5;
+  const std::int32_t knl = 5;
+  const std::int32_t i = threadIdx.y + blockDim.y * blockIdx.y;
+  const std::int32_t j = threadIdx.x + blockDim.x * blockIdx.x;
+  const std::int32_t n = threadIdx.x + blockDim.x * threadIdx.y;
+  const std::int32_t k = i * width + j;
+  const std::int32_t N = 32 + 5 + 5;
   const T masked = masked_value<T>();
 
   __shared__ W M[N][N];
@@ -333,11 +335,11 @@ __global__ void stage2(const T *image_in, const T *mask_in, SignalPixel *out,
   if (n < N) {
     W tm = 0;
     W ti = 0;
-    const int _i = n - knl + blockDim.y * blockIdx.y;
-    for (int m = 0; m < N; m++) {
-      const int _j = m - knl + blockDim.x * blockIdx.x;
+    const std::int32_t _i = n - knl + blockDim.y * blockIdx.y;
+    for (std::int32_t m = 0; m < N; m++) {
+      const std::int32_t _j = m - knl + blockDim.x * blockIdx.x;
       if (_i >= 0 && _j >= 0 && _i < height && _j < width) {
-        const int _k = _i * width + _j;
+        const std::int32_t _k = _i * width + _j;
         const T pixel = image_in[_k];
         const W valid = (pixel >= masked) || mask_in[_k] ? W(0) : W(1);
         tm += valid;
@@ -354,7 +356,7 @@ __global__ void stage2(const T *image_in, const T *mask_in, SignalPixel *out,
   if (n < N) {
     W tm = 0;
     W ti = 0;
-    for (int m = 0; m < N; m++) {
+    for (std::int32_t m = 0; m < N; m++) {
       tm += M[m][n];
       ti += I[m][n];
       M[m][n] = tm;
@@ -369,10 +371,10 @@ __global__ void stage2(const T *image_in, const T *mask_in, SignalPixel *out,
   // the result would be silently wrong rather than a clean failure.
   const bool in_range = i < height && j < width;
 
-  const int j0 = static_cast<int>(threadIdx.x) - 1;
-  const int j1 = static_cast<int>(threadIdx.x) + 2 * knl;
-  const int i0 = static_cast<int>(threadIdx.y) - 1;
-  const int i1 = static_cast<int>(threadIdx.y) + 2 * knl;
+  const std::int32_t j0 = static_cast<std::int32_t>(threadIdx.x) - 1;
+  const std::int32_t j1 = static_cast<std::int32_t>(threadIdx.x) + 2 * knl;
+  const std::int32_t i0 = static_cast<std::int32_t>(threadIdx.y) - 1;
+  const std::int32_t i1 = static_cast<std::int32_t>(threadIdx.y) + 2 * knl;
 
   W m_sum = M[i1][j1];
   W i_sum = I[i1][j1];
@@ -402,14 +404,15 @@ __global__ void stage2(const T *image_in, const T *mask_in, SignalPixel *out,
 // rather than only on the kernel as a whole.
 template <typename T>
 __global__ void stage2_direct(const T *image_in, const T *mask_in,
-                              SignalPixel *out, unsigned *counter,
-                              unsigned capacity, int height, int width) {
+                              SignalPixel *out, std::uint32_t *counter,
+                              std::uint32_t capacity, std::int32_t height,
+                              std::int32_t width) {
   using W = accumulator_t<T>;
 
-  const int knl = 5;
-  const int i = threadIdx.y + blockDim.y * blockIdx.y;
-  const int j = threadIdx.x + blockDim.x * blockIdx.x;
-  const int k = i * width + j;
+  const std::int32_t knl = 5;
+  const std::int32_t i = threadIdx.y + blockDim.y * blockIdx.y;
+  const std::int32_t j = threadIdx.x + blockDim.x * blockIdx.x;
+  const std::int32_t k = i * width + j;
   const T masked = masked_value<T>();
 
   // Not an early return, for the reason emit_signal documents.
@@ -420,15 +423,15 @@ __global__ void stage2_direct(const T *image_in, const T *mask_in,
 
   if (in_range) {
     // Clipped once per axis rather than tested once per pixel.
-    const int i_from = i - knl > 0 ? i - knl : 0;
-    const int i_to = i + knl < height - 1 ? i + knl : height - 1;
-    const int j_from = j - knl > 0 ? j - knl : 0;
-    const int j_to = j + knl < width - 1 ? j + knl : width - 1;
+    const std::int32_t i_from = i - knl > 0 ? i - knl : 0;
+    const std::int32_t i_to = i + knl < height - 1 ? i + knl : height - 1;
+    const std::int32_t j_from = j - knl > 0 ? j - knl : 0;
+    const std::int32_t j_to = j + knl < width - 1 ? j + knl : width - 1;
 
-    for (int _i = i_from; _i <= i_to; _i++) {
-      const int row = _i * width;
-      for (int _j = j_from; _j <= j_to; _j++) {
-        const int _k = row + _j;
+    for (std::int32_t _i = i_from; _i <= i_to; _i++) {
+      const std::int32_t row = _i * width;
+      for (std::int32_t _j = j_from; _j <= j_to; _j++) {
+        const std::int32_t _k = row + _j;
         const T pixel = image_in[_k];
         const W valid = (pixel >= masked) || mask_in[_k] ? W(0) : W(1);
         m_sum += valid;
@@ -486,7 +489,7 @@ public:
     cudaFree(tmp_);
   }
 
-  unsigned *counter() const { return counter_; }
+  std::uint32_t *counter() const { return counter_; }
 
   // Five events: one before the upload and one after each of the copy and the
   // three kernels. Created on first use so that a
@@ -506,7 +509,8 @@ public:
     if (stream_ == nullptr)
       ok(cudaStreamCreate(&stream_), "cudaStreamCreate");
     if (counter_ == nullptr)
-      ok(cudaMalloc(&counter_, sizeof(unsigned)), "cudaMalloc for the counter");
+      ok(cudaMalloc(&counter_, sizeof(std::uint32_t)),
+         "cudaMalloc for the counter");
     if (bytes <= capacity_)
       return;
     // As in the destructor: a larger frame must not free buffers that
@@ -531,7 +535,7 @@ public:
 private:
   cudaStream_t stream_ = nullptr;
   cudaEvent_t marks_[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
-  unsigned *counter_ = nullptr;
+  std::uint32_t *counter_ = nullptr;
   void *in_ = nullptr;
   void *out_ = nullptr;
   void *tmp_ = nullptr;
@@ -590,34 +594,36 @@ void host_free(void *pointer) { cudaFreeHost(pointer); }
 // dext(), so what this adds is only how they are spread.
 template <typename T>
 __global__ void fused_kernel(const T *image_in, SignalPixel *out,
-                             unsigned *counter, unsigned capacity, int height,
-                             int width) {
+                             std::uint32_t *counter, std::uint32_t capacity,
+                             std::int32_t height, std::int32_t width) {
   __shared__ mxi::dext_fused::Tile<T> t;
-  constexpr int R0 = mxi::dext_fused::kR0, R1 = mxi::dext_fused::kR1,
-                R2 = mxi::dext_fused::kR2, TILE = mxi::dext_fused::kTile;
-  const int ti = static_cast<int>(blockIdx.y) * TILE;
-  const int tj = static_cast<int>(blockIdx.x) * TILE;
-  const int tid = static_cast<int>(threadIdx.y * blockDim.x + threadIdx.x);
-  const int step = static_cast<int>(blockDim.x * blockDim.y);
+  constexpr std::int32_t R0 = mxi::dext_fused::kR0, R1 = mxi::dext_fused::kR1,
+                         R2 = mxi::dext_fused::kR2,
+                         TILE = mxi::dext_fused::kTile;
+  const std::int32_t ti = static_cast<std::int32_t>(blockIdx.y) * TILE;
+  const std::int32_t tj = static_cast<std::int32_t>(blockIdx.x) * TILE;
+  const std::int32_t tid =
+      static_cast<std::int32_t>(threadIdx.y * blockDim.x + threadIdx.x);
+  const std::int32_t step = static_cast<std::int32_t>(blockDim.x * blockDim.y);
 
-  for (int n = tid; n < R0 * R0; n += step)
+  for (std::int32_t n = tid; n < R0 * R0; n += step)
     mxi::dext_fused::load(t, image_in, height, width, ti, tj, n / R0, n % R0);
   __syncthreads();
-  for (int n = tid; n < R0 * R1; n += step)
+  for (std::int32_t n = tid; n < R0 * R1; n += step)
     mxi::dext_fused::stage0_row(t, n / R1, n % R1);
   __syncthreads();
-  for (int n = tid; n < R1 * R1; n += step)
+  for (std::int32_t n = tid; n < R1 * R1; n += step)
     mxi::dext_fused::stage0_test(t, n / R1, n % R1);
   __syncthreads();
-  for (int n = tid; n < R1 * R2; n += step)
+  for (std::int32_t n = tid; n < R1 * R2; n += step)
     mxi::dext_fused::stage1_row(t, n / R2, n % R2);
   __syncthreads();
-  for (int n = tid; n < R2 * R2; n += step)
+  for (std::int32_t n = tid; n < R2 * R2; n += step)
     mxi::dext_fused::stage1_erode(t, n / R2, n % R2);
   __syncthreads();
   // Stage 2's row sums take the storage stage 0's had: those were last read
   // before the barrier ahead of stage 1.
-  for (int n = tid; n < R2 * TILE; n += step)
+  for (std::int32_t n = tid; n < R2 * TILE; n += step)
     mxi::dext_fused::stage2_row(t, n / TILE, n % TILE);
   __syncthreads();
 
@@ -625,25 +631,25 @@ __global__ void fused_kernel(const T *image_in, SignalPixel *out,
   // and every lane of it takes the same rows, so every lane reaches the ballot.
   const T masked = mxi::dext_fused::masked_value<T>();
   (void)masked;
-  for (int r = static_cast<int>(threadIdx.y); r < TILE;
-       r += static_cast<int>(blockDim.y)) {
-    const int c = static_cast<int>(threadIdx.x);
-    const int i = ti + r, j = tj + c;
+  for (std::int32_t r = static_cast<std::int32_t>(threadIdx.y); r < TILE;
+       r += static_cast<std::int32_t>(blockDim.y)) {
+    const std::int32_t c = static_cast<std::int32_t>(threadIdx.x);
+    const std::int32_t i = ti + r, j = tj + c;
     const bool in_frame = i < height && j < width;
     const mxi::dext_fused::Decision d =
         mxi::dext_fused::stage2_test(t, r, c, in_frame);
 
-    const unsigned lane = threadIdx.x;
-    const unsigned ballot = __ballot_sync(0xffffffffu, d.signal);
-    const unsigned rank = __popc(ballot & ((1u << lane) - 1u));
-    unsigned base = 0;
+    const std::uint32_t lane = threadIdx.x;
+    const std::uint32_t ballot = __ballot_sync(0xffffffffu, d.signal);
+    const std::uint32_t rank = __popc(ballot & ((1u << lane) - 1u));
+    std::uint32_t base = 0;
     if (lane == 0 && ballot != 0u)
       base = atomicAdd(counter, __popc(ballot));
     base = __shfl_sync(0xffffffffu, base, 0);
     // Past the end is dropped, and counted, as emit_signal has it.
     if (d.signal && base + rank < capacity) {
       SignalPixel pixel;
-      pixel.index = static_cast<unsigned>(i * width + j);
+      pixel.index = static_cast<std::uint32_t>(i * width + j);
       pixel.value = d.value;
       pixel.background = d.background;
       pixel.population = d.population;
@@ -656,16 +662,16 @@ __global__ void fused_kernel(const T *image_in, SignalPixel *out,
 // Only for 16-bit pixels: a 32-bit tile wants about 57 KB of shared memory,
 // over what a static allocation may have. Not instantiated for 32 bits at all.
 template <typename T>
-void launch_fused(const T *in, SignalPixel *out, unsigned *counter,
-                  unsigned capacity, int rows, int columns,
-                  cudaStream_t stream) {
+void launch_fused(const T *in, SignalPixel *out, std::uint32_t *counter,
+                  std::uint32_t capacity, std::int32_t rows,
+                  std::int32_t columns, cudaStream_t stream) {
   if constexpr (std::is_same<T, std::uint16_t>::value) {
     const dim3 block(32, 8);
     const dim3 grid(
-        static_cast<unsigned>((columns + mxi::dext_fused::kTile - 1) /
-                              mxi::dext_fused::kTile),
-        static_cast<unsigned>((rows + mxi::dext_fused::kTile - 1) /
-                              mxi::dext_fused::kTile));
+        static_cast<std::uint32_t>((columns + mxi::dext_fused::kTile - 1) /
+                                   mxi::dext_fused::kTile),
+        static_cast<std::uint32_t>((rows + mxi::dext_fused::kTile - 1) /
+                                   mxi::dext_fused::kTile));
     fused_kernel<T>
         <<<grid, block, 0, stream>>>(in, out, counter, capacity, rows, columns);
   } else {
@@ -675,8 +681,8 @@ void launch_fused(const T *in, SignalPixel *out, unsigned *counter,
 }
 
 template <typename T>
-int find(const T *image_in, std::vector<SignalPixel> &signal_out,
-         std::size_t height, std::size_t width) {
+std::int32_t find(const T *image_in, std::vector<SignalPixel> &signal_out,
+                  std::size_t height, std::size_t width) {
   signal_out.clear();
   if (image_in == nullptr || height == 0 || width == 0)
     return -1;
@@ -693,10 +699,10 @@ int find(const T *image_in, std::vector<SignalPixel> &signal_out,
   const StreamGuard idle(stream);
 
   const dim3 block(32, 32);
-  const dim3 grid(static_cast<unsigned>((width + 31) / 32),
-                  static_cast<unsigned>((height + 31) / 32));
-  const int rows = static_cast<int>(height);
-  const int columns = static_cast<int>(width);
+  const dim3 grid(static_cast<std::uint32_t>((width + 31) / 32),
+                  static_cast<std::uint32_t>((height + 31) / 32));
+  const std::int32_t rows = static_cast<std::int32_t>(height);
+  const std::int32_t columns = static_cast<std::int32_t>(width);
 
   T *const in = static_cast<T *>(space.in());
   T *const tmp = static_cast<T *>(space.tmp());
@@ -705,8 +711,9 @@ int find(const T *image_in, std::vector<SignalPixel> &signal_out,
   // the one-in-eight bound at 16 bits comes from.
   T *const scratch = static_cast<T *>(space.out());
   SignalPixel *const out = static_cast<SignalPixel *>(space.out());
-  const unsigned capacity = static_cast<unsigned>(bytes / sizeof(SignalPixel));
-  unsigned *const counter = space.counter();
+  const std::uint32_t capacity =
+      static_cast<std::uint32_t>(bytes / sizeof(SignalPixel));
+  std::uint32_t *const counter = space.counter();
 
   const Window window0 = stage0_window();
   const Window window2 = stage2_window();
@@ -728,7 +735,7 @@ int find(const T *image_in, std::vector<SignalPixel> &signal_out,
     ok(cudaEventRecord(marks[0], stream), "cudaEventRecord");
   ok(cudaMemcpyAsync(in, image_in, bytes, cudaMemcpyHostToDevice, stream),
      "copying a frame to the device");
-  ok(cudaMemsetAsync(counter, 0, sizeof(unsigned), stream),
+  ok(cudaMemsetAsync(counter, 0, sizeof(std::uint32_t), stream),
      "clearing the signal counter");
 
   if (timing)
@@ -760,9 +767,9 @@ int find(const T *image_in, std::vector<SignalPixel> &signal_out,
   }
   ok(cudaGetLastError(), "launching the signal calculation");
 
-  unsigned found = 0;
-  ok(cudaMemcpyAsync(&found, counter, sizeof(unsigned), cudaMemcpyDeviceToHost,
-                     stream),
+  std::uint32_t found = 0;
+  ok(cudaMemcpyAsync(&found, counter, sizeof(std::uint32_t),
+                     cudaMemcpyDeviceToHost, stream),
      "reading the signal count back");
   ok(cudaStreamSynchronize(stream), "cudaStreamSynchronize");
 
@@ -835,11 +842,11 @@ int find(const T *image_in, std::vector<SignalPixel> &signal_out,
   return 0;
 }
 
-template int find<std::uint16_t>(const std::uint16_t *,
-                                 std::vector<SignalPixel> &, std::size_t,
-                                 std::size_t);
-template int find<std::uint32_t>(const std::uint32_t *,
-                                 std::vector<SignalPixel> &, std::size_t,
-                                 std::size_t);
+template std::int32_t find<std::uint16_t>(const std::uint16_t *,
+                                          std::vector<SignalPixel> &,
+                                          std::size_t, std::size_t);
+template std::int32_t find<std::uint32_t>(const std::uint32_t *,
+                                          std::vector<SignalPixel> &,
+                                          std::size_t, std::size_t);
 
 } // namespace mxi::gpu

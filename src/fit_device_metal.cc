@@ -7,6 +7,7 @@
 #include "metal_device.hh"
 #include <Foundation/Foundation.hpp>
 #include <Metal/Metal.hpp>
+#include <cstdint>
 #include <dispatch/dispatch.h>
 
 #include <chrono>
@@ -16,6 +17,7 @@
 #include <string>
 
 #include "fit_batch.hh"
+#include "output.hh"
 
 // The compiled shader, embedded by CMake so that the program carries its own.
 extern "C" const unsigned char mxi_fit_metallib[];
@@ -25,7 +27,7 @@ namespace mxi {
 
 namespace {
 
-constexpr int kThreads = 128; // fit_metal.metal's K_THREADS
+constexpr std::int32_t kThreads = 128; // fit_metal.metal's K_THREADS
 
 class Pool {
 public:
@@ -68,7 +70,7 @@ struct FitMetal {
     std::size_t n_boxes = 0;
   };
   Slot slots[kFitSlots];
-  int next_ticket = 0;
+  std::int32_t next_ticket = 0;
   double seconds[3] = {0.0, 0.0, 0.0}; // copying in, the kernel, reading back
 
   bool ready() const { return pipeline != nullptr; }
@@ -82,10 +84,9 @@ struct FitMetal {
     MTL::Library *library = mxi::metal::load_library(
         device, mxi_fit_metallib, mxi_fit_metallib_size, &why);
     if (library == nullptr) {
-      std::fprintf(stderr,
-                   "Metal profile fitting: could not load the shader library: "
-                   "%s\n",
-                   why.c_str());
+      mxi::eprint("Metal profile fitting: could not load the shader library: "
+                  "%s\n",
+                  why.c_str());
       return;
     }
     MTL::ComputePipelineState *state =
@@ -93,7 +94,7 @@ struct FitMetal {
                              static_cast<NS::UInteger>(kThreads), &why);
     library->release();
     if (state == nullptr) {
-      std::fprintf(stderr, "Metal profile fitting: %s\n", why.c_str());
+      mxi::eprint("Metal profile fitting: %s\n", why.c_str());
       return;
     }
     queue = device->newCommandQueue();
@@ -139,16 +140,16 @@ bool fit_batch_destination(std::size_t voxels, std::size_t reference_floats,
   return true;
 }
 
-int fit_batch_submit(const FitBatch &batch) {
+std::int32_t fit_batch_submit(const FitBatch &batch) {
   FitMetal &m = FitMetal::instance();
   if (!m.ready() || batch.boxes.empty())
     return -1;
-  const int ticket = m.next_ticket;
+  const std::int32_t ticket = m.next_ticket;
   FitMetal::Slot &s = m.slots[ticket % kFitSlots];
   if (s.command != nullptr)
     return -1; // not collected: the caller collects before reusing a slot
   Pool pool;
-  const int n_boxes = static_cast<int>(batch.boxes.size());
+  const std::int32_t n_boxes = static_cast<std::int32_t>(batch.boxes.size());
   const double t0 = now();
   if (!s.panels.reserve(m.device,
                         sizeof(mxi::fitdev::PanelF) * batch.panels.size()) ||
@@ -185,7 +186,7 @@ int fit_batch_submit(const FitBatch &batch) {
   encoder->setBytes(&batch.setup, sizeof(mxi::fitdev::Setup), 0);
   encoder->setBuffer(s.panels.buffer, 0, 1);
   encoder->setBuffer(s.boxes.buffer, 0, 2);
-  encoder->setBytes(&n_boxes, sizeof(int), 3);
+  encoder->setBytes(&n_boxes, sizeof(std::int32_t), 3);
   encoder->setBuffer(s.data.buffer, 0, 4);
   encoder->setBuffer(s.mask.buffer, 0, 5);
   encoder->setBuffer(s.reference.buffer, 0, 6);
@@ -205,7 +206,8 @@ int fit_batch_submit(const FitBatch &batch) {
   return ticket;
 }
 
-bool fit_batch_collect(int ticket, std::vector<mxi::fitdev::FitF> *out) {
+bool fit_batch_collect(std::int32_t ticket,
+                       std::vector<mxi::fitdev::FitF> *out) {
   FitMetal &m = FitMetal::instance();
   FitMetal::Slot &s = m.slots[ticket % kFitSlots];
   if (s.command == nullptr)
@@ -216,7 +218,7 @@ bool fit_batch_collect(int ticket, std::vector<mxi::fitdev::FitF> *out) {
   if (done)
     m.seconds[1] += s.command->GPUEndTime() - s.command->GPUStartTime();
   else
-    std::fprintf(stderr, "Metal profile fitting: the command buffer failed\n");
+    mxi::eprint("Metal profile fitting: the command buffer failed\n");
   s.command->release();
   s.command = nullptr;
   if (!done)
@@ -235,7 +237,7 @@ bool fit_batch_device(const FitBatch &batch,
     out->clear();
     return true;
   }
-  const int ticket = fit_batch_submit(batch);
+  const std::int32_t ticket = fit_batch_submit(batch);
   return ticket >= 0 && fit_batch_collect(ticket, out);
 }
 
@@ -254,7 +256,7 @@ std::string fit_device_unavailable_reason() {
 
 void fit_device_times(double out[3]) {
   FitMetal &m = FitMetal::instance();
-  for (int s = 0; s < 3; ++s)
+  for (std::int32_t s = 0; s < 3; ++s)
     out[s] = m.seconds[s];
 }
 

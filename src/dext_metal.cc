@@ -32,6 +32,7 @@
 #include "metal_device.hh"
 #include <Foundation/Foundation.hpp>
 #include <Metal/Metal.hpp>
+#include <cstdint>
 #include <dispatch/dispatch.h>
 
 #include <algorithm>
@@ -373,8 +374,8 @@ void host_free(void *pointer) {
 }
 
 template <typename T>
-int find(const T *image_in, std::vector<SignalPixel> &signal_out,
-         std::size_t height, std::size_t width) {
+std::int32_t find(const T *image_in, std::vector<SignalPixel> &signal_out,
+                  std::size_t height, std::size_t width) {
   static_assert(sizeof(T) == 2 || sizeof(T) == 4, "16 or 32 bit pixels only");
 
   if constexpr (sizeof(T) != 2) {
@@ -447,8 +448,8 @@ int find(const T *image_in, std::vector<SignalPixel> &signal_out,
     MTL::Buffer *const counter = space.counter();
     const std::uint32_t capacity =
         static_cast<std::uint32_t>(bytes / sizeof(SignalPixel));
-    const int rows = static_cast<int>(height);
-    const int columns = static_cast<int>(width);
+    const std::int32_t rows = static_cast<std::int32_t>(height);
+    const std::int32_t columns = static_cast<std::int32_t>(width);
 
     // Shared storage, and nothing is in flight, so this is a plain store rather
     // than the memset-on-the-queue CUDA needs.
@@ -598,11 +599,11 @@ int find(const T *image_in, std::vector<SignalPixel> &signal_out,
   }
 }
 
-template int find<std::uint16_t>(const std::uint16_t *,
-                                 std::vector<SignalPixel> &, std::size_t,
-                                 std::size_t);
-template int find<std::uint32_t>(const std::uint32_t *,
-                                 std::vector<SignalPixel> &, std::size_t,
-                                 std::size_t);
+template std::int32_t find<std::uint16_t>(const std::uint16_t *,
+                                          std::vector<SignalPixel> &,
+                                          std::size_t, std::size_t);
+template std::int32_t find<std::uint32_t>(const std::uint32_t *,
+                                          std::vector<SignalPixel> &,
+                                          std::size_t, std::size_t);
 
 } // namespace mxi::gpu

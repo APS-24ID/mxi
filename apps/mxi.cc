@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <vector>
 
+#include "commands.hh"
 #include "output.hh"
 #include "self_path.hh"
 
@@ -158,6 +159,17 @@ std::int32_t python_command(const char *command, int argc, char **argv,
 }
 
 } // namespace
+
+namespace mxi {
+
+Command command_named(const char *name) {
+  for (const ::Command &c : kCommands)
+    if (c.run && std::strcmp(c.name, name) == 0)
+      return c.run;
+  return nullptr;
+}
+
+} // namespace mxi
 
 int main(int argc, char **argv) {
   // Called as mxi_find (a link): that is the command, argv as given.

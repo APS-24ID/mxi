@@ -85,7 +85,10 @@ Graeme asked (7 November) how much it would simplify -- the port, and the code
 -- if mxi started no other process: `mxi process` running each step in code,
 and the interface started only as `mxi-ui` and `mxi-view`.
 
-**`mxi process` in code.** mxi is one binary whose commands are functions
+**`mxi process` in code** (done, 7 November: `apps/commands.hh`'s
+`command_named`, each step's log closed as it returns -- `close_logs_to`;
+its posix_spawn, waitpid and use of self_path gone; a run that stops at a
+failing step, its logs as before). mxi is one binary whose commands are functions
 (`mxi_find_main` and the rest), so `mxi process` can call them. Gone:
 `posix_spawn`, `waitpid`, `environ`, and its use of `src/self_path.cc`.
 Needed, each modest: the log mirror made a scope -- pushed as a step starts,

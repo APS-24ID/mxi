@@ -1,4 +1,4 @@
-# Viewing the images, and masking the detector: mxi view and mxi untrusted
+# Viewing the images, and masking the detector: mxi-view and mxi untrusted
 
 A backstop, its arm, a cryo nozzle, the goniometer: whatever shadows the
 detector makes observations there wrong -- low where the spot is shadowed, high
@@ -8,17 +8,17 @@ of it. On a small molecule refined to R1 0.026, most of the observations beyond
 (`docs/outstanding.md`, item 78; `mxeq truth`). These two programs mark such
 regions **untrusted**, so that spot finding and integration leave them out.
 
-## Viewing and drawing them: mxi view, or mxi ui
+## Viewing and drawing them: mxi-view, or mxi-ui
 
 ```sh
 mxi import ../data/*.nxs
-mxi view imported.rflx        # Masking, Save: writes masked.rflx
+mxi-view imported.rflx        # Masking, Save: writes masked.rflx
 mxi find masked.rflx
-mxi view strong.rflx          # the strong spots on the images
+mxi-view strong.rflx          # the strong spots on the images
 ```
 
-`mxi view` opens mxi ui's image viewer on a file, in a window of its own; in
-`mxi ui` it is **View images**, for the step chosen (`docs/ui.md`, The
+`mxi-view` opens mxi-ui's image viewer on a file, in a window of its own; in
+`mxi-ui` it is **View images**, for the step chosen (`docs/ui.md`, The
 images). A sweep at a time, where there are several; on each image, whatever
 the file holds: the strong spots, indexed apart from unindexed after indexing
 -- several lattices a colour each -- and the predictions, each drawn as its
@@ -45,14 +45,14 @@ sweep its own; **Clear** removes the sweep's; **Same as previous** copies
 those of the sweep shown before, for sweeps that share their shadows. The
 regions a file holds already are shown, to change or add to. **Save** writes
 the experiment list with every sweep's regions to a new file, `masked.rflx`
-(`mxi view -o` to choose another), and keeps them in `mxi_mask.json` -- in the
-directory `mxi view` is run in, or beside the file `mxi ui` shows, where Find
+(`mxi-view -o` to choose another), and keeps them in `mxi_mask.json` -- in the
+directory `mxi-view` is run in, or beside the file `mxi-ui` shows, where Find
 spots is then set to read it. The input is left as it was, to compare with:
 masked and not, process `masked.rflx` from spot finding on -- `mxi process masked.rflx`, with
 its usual options, does so, whatever file was masked. Closing with regions not saved asks first.
 
-`mxi view`'s options: `-o FILE`, where Save writes; `--sum N`, images summed
-to begin with; `--sweep K`, the sweep shown first. It needs what mxi ui
+`mxi-view`'s options: `-o FILE`, where Save writes; `--sum N`, images summed
+to begin with; `--sweep K`, the sweep shown first. It needs what mxi-ui
 needs -- Python with tkinter, numpy, h5py and hdf5plugin -- and says what is
 missing. It is built and installed with `mxi`, and finds `mxi` -- which it
 runs as `mxi untrusted` to save -- beside itself. Through 1.1.4 it was napari's

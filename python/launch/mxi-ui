@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# mxi ui, beside mxi as a release archive lays it out: the package mxi_ui is
-# here too, and mxi runs this for "mxi ui". From the wheel, mxi-python, the
-# command mxi-ui is the same entry, mxi_ui.app:main.
+# mxi-ui, beside mxi as a release archive lays it out: the package mxi_ui is
+# here too. From the wheel, mxi-python, the command mxi-ui is the same entry,
+# mxi_ui.app:main.
 import os
 import sys
 

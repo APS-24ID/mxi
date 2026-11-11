@@ -7,6 +7,11 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.2.0
 
 **Changed**
+- The interface and its viewer are commands of their own: `mxi-ui` and
+  `mxi-view`, where they had been `mxi ui` and `mxi view` -- the same
+  arguments, beside `mxi` in a release (or from the wheel, `pip install
+  mxi-python`). `mxi ui` and `mxi view`, typed, say so and stop: mxi no longer
+  starts other programs.
 - `mxi process` runs each step in code, the command called in its own process,
   where each step had been a process of its own: each step's output and log as
   before; a step that fails stops the run with the same message, but one that

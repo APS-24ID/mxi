@@ -14,23 +14,16 @@
 // for the tests -- the name is the subcommand.
 
 #include <algorithm>
-#include <cerrno>
-#include <climits>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
-#include <unistd.h>
 #include <vector>
 
 #include "commands.hh"
 #include "output.hh"
-#include "self_path.hh"
 
-#if defined(__APPLE__)
-#include <mach-o/dyld.h>
-#endif
 
 #define MXI_PROGRAM(name) std::int32_t mxi_##name##_main(int argc, char **argv);
 MXI_PROGRAM(import)
@@ -90,8 +83,8 @@ const Command kCommands[] = {
     {"convert", mxi_convert_main, ".rflx to and from .expt and .refl", false},
     {"untrusted", mxi_untrusted_main,
      "the detector's untrusted regions, with no window", false},
-    {"view", nullptr, "the images, spots and regions: mxi ui's viewer", false},
-    {"ui", nullptr, "the interface: the workflow, its images and its results",
+    {"view", nullptr, "now mxi-view: the images, spots and regions", false},
+    {"ui", nullptr, "now mxi-ui: the interface, its images and its results",
      false},
     {"show", mxi_show_main, "what a file holds", false},
     {"report", mxi_report_main, "an HTML report of the processing", false},
@@ -129,32 +122,16 @@ void list(mxi::Stream out) {
   mxi::print_to(out, "\nmxi COMMAND --help for each; mxi --version.\n");
 }
 
-// The commands that are Python, beside this binary: mxi view, mxi_view; mxi
-// ui, the interface, mxi-ui -- both in the wheel mxi-python too.
-const char *python_script(const char *command) {
-  if (std::strcmp(command, "view") == 0)
-    return "mxi_view";
-  if (std::strcmp(command, "ui") == 0)
-    return "mxi-ui";
-  return nullptr;
-}
-
-// Runs the Python command beside this binary, its arguments passed on.
-std::int32_t python_command(const char *command, int argc, char **argv,
-                            const char *self) {
-  const std::string here = mxi::executable_path(self);
-  const std::size_t slash = here.rfind('/');
-  const std::string script =
-      (slash == std::string::npos ? std::string(".") : here.substr(0, slash)) +
-      "/" + python_script(command);
-  std::vector<char *> args;
-  args.push_back(const_cast<char *>(script.c_str()));
-  for (std::int32_t i = 1; i < argc; ++i)
-    args.push_back(argv[i]);
-  args.push_back(nullptr);
-  ::execv(script.c_str(), args.data());
-  mxi::eprint("mxi %s: cannot run %s: %s\n", command, script.c_str(),
-              std::strerror(errno));
+// The interface, Python, is commands of its own -- mxi-ui, and mxi-view its
+// image viewer, beside mxi in a release archive, or from the wheel
+// mxi-python -- where mxi had started them for "mxi ui" and "mxi view"
+// (Graeme, 7 November: no process starting another, docs/windows.md). Those
+// words, typed, say where they went.
+std::int32_t moved(const char *command) {
+  const char *now = std::strcmp(command, "view") == 0 ? "mxi-view" : "mxi-ui";
+  mxi::eprint("mxi %s is a command of its own now: %s, with the same arguments "
+              "(beside mxi in a release, or pip install mxi-python)\n",
+              command, now);
   return 2;
 }
 
@@ -193,7 +170,7 @@ int main(int argc, char **argv) {
     if (std::strcmp(argv[1], c.name) != 0)
       continue;
     if (!c.run)
-      return python_command(c.name, argc - 1, argv + 1, argv[0]);
+      return moved(c.name);
     // argv[0] the command as typed, for its messages: "mxi find".
     std::string typed = std::string("mxi ") + c.name;
     std::vector<char *> args(argv + 1, argv + argc);

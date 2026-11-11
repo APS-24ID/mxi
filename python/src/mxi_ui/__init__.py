@@ -1,4 +1,4 @@
-"""mxi ui: an interface to mxi, for processing data and for teaching.
+"""mxi-ui: an interface to mxi, for processing data and for teaching.
 
 The workflow's steps as forms that build the real mxi command, run it and show
 what it wrote; the images, with spots, predictions and untrusted regions; the

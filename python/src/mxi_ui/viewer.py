@@ -188,7 +188,7 @@ class Viewer:
         self.path = path
         self.on_saved = on_saved  # told masked.rflx's path when saved
         # Save's file, and the directory it and mxi_mask.json go in: beside
-        # the file shown (mxi ui), or where mxi view is run.
+        # the file shown (mxi-ui), or where mxi-view is run.
         self.output = output
         self.where = where or os.path.dirname(os.path.abspath(path))
         self.document = mxi_tools.read_experiments(path)
@@ -212,7 +212,7 @@ class Viewer:
         self._previous_sweep = None
         self.saved = False
         self.top = tk.Toplevel(parent)
-        self.top.title(title or f"mxi ui: {os.path.basename(path)}")
+        self.top.title(title or f"mxi-ui: {os.path.basename(path)}")
         self.top.geometry("1000x900")
         self.top.protocol("WM_DELETE_WINDOW", self.close)
         self.top.bind(
@@ -401,7 +401,7 @@ class Viewer:
             "Untrusted regions: draw them, undo, clear, take the previous "
             "sweep's, save masked.rflx (docs/mask.md)",
         )
-        # Close, in sight -- the program's end under mxi view -- asking first
+        # Close, in sight -- the program's end under mxi-view -- asking first
         # where regions are not saved (close()).
         done = ttk.Button(bar, text="Close", command=self.close)
         done.pack(side=tk.RIGHT)
@@ -785,7 +785,7 @@ class Viewer:
             self.regions.changed
             and not self.saved
             and not messagebox.askyesno(
-                "mxi ui",
+                "mxi-ui",
                 "The untrusted regions drawn are not saved. Close anyway?",
                 parent=self.top,
             )
@@ -826,7 +826,7 @@ class Viewer:
 
     def save(self):
         """Every sweep's regions into the output, masked.rflx, beside the
-        file shown (mxi ui) or where mxi view runs, through mxi untrusted,
+        file shown (mxi-ui) or where mxi-view runs, through mxi untrusted,
         and mxi_mask.json; the file shown as it was."""
         where = self.where
         try:

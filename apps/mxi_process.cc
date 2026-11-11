@@ -36,6 +36,7 @@
 #include "log_mirror.hh"
 #include "output.hh"
 #include "rflx.hh"
+#include "timing.hh"
 
 namespace {
 
@@ -61,7 +62,10 @@ const char *const kUsage =
     "and\n"
     "                    with --cell, mxi index --known-space-group\n"
     "  --d-min-auto      mxi scale --d-min-auto: the limit from CC half\n"
-    "  --dry-run         the commands, printed; nothing run\n";
+    "  --dry-run         the commands, printed; nothing run\n"
+    "  --timing          to every step that times itself (find to scale),\n"
+    "                    and at the end each step's time, import and export\n"
+    "                    too\n";
 
 struct Step {
   std::string name;              // the mxi command
@@ -178,8 +182,9 @@ std::string ends(const std::string &s, std::size_t n) {
 int mxi_process_main(int argc, char **argv) {
   using namespace mxi;
   const std::set<std::string> known = {
-      "--gpu",     "--cell",     "--space-group", "--d-min-auto",
-      "--dry-run", "--no-joint", "--help",        "-h"};
+      "--gpu",        "--cell",    "--space-group",
+      "--d-min-auto", "--dry-run", "--no-joint",
+      "--help",       "-h",        "--timing"};
   const std::set<std::string> takes_value = {"--cell", "--space-group"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (!args.ok) {
@@ -297,6 +302,13 @@ int mxi_process_main(int argc, char **argv) {
   }
   for (Step &s : steps)
     s.args = with(s.args, threads);
+  // --timing to every step that times itself: import and export have nothing
+  // to say, and refuse it.
+  const bool timing = args.has("--timing");
+  if (timing)
+    for (Step &s : steps)
+      if (s.name != "import" && s.name != "export")
+        s.args.push_back("--timing");
 
   if (dry) {
     for (const Step &s : steps)
@@ -318,13 +330,21 @@ int mxi_process_main(int argc, char **argv) {
     shared += " --d-min-auto";
   if (!threads.empty())
     shared += " -j " + threads[1];
+  if (timing)
+    shared += " --timing";
+  // Each step's time, for --timing's table at the end -- the steps' own
+  // tables say where in each the time went; this, which step took it.
+  Timing whole(timing);
   const std::size_t n = steps.size();
   for (std::size_t i = 0; i < n; ++i) {
     const Step &s = steps[i];
     mxi::print("\n== mxi process: step %zu of %zu: %s\n\n", i + 1, n,
                shown(s).c_str());
+    const double began = Timing::now();
     const std::int32_t code = run(s);
+    whole.add("mxi " + s.name, Timing::now() - began);
     if (code != 0) {
+      whole.report();
       mxi::print("\n");
       mxi::eprint("mxi process: stopped at step %zu of %zu, mxi %s, which "
                   "failed (exit %d): its output is above, and in "
@@ -344,5 +364,6 @@ int mxi_process_main(int argc, char **argv) {
              "merging statistics in scaled.rflx (mxi show, mxi report), an "
              "unmerged MTZ in scaled.mtz.\n",
              n);
+  whole.report();
   return 0;
 }

@@ -253,3 +253,27 @@ def test_past_a_program_with_no_step_the_last_step_known(strong):
         code == 0 and lines[0] == "mxi index masked.rflx"
     ), "after mxi_find, the last known"
     assert "after mxi_find, the last step its summary records" in notes
+
+
+def test_timing_to_the_steps_that_time_themselves_and_a_table_of_each(strong):
+    # Graeme: --timing is not allowed for mxi process; it probably should be.
+    # To each step that takes it (not export, which has nothing to time); at
+    # the end, mxi process's own table, a row a step run -- here stopping at
+    # refinement, as the planted series does.
+    code, lines, _ = dry_in(strong, "strong.rflx", "--timing")
+    assert code == 0
+    assert all(
+        ("--timing" in l) == (not l.startswith("mxi export")) for l in lines
+    ), lines
+    run = subprocess.run(
+        [MXI, "process", "strong.rflx", "--timing", "-j", "1"],
+        capture_output=True,
+        text=True,
+        cwd=strong,
+    )
+    assert run.returncode == 1
+    tables = run.stdout.split("\nTiming\n")
+    assert len(tables) >= 3, "index's own, refine's or not, and mxi process's"
+    last = tables[-1]
+    assert "mxi index" in last and "mxi refine" in last and "total" in last, last
+    assert "mxi process indexed.rflx -j 1 --timing" in run.stderr, "said again to go on"

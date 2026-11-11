@@ -62,6 +62,7 @@ flowchart LR
 | `--no-joint` | index | `--no-joint`: several sweeps, each a crystal indexed on its own |
 | `--d-min-auto` | scale | `--d-min-auto`: the resolution limit from CC½ |
 | `--dry-run` | -- | the commands printed, none run |
+| `--timing` | every step but import and export, which have nothing to time | `--timing`; and at the end mxi process's own table, each step's time -- its peak memory the run's so far, the steps one process |
 
 Each step's header says which it is and its command, `== mxi process: step 3 of
 8: mxi index strong.rflx -j 8`, and its output follows. `mxi_process.log` keeps

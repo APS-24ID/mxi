@@ -233,7 +233,7 @@ The options most often wanted:
 | `mxi correlation` | `--write-clusters`, `--prefix P`; `--html FILE`; `--min-samples N`; `--dimensions N` |
 | `mxi triage` | what the scaled intensities say of twinning, as phenix.xtriage: moments, N(Z), the L test, the twin laws' H-test fractions, a summary -- begun ([`docs/triage.md`](docs/triage.md)) |
 | `mxi export` | `--partiality-threshold P`; `--min-isigi S`; `--d-min D` |
-| `mxi process` | `--gpu`; `--cell a,b,c,α,β,γ`; `--space-group NAME`; `--no-joint` several sweeps, each a crystal indexed on its own; `--d-min-auto`; `--dry-run` the commands printed, none run |
+| `mxi process` | `--gpu`; `--cell a,b,c,α,β,γ`; `--space-group NAME`; `--no-joint` several sweeps, each a crystal indexed on its own; `--d-min-auto`; `--dry-run` the commands printed, none run; `--timing` each step's, and a table of the steps' |
 | `mxi show` | `--models`; `--unit-cell` each crystal's cell, a line each; `--reflections`; `--summary`; `--step NAME` one step's record -- any of them, in that order; none, everything |
 
 ### The other tools

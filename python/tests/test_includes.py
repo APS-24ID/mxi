@@ -52,3 +52,40 @@ def test_a_source_includes_what_it_uses(source):
         if re.search(pattern, code) and f"#include {header}" not in text
     }
     assert not missing, f"{source} uses, without their headers: {missing}"
+
+
+# What every file using it needs whatever the platform: never included only
+# under a condition. A script of Claude's put <numbers> under test_combine.cc's
+# "#if defined(__linux__)" -- built on Linux, GCC's library bringing it in
+# anyway; not on Graeme's Mac (7 November).
+ALWAYS = {"<cstdint>", "<cinttypes>", "<numbers>", '"output.hh"', '"platform.hh"'}
+
+
+@pytest.mark.parametrize("path", SOURCES)
+def test_what_every_platform_needs_is_not_included_under_a_condition(path):
+    lines = (ROOT / path).read_text().split("\n")
+    conditions, under = [], []
+    for n, line in enumerate(lines):
+        s = line.strip()
+        guard = re.match(r"#\s*ifndef\s+(\w+)", s)
+        if (
+            guard
+            and n + 1 < len(lines)
+            and re.match(
+                r"#\s*define\s+" + guard.group(1) + r"\b", lines[n + 1].strip()
+            )
+        ):
+            conditions.append(None)  # an include guard: the whole file
+            continue
+        if re.match(r"#\s*if", s):
+            conditions.append(s)
+            continue
+        if re.match(r"#\s*endif", s):
+            if conditions:
+                conditions.pop()
+            continue
+        m = re.match(r'#\s*include\s*(<[^>]+>|"[^"]+")', s)
+        held = [c for c in conditions if c is not None]
+        if m and held and m.group(1) in ALWAYS:
+            under.append(f"line {n + 1}: {m.group(1)} under {held[-1]}")
+    assert not under, under

@@ -4,11 +4,11 @@
 // set taken out with its sweep, and put back.
 
 #if defined(__linux__)
-#include <numbers>
 #include <sched.h>
 #endif
 #include <algorithm>
 #include <cstdint>
+#include <numbers>
 #include <string>
 #include <vector>
 

@@ -9,9 +9,7 @@
 // pipeline ever running -- the same path the data took in, in reverse.
 
 #include <cinttypes>
-#include <fcntl.h>
 #include <hdf5.h>
-#include <unistd.h>
 
 #include <algorithm>
 #include <cctype>
@@ -33,6 +31,7 @@
 #include "hdf5_handle.hh"
 #include "image_series.hh"
 #include "output.hh"
+#include "platform.hh"
 
 namespace mxi::series {
 namespace {
@@ -157,7 +156,7 @@ std::string_view algorithm_of(hid_t dcpl) {
 // threads x files of them, past macOS's 256 a process (Graeme). Called with
 // the HDF5 lock held.
 struct DirectFile {
-  std::int32_t fd = -1;
+  platform::File fd = platform::kNoFile;
   std::uint64_t base = 0;
 };
 
@@ -204,7 +203,7 @@ DirectFile direct_file_of(hid_t dataset) {
       H5Pclose(fcpl);
     }
     direct.base = userblock;
-    direct.fd = ::open(name.c_str(), O_RDONLY);
+    direct.fd = platform::open_for_reading(name);
   }
   H5Fclose(file);
   files.emplace(name, direct);
@@ -240,7 +239,7 @@ herr_t read_chunk(hid_t dataset, const hsize_t *offset, std::uint32_t *filters,
   std::uint32_t mask = 0;
   haddr_t address = 0;
   hsize_t size = 0;
-  if (known != nullptr && known->fd >= 0 && place != nullptr) {
+  if (known != nullptr && known->fd != platform::kNoFile && place != nullptr) {
     // Both known: no lock at all.
     file = *known;
     mask = place->mask;
@@ -252,7 +251,7 @@ herr_t read_chunk(hid_t dataset, const hsize_t *offset, std::uint32_t *filters,
     // asking HDF5 its name on every read -- under the lock, 16 threads queued
     // on that, ferritin's reading 6.4 s to 16.4 (Graeme).
     file = known != nullptr ? *known : direct_file_of(dataset);
-    if (file.fd < 0)
+    if (file.fd == platform::kNoFile)
       return hdf5_read_chunk(dataset, offset, filters, buffer, capacity);
     if (H5Dget_chunk_info_by_coord(dataset, offset, &mask, &address, &size) < 0)
       return -1;
@@ -261,10 +260,10 @@ herr_t read_chunk(hid_t dataset, const hsize_t *offset, std::uint32_t *filters,
     return -1;
   auto *into = static_cast<char *>(buffer);
   std::size_t done = 0;
-  const auto at = static_cast<off_t>(file.base + address);
+  const std::uint64_t at = file.base + address;
   while (done < size) {
-    const ssize_t got = ::pread(file.fd, into + done, size - done,
-                                at + static_cast<off_t>(done));
+    const std::int64_t got =
+        platform::read_at(file.fd, into + done, size - done, at + done);
     if (got <= 0)
       return -1;
     done += static_cast<std::size_t>(got);

@@ -4,6 +4,7 @@
 // set taken out with its sweep, and put back.
 
 #if defined(__linux__)
+#include <numbers>
 #include <sched.h>
 #endif
 #include <algorithm>
@@ -246,7 +247,8 @@ TEST(the_real_space_grid_search_finds_a_planted_lattice) {
         const double cosine =
             std::fabs(f.x * axis.x + f.y * axis.y + f.z * axis.z) /
             (f.norm() * axis.norm());
-        best = std::fmin(best, std::acos(std::fmin(1.0, cosine)) * 180 / M_PI);
+        best = std::fmin(best, std::acos(std::fmin(1.0, cosine)) * 180 /
+                                   std::numbers::pi);
       }
     check::is_true(best < 1.5,
                    "an axis found within 1.5 deg: " + std::to_string(best));

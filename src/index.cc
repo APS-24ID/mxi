@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <limits>
 #include <map>
+#include <numbers>
 #include <numeric>
 #include <tuple>
 #include <unordered_map>
@@ -814,10 +815,10 @@ std::vector<Vec3> real_space_grid_candidates(const std::vector<Vec3> &points,
   }
   // Directions evenly over the hemisphere z > 0, a Fibonacci lattice: about
   // 2 pi / step^2 of them. cos is even, so the other half adds nothing.
-  const double s = step * M_PI / 180.0;
-  const std::size_t n =
-      std::max<std::size_t>(64, static_cast<std::size_t>(2.0 * M_PI / (s * s)));
-  const double golden = M_PI * (3.0 - std::sqrt(5.0));
+  const double s = step * std::numbers::pi / 180.0;
+  const std::size_t n = std::max<std::size_t>(
+      64, static_cast<std::size_t>(2.0 * std::numbers::pi / (s * s)));
+  const double golden = std::numbers::pi * (3.0 - std::sqrt(5.0));
   std::vector<Vec3> directions(n);
   for (std::size_t i = 0; i < n; ++i) {
     const double z =
@@ -834,7 +835,8 @@ std::vector<Vec3> real_space_grid_candidates(const std::vector<Vec3> &points,
     const Vec3 &u = directions[i];
     double *out = &f[i * nl];
     for (const Vec3 &p : points) {
-      const double d = 2.0 * M_PI * (p.x * u.x + p.y * u.y + p.z * u.z);
+      const double d =
+          2.0 * std::numbers::pi * (p.x * u.x + p.y * u.y + p.z * u.z);
       for (std::size_t k = 0; k < nl; ++k)
         out[k] += std::cos(d * lengths[k]);
     }
@@ -846,7 +848,7 @@ std::vector<Vec3> real_space_grid_candidates(const std::vector<Vec3> &points,
     order[i] = i;
   std::sort(order.begin(), order.end(),
             [&](std::size_t x, std::size_t y) { return f[x] > f[y]; });
-  const double cos_limit = std::cos(collinear * M_PI / 180.0);
+  const double cos_limit = std::cos(collinear * std::numbers::pi / 180.0);
   std::vector<Vec3> kept;
   std::vector<Vec3> kept_unit;
   for (std::size_t o : order) {
@@ -866,7 +868,7 @@ std::vector<Vec3> real_space_grid_candidates(const std::vector<Vec3> &points,
 
 UnitCell reduced_primitive(const KnownCell &known) {
   const UnitCell &u = known.cell;
-  const double d = M_PI / 180.0;
+  const double d = std::numbers::pi / 180.0;
   const double ca = std::cos(u.alpha * d), cb = std::cos(u.beta * d),
                cg = std::cos(u.gamma * d), sg = std::sin(u.gamma * d);
   const Vec3 a{u.a, 0.0, 0.0};

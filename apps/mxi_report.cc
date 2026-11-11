@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <fstream>
 #include <map>
+#include <numbers>
 #include <set>
 #include <sstream>
 #include <string>
@@ -835,7 +836,8 @@ std::string section_scale(const json::Value &s, Figures &f,
           polar.push_back(json::Value(static_cast<double>(pol)));
           json::Array row;
           for (std::int32_t az = -180; az <= 180; az += 5) {
-            const double th = pol * M_PI / 180.0, ph = az * M_PI / 180.0;
+            const double th = pol * std::numbers::pi / 180.0,
+                         ph = az * std::numbers::pi / 180.0;
             real_spherical_harmonics(lmax,
                                      Vec3{std::sin(th) * std::cos(ph),
                                           std::sin(th) * std::sin(ph),

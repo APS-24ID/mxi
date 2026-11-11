@@ -37,7 +37,11 @@ def mxi_command(name: str) -> list[str]:
     named = os.environ.get("MXI")
     if named and os.path.isfile(named) and os.access(named, os.X_OK):
         return [named, name]
-    here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mxi")
+    # mxi.exe on Windows (docs/windows.md); shutil.which tries it itself.
+    here = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "mxi.exe" if os.name == "nt" else "mxi",
+    )
     if os.path.isfile(here) and os.access(here, os.X_OK):
         return [here, name]
     found = shutil.which("mxi")

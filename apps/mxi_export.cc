@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <ctime>
 #include <map>
+#include <numbers>
 #include <set>
 #include <string>
 #include <vector>
@@ -51,7 +52,7 @@ void usage() {
       "  --project-name NAME        (mxi)\n");
 }
 
-double degrees(double radians) { return radians * 180.0 / M_PI; }
+double degrees(double radians) { return radians * 180.0 / std::numbers::pi; }
 
 // The angle between two vectors, in radians.
 double angle_between(const Vec3 &a, const Vec3 &b) {
@@ -69,13 +70,13 @@ Mat3 align_reference_frame(Vec3 primary, Vec3 primary_target, Vec3 secondary,
   secondary_target = secondary_target.normalized();
   Mat3 r1 = Mat3::identity();
   const double a1 = angle_between(primary_target, primary);
-  if (std::fmod(a1, M_PI) != 0.0) {
+  if (std::fmod(a1, std::numbers::pi) != 0.0) {
     r1 = rotation(primary_target.cross(primary), -a1);
   } else if (primary_target.dot(primary) < 0.0) {
     // A vector at right angles to primary, as scitbx's ortho().
     const Vec3 o =
         std::fabs(primary.x) < 0.9 ? Vec3{1.0, 0.0, 0.0} : Vec3{0.0, 1.0, 0.0};
-    r1 = rotation(primary.cross(o).normalized(), M_PI);
+    r1 = rotation(primary.cross(o).normalized(), std::numbers::pi);
   }
   const Vec3 turned = r1 * secondary;
   if (std::fabs(angle_between(secondary_target, turned)) < 1.0e-6)
@@ -89,7 +90,7 @@ Mat3 align_reference_frame(Vec3 primary, Vec3 primary_target, Vec3 secondary,
       angle_between(orthogonal(secondary_target), orthogonal(turned));
   const double r_angle =
       axis_r.norm() > 0.0 ? angle_between(axis_r, primary_target) : 0.0;
-  const double a2 = r_angle > 0.5 * M_PI ? between : -between;
+  const double a2 = r_angle > 0.5 * std::numbers::pi ? between : -between;
   return rotation(axis_s, a2) * r1;
 }
 
@@ -108,10 +109,10 @@ Cell cell_of(const Mat3 &A) {
 
 // cctbx's orthogonalization matrix: real-space axes as its columns.
 Mat3 orthogonalization(const Cell &c) {
-  const double ca = std::cos(c.alpha * M_PI / 180.0),
-               cb = std::cos(c.beta * M_PI / 180.0),
-               cg = std::cos(c.gamma * M_PI / 180.0),
-               sg = std::sin(c.gamma * M_PI / 180.0);
+  const double ca = std::cos(c.alpha * std::numbers::pi / 180.0),
+               cb = std::cos(c.beta * std::numbers::pi / 180.0),
+               cg = std::cos(c.gamma * std::numbers::pi / 180.0),
+               sg = std::sin(c.gamma * std::numbers::pi / 180.0);
   const double v =
       c.a * c.b * c.c *
       std::sqrt(1.0 - ca * ca - cb * cb - cg * cg + 2 * ca * cb * cg);
@@ -149,7 +150,7 @@ Mat3 mosflm_u(const Mat3 &UB, const Cell &c) {
                cos_gamma_s = gs.m[1] / (as * bs);
   const double sin_beta_s = std::sqrt(1.0 - cos_beta_s * cos_beta_s),
                sin_gamma_s = std::sqrt(1.0 - cos_gamma_s * cos_gamma_s);
-  const double cos_alpha = std::cos(c.alpha * M_PI / 180.0);
+  const double cos_alpha = std::cos(c.alpha * std::numbers::pi / 180.0);
   const Mat3 B{as,
                bs * cos_gamma_s,
                cs * cos_beta_s,

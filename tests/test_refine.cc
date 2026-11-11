@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #include "../src/derivatives.hh"
 #include "../src/expt.hh"
@@ -127,7 +128,7 @@ TEST(residual_picks_the_root_nearer_the_observation) {
   }
   // Picking the wrong root puts a reflection tens or hundreds of images away,
   // so any such failure would show here immediately.
-  check::equal(static_cast<long long>(large), 0,
+  check::equal(static_cast<std::int64_t>(large), 0,
                "no reflection on the wrong root");
 }
 
@@ -527,14 +528,14 @@ TEST(reflections_with_an_undetermined_rotation_angle_are_dropped) {
 
   const RefineResult all = run(0.0);
   const RefineResult cut = run(0.05);
-  check::equal(static_cast<long long>(all.n_ill_conditioned), 0,
+  check::equal(static_cast<std::int64_t>(all.n_ill_conditioned), 0,
                "nothing dropped without a cutoff");
   check::is_true(cut.n_ill_conditioned > 0, "the cutoff drops something");
   check::is_true(cut.n_used < all.n_used, "and so fits fewer reflections");
   // The count is reported because the residual is averaged over what is left,
   // and a residual over a different set compares with nothing.
-  check::equal(static_cast<long long>(all.n_used - cut.n_used),
-               static_cast<long long>(cut.n_ill_conditioned),
+  check::equal(static_cast<std::int64_t>(all.n_used - cut.n_used),
+               static_cast<std::int64_t>(cut.n_ill_conditioned),
                "the difference is exactly what was dropped");
 }
 
@@ -571,8 +572,8 @@ TEST(the_cutoff_keeps_the_reflections_far_from_the_rotation_axis) {
   options.outlier_sigma = 0.0;
   options.macrocycles = 1;
   const RefineResult result = refine(list, t, options);
-  check::equal(static_cast<long long>(result.n_ill_conditioned),
-               static_cast<long long>(below),
+  check::equal(static_cast<std::int64_t>(result.n_ill_conditioned),
+               static_cast<std::int64_t>(below),
                "exactly the low-volume reflections are the ones dropped");
 }
 
@@ -883,12 +884,12 @@ TEST(scan_varying_refinement_turns_samples_into_control_points) {
   refine(list, observations, varying);
   check::is_true(!list[0].crystal->A_points_are_samples,
                  "they are control points now");
-  check::equal(static_cast<long long>(list[0].crystal->A_points.size()), 5,
+  check::equal(static_cast<std::int64_t>(list[0].crystal->A_points.size()), 5,
                "five of them");
 
   const ExperimentList back = experiments_from_json(experiments_to_json(list));
-  check::equal(static_cast<long long>(back[0].crystal->A_points.size()),
-               static_cast<long long>(truth.scan.num_images()) + 1,
+  check::equal(static_cast<std::int64_t>(back[0].crystal->A_points.size()),
+               static_cast<std::int64_t>(truth.scan.num_images()) + 1,
                "and written as N + 1 samples, as DIALS needs");
 }
 
@@ -1034,10 +1035,10 @@ TEST(two_lattices_on_one_sweep_refine_one_detector_between_them) {
   check::is_true(!(e0.x == e1.x && e0.y == e1.y && e0.z == e1.z),
                  "each its own: two detectors, not one");
   // And written so: the shared one once, both experiments referring to it.
-  check::equal(static_cast<long long>(
+  check::equal(static_cast<std::int64_t>(
                    experiments_to_json(shared)["detector"].as_array().size()),
                1, "one detector written");
-  check::equal(static_cast<long long>(
+  check::equal(static_cast<std::int64_t>(
                    experiments_to_json(apart)["detector"].as_array().size()),
                2, "two written");
 }

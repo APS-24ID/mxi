@@ -8,6 +8,7 @@
 // reflections renumbered to their experiments in the whole (src/combine.hh):
 // as dials.combine_experiments does.
 
+#include <cstdint>
 #include <cstdio>
 #include <optional>
 #include <set>
@@ -81,8 +82,9 @@ int mxi_combine_main(int argc, char **argv) {
                   table->nrows);
       json::Object input;
       input["path"] = json::Value(path);
-      input["experiments"] = json::Value(static_cast<long>(n));
-      input["reflections"] = json::Value(static_cast<long>(table->nrows));
+      input["experiments"] = json::Value(static_cast<std::int64_t>(n));
+      input["reflections"] =
+          json::Value(static_cast<std::int64_t>(table->nrows));
       if (const auto s = rflx::read_summary(path)) {
         const std::vector<json::Value> steps = Summary::steps(*s);
         input["steps"] = json::Value(json::Array(steps.begin(), steps.end()));

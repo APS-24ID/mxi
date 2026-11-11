@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdint>
 #include <random>
 
 #include "../src/laue.hh"
@@ -10,13 +11,13 @@ TEST(the_candidates_for_a_laue_group_are_its_chiral_space_groups) {
   // For m-3 with I centring: I 2 3 and I 21 3, not the centrosymmetric I m -3.
   const std::vector<SpaceGroup> i =
       space_groups_with_patterson(SpaceGroup::from_name("I m -3"));
-  check::equal(static_cast<long long>(i.size()), 2, "two");
+  check::equal(static_cast<std::int64_t>(i.size()), 2, "two");
   check::is_true(i[0].name() == "I 2 3" && i[1].name() == "I 21 3",
                  i[0].name() + ", " + i[1].name());
   // For mmm, primitive: the four Sohncke groups of 222.
   const std::vector<SpaceGroup> p =
       space_groups_with_patterson(SpaceGroup::from_name("P m m m"));
-  check::equal(static_cast<long long>(p.size()), 4,
+  check::equal(static_cast<std::int64_t>(p.size()), 4,
                "P 2 2 2, P 2 2 21, P 21 21 2, P 21 21 21");
 }
 

@@ -2,6 +2,7 @@
 // sweep's crystal-less experiment and its lattices, split for a program and
 // put back.
 
+#include <cstdint>
 #include <vector>
 
 #include "../src/views.hh"
@@ -57,18 +58,18 @@ TEST(a_sweeps_lattices_are_taken_out_and_put_back) {
   const ExperimentList whole = one_sweep();
   const Table table = spots();
   const Lattices l = lattices_of(whole);
-  check::equal(static_cast<long long>(l.list.size()), 2, "two lattices");
+  check::equal(static_cast<std::int64_t>(l.list.size()), 2, "two lattices");
   check::is_true(l.position == std::vector<std::size_t>{1, 2} &&
                      l.crystal_less == std::vector<std::size_t>{0},
                  "in their places, the sweep's own apart");
   const Table rows = lattice_rows(table, l);
-  check::equal(static_cast<long long>(rows.nrows), 2, "the lattices' rows");
+  check::equal(static_cast<std::int64_t>(rows.nrows), 2, "the lattices' rows");
   check::is_true(rows.at("id").ints == std::vector<std::int64_t>{0, 1} &&
                      rows.identifiers.at(0) == "a" &&
                      rows.identifiers.at(1) == "b",
                  "numbered as the lattices are");
   const Table rest = crystal_less_rows(table, l);
-  check::equal(static_cast<long long>(rest.nrows), 1, "the unindexed spot");
+  check::equal(static_cast<std::int64_t>(rest.nrows), 1, "the unindexed spot");
 
   // A program: the shared detector moved, a column added.
   ExperimentList done = l.list;
@@ -79,13 +80,13 @@ TEST(a_sweeps_lattices_are_taken_out_and_put_back) {
   cal.reals = {9, 9, 9, 8, 8, 8};
 
   const ExperimentList back = whole_again(whole, l, done);
-  check::equal(static_cast<long long>(back.size()), 3, "all three again");
+  check::equal(static_cast<std::int64_t>(back.size()), 3, "all three again");
   check::is_true(!back[0].crystal && back[1].crystal && back[2].crystal,
                  "the sweep's own still crystal-less, first");
   check::close(back[0].detector.panels[0].origin.z, -201.0, 1e-12,
                "with the detector the lattices refined");
   const Table joined = rows_again(out, rest, l, back);
-  check::equal(static_cast<long long>(joined.nrows), 3, "every row again");
+  check::equal(static_cast<std::int64_t>(joined.nrows), 3, "every row again");
   check::is_true(joined.at("id").ints == std::vector<std::int64_t>{1, 2, 0},
                  "numbered as the whole list is");
   check::close(joined.at("xyzcal.px").real(2, 0), 0.0, 0.0,
@@ -111,15 +112,15 @@ TEST(a_list_of_lattices_alone_passes_through) {
   check::is_true(rows.at("id").ints == table.at("id").ints &&
                      rows.nrows == table.nrows,
                  "the table as it was");
-  check::equal(static_cast<long long>(whole_again(whole, l, l.list).size()), 2,
-               "the list as it was");
+  check::equal(static_cast<std::int64_t>(whole_again(whole, l, l.list).size()),
+               2, "the list as it was");
 }
 
 TEST(the_experiments_of_one_image_set_and_scan_are_one_sweep) {
   ExperimentList whole = one_sweep();
   whole.sweep_of.clear();
   const json::Value written = experiments_to_json(whole);
-  const auto on = [](const json::Value &e, long set, const char *name) {
+  const auto on = [](const json::Value &e, std::int64_t set, const char *name) {
     json::Object o = e.as_object();
     o["imageset"] = json::Value(set);
     if (name != nullptr)
@@ -165,7 +166,7 @@ TEST(indexing_carries_the_sweep_given_through_and_adds_its_lattices) {
   t.int_column("miller_index", "cctbx::miller::index<>", 3).ints = {
       1, 2, 3, 4, 5, 6, 0, 0, 0};
   const ExperimentList whole = add_sweeps(given, found, {0, 0}, &t);
-  check::equal(static_cast<long long>(whole.size()), 3, "one in, two found");
+  check::equal(static_cast<std::int64_t>(whole.size()), 3, "one in, two found");
   check::is_true(!whole[0].crystal && whole[1].crystal && whole[2].crystal,
                  "the sweep first, crystal-less");
   check::is_true(whole[0].identifier == "sweep" &&
@@ -198,7 +199,7 @@ TEST(keep_experiments_keeps_those_marked_and_renumbers_the_rest) {
   Table t = spots();
   const json::Value kept = keep_experiments(doc, {true, false, true}, &t);
   const json::Array &x = kept["experiment"].as_array();
-  check::equal(static_cast<long long>(x.size()), 2,
+  check::equal(static_cast<std::int64_t>(x.size()), 2,
                "the sweep and one lattice");
   check::is_true(!x[0]["crystal"].is_number() && x[1]["crystal"].is_number() &&
                      x[1]["crystal"].as_number() ==
@@ -212,8 +213,8 @@ TEST(keep_experiments_keeps_those_marked_and_renumbers_the_rest) {
   // Everything kept, or nothing: the document as it was.
   Table u = spots();
   const json::Value all = keep_experiments(doc, {true, true, true}, &u);
-  check::equal(static_cast<long long>(all["experiment"].as_array().size()), 3,
-               "all three");
+  check::equal(static_cast<std::int64_t>(all["experiment"].as_array().size()),
+               3, "all three");
   check::is_true(u.at("id").ints == std::vector<std::int64_t>{0, 1, 2},
                  "the table as it was");
 }
@@ -227,7 +228,7 @@ TEST(dials_form_leaves_the_crystal_less_out_and_unindexed_spots_minus_one) {
   Table t = spots();
   const json::Value dials = dials_form(doc, &t);
   const json::Array &x = dials["experiment"].as_array();
-  check::equal(static_cast<long long>(x.size()), 2, "the two lattices");
+  check::equal(static_cast<std::int64_t>(x.size()), 2, "the two lattices");
   check::is_true(
       x[0]["crystal"].is_number() && x[1]["crystal"].is_number() &&
           x[0]["detector"].as_number() ==
@@ -245,8 +246,8 @@ TEST(dials_form_leaves_the_crystal_less_out_and_unindexed_spots_minus_one) {
   const json::Value plain = experiments_to_json(lattices);
   Table u = spots();
   const json::Value same = dials_form(plain, &u);
-  check::equal(static_cast<long long>(same["experiment"].as_array().size()), 2,
-               "nothing left out");
+  check::equal(static_cast<std::int64_t>(same["experiment"].as_array().size()),
+               2, "nothing left out");
   check::is_true(u.at("id").ints == std::vector<std::int64_t>{0, 1, 2},
                  "the table as it was");
   // An imported list -- crystal-less alone, before indexing -- as it is: the
@@ -255,7 +256,7 @@ TEST(dials_form_leaves_the_crystal_less_out_and_unindexed_spots_minus_one) {
   imported.experiments.resize(1);
   imported.beam_of = imported.detector_of = imported.sweep_of = {0};
   const json::Value before = experiments_to_json(imported);
-  check::equal(static_cast<long long>(
+  check::equal(static_cast<std::int64_t>(
                    dials_form(before, nullptr)["experiment"].as_array().size()),
                1, "an imported list kept whole");
 }

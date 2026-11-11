@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <random>
 #include <set>
 #include <tuple>
@@ -58,7 +59,8 @@ TEST(the_pair_correlation_is_dials_weighted_cchalf) {
   check::is_true(c.valid, "valid");
   check::close(c.r, cxy / std::sqrt(cxx * cyy), 1e-12, "r");
   check::close(c.n_eff, 1.0 / s2, 1e-12, "Kish's effective sample size");
-  check::equal(static_cast<long long>(c.common), 7LL, "all seven in common");
+  check::equal(static_cast<std::int64_t>(c.common), std::int64_t{7},
+               "all seven in common");
 }
 
 TEST(the_matrix_weights_sum_to_the_pairs_that_have_one) {
@@ -86,7 +88,8 @@ TEST(the_matrix_weights_sum_to_the_pairs_that_have_one) {
       }
     }
   }
-  check::equal(static_cast<long long>(nonzero), 20LL, "every pair has one");
+  check::equal(static_cast<std::int64_t>(nonzero), std::int64_t{20},
+               "every pair has one");
   check::close(total, static_cast<double>(nonzero), 1e-9, "rescaled");
 }
 
@@ -200,7 +203,8 @@ TEST(the_elbow_is_where_the_curve_turns) {
   const std::vector<double> x = {1, 2, 3, 4, 5, 6, 7, 8};
   const std::vector<double> y = {1.0,   0.5,  0.05,  0.04,
                                  0.035, 0.03, 0.028, 0.025};
-  check::equal(static_cast<long long>(elbow(x, y)), 3LL, "the elbow at 3");
+  check::equal(static_cast<std::int64_t>(elbow(x, y)), std::int64_t{3},
+               "the elbow at 3");
 }
 
 TEST(three_planted_groups_point_three_ways) {
@@ -244,7 +248,7 @@ TEST(optics_is_scikit_learns) {
     const OpticsResult r =
         optics(c.points, c.n, c.d, c.min_samples, c.max_eps, 0.05);
     for (std::size_t k = 0; k < c.n; ++k) {
-      check::is_true(static_cast<long>(r.ordering[k]) == c.ordering[k],
+      check::is_true(static_cast<std::int64_t>(r.ordering[k]) == c.ordering[k],
                      c.name + ": ordering at " + std::to_string(k));
       check::is_true(r.predecessor[k] == c.predecessor[k],
                      c.name + ": predecessor of " + std::to_string(k));
@@ -286,7 +290,8 @@ TEST(three_planted_groups_are_three_clusters) {
                      "data set " + std::to_string(i) + " with its group");
     found.insert(label);
   }
-  check::equal(static_cast<long long>(found.size()), 3LL, "three clusters");
+  check::equal(static_cast<std::int64_t>(found.size()), std::int64_t{3},
+               "three clusters");
   check::is_true(!s.single_cluster && s.score > 0.0,
                  "a score " + std::to_string(s.score));
 }
@@ -386,7 +391,8 @@ TEST(ward_linkage_and_its_dendrogram_are_scipys) {
       {13.0, 15.0, 5.155103650461377, 9.0}};
   const std::vector<std::size_t> leaves = {5, 1, 8, 0, 3, 2, 4, 6, 7};
   const auto z = ward_linkage(d, 9);
-  check::equal(static_cast<long long>(z.size()), 8LL, "eight merges");
+  check::equal(static_cast<std::int64_t>(z.size()), std::int64_t{8},
+               "eight merges");
   for (std::size_t r = 0; r < z.size(); ++r)
     for (int k = 0; k < 4; ++k)
       check::close(z[r][k], expected[r][k], 1e-12,

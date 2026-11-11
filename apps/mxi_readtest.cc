@@ -16,6 +16,7 @@
 // wrong. Nothing here is used by the pipeline; it is for measuring before the
 // pipeline's reading is changed.
 
+#include <cinttypes>
 #include <hdf5.h>
 
 #include <algorithm>
@@ -128,10 +129,10 @@ bool pread_all(int fd, std::uint8_t *to, std::uint64_t size,
 //: FNV-1a over a frame's bytes; frames' hashes are summed, so the checksum does
 //: not depend on which thread read which frame.
 std::uint64_t fnv1a(const std::uint8_t *p, std::size_t n) {
-  std::uint64_t h = 1469598103934665603ull;
+  std::uint64_t h = std::uint64_t{1469598103934665603u};
   for (std::size_t i = 0; i < n; ++i) {
     h ^= p[i];
-    h *= 1099511628211ull;
+    h *= std::uint64_t{1099511628211u};
   }
   return h;
 }
@@ -293,10 +294,10 @@ int mxi_readtest_main(int argc, char **argv) {
       decomp += decompressing_s[w];
     }
     const double gb = static_cast<double>(compressed.load()) / 1e9;
-    std::printf("mxi readtest: %s, %llu frames of %zu x %zu, %u bit, %s\n",
-                master.c_str(),
-                static_cast<unsigned long long>(read_frames.load()), width,
-                height, bit_depth,
+    std::printf("mxi readtest: %s, %" PRIu64
+                " frames of %zu x %zu, %u bit, %s\n",
+                master.c_str(), static_cast<std::uint64_t>(read_frames.load()),
+                width, height, bit_depth,
                 algorithm.empty() ? "uncompressed" : algorithm.c_str());
     std::printf("  read %s on %zu threads%s\n",
                 by_pread ? "by pread, outside any lock"
@@ -315,8 +316,8 @@ int mxi_readtest_main(int argc, char **argv) {
       std::printf("  decompressing          %8.3f thread-s   (%.2f x wall)\n",
                   decomp, decomp / wall);
     std::printf("  compressed             %8.3f GB\n", gb);
-    std::printf("  checksum               %016llx\n",
-                static_cast<unsigned long long>(checksum.load()));
+    std::printf("  checksum               %016" PRIx64 "\n",
+                static_cast<std::uint64_t>(checksum.load()));
     return 0;
   } catch (const std::exception &e) {
     std::fprintf(stderr, "mxi readtest: %s\n", e.what());

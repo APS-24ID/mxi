@@ -15,6 +15,7 @@
 #include <atomic>
 #include <cctype>
 #include <chrono>
+#include <cinttypes>
 #include <cstdint>
 #include <cstdio>
 #include <memory>
@@ -221,22 +222,23 @@ int mxi_max_main(int argc, char **argv) {
     const double wall = now() - t0;
 
     const bool fits = best < kSixteenBitLimit;
-    std::printf("mxi max: %s, %llu frames of %u-bit pixels read in %.2f s on "
+    std::printf("mxi max: %s, %" PRIu64
+                " frames of %u-bit pixels read in %.2f s on "
                 "%zu thread%s\n",
-                master.c_str(),
-                static_cast<unsigned long long>(read_frames.load()), bit_depth,
-                wall, threads, threads == 1 ? "" : "s");
-    std::printf(
-        "  the largest count on a valid pixel: %llu (0x%llx), on image %llu\n",
-        static_cast<unsigned long long>(best),
-        static_cast<unsigned long long>(best),
-        static_cast<unsigned long long>(best_frame + 1));
-    std::printf("  pixels marked bad: %llu; tile joins: %llu; valid pixels at "
+                master.c_str(), static_cast<std::uint64_t>(read_frames.load()),
+                bit_depth, wall, threads, threads == 1 ? "" : "s");
+    std::printf("  the largest count on a valid pixel: %" PRIu64
+                " (0x%" PRIx64 "), on image %" PRIu64 "\n",
+                static_cast<std::uint64_t>(best),
+                static_cast<std::uint64_t>(best),
+                static_cast<std::uint64_t>(best_frame + 1));
+    std::printf("  pixels marked bad: %" PRIu64 "; tile joins: %" PRIu64
+                "; valid pixels at "
                 "0xFFFD or "
-                "above: %llu\n",
-                static_cast<unsigned long long>(bad_total.load()),
-                static_cast<unsigned long long>(join_total.load()),
-                static_cast<unsigned long long>(over_total.load()));
+                "above: %" PRIu64 "\n",
+                static_cast<std::uint64_t>(bad_total.load()),
+                static_cast<std::uint64_t>(join_total.load()),
+                static_cast<std::uint64_t>(over_total.load()));
     if (bit_depth == 16)
       std::printf("  16-bit already: mxi find --gpu takes it as it is\n");
     else if (fits)

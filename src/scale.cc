@@ -234,7 +234,7 @@ ScaleData build_scale_data(const ExperimentList &experiments,
     // centric reflection I(+): they are equal by symmetry.
     std::uint64_t group_key = key(u);
     if (options.anomalous && !plus_of[i])
-      group_key |= std::uint64_t{1} << 63;
+      group_key |= std::uint64_t{1u} << 63;
     const auto [it, fresh] = groups.emplace(group_key, data.unique.size());
     if (fresh) {
       data.unique.push_back(u);

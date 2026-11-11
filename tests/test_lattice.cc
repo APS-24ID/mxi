@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdint>
 
 #include "../src/symmetry.hh"
 #include "check.hh"
@@ -28,8 +29,8 @@ TEST(the_insulin_cells_lattice_is_body_centred_cubic) {
   // and their 30 subgroups -- as many as S4, the rotation group of a cube, has.
   const UnitCell cell{67.4201, 67.4606, 67.4644, 109.443, 109.442, 109.459};
   const std::vector<Rotation> rots = lattice_symmetry(cell);
-  check::equal(static_cast<long long>(rots.size()), 24, "24 rotations");
-  check::equal(static_cast<long long>(subgroups(rots).size()), 30,
+  check::equal(static_cast<std::int64_t>(rots.size()), 24, "24 rotations");
+  check::equal(static_cast<std::int64_t>(subgroups(rots).size()), 30,
                "30 subgroups");
   const auto full = reference_setting(rots, cell);
   check::is_true(full && full->group.name() == "I m -3 m",
@@ -46,7 +47,7 @@ TEST(a_c_centred_monoclinic_lattice_is_found_from_its_primitive_cell) {
   const UnitCell conventional{90.0, 40.0, 60.0, 90.0, 105.0, 90.0};
   const UnitCell p = primitive_of(conventional, "1/2a-1/2b,1/2a+1/2b,c");
   const std::vector<Rotation> rots = lattice_symmetry(p);
-  check::equal(static_cast<long long>(rots.size()), 2,
+  check::equal(static_cast<std::int64_t>(rots.size()), 2,
                "one two-fold and the identity");
   const auto s = reference_setting(rots, p);
   check::is_true(s && s->group.name() == "C 1 2/m 1", "C 1 2/m 1");
@@ -84,7 +85,7 @@ TEST(a_single_axis_finds_its_perpendicular_axes) {
 TEST(a_triclinic_lattice_is_itself) {
   const UnitCell cell{51.0, 62.0, 73.0, 81.0, 76.0, 69.0};
   const std::vector<Rotation> rots = lattice_symmetry(cell);
-  check::equal(static_cast<long long>(rots.size()), 1, "the identity alone");
+  check::equal(static_cast<std::int64_t>(rots.size()), 1, "the identity alone");
   const auto s = reference_setting(rots, cell);
   check::is_true(s && s->group.name() == "P -1" && s->cb_text == "a,b,c",
                  "P -1, as it is");
@@ -101,7 +102,7 @@ TEST(a_primitive_monoclinic_cell_has_beta_obtuse_and_a_shorter_than_c) {
   // the reduced cell it came from: the two-fold along c, a^b 94.234.
   const UnitCell reduced{50.287, 109.941, 183.849, 90.0, 90.0, 94.234};
   const std::vector<Rotation> rots = lattice_symmetry(reduced);
-  check::equal(static_cast<long long>(rots.size()), 2,
+  check::equal(static_cast<std::int64_t>(rots.size()), 2,
                "one two-fold and the identity");
   const auto s = reference_setting(rots, reduced);
   check::is_true(s && s->group.name() == "P 1 2/m 1", "P 1 2/m 1");

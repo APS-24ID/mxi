@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <cstdint>
 #include <map>
 #include <tuple>
 
@@ -231,7 +232,7 @@ TEST(index_writes_miller_indices_that_agree_with_the_truth) {
     }
     rows.push_back(i);
   }
-  check::equal(static_cast<long long>(rows.size()), 3,
+  check::equal(static_cast<std::int64_t>(rows.size()), 3,
                "three independent indexed reflections");
 
   Mat3 found =
@@ -440,9 +441,11 @@ TEST(the_transform_in_use_agrees_with_the_built_in) {
     std::vector<std::complex<double>> a(n * n * n);
     std::uint64_t state = 987654321;
     const auto uniform = [&state]() {
-      state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-      return static_cast<double>((state >> 11) & ((1ULL << 53) - 1)) /
-                 static_cast<double>(1ULL << 53) -
+      state = state * std::uint64_t{6364136223846793005u} +
+              std::uint64_t{1442695040888963407u};
+      return static_cast<double>((state >> 11) &
+                                 ((std::uint64_t{1u} << 53) - 1)) /
+                 static_cast<double>(std::uint64_t{1u} << 53) -
              0.5;
     };
     for (auto &z : a)
@@ -491,9 +494,11 @@ TEST(max_cell_is_not_fooled_by_the_same_reflection_measured_again) {
   // A deterministic scatter, so the test cannot pass or fail by luck.
   std::uint64_t state = 4321;
   const auto jitter = [&state](double scale) {
-    state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-    const double u = static_cast<double>((state >> 11) & ((1ULL << 53) - 1)) /
-                     static_cast<double>(1ULL << 53);
+    state = state * std::uint64_t{6364136223846793005u} +
+            std::uint64_t{1442695040888963407u};
+    const double u =
+        static_cast<double>((state >> 11) & ((std::uint64_t{1u} << 53) - 1)) /
+        static_cast<double>(std::uint64_t{1u} << 53);
     return (u - 0.5) * 2.0 * scale;
   };
 
@@ -543,8 +548,8 @@ TEST(a_sweep_shorter_than_a_block_is_all_one_group) {
   }
   const std::vector<int> groups = observation_groups(list, t);
   for (std::size_t i = 1; i < groups.size(); ++i) {
-    check::equal(static_cast<long long>(groups[i]),
-                 static_cast<long long>(groups[0]),
+    check::equal(static_cast<std::int64_t>(groups[i]),
+                 static_cast<std::int64_t>(groups[0]),
                  "a sweep inside one block is one group");
   }
 
@@ -560,8 +565,8 @@ TEST(a_sweep_shorter_than_a_block_is_all_one_group) {
   const std::vector<int> spread = observation_groups(list, t);
   check::is_true(spread.front() != spread.back(),
                  "the two ends of a rotation are different blocks");
-  check::equal(static_cast<long long>(spread[0]),
-               static_cast<long long>(observation_groups(list, t, 360.0)[0]),
+  check::equal(static_cast<std::int64_t>(spread[0]),
+               static_cast<std::int64_t>(observation_groups(list, t, 360.0)[0]),
                "and a 360 degree block puts them together again");
 }
 
@@ -590,9 +595,11 @@ TEST(a_reflection_is_seen_twice_in_one_rotation_and_the_blocks_know_it) {
 
   std::uint64_t state = 99;
   const auto jitter = [&state](double scale) {
-    state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-    const double u = static_cast<double>((state >> 11) & ((1ULL << 53) - 1)) /
-                     static_cast<double>(1ULL << 53);
+    state = state * std::uint64_t{6364136223846793005u} +
+            std::uint64_t{1442695040888963407u};
+    const double u =
+        static_cast<double>((state >> 11) & ((std::uint64_t{1u} << 53) - 1)) /
+        static_cast<double>(std::uint64_t{1u} << 53);
     return (u - 0.5) * 2.0 * scale;
   };
 
@@ -659,8 +666,8 @@ TEST(a_sweep_of_several_turns_predicts_each_reflection_once_per_turn) {
   for (int turns : {2, 5, 10}) {
     const Experiment e = sweep(turns);
     const std::vector<Prediction> v = predict(e, options);
-    check::equal(static_cast<long long>(v.size()),
-                 static_cast<long long>(one) * turns,
+    check::equal(static_cast<std::int64_t>(v.size()),
+                 static_cast<std::int64_t>(one) * turns,
                  "exactly one prediction per reflection per turn");
     // And every one of them is on the scan. A full turn or more used to skip
     // the wrap entirely, on the grounds that everything is inside it --
@@ -672,7 +679,7 @@ TEST(a_sweep_of_several_turns_predicts_each_reflection_once_per_turn) {
       if (p.z < -1.0 || p.z > images + 1.0)
         ++off;
     }
-    check::equal(static_cast<long long>(off), 0, "and none is off the scan");
+    check::equal(static_cast<std::int64_t>(off), 0, "and none is off the scan");
   }
 }
 
@@ -727,8 +734,8 @@ TEST(a_scan_varying_crystal_also_predicts_once_per_turn) {
   for (int turns : {2, 5, 10}) {
     const Experiment e = sweep(turns);
     const std::vector<Prediction> v = predict(e, options);
-    check::equal(static_cast<long long>(v.size()),
-                 static_cast<long long>(one) * turns,
+    check::equal(static_cast<std::int64_t>(v.size()),
+                 static_cast<std::int64_t>(one) * turns,
                  "one prediction per reflection per turn, scan-varying");
 
     // And they are spread over the whole scan rather than piled into its
@@ -811,7 +818,7 @@ TEST(a_crystal_that_moves_does_not_collapse_its_turns_together) {
         ++collapsed;
     }
   }
-  check::equal(static_cast<long long>(collapsed), 0,
+  check::equal(static_cast<std::int64_t>(collapsed), 0,
                "no turn collapses onto another");
 }
 
@@ -876,7 +883,7 @@ TEST(every_prediction_is_on_the_sphere_under_the_crystal_at_its_own_position) {
     if (miss > 1e-5)
       ++off;
   }
-  check::equal(static_cast<long long>(off), 0,
+  check::equal(static_cast<std::int64_t>(off), 0,
                "every prediction is on the sphere under its own crystal");
 }
 
@@ -1042,7 +1049,7 @@ TEST(two_lattices_in_one_sweep_are_both_found) {
   sweep.experiments.push_back(blank);
 
   const LatticesResult r = index_lattices(sweep, spots, {}, 3, 50);
-  check::equal(static_cast<long long>(r.experiments.size()), 2,
+  check::equal(static_cast<std::int64_t>(r.experiments.size()), 2,
                "two lattices, and no third");
   check::is_true(static_cast<double>(r.n_indexed) >
                      0.95 * static_cast<double>(spots.nrows),
@@ -1089,8 +1096,8 @@ TEST(a_lattice_missed_is_found_again_beside_one_given) {
   sweep.experiments.push_back(blank);
   const LatticesResult r = index_lattices(
       sweep, spots, {}, 3, 50, Ambiguous::Exclude, 3.0, {*a.crystal});
-  check::equal(static_cast<long long>(r.known), 1, "one given");
-  check::equal(static_cast<long long>(r.experiments.size()), 2,
+  check::equal(static_cast<std::int64_t>(r.known), 1, "one given");
+  check::equal(static_cast<std::int64_t>(r.experiments.size()), 2,
                "the other found, no third");
   check::is_true(same_lattice(*a.crystal, *r.experiments[0].crystal),
                  "the given one first");

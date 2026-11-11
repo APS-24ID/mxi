@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "../src/geometry.hh"
@@ -104,7 +105,7 @@ double disagreement(const Sweep &s, const Goniometer *replacement) {
 
 TEST(cysteine_has_the_four_sweeps_that_make_it_useful) {
   const std::vector<cysteine::Sweep> &all = cysteine::sweeps();
-  check::equal(static_cast<long long>(all.size()), 4, "four sweeps");
+  check::equal(static_cast<std::int64_t>(all.size()), 4, "four sweeps");
   // Two sweeps with a non-zero setting angle below the scan axis, which is
   // what exercises the fixed rotation at all.
   int with_setting = 0, scan_axis_zero = 0;
@@ -324,9 +325,9 @@ TEST(setting_rotation_composes_in_the_same_direction) {
 
 TEST(threeaxis_has_three_axes_two_of_them_below_the_scan_axis) {
   const std::vector<threeaxis::Sweep> &all = threeaxis::sweeps();
-  check::equal(static_cast<long long>(all.size()), 4, "four sweeps");
+  check::equal(static_cast<std::int64_t>(all.size()), 4, "four sweeps");
   for (const threeaxis::Sweep &s : all) {
-    check::equal(static_cast<long long>(s.axes.size()), 3, "three axes");
+    check::equal(static_cast<std::int64_t>(s.axes.size()), 3, "three axes");
     check::equal(s.scan_axis, 2, "the outermost axis is scanned");
   }
 }
@@ -347,7 +348,7 @@ TEST(threeaxis_middle_axis_setting_varies_and_reaches_the_fixed_rotation) {
   for (const threeaxis::Sweep &s : threeaxis::sweeps()) {
     angle.push_back(Scan::degrees(rotation_angle(build(s).goniometer.fixed)));
   }
-  check::equal(static_cast<long long>(angle.size()), 4, "four settings");
+  check::equal(static_cast<std::int64_t>(angle.size()), 4, "four settings");
   check::close(angle[0], 0.0, 1e-9, "chi = 0");
   check::close(angle[1], 10.0, 1e-9, "chi = 10");
   check::close(angle[2], 20.0, 1e-9, "chi = 20");

@@ -95,7 +95,7 @@ std::uint64_t pack(const Key &k) {
   const auto field = [](int v) {
     return static_cast<std::uint64_t>(static_cast<std::int64_t>(v) +
                                       (1 << 20)) &
-           ((std::uint64_t{1} << 21) - 1);
+           ((std::uint64_t{1u} << 21) - 1);
   };
   return (field(k[0]) << 42) | (field(k[1]) << 21) | field(k[2]);
 }

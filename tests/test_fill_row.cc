@@ -20,7 +20,7 @@ template <typename Pixel> void check_row(const char *width) {
   const std::size_t markers =
       fill_row(row.data(), row.size(), to.data(), mask.data());
   const std::string w = width;
-  check::equal(static_cast<long long>(markers), 2,
+  check::equal(static_cast<std::int64_t>(markers), 2,
                w + ": the bad pixel and the tile join");
   check::is_true(to[0] == 7.0f && to[1] == static_cast<float>(top - 2) &&
                      to[4] == 0.0f,
@@ -37,7 +37,7 @@ template <typename Pixel> void check_row(const char *width) {
   const std::vector<Pixel> clean = {1, 2, 3};
   std::vector<float> to2(3);
   std::vector<std::uint8_t> mask2(3, shoebox_mask::kValid);
-  check::equal(static_cast<long long>(
+  check::equal(static_cast<std::int64_t>(
                    fill_row(clean.data(), 3, to2.data(), mask2.data())),
                0, w + ": a row with no marker");
   check::is_true(mask2 == std::vector<std::uint8_t>(3, shoebox_mask::kValid),

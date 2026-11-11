@@ -14,7 +14,9 @@
 // rather than the conditional mean, which was tested and makes no difference.
 
 #include <algorithm>
+#include <cinttypes>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <vector>
 
@@ -86,9 +88,10 @@ int run_residuals(int argc, char **argv) {
   const double clip = args.number("--clip", 1.5);
   // Module layout, in pixels: active width and gap along each axis. The Eiger2
   // 16M is 4 x 1028 + 3 x 12 = 4148 fast, 8 x 512 + 7 x 38 = 4362 slow.
-  long mod[4] = {0, 0, 0, 0};
+  std::int64_t mod[4] = {0, 0, 0, 0};
   if (args.has("--modules")) {
-    std::sscanf(args.value("--modules").c_str(), "%ld,%ld,%ld,%ld", &mod[0],
+    std::sscanf(args.value("--modules").c_str(),
+                "%" SCNd64 ",%" SCNd64 ",%" SCNd64 ",%" SCNd64, &mod[0],
                 &mod[1], &mod[2], &mod[3]);
   }
 
@@ -245,9 +248,9 @@ int run_residuals(int argc, char **argv) {
       std::printf("\n  step across module boundaries (150 px either side):\n");
       const double band = 150.0;
       for (int axis = 0; axis < 2; ++axis) {
-        const long width = mod[axis * 2];
-        const long gap = mod[axis * 2 + 1];
-        for (long edge = width; edge < 5000; edge += width + gap) {
+        const std::int64_t width = mod[axis * 2];
+        const std::int64_t gap = mod[axis * 2 + 1];
+        for (std::int64_t edge = width; edge < 5000; edge += width + gap) {
           std::vector<double> before, after;
           for (const Point &q : points) {
             const double c = axis == 0 ? q.fast : q.slow;
@@ -260,10 +263,10 @@ int run_residuals(int argc, char **argv) {
           if (before.size() < 40 || after.size() < 40)
             continue;
           const double step = median(after) - median(before);
-          std::printf(
-              "    %s at %4ld:  %+7.3f -> %+7.3f   step %+7.3f  (n %zu, %zu)\n",
-              axis == 0 ? "fast" : "slow", edge, median(before), median(after),
-              step, before.size(), after.size());
+          std::printf("    %s at %4" PRId64
+                      ":  %+7.3f -> %+7.3f   step %+7.3f  (n %zu, %zu)\n",
+                      axis == 0 ? "fast" : "slow", edge, median(before),
+                      median(after), step, before.size(), after.size());
         }
       }
       std::printf(

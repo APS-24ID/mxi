@@ -18,6 +18,7 @@
 // (self_path.hh) -- so that nothing differs from running them by hand, and no
 // setting of one step's (its threads) is another's.
 
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <set>
@@ -276,7 +277,7 @@ int mxi_process_main(int argc, char **argv) {
         } else
           unused.insert(a);
       }
-    steps.erase(steps.begin(), steps.begin() + static_cast<long>(k));
+    steps.erase(steps.begin(), steps.begin() + static_cast<std::int64_t>(k));
     steps.front().args.front() = file;
     // To stderr in a dry run, so that its output is the commands alone.
     FILE *note = dry ? stderr : stdout;

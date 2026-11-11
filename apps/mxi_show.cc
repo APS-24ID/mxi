@@ -4,7 +4,9 @@
 // more.
 
 #include <algorithm>
+#include <cinttypes>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <map>
 #include <set>
@@ -51,8 +53,8 @@ void usage(const char *program) {
 std::string number(const json::Value &v) {
   char text[64];
   if (v.is_integral())
-    std::snprintf(text, sizeof text, "%lld",
-                  static_cast<long long>(v.as_number()));
+    std::snprintf(text, sizeof text, "%" PRId64,
+                  static_cast<std::int64_t>(v.as_number()));
   else
     std::snprintf(text, sizeof text, "%.6g", v.as_number());
   return text;
@@ -127,10 +129,11 @@ void show_models(const ExperimentList &list) {
               by_sweep.size(), by_sweep.size() == 1 ? "" : "s");
   for (const auto &[sweep, members] : by_sweep) {
     const Experiment &e = list[members.front()];
-    std::printf("  sweep %zu: images %lld to %lld, %.4f deg each from %.4f deg "
+    std::printf("  sweep %zu: images %" PRId64 " to %" PRId64
+                ", %.4f deg each from %.4f deg "
                 "(%.1f deg in all); wavelength %.6f A\n",
-                sweep, static_cast<long long>(e.scan.first_image),
-                static_cast<long long>(e.scan.last_image), e.scan.osc_width,
+                sweep, static_cast<std::int64_t>(e.scan.first_image),
+                static_cast<std::int64_t>(e.scan.last_image), e.scan.osc_width,
                 e.scan.osc_start,
                 e.scan.osc_width * static_cast<double>(e.scan.num_images()),
                 e.beam.wavelength);
@@ -183,11 +186,11 @@ void show_reflections(const Table &t) {
     std::size_t rows = 0, strong = 0, indexed = 0, sum = 0, prf = 0, scaled = 0,
                 outlier = 0;
   };
-  std::map<long long, Count> by_id;
+  std::map<std::int64_t, Count> by_id;
   for (std::size_t r = 0; r < t.nrows; ++r) {
     const std::int64_t f = flags.integer(r);
     Count &c =
-        by_id[has_id ? static_cast<long long>(t.at("id").integer(r)) : 0];
+        by_id[has_id ? static_cast<std::int64_t>(t.at("id").integer(r)) : 0];
     ++c.rows;
     c.strong += (f >> 5) & 1;
     c.indexed += (f >> 2) & 1;
@@ -199,8 +202,8 @@ void show_reflections(const Table &t) {
   std::printf("  %4s %9s %9s %9s %9s %9s %9s %9s\n", "id", "rows", "strong",
               "indexed", "summed", "fitted", "scaled", "outliers");
   for (const auto &[id, c] : by_id)
-    std::printf("  %4lld %9zu %9zu %9zu %9zu %9zu %9zu %9zu\n", id, c.rows,
-                c.strong, c.indexed, c.sum, c.prf, c.scaled, c.outlier);
+    std::printf("  %4" PRId64 " %9zu %9zu %9zu %9zu %9zu %9zu %9zu\n", id,
+                c.rows, c.strong, c.indexed, c.sum, c.prf, c.scaled, c.outlier);
 }
 
 // Each crystal's cell, a line each and nothing else, to read or to cut: the

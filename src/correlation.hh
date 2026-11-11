@@ -10,6 +10,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -127,7 +128,7 @@ CosymCoordinates cosym_coordinates(const CorrelationMatrix &m,
 struct OpticsResult {
   std::vector<std::size_t> ordering;
   std::vector<double> reachability, core_distance; //: by point
-  std::vector<long> predecessor;                   //: by point, -1 for none
+  std::vector<std::int64_t> predecessor;           //: by point, -1 for none
   std::vector<int> labels;                         //: by point, -1 noise
   std::vector<std::pair<std::size_t, std::size_t>> clusters; //: in ordering
 };

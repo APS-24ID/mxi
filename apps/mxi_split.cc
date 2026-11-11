@@ -8,6 +8,7 @@
 // and its reflections renumbered (src/combine.hh), as mxi_correlation's
 // clusters are written.
 
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <optional>
@@ -83,7 +84,7 @@ int mxi_split_main(int argc, char **argv) {
           select_experiments(*document, *table, keep);
       Summary step("mxi_split", in);
       step.set("experiments",
-               json::Value(static_cast<long>(
+               json::Value(static_cast<std::int64_t>(
                    part.document["experiment"].as_array().size())));
       const json::Value steps = step.document();
       rflx::write(path, &part.document, &part.reflections, "mxi_split", false,
@@ -99,7 +100,7 @@ int mxi_split_main(int argc, char **argv) {
       std::string item;
       while (std::getline(list, item, ',')) {
         char *end = nullptr;
-        const long i = std::strtol(item.c_str(), &end, 10);
+        const std::int64_t i = std::strtol(item.c_str(), &end, 10);
         if (item.empty() || *end != '\0' || i < 0 ||
             static_cast<std::size_t>(i) >= all.size())
           throw std::runtime_error("--experiments: '" + item +

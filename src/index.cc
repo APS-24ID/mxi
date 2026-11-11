@@ -285,16 +285,16 @@ inverse_nearest_neighbours(const std::vector<Vec3> &points,
                         std::max(span.y, floor_at) * std::max(span.z, floor_at);
   const double h = std::cbrt(volume / static_cast<double>(n)) + 1e-12;
   const auto index = [&](double v, double origin) {
-    return static_cast<long>(std::floor((v - origin) / h));
+    return static_cast<std::int64_t>(std::floor((v - origin) / h));
   };
-  const long nx = index(hi.x, lo.x) + 1, ny = index(hi.y, lo.y) + 1,
-             nz = index(hi.z, lo.z) + 1;
-  const auto key = [&](long x, long y, long z) {
+  const std::int64_t nx = index(hi.x, lo.x) + 1, ny = index(hi.y, lo.y) + 1,
+                     nz = index(hi.z, lo.z) + 1;
+  const auto key = [&](std::int64_t x, std::int64_t y, std::int64_t z) {
     return (x * ny + y) * nz + z;
   };
 
   // The members sorted by cell: each cell's points [start, end) of `sorted`.
-  std::vector<long> cell_of(n);
+  std::vector<std::int64_t> cell_of(n);
   for (std::size_t i = 0; i < n; ++i) {
     const Vec3 &p = points[members[i]];
     cell_of[i] = key(index(p.x, lo.x), index(p.y, lo.y), index(p.z, lo.z));
@@ -311,7 +311,8 @@ inverse_nearest_neighbours(const std::vector<Vec3> &points,
                        static_cast<double>(nz);
   const bool dense = cells <= 4.0 * static_cast<double>(n) + 1024.0;
   std::vector<std::uint32_t> first; // dense: cell -> start; nz*ny*nx + 1
-  std::unordered_map<long, std::pair<std::uint32_t, std::uint32_t>> spans;
+  std::unordered_map<std::int64_t, std::pair<std::uint32_t, std::uint32_t>>
+      spans;
   if (dense) {
     first.assign(static_cast<std::size_t>(cells) + 1, 0);
     for (std::size_t i = 0; i < n; ++i)
@@ -329,7 +330,8 @@ inverse_nearest_neighbours(const std::vector<Vec3> &points,
       i = j;
     }
   }
-  const auto range = [&](long c) -> std::pair<std::uint32_t, std::uint32_t> {
+  const auto range =
+      [&](std::int64_t c) -> std::pair<std::uint32_t, std::uint32_t> {
     if (dense)
       return {first[static_cast<std::size_t>(c)],
               first[static_cast<std::size_t>(c) + 1]};
@@ -339,17 +341,17 @@ inverse_nearest_neighbours(const std::vector<Vec3> &points,
   };
 
   constexpr double kCoincident = 1e-4;
-  const long reach = std::max({nx, ny, nz});
+  const std::int64_t reach = std::max({nx, ny, nz});
   std::vector<double> best_of(n, 1e300);
   for_each_block(kParallelBlocks, [&](std::size_t b) {
     for (std::size_t i = block_begin(n, kParallelBlocks, b);
          i < block_begin(n, kParallelBlocks, b + 1); ++i) {
       const std::size_t m = members[i];
       const Vec3 &p = points[m];
-      const long cx = index(p.x, lo.x), cy = index(p.y, lo.y),
-                 cz = index(p.z, lo.z);
+      const std::int64_t cx = index(p.x, lo.x), cy = index(p.y, lo.y),
+                         cz = index(p.z, lo.z);
       double best = 1e300;
-      const auto visit = [&](long x, long y, long z) {
+      const auto visit = [&](std::int64_t x, std::int64_t y, std::int64_t z) {
         if (x < 0 || y < 0 || z < 0 || x >= nx || y >= ny || z >= nz)
           return;
         const auto [s, e] = range(key(x, y, z));
@@ -362,13 +364,13 @@ inverse_nearest_neighbours(const std::vector<Vec3> &points,
             best = d;
         }
       };
-      for (long k = 0; k <= reach; ++k) {
+      for (std::int64_t k = 0; k <= reach; ++k) {
         // The shell at Chebyshev distance k: its whole z range where x or y
         // is on the shell, else its two z faces.
-        for (long x = cx - k; x <= cx + k; ++x)
-          for (long y = cy - k; y <= cy + k; ++y) {
+        for (std::int64_t x = cx - k; x <= cx + k; ++x)
+          for (std::int64_t y = cy - k; y <= cy + k; ++y) {
             if (std::labs(x - cx) == k || std::labs(y - cy) == k) {
-              for (long z = cz - k; z <= cz + k; ++z)
+              for (std::int64_t z = cz - k; z <= cz + k; ++z)
                 visit(x, y, z);
             } else {
               visit(x, y, cz - k);
@@ -478,11 +480,13 @@ double estimate_max_cell_as_dials(const ExperimentList &experiments,
     const Vec3 s0 = e.beam.direction * -1.0;
     entering[i] = s1.dot(e.goniometer.lab_axis().cross(s0)) < 0.0 ? 1 : 0;
   }
-  std::map<std::tuple<std::size_t, long, int>, std::vector<std::size_t>> groups;
+  std::map<std::tuple<std::size_t, std::int64_t, int>, std::vector<std::size_t>>
+      groups;
   for (std::size_t i = 0; i < n; ++i)
     if (keep[i])
       groups[{id_of(i),
-              static_cast<long>(std::floor((phi[i] - first[id_of(i)]) / 45.0)),
+              static_cast<std::int64_t>(
+                  std::floor((phi[i] - first[id_of(i)]) / 45.0)),
               entering[i]}]
           .push_back(i);
   std::vector<double> direct;
@@ -528,15 +532,17 @@ std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
     // Nearest grid point, wrapped. Wrapping is not a nicety: the transform is
     // periodic, so a point placed at index -3 belongs at n-3 and anywhere else
     // is a different reflection.
-    long index[3];
+    std::int64_t index[3];
     bool ok = true;
     for (int k = 0; k < 3; ++k) {
-      const long g = std::lround(r[static_cast<std::size_t>(k)] / spacing);
-      if (std::abs(g) > static_cast<long>(n) / 2) {
+      const std::int64_t g =
+          std::lround(r[static_cast<std::size_t>(k)] / spacing);
+      if (std::abs(g) > static_cast<std::int64_t>(n) / 2) {
         ok = false;
         break;
       }
-      index[k] = (g + static_cast<long>(n)) % static_cast<long>(n);
+      index[k] =
+          (g + static_cast<std::int64_t>(n)) % static_cast<std::int64_t>(n);
     }
     if (!ok)
       continue;
@@ -557,9 +563,11 @@ std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
   // large as all twenty-six of its neighbours; ties are broken by taking the
   // first, which only matters for exactly flat regions that are not peaks.
   const double real_spacing = 1.0 / (static_cast<double>(n) * spacing);
-  const auto position = [&](long i, long j, long k) {
-    const auto wrap = [&](long v) {
-      return v > static_cast<long>(n) / 2 ? v - static_cast<long>(n) : v;
+  const auto position = [&](std::int64_t i, std::int64_t j, std::int64_t k) {
+    const auto wrap = [&](std::int64_t v) {
+      return v > static_cast<std::int64_t>(n) / 2
+                 ? v - static_cast<std::int64_t>(n)
+                 : v;
     };
     return Vec3{static_cast<double>(wrap(i)) * real_spacing,
                 static_cast<double>(wrap(j)) * real_spacing,
@@ -571,9 +579,10 @@ std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
   for (std::size_t i = 0; i < f.size(); ++i)
     modulus[i] = std::abs(f[i]);
 
-  const long ln = static_cast<long>(n);
-  const auto at = [&](long i, long j, long k) -> double {
-    const auto w = [&](long v) { return ((v % ln) + ln) % ln; };
+  const std::int64_t ln = static_cast<std::int64_t>(n);
+  const auto at = [&](std::int64_t i, std::int64_t j,
+                      std::int64_t k) -> double {
+    const auto w = [&](std::int64_t v) { return ((v % ln) + ln) % ln; };
     return modulus[(static_cast<std::size_t>(w(i)) * n +
                     static_cast<std::size_t>(w(j))) *
                        n +
@@ -581,9 +590,9 @@ std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
   };
 
   std::vector<Peak> peaks;
-  for (long i = 0; i < ln; ++i) {
-    for (long j = 0; j < ln; ++j) {
-      for (long k = 0; k < ln; ++k) {
+  for (std::int64_t i = 0; i < ln; ++i) {
+    for (std::int64_t j = 0; j < ln; ++j) {
+      for (std::int64_t k = 0; k < ln; ++k) {
         const double v = at(i, j, k);
         if (v <= 0.0)
           continue;
@@ -592,9 +601,9 @@ std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
         if (length < options.min_cell || length > max_cell)
           continue;
         bool best = true;
-        for (long di = -1; di <= 1 && best; ++di) {
-          for (long dj = -1; dj <= 1 && best; ++dj) {
-            for (long dk = -1; dk <= 1; ++dk) {
+        for (std::int64_t di = -1; di <= 1 && best; ++di) {
+          for (std::int64_t dj = -1; dj <= 1 && best; ++dj) {
+            for (std::int64_t dk = -1; dk <= 1; ++dk) {
               if (!di && !dj && !dk)
                 continue;
               if (at(i + di, j + dj, k + dk) > v) {
@@ -611,9 +620,9 @@ std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
         // finding, so an uncentroided peak is not a usable basis vector.
         Vec3 centre{0.0, 0.0, 0.0};
         double weight = 0.0;
-        for (long di = -1; di <= 1; ++di) {
-          for (long dj = -1; dj <= 1; ++dj) {
-            for (long dk = -1; dk <= 1; ++dk) {
+        for (std::int64_t di = -1; di <= 1; ++di) {
+          for (std::int64_t dj = -1; dj <= 1; ++dj) {
+            for (std::int64_t dk = -1; dk <= 1; ++dk) {
               const double w = at(i + di, j + dj, k + dk);
               centre += position(i + di, j + dj, k + dk) * w;
               weight += w;
@@ -1303,10 +1312,10 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
       const Vec3 h = rows * rlp[i];
       double worst = 0.0;
       double miss = 0.0;
-      long hkl[3];
+      std::int64_t hkl[3];
       for (std::size_t k = 0; k < 3; ++k) {
         const double rounded = std::round(h[k]);
-        hkl[k] = static_cast<long>(rounded);
+        hkl[k] = static_cast<std::int64_t>(rounded);
         const double d = h[k] - rounded;
         worst = std::fmax(worst, std::abs(d));
         miss += d * d;
@@ -1490,7 +1499,8 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
           continue;
         best = off;
         lattice_of[i] = static_cast<int>(l);
-        std::copy(rounded, rounded + 3, hkl.begin() + static_cast<long>(3 * i));
+        std::copy(rounded, rounded + 3,
+                  hkl.begin() + static_cast<std::int64_t>(3 * i));
       }
     }
     for (std::size_t l = 0; l < known.size(); ++l) {
@@ -1630,12 +1640,13 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
         if (f.index_off <= best) {
           best = f.index_off;
           lattice_of[i] = static_cast<int>(l);
-          std::copy(f.h, f.h + 3, hkl.begin() + static_cast<long>(3 * i));
+          std::copy(f.h, f.h + 3,
+                    hkl.begin() + static_cast<std::int64_t>(3 * i));
         }
       }
       if (lattice_of[i] < 0)
-        std::fill(hkl.begin() + static_cast<long>(3 * i),
-                  hkl.begin() + static_cast<long>(3 * i + 3), 0);
+        std::fill(hkl.begin() + static_cast<std::int64_t>(3 * i),
+                  hkl.begin() + static_cast<std::int64_t>(3 * i + 3), 0);
     }
     // Each lattice's scatter, from its own spots.
     std::vector<double> scatter(joint.size(), 0.0);
@@ -1672,8 +1683,8 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
         ++result.n_ambiguous;
         if (ambiguous == Ambiguous::Exclude) {
           lattice_of[i] = -1;
-          std::fill(hkl.begin() + static_cast<long>(3 * i),
-                    hkl.begin() + static_cast<long>(3 * i + 3), 0);
+          std::fill(hkl.begin() + static_cast<std::int64_t>(3 * i),
+                    hkl.begin() + static_cast<std::int64_t>(3 * i + 3), 0);
         }
       }
     Column &id = reflections.modify_int_column("id", "int", 1);

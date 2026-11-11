@@ -5,6 +5,7 @@
 // refined one reproduces xyzcal.px.
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 namespace real {
@@ -12,14 +13,14 @@ namespace real {
 inline constexpr double kWavelength = 0.95373810567799944;
 inline constexpr double kBeamDirection[3] = {0.0012692520568352542, -0,
                                              0.99999919449928376};
-inline constexpr long kImageSize[2] = {4148, 4362};
+inline constexpr std::int64_t kImageSize[2] = {4148, 4362};
 inline constexpr double kGonioAxes[3][3] = {
     {1, -0.0037000000000000002, 0.002},
     {-0.0045999999999999999, 0.037199999999999997, -0.99929999999999997},
     {1, 0, 0}};
 inline constexpr double kGonioAngles[3] = {0, 0, 0};
 inline constexpr int kScanAxis = 2;
-inline constexpr long kImageRange[2] = {1, 300};
+inline constexpr std::int64_t kImageRange[2] = {1, 300};
 inline constexpr double kOscStart = 0;
 inline constexpr double kOscWidth = 0.10000000000000009;
 inline constexpr double kRealSpaceA[3] = {

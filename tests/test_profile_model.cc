@@ -6,6 +6,7 @@
 // back, which is a statement about the estimator rather than about agreement.
 
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "../src/profile_grid.hh"
@@ -203,7 +204,7 @@ TEST(a_spot_with_one_count_has_no_variance_and_is_skipped) {
   std::vector<Vec3> s1 = {ray_through(e, 500.5, 500.5)};
   std::size_t used = 99;
   const double sigma = beam_divergence(e, boxes, s1, &used);
-  check::equal(static_cast<long long>(used), 0, "none used");
+  check::equal(static_cast<std::int64_t>(used), 0, "none used");
   check::close(sigma, 0.0, 0.0, "and no answer invented");
 }
 
@@ -232,7 +233,7 @@ TEST(sigma_d_is_the_root_mean_of_the_variances_in_degrees) {
   spot_angular_variance(e, boxes[0], s1[0], &one);
   std::size_t used = 0;
   const double sigma = beam_divergence(e, boxes, s1, &used);
-  check::equal(static_cast<long long>(used), 3, "all three used");
+  check::equal(static_cast<std::int64_t>(used), 3, "all three used");
   check::close(sigma, Scan::degrees(std::sqrt(one)), 1e-15,
                "root mean, in degrees");
 }
@@ -269,9 +270,11 @@ TEST(a_planted_reflecting_range_comes_back) {
     // width sigma/zeta, so a draw is the sum of a uniform and a normal.
     std::uint64_t state = 12345;
     const auto uniform = [&state]() {
-      state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-      return static_cast<double>((state >> 11) & ((1ULL << 53) - 1)) /
-             static_cast<double>(1ULL << 53);
+      state = state * std::uint64_t{6364136223846793005u} +
+              std::uint64_t{1442695040888963407u};
+      return static_cast<double>((state >> 11) &
+                                 ((std::uint64_t{1u} << 53) - 1)) /
+             static_cast<double>(std::uint64_t{1u} << 53);
     };
     for (int i = 0; i < 20000; ++i) {
       const double u1 = std::fmax(uniform(), 1e-12);
@@ -338,13 +341,14 @@ TEST(one_sample_per_image_not_one_per_reflection) {
 
   const double phi = Scan::radians(1.2);
   const std::vector<RangeSample> samples = range_samples(e, box, phi, 0.7);
-  check::equal(static_cast<long long>(samples.size()), 4,
+  check::equal(static_cast<std::int64_t>(samples.size()), 4,
                "one per marked image, counts or no counts");
 
   // An image the spot finder did not mark at all is not a sample.
   box.mask = {on, on, on, 0};
-  check::equal(static_cast<long long>(range_samples(e, box, phi, 0.7).size()),
-               3, "an unmarked image is not one");
+  check::equal(
+      static_cast<std::int64_t>(range_samples(e, box, phi, 0.7).size()), 3,
+      "an unmarked image is not one");
   // The images are consecutive, so the gaps step by exactly one oscillation.
   check::close(samples[0].delta - samples[1].delta, Scan::radians(0.1), 1e-12,
                "consecutive images are one oscillation apart");
@@ -513,8 +517,8 @@ TEST(a_spot_on_its_own_beam_lands_in_the_middle_of_the_grid) {
       best_at = i;
     }
   }
-  check::equal(static_cast<long long>(best_at),
-               static_cast<long long>(grid.at(middle, middle, middle)),
+  check::equal(static_cast<std::int64_t>(best_at),
+               static_cast<std::int64_t>(grid.at(middle, middle, middle)),
                "and the middle cell holds the most of it");
 }
 

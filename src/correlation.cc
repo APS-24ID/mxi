@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <numeric>
@@ -22,10 +23,10 @@ std::vector<MergedSet> merged_by_experiment(const ExperimentList &experiments,
                                             double min_partiality,
                                             std::vector<std::size_t> *which) {
   std::vector<std::size_t> lattices;
-  std::vector<long> slot(experiments.size(), -1);
+  std::vector<std::int64_t> slot(experiments.size(), -1);
   for (std::size_t e = 0; e < experiments.size(); ++e)
     if (experiments[e].crystal) {
-      slot[e] = static_cast<long>(lattices.size());
+      slot[e] = static_cast<std::int64_t>(lattices.size());
       lattices.push_back(e);
     }
   if (which)
@@ -503,8 +504,9 @@ CosymCoordinates cosym_coordinates(const CorrelationMatrix &m,
           rotated[a * n + i] = v;
         }
       for (std::size_t d = 1; d <= tested; ++d) {
-        const std::vector<double> lead(
-            rotated.begin(), rotated.begin() + static_cast<long>(d * n));
+        const std::vector<double> lead(rotated.begin(),
+                                       rotated.begin() +
+                                           static_cast<std::int64_t>(d * n));
         out.dimensions.push_back(static_cast<double>(d));
         out.functional.push_back(
             dimension_score(m, lead, d, options.outlier_rejection));
@@ -626,7 +628,8 @@ std::vector<SteepDown> update_filter_sdas(const std::vector<SteepDown> &sdas,
 
 // scikit-learn's _xi_cluster, with predecessor correction.
 std::vector<std::pair<std::size_t, std::size_t>>
-xi_cluster(std::vector<double> plot, const std::vector<long> &predecessor_plot,
+xi_cluster(std::vector<double> plot,
+           const std::vector<std::int64_t> &predecessor_plot,
            const std::vector<std::size_t> &ordering, double xi,
            std::size_t min_samples, std::size_t min_cluster_size) {
   plot.push_back(HUGE_VAL);
@@ -650,9 +653,9 @@ xi_cluster(std::vector<double> plot, const std::vector<long> &predecessor_plot,
         *ok = true;
         return std::make_pair(s, e);
       }
-      const long p_e = predecessor_plot[e];
+      const std::int64_t p_e = predecessor_plot[e];
       for (std::size_t i = s; i < e; ++i)
-        if (p_e == static_cast<long>(ordering[i])) {
+        if (p_e == static_cast<std::int64_t>(ordering[i])) {
           *ok = true;
           return std::make_pair(s, e);
         }
@@ -733,7 +736,7 @@ OpticsResult optics(const std::vector<double> &points, std::size_t n,
     for (std::size_t j = 0; j < n; ++j)
       dist[j] = distance(points, d, i, j);
     std::nth_element(dist.begin(),
-                     dist.begin() + static_cast<long>(min_samples - 1),
+                     dist.begin() + static_cast<std::int64_t>(min_samples - 1),
                      dist.end());
     const double core = dist[min_samples - 1];
     out.core_distance[i] = core > max_eps ? HUGE_VAL : around15(core);
@@ -758,12 +761,12 @@ OpticsResult optics(const std::vector<double> &points, std::size_t n,
       const double r = around15(std::max(dist, out.core_distance[point]));
       if (r < out.reachability[j]) {
         out.reachability[j] = r;
-        out.predecessor[j] = static_cast<long>(point);
+        out.predecessor[j] = static_cast<std::int64_t>(point);
       }
     }
   }
   std::vector<double> plot(n);
-  std::vector<long> predecessor_plot(n);
+  std::vector<std::int64_t> predecessor_plot(n);
   for (std::size_t k = 0; k < n; ++k) {
     plot[k] = out.reachability[out.ordering[k]];
     predecessor_plot[k] = out.predecessor[out.ordering[k]];
@@ -932,22 +935,23 @@ SignificantClusters significant_clusters(const CosymCoordinates &c,
   std::vector<double> gradients(n, 0.0);
   for (std::size_t q = 1; q < finite.size(); ++q)
     gradients[finite[q]] = reach[finite[q]] - reach[finite[q - 1]];
-  long start = 0;
-  long end = -1; // None
+  std::int64_t start = 0;
+  std::int64_t end = -1; // None
   {
-    long last_negative = -1, first_large = -1;
+    std::int64_t last_negative = -1, first_large = -1;
     for (std::size_t q = 0; q < finite.size(); ++q) {
       const double g = gradients[finite[q]];
       if (g < -options.xi)
-        last_negative = static_cast<long>(q);
+        last_negative = static_cast<std::int64_t>(q);
       if (g > options.xi && first_large < 0)
-        first_large = static_cast<long>(q);
+        first_large = static_cast<std::int64_t>(q);
     }
     if (last_negative >= 0)
-      start =
-          static_cast<long>(finite[static_cast<std::size_t>(last_negative)]);
+      start = static_cast<std::int64_t>(
+          finite[static_cast<std::size_t>(last_negative)]);
     if (first_large >= 0)
-      end = static_cast<long>(finite[static_cast<std::size_t>(first_large)]);
+      end = static_cast<std::int64_t>(
+          finite[static_cast<std::size_t>(first_large)]);
   }
   const bool end_truthy = end > 0; // Python's `if end`: None and 0 false
   if (end_truthy && start > end)
@@ -956,24 +960,24 @@ SignificantClusters significant_clusters(const CosymCoordinates &c,
   std::vector<int> labels(n);
   for (std::size_t k = 0; k < n; ++k)
     labels[k] = model.labels[model.ordering[k]];
-  for (long k = 0; k < start; ++k)
+  for (std::int64_t k = 0; k < start; ++k)
     labels[static_cast<std::size_t>(k)] = -1;
   if (end_truthy) {
-    for (long k = start; k < end; ++k)
+    for (std::int64_t k = start; k < end; ++k)
       labels[static_cast<std::size_t>(k)] = 0;
-    for (long k = end; k < static_cast<long>(n); ++k)
+    for (std::int64_t k = end; k < static_cast<std::int64_t>(n); ++k)
       labels[static_cast<std::size_t>(k)] = -1;
   } else {
-    for (long k = start; k < static_cast<long>(n); ++k)
+    for (std::int64_t k = start; k < static_cast<std::int64_t>(n); ++k)
       labels[static_cast<std::size_t>(k)] = 0;
   }
   for (std::size_t k = 0; k < n; ++k)
     if (std::isinf(core[k]))
       labels[k] = -1;
-  long mystery = -1;
+  std::int64_t mystery = -1;
   for (std::size_t k = 0; k < n; ++k)
     if (std::isinf(reach[k]) && !std::isinf(core[k])) {
-      mystery = static_cast<long>(k);
+      mystery = static_cast<std::int64_t>(k);
       break;
     }
   if (mystery >= 0) {
@@ -981,7 +985,7 @@ SignificantClusters significant_clusters(const CosymCoordinates &c,
     double mystery_density = 0.0;
     for (std::size_t k = 0; k < n; ++k)
       if (labels[k] == 0) {
-        if (static_cast<long>(k) != mystery)
+        if (static_cast<std::int64_t>(k) != mystery)
           verified.push_back(core[k]);
         else
           mystery_density = core[k];

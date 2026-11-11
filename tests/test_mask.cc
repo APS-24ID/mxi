@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "../src/mask.hh"
@@ -228,8 +229,8 @@ TEST(the_ellipsoid_is_inside_the_box_and_is_pi_over_six_of_it) {
     // need a smaller one and must not get a different one, or the two pictures
     // would not be comparable.
     for (int k = 0; k < 6; ++k) {
-      check::equal(static_cast<long long>(as_ellipsoid.bbox[k]),
-                   static_cast<long long>(as_box.bbox[k]), "same box");
+      check::equal(static_cast<std::int64_t>(as_ellipsoid.bbox[k]),
+                   static_cast<std::int64_t>(as_box.bbox[k]), "same box");
     }
     for (std::size_t i = 0; i < as_box.mask.size(); ++i) {
       const bool b = (as_box.mask[i] & shoebox_mask::kForeground) != 0;

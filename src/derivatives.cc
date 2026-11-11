@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #include "predict.hh"
 
@@ -250,11 +251,12 @@ SplineWeights spline_weights(std::size_t points, double t) {
     out.weight[0] = 1.0;
     return out;
   }
-  const auto n = static_cast<long>(points);
+  const auto n = static_cast<std::int64_t>(points);
   t = std::fmax(0.0, std::fmin(1.0, t));
   const double segments = static_cast<double>(n + 1);
   const double u = t * segments;
-  const auto i = static_cast<long>(std::fmin(std::floor(u), segments - 1.0));
+  const auto i =
+      static_cast<std::int64_t>(std::fmin(std::floor(u), segments - 1.0));
   const double f = u - static_cast<double>(i);
   const double f2 = f * f, f3 = f2 * f;
 
@@ -264,8 +266,9 @@ SplineWeights spline_weights(std::size_t points, double t) {
                        (4.0 - 6.0 * f2 + 3.0 * f3) / 6.0,
                        (1.0 + 3.0 * f + 3.0 * f2 - 3.0 * f3) / 6.0, f3 / 6.0};
   out.count = 4;
-  for (long m = 0; m < 4; ++m) {
-    const long j = std::max(0L, std::min(i + m - 2, n - 1));
+  for (std::int64_t m = 0; m < 4; ++m) {
+    const std::int64_t j =
+        std::max(std::int64_t{0}, std::min(i + m - 2, n - 1));
     out.index[m] = static_cast<std::size_t>(j);
     out.weight[m] = b[m];
   }

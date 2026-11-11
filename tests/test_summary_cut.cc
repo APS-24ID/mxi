@@ -1,8 +1,10 @@
 // cut_summary (src/summary_cut.hh): a cluster's summary, its own crystals'.
 
 #include "../src/json.hh"
+
 #include "../src/summary_cut.hh"
 #include "check.hh"
+#include <cstdint>
 
 namespace mxi {
 
@@ -49,7 +51,7 @@ TEST(a_clusters_summary_keeps_its_crystals_and_leaves_the_rest) {
       parse(R"({"program": "mxi_correlation", "cluster": 1})");
   const json::Value cut = cut_summary(parse(kSummary), document, keep, &own);
   const json::Array &steps = cut["steps"].as_array();
-  check::equal(static_cast<long long>(steps.size()), 6LL,
+  check::equal(static_cast<std::int64_t>(steps.size()), std::int64_t{6},
                "scaling left out, ours added");
   check::is_true(steps.back()["program"].as_string() == "mxi_correlation",
                  "its own last");
@@ -61,12 +63,12 @@ TEST(a_clusters_summary_keeps_its_crystals_and_leaves_the_rest) {
                  "import's sweeps 0 and 2");
 
   const json::Value &find = steps[1];
-  check::equal(static_cast<long long>(find["spots"].as_number()), 40LL,
-               "10 + 30");
-  check::equal(static_cast<long long>(find["signal_pixels"].as_number()), 400LL,
-               "100 + 300");
-  check::equal(static_cast<long long>(find["spots_per_image"].size()), 2LL,
-               "two sweeps");
+  check::equal(static_cast<std::int64_t>(find["spots"].as_number()),
+               std::int64_t{40}, "10 + 30");
+  check::equal(static_cast<std::int64_t>(find["signal_pixels"].as_number()),
+               std::int64_t{400}, "100 + 300");
+  check::equal(static_cast<std::int64_t>(find["spots_per_image"].size()),
+               std::int64_t{2}, "two sweeps");
   check::equal(find["spots_per_image"][1][0].as_number(), 5.0,
                "the third's, now second");
   check::equal(find["each_sweep"]["sweep"][1].as_number(), 1.0,
@@ -78,12 +80,12 @@ TEST(a_clusters_summary_keeps_its_crystals_and_leaves_the_rest) {
                  "and said so");
 
   const json::Value &refine = steps[2];
-  check::equal(static_cast<long long>(refine["groups"].size()), 2LL,
-               "two groups");
+  check::equal(static_cast<std::int64_t>(refine["groups"].size()),
+               std::int64_t{2}, "two groups");
   check::equal(refine["groups"][1]["experiments"][1].as_number(), 3.0,
                "5 to 3");
-  check::equal(static_cast<long long>(refine["cell_over_scan"].size()), 2LL,
-               "two crystals");
+  check::equal(static_cast<std::int64_t>(refine["cell_over_scan"].size()),
+               std::int64_t{2}, "two crystals");
   check::equal(refine["cell_over_scan"][1]["experiment"].as_number(), 3.0,
                "5 to 3");
   check::equal(refine["cell_over_scan"][1]["a"][0].as_number(), 3.0,
@@ -92,8 +94,8 @@ TEST(a_clusters_summary_keeps_its_crystals_and_leaves_the_rest) {
                  "whole-run");
 
   const json::Value &integrate = steps[3];
-  check::equal(static_cast<long long>(integrate["each_sweep"].size()), 2LL,
-               "two sweeps");
+  check::equal(static_cast<std::int64_t>(integrate["each_sweep"].size()),
+               std::int64_t{2}, "two sweeps");
   check::equal(integrate["each_sweep"][1]["n"].as_number(), 3.0, "the third's");
   check::equal(integrate["each_sweep"][1]["sweep"].as_number(), 1.0,
                "renumbered");

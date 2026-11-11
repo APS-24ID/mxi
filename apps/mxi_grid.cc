@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <set>
 #include <string>
@@ -210,7 +211,7 @@ int run_grid(int argc, char **argv) {
         distance.emplace_back(dx * dx + dy * dy, i);
       }
       std::partial_sort(distance.begin(),
-                        distance.begin() + static_cast<long>(std::min(
+                        distance.begin() + static_cast<std::int64_t>(std::min(
                                                neighbours, distance.size())),
                         distance.end());
       ProfileGrid reference = make_grid(n, sigma_b, sigma_m, half);

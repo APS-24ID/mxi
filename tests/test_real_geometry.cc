@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "../src/geometry.hh"
@@ -317,8 +318,8 @@ TEST(real_oscillation_array_is_uniform) {
   // width. Treating the width as constant is fair -- but it should be checked
   // rather than assumed, and the check is nearly free.
   std::vector<double> oscillation;
-  const long n = real::kImageRange[1] - real::kImageRange[0] + 1;
-  for (long i = 0; i < n; ++i) {
+  const std::int64_t n = real::kImageRange[1] - real::kImageRange[0] + 1;
+  for (std::int64_t i = 0; i < n; ++i) {
     oscillation.push_back(real::kOscStart +
                           static_cast<double>(i) * real::kOscWidth);
   }

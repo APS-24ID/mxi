@@ -26,9 +26,11 @@
 #include <atomic>
 #include <cctype>
 #include <chrono>
+#include <cinttypes>
 #include <cmath>
 #include <condition_variable>
 #include <csignal>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
@@ -120,7 +122,7 @@ void report_resolution(const std::vector<double> &dstar) {
   for (std::size_t k = 0; k < all.count.size(); ++k) {
     c_max.push_back(mxi::json::Value(all.d_max[k]));
     c_min.push_back(mxi::json::Value(all.d_min[k]));
-    c_n.push_back(mxi::json::Value(static_cast<long>(all.count[k])));
+    c_n.push_back(mxi::json::Value(static_cast<std::int64_t>(all.count[k])));
   }
   find_summary().table("spots_by_resolution", {"d_max", "d_min", "spots"},
                        {c_max, c_min, c_n});
@@ -699,11 +701,12 @@ void reconcile(const mxi::ExperimentImages &experiments,
   // cover.
   if (!experiments.imageset_matches_scan()) {
     std::fprintf(stderr,
-                 "warning: %s lists %llu frames in its imageset and %lld in "
+                 "warning: %s lists %" PRIu64
+                 " frames in its imageset and %" PRId64 " in "
                  "its scan; z follows the scan\n",
                  options->experiments.c_str(),
-                 static_cast<unsigned long long>(experiments.frames),
-                 static_cast<long long>(experiments.images()));
+                 static_cast<std::uint64_t>(experiments.frames),
+                 static_cast<std::int64_t>(experiments.images()));
   }
   // Gaps in single_file_indices mean the imageset is not the whole file in
   // order, which nothing here allows for: frames are read as a contiguous run,
@@ -735,9 +738,10 @@ void reconcile(const mxi::ExperimentImages &experiments,
                                          : experiments.first_image - 1;
     options->z_offset = (experiments.first_image - 1) - first_index;
     if (options->z_offset != 0) {
-      mxi::detail("The scan starts at image %lld, so z starts at %lld\n",
-                  static_cast<long long>(experiments.first_image),
-                  static_cast<long long>(options->z_offset));
+      mxi::detail("The scan starts at image %" PRId64
+                  ", so z starts at %" PRId64 "\n",
+                  static_cast<std::int64_t>(experiments.first_image),
+                  static_cast<std::int64_t>(options->z_offset));
     }
   }
 }
@@ -871,25 +875,26 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
 
   if (restricted > 0 && restricted != info.images) {
     std::fprintf(stdout,
-                 "Reading %llu of the %llu images, the ones the scan covers\n",
-                 static_cast<unsigned long long>(restricted),
-                 static_cast<unsigned long long>(info.images));
+                 "Reading %" PRIu64 " of the %" PRIu64
+                 " images, the ones the scan covers\n",
+                 static_cast<std::uint64_t>(restricted),
+                 static_cast<std::uint64_t>(info.images));
   }
-  std::fprintf(stdout, "Finding spots on %llu images\n",
-               static_cast<unsigned long long>(restricted > 0 ? restricted
-                                                              : info.images));
-  mxi::detail(
-      "Series %s: %llu images of %llu x %llu pixels (fast x slow), from %s, "
-      "%d thread%s, "
-      "on the %s\n",
-      info.name.c_str(), static_cast<unsigned long long>(info.images),
-      static_cast<unsigned long long>(info.width),
-      static_cast<unsigned long long>(info.height), source->describe().c_str(),
-      options.threads, options.threads == 1 ? "" : "s",
-      options.gpu ? "GPU" : "CPU");
+  std::fprintf(
+      stdout, "Finding spots on %" PRIu64 " images\n",
+      static_cast<std::uint64_t>(restricted > 0 ? restricted : info.images));
+  mxi::detail("Series %s: %" PRIu64 " images of %" PRIu64 " x %" PRIu64
+              " pixels (fast x slow), from %s, "
+              "%d thread%s, "
+              "on the %s\n",
+              info.name.c_str(), static_cast<std::uint64_t>(info.images),
+              static_cast<std::uint64_t>(info.width),
+              static_cast<std::uint64_t>(info.height),
+              source->describe().c_str(), options.threads,
+              options.threads == 1 ? "" : "s", options.gpu ? "GPU" : "CPU");
   if (info.masked_pixels > 0)
-    mxi::detail("%llu pixels masked by the detector's own pixel_mask\n",
-                static_cast<unsigned long long>(info.masked_pixels));
+    mxi::detail("%" PRIu64 " pixels masked by the detector's own pixel_mask\n",
+                static_cast<std::uint64_t>(info.masked_pixels));
   mxi::detail(
       "Grouping in %s, %zu to %zu pixels a spot, peak within %.1f of the "
       "centroid\n",
@@ -1105,8 +1110,8 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
         labeller.add(z, found.pixels);
         t_group.add(mxi::Timing::now() - g0);
       } catch (const std::exception &error) {
-        std::fprintf(stderr, "grouping frame %lld: %s\n",
-                     static_cast<long long>(found.number), error.what());
+        std::fprintf(stderr, "grouping frame %" PRId64 ": %s\n",
+                     static_cast<std::int64_t>(found.number), error.what());
         failed++;
         continue;
       }
@@ -1170,27 +1175,30 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
       std::chrono::duration<double>(Clock::now() - began).count();
   const mxi::spots::Counts &counts = labeller.counts();
 
-  mxi::detail("Thresholded %llu of %llu images in %.1f s (%.1f images/s), "
-              "%llu never written, %llu failures\n",
-              static_cast<unsigned long long>(read.load()),
-              static_cast<unsigned long long>(dispatched.size()), seconds,
+  mxi::detail("Thresholded %" PRIu64 " of %" PRIu64
+              " images in %.1f s (%.1f images/s), "
+              "%" PRIu64 " never written, %" PRIu64 " failures\n",
+              static_cast<std::uint64_t>(read.load()),
+              static_cast<std::uint64_t>(dispatched.size()), seconds,
               seconds > 0 ? read.load() / seconds : 0.0,
-              static_cast<unsigned long long>(missing.load()),
-              static_cast<unsigned long long>(failed.load()));
+              static_cast<std::uint64_t>(missing.load()),
+              static_cast<std::uint64_t>(failed.load()));
   // Images missing are data missing: said always, not under --verbose.
   if (!mxi::verbose() && (missing.load() > 0 || failed.load() > 0))
     std::fprintf(stdout,
-                 "Read %llu of %llu images: %llu never written, %llu "
+                 "Read %" PRIu64 " of %" PRIu64 " images: %" PRIu64
+                 " never written, %" PRIu64 " "
                  "failures\n",
-                 static_cast<unsigned long long>(read.load()),
-                 static_cast<unsigned long long>(dispatched.size()),
-                 static_cast<unsigned long long>(missing.load()),
-                 static_cast<unsigned long long>(failed.load()));
+                 static_cast<std::uint64_t>(read.load()),
+                 static_cast<std::uint64_t>(dispatched.size()),
+                 static_cast<std::uint64_t>(missing.load()),
+                 static_cast<std::uint64_t>(failed.load()));
   if (out_of_order > 0) {
     std::fprintf(stderr,
-                 "warning: %llu frames arrived after a later one and were "
+                 "warning: %" PRIu64
+                 " frames arrived after a later one and were "
                  "dropped\n",
-                 static_cast<unsigned long long>(out_of_order));
+                 static_cast<std::uint64_t>(out_of_order));
   }
   // dials.find_spots' own summary, wording included, so that a log from this
   // and a log from that can be read the same way and compared line for line.
@@ -1201,36 +1209,38 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
   const std::uint64_t sized =
       counts.groups - counts.too_small - counts.too_large;
 
-  std::fprintf(stdout, "Found %llu signal pixels on %llu frames\n",
-               static_cast<unsigned long long>(counts.signal_pixels),
-               static_cast<unsigned long long>(grouped));
-  std::fprintf(stdout, "Extracted %llu spots\n",
-               static_cast<unsigned long long>(counts.groups));
-  std::fprintf(stdout, "Removed %llu spots with size < %zu pixels\n",
-               static_cast<unsigned long long>(counts.too_small),
+  std::fprintf(stdout,
+               "Found %" PRIu64 " signal pixels on %" PRIu64 " frames\n",
+               static_cast<std::uint64_t>(counts.signal_pixels),
+               static_cast<std::uint64_t>(grouped));
+  std::fprintf(stdout, "Extracted %" PRIu64 " spots\n",
+               static_cast<std::uint64_t>(counts.groups));
+  std::fprintf(stdout, "Removed %" PRIu64 " spots with size < %zu pixels\n",
+               static_cast<std::uint64_t>(counts.too_small),
                options.grouping.min_spot_size);
-  std::fprintf(stdout, "Removed %llu spots with size > %zu pixels\n",
-               static_cast<unsigned long long>(counts.too_large),
+  std::fprintf(stdout, "Removed %" PRIu64 " spots with size > %zu pixels\n",
+               static_cast<std::uint64_t>(counts.too_large),
                options.grouping.max_spot_size);
-  std::fprintf(stdout, "Calculated %llu spot centroids\n",
-               static_cast<unsigned long long>(sized));
-  std::fprintf(stdout, "Calculated %llu spot intensities\n",
-               static_cast<unsigned long long>(sized));
+  std::fprintf(stdout, "Calculated %" PRIu64 " spot centroids\n",
+               static_cast<std::uint64_t>(sized));
+  std::fprintf(stdout, "Calculated %" PRIu64 " spot intensities\n",
+               static_cast<std::uint64_t>(sized));
   // Only when the filter ran: "Filtered 48 of 48" would otherwise read as a
   // filter that passed everything rather than one that was switched off.
   if (options.grouping.max_separation > 0.0) {
     std::fprintf(stdout,
-                 "Filtered %llu of %llu spots by peak-centroid distance\n",
-                 static_cast<unsigned long long>(counts.accepted),
-                 static_cast<unsigned long long>(sized));
+                 "Filtered %" PRIu64 " of %" PRIu64
+                 " spots by peak-centroid distance\n",
+                 static_cast<std::uint64_t>(counts.accepted),
+                 static_cast<std::uint64_t>(sized));
   }
 
   // Spots per image, as dials.find_spots draws it: the part of this report a
   // user reads at a glance. A spot's image is floor(z) + 1, image n starting at
   // z = n - 1, over the images the scan covers or, without a scan, the series.
   if (!labeller.spots().empty()) {
-    long long first = 1;
-    long long last = static_cast<long long>(info.images);
+    std::int64_t first = 1;
+    std::int64_t last = static_cast<std::int64_t>(info.images);
     if (experiments.has_scan) {
       first = experiments.first_image;
       last = experiments.last_image;
@@ -1239,8 +1249,8 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
       std::vector<std::size_t> per_image(
           static_cast<std::size_t>(last - first + 1), 0);
       for (const auto &spot : labeller.spots()) {
-        const long long image =
-            static_cast<long long>(std::floor(spot.position[2])) + 1;
+        const std::int64_t image =
+            static_cast<std::int64_t>(std::floor(spot.position[2])) + 1;
         if (image >= first && image <= last)
           ++per_image[static_cast<std::size_t>(image - first)];
       }
@@ -1253,7 +1263,7 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
       static mxi::json::Array per_sweep, firsts;
       mxi::json::Array each;
       for (std::size_t n : per_image)
-        each.push_back(mxi::json::Value(static_cast<long>(n)));
+        each.push_back(mxi::json::Value(static_cast<std::int64_t>(n)));
       per_sweep.push_back(mxi::json::Value(std::move(each)));
       firsts.push_back(mxi::json::Value(first));
       find_summary().set("first_image", mxi::json::Value(firsts));
@@ -1287,22 +1297,24 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
   {
     static std::vector<mxi::json::Value> c_sweep, c_first, c_images, c_pixels,
         c_spots;
-    static long all_pixels = 0, all_spots = 0;
-    const long long run_first =
-        experiments.has_scan ? static_cast<long long>(experiments.first_image)
-                             : 1;
-    const long long run_last =
-        experiments.has_scan ? static_cast<long long>(experiments.last_image)
-                             : static_cast<long long>(info.images);
-    c_sweep.push_back(mxi::json::Value(static_cast<long>(index)));
-    c_first.push_back(mxi::json::Value(static_cast<long>(run_first)));
+    static std::int64_t all_pixels = 0, all_spots = 0;
+    const std::int64_t run_first =
+        experiments.has_scan
+            ? static_cast<std::int64_t>(experiments.first_image)
+            : 1;
+    const std::int64_t run_last =
+        experiments.has_scan ? static_cast<std::int64_t>(experiments.last_image)
+                             : static_cast<std::int64_t>(info.images);
+    c_sweep.push_back(mxi::json::Value(static_cast<std::int64_t>(index)));
+    c_first.push_back(mxi::json::Value(static_cast<std::int64_t>(run_first)));
     c_images.push_back(
-        mxi::json::Value(static_cast<long>(run_last - run_first + 1)));
+        mxi::json::Value(static_cast<std::int64_t>(run_last - run_first + 1)));
     c_pixels.push_back(
-        mxi::json::Value(static_cast<long>(counts.signal_pixels)));
-    c_spots.push_back(mxi::json::Value(static_cast<long>(counts.accepted)));
-    all_pixels += static_cast<long>(counts.signal_pixels);
-    all_spots += static_cast<long>(counts.accepted);
+        mxi::json::Value(static_cast<std::int64_t>(counts.signal_pixels)));
+    c_spots.push_back(
+        mxi::json::Value(static_cast<std::int64_t>(counts.accepted)));
+    all_pixels += static_cast<std::int64_t>(counts.signal_pixels);
+    all_spots += static_cast<std::int64_t>(counts.accepted);
     find_summary().table(
         "each_sweep",
         {"sweep", "first_image", "images", "signal_pixels", "spots"},
@@ -1315,11 +1327,11 @@ int find_one(Options options, std::size_t index, mxi::Timing &timing,
   // No frame read at all: nothing to write, and an empty table would read as
   // images without spots. Said once, with why.
   if (read.load() == 0 && failed.load() > 0) {
-    std::fprintf(stderr,
-                 "mxi find: none of the %llu images could be read, so nothing "
-                 "is written. The first error: %s\n",
-                 static_cast<unsigned long long>(dispatched.size()),
-                 first_error.c_str());
+    std::fprintf(
+        stderr,
+        "mxi find: none of the %" PRIu64 " images could be read, so nothing "
+        "is written. The first error: %s\n",
+        static_cast<std::uint64_t>(dispatched.size()), first_error.c_str());
     return 1;
   }
   if (emit(labeller, info, experiments) != 0)

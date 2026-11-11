@@ -7,6 +7,7 @@
 // "unknown option 'indexed.refl'". Options before positionals is what every
 // other command line tool accepts.
 
+#include <cstdint>
 #include <set>
 #include <string>
 #include <vector>
@@ -37,7 +38,7 @@ Arguments run(const std::vector<std::string> &words) {
 TEST(options_may_come_before_the_file_names) {
   const Arguments a = run({"--beam", "indexed.expt", "indexed.refl"});
   check::is_true(a.ok, a.error.empty() ? "parsed" : a.error);
-  check::equal(static_cast<long long>(a.positional.size()), 2, "two files");
+  check::equal(static_cast<std::int64_t>(a.positional.size()), 2, "two files");
   check::is_true(a.positional[0] == "indexed.expt", "first file");
   check::is_true(a.positional[1] == "indexed.refl", "second file");
   check::is_true(a.has("--beam"), "the flag was seen");
@@ -46,7 +47,7 @@ TEST(options_may_come_before_the_file_names) {
 TEST(options_may_come_after_the_file_names) {
   const Arguments a = run({"indexed.expt", "indexed.refl", "--strong-only"});
   check::is_true(a.ok, "parsed");
-  check::equal(static_cast<long long>(a.positional.size()), 2, "two files");
+  check::equal(static_cast<std::int64_t>(a.positional.size()), 2, "two files");
   check::is_true(a.has("--strong-only"), "the flag was seen");
 }
 
@@ -62,7 +63,7 @@ TEST(options_may_be_interleaved) {
 
 TEST(a_value_is_not_mistaken_for_a_file) {
   const Arguments a = run({"--outlier-sigma", "3", "a.expt", "b.refl"});
-  check::equal(static_cast<long long>(a.positional.size()), 2,
+  check::equal(static_cast<std::int64_t>(a.positional.size()), 2,
                "the 3 belongs to the option");
 }
 
@@ -89,7 +90,7 @@ TEST(help_is_recognised_anywhere) {
 TEST(missing_files_are_counted_not_guessed) {
   const Arguments a = run({"--beam"});
   check::is_true(a.ok, "the option itself is fine");
-  check::equal(static_cast<long long>(a.positional.size()), 0, "no files");
+  check::equal(static_cast<std::int64_t>(a.positional.size()), 0, "no files");
 }
 
 TEST(defaults_are_returned_for_absent_options) {
@@ -110,7 +111,7 @@ TEST(an_optional_value_is_taken_only_when_it_is_a_whole_number) {
         parse_arguments(4, const_cast<char **>(argv), known, none, optional);
     check::is_true(a.ok && a.value("--scan-varying", "?") == "36",
                    "a number is taken");
-    check::equal(static_cast<long long>(a.positional.size()), 1,
+    check::equal(static_cast<std::int64_t>(a.positional.size()), 1,
                  "and the file is a file");
   }
   {
@@ -120,7 +121,7 @@ TEST(an_optional_value_is_taken_only_when_it_is_a_whole_number) {
     check::is_true(a.ok && a.has("--scan-varying") &&
                        a.value("--scan-varying", "?").empty(),
                    "before a file, the flag alone");
-    check::equal(static_cast<long long>(a.positional.size()), 2,
+    check::equal(static_cast<std::int64_t>(a.positional.size()), 2,
                  "and both files are files");
   }
   {

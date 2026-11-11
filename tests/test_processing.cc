@@ -1,6 +1,7 @@
 // The processing's summary in the .rflx (docs/output.md): written, read back,
 // and carried from one program's file to the next.
 
+#include <cstdint>
 #include <cstdio>
 #include <filesystem>
 
@@ -22,14 +23,14 @@ TEST(each_program_adds_its_step_to_the_summary_it_was_given) {
   Summary a("mxi_index", "");
   a.set("indexed_fraction", json::Value(0.982));
   a.table("cycles", {"cycle", "rmsd_x"},
-          {{json::Value(1L), json::Value(2L)},
+          {{json::Value(std::int64_t{1}), json::Value(std::int64_t{2})},
            {json::Value(0.186), json::Value(0.185)}});
   const json::Value da = a.document();
   rflx::write(first, &experiments, nullptr, "mxi_index", false, &da);
   const auto back = rflx::read_summary(first);
   check::is_true(back.has_value(), "the summary read back");
   const auto steps_a = Summary::steps(*back);
-  check::equal(static_cast<long long>(steps_a.size()), 1, "one step");
+  check::equal(static_cast<std::int64_t>(steps_a.size()), 1, "one step");
   check::is_true(steps_a[0]["program"].as_string() == "mxi_index",
                  "named for its program");
   const json::Value &cycles = steps_a[0]["cycles"];
@@ -39,11 +40,11 @@ TEST(each_program_adds_its_step_to_the_summary_it_was_given) {
 
   // The next program, given that file: its step after the first.
   Summary b("mxi_refine", first);
-  b.set("reflections", json::Value(11743L));
+  b.set("reflections", json::Value(std::int64_t{11743}));
   const json::Value db = b.document();
   rflx::write(second, &experiments, nullptr, "mxi_refine", false, &db);
   const auto steps_b = Summary::steps(*rflx::read_summary(second));
-  check::equal(static_cast<long long>(steps_b.size()), 2, "both steps");
+  check::equal(static_cast<std::int64_t>(steps_b.size()), 2, "both steps");
   check::is_true(steps_b[0]["program"].as_string() == "mxi_index" &&
                      steps_b[1]["program"].as_string() == "mxi_refine",
                  "in the order they ran");
@@ -52,7 +53,7 @@ TEST(each_program_adds_its_step_to_the_summary_it_was_given) {
   rflx::write(first, &experiments, nullptr, "older");
   check::is_true(!rflx::read_summary(first).has_value(), "none written");
   check::equal(
-      static_cast<long long>(
+      static_cast<std::int64_t>(
           Summary::steps(Summary("mxi_refine", first).document()).size()),
       1, "this step alone");
   std::filesystem::remove_all(dir);

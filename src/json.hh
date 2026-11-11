@@ -18,6 +18,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace mxi {
@@ -53,12 +54,16 @@ public:
   // through this reader perfectly. So the distinction is carried on the value
   // rather than guessed from its magnitude at the point of writing.
   Value(double d) : type_(Type::Number), number_(d) {}
-  Value(int i) : type_(Type::Number), number_(i), integral_(true) {}
-  Value(long i)
-      : type_(Type::Number), number_(static_cast<double>(i)), integral_(true) {}
-  Value(long long i)
-      : type_(Type::Number), number_(static_cast<double>(i)), integral_(true) {}
-  Value(std::size_t i)
+  // Every integer type, one constructor: a fixed list of int, long, long long
+  // and size_t is a different list of types on each system -- int64_t is long
+  // on Linux and macOS, long long on Windows -- and an integer that matched
+  // none, or two, did not compile, or chose the wrong one. Not bool, which is
+  // its own, nor char.
+  template <class T, std::enable_if_t<std::is_integral_v<T> &&
+                                          !std::is_same_v<T, bool> &&
+                                          !std::is_same_v<T, char>,
+                                      int> = 0>
+  Value(T i)
       : type_(Type::Number), number_(static_cast<double>(i)), integral_(true) {}
 
   //: True when this number was built from an integer type and should be

@@ -418,7 +418,7 @@ json::Value element(const std::vector<std::uint8_t> &buffer, std::size_t i,
   if (cls == H5T_INTEGER) {
     std::int64_t v;
     std::memcpy(&v, p, sizeof v);
-    return json::Value(static_cast<long long>(v));
+    return json::Value(static_cast<std::int64_t>(v));
   }
   if (cls == H5T_FLOAT) {
     double v;
@@ -1012,18 +1012,19 @@ void read_shoeboxes(hid_t g, std::vector<Shoebox> *out) {
   for (std::size_t i = 0; i < n; ++i) {
     Shoebox b;
     b.panel = static_cast<std::int32_t>(panel[i]);
-    std::copy(bbox.begin() + static_cast<long>(i * 6),
-              bbox.begin() + static_cast<long>(i * 6 + 6), b.bbox);
+    std::copy(bbox.begin() + static_cast<std::int64_t>(i * 6),
+              bbox.begin() + static_cast<std::int64_t>(i * 6 + 6), b.bbox);
     b.flag = 2;
     const std::size_t size = b.size();
     if (at + size > pixels)
       throw Error("the shoeboxes' pixels end before their boxes do");
-    b.data.assign(data.begin() + static_cast<long>(at),
-                  data.begin() + static_cast<long>(at + size));
-    b.background.assign(background.begin() + static_cast<long>(at),
-                        background.begin() + static_cast<long>(at + size));
-    b.mask.assign(mask.begin() + static_cast<long>(at),
-                  mask.begin() + static_cast<long>(at + size));
+    b.data.assign(data.begin() + static_cast<std::int64_t>(at),
+                  data.begin() + static_cast<std::int64_t>(at + size));
+    b.background.assign(background.begin() + static_cast<std::int64_t>(at),
+                        background.begin() +
+                            static_cast<std::int64_t>(at + size));
+    b.mask.assign(mask.begin() + static_cast<std::int64_t>(at),
+                  mask.begin() + static_cast<std::int64_t>(at + size));
     at += size;
     out->push_back(std::move(b));
   }

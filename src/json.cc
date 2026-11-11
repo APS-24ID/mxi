@@ -1,6 +1,7 @@
 #include "json.hh"
 
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <sstream>
@@ -290,7 +291,7 @@ private:
       // with it.
       const bool integral = token.find_first_of(".eE") == std::string::npos;
       if (integral && std::abs(d) < 9.0e15) {
-        return Value(static_cast<long long>(d));
+        return Value(static_cast<std::int64_t>(d));
       }
       return Value(d);
     } catch (const std::exception &) {
@@ -326,7 +327,7 @@ void write(std::ostringstream &os, const Value &v, int indent, int depth) {
       // an integer type. Deciding by whether the value happens to be whole
       // would turn an oscillation that starts at zero into `0`, and dxtbx
       // reads the type of an array from its first element.
-      os << static_cast<long long>(d);
+      os << static_cast<std::int64_t>(d);
     } else {
       // Seventeen significant digits recovers any double exactly, which is
       // what keeps a geometry from drifting when it passes through. A whole

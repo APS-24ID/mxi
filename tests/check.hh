@@ -5,7 +5,9 @@
 // running, and this makes it impossible.
 #pragma once
 
+#include <cinttypes>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <functional>
@@ -53,11 +55,11 @@ inline void close(double a, double b, double tolerance,
   }
 }
 
-inline void equal(long long a, long long b, const std::string &message) {
+inline void equal(std::int64_t a, std::int64_t b, const std::string &message) {
   if (a != b) {
     char buffer[512];
-    std::snprintf(buffer, sizeof(buffer), "%s: %lld vs %lld", message.c_str(),
-                  a, b);
+    std::snprintf(buffer, sizeof(buffer), "%s: %" PRId64 " vs %" PRId64,
+                  message.c_str(), a, b);
     fail(buffer);
   }
 }

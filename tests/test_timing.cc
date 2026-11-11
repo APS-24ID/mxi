@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstdio>
 #include <thread>
 #include <vector>
@@ -25,7 +26,7 @@ TEST(timing_prints_nothing_unless_asked) {
   Timing off(false);
   off.add("a phase", 1.0);
   off.report(f);
-  check::equal(static_cast<long long>(std::ftell(f)), 0,
+  check::equal(static_cast<std::int64_t>(std::ftell(f)), 0,
                "nothing without --timing");
   Timing on(true);
   on.add("a phase", 1.0);

@@ -57,6 +57,7 @@ Python they need.
 | `mxi-<version>-py3-none-manylinux_2_28_aarch64.whl` | Linux on ARM64, on the CPU, glibc 2.28 or later: a Raspberry Pi 4 or 5 with a 64-bit OS, ARM servers (Graviton, Ampere, Grace) |
 | `mxi_cuda-<version>-py3-none-manylinux_2_28_aarch64.whl` | the same, with an NVIDIA GPU on an ARM server: the GH200 and GB200, Hopper and Blackwell; needs the NVIDIA driver for CUDA 12. Not Jetson |
 | `mxi-<version>-py3-none-macosx_13_0_arm64.whl` | macOS 13 or later on Apple silicon, with Metal |
+| `mxi-<version>-py3-none-win_amd64.whl` | Windows 10 (1903) or later, or 11, on x86_64, on the CPU |
 
 ```sh
 python3 -m venv ~/mxi
@@ -93,6 +94,7 @@ under the GPL's terms; mxi's own source is BSD-3-Clause.
 | `mxi-<version>-linux-arm64.tar.gz` | |
 | `mxi-<version>-linux-arm64-cuda.tar.gz` | |
 | `mxi-<version>-macos-arm64.tar.gz` | |
+| `mxi-<version>-windows-x86_64.zip` | `mxi.exe` alone |
 
 ```sh
 tar -xzf mxi-<version>-linux-x86_64.tar.gz
@@ -106,6 +108,11 @@ downloaded: clear the quarantine flag once, after unpacking.
 ```sh
 xattr -dr com.apple.quarantine mxi-<version>-macos-arm64
 ```
+
+On Windows, unzip it and put its `bin` on the `PATH`, or run
+`bin\mxi.exe` there. The Windows wheel installs as the others do:
+`py -3.14 -m venv mxi-env`, then `mxi-env\Scripts\pip install` the wheel,
+and `mxi-env\Scripts\mxi-ui`.
 
 To build instead, take `mxi-<version>-source.tar.gz` from the same page: the
 complete source, its submodules included, which GitHub's own source archives

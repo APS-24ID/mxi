@@ -299,6 +299,18 @@ linked in, `NOMINMAX`, `_CRT_SECURE_NO_WARNINGS`, `/utf-8`, `/bigobj`;
 The C++ tests' `/tmp` and `/dev/null` made the system's temporary directory.
 The Python suite not yet run there: written for POSIX.
 
+**In the release, 12 November**: the Windows workflow passing -- the build
+with no warnings, every C++ test, the zip's DLLs Windows' own, the wheel
+installed and its `mxi.exe` run -- and Graeme's test on Windows: `mxi.exe` run
+on a data set, its numbers looking sensible; the wheel, in a Python 3.14
+environment, its `mxi-ui` and `mxi-view` working. Found on the way: writing a
+file over another (`std::filesystem::rename`), a test asking the last bit of a
+maths library, `std::labs` on a 64-bit integer, Git Bash finding `mxi.exe` for
+`mxi`, the console's code page (`prepare_terminal`), and Python 3.15, for
+which `gemmi` and `h5py` have no wheels yet. The release workflow calls
+`windows.yml` as a platform; publishing counts seven archives and six wheels.
+Not yet: the Python suite on Windows; CUDA on Windows.
+
 ## What Graeme tests
 
 Unzip; `mxi --version`; `mxi process` on a data set, its merged statistics

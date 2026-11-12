@@ -36,6 +36,7 @@ nothing is published.
 | `mxi-<version>-macos-arm64.tar.gz` | `mxi`, for Apple silicon, with Metal: macOS 13 or later, its static libraries too (an overlay triplet, `cmake/triplets`); any API newer than 13 used without a check fails the build, so that the binaries cannot fail on an older macOS |
 | `mxi-<version>-py3-none-manylinux_2_28_x86_64.whl`, `mxi-<version>-py3-none-manylinux_2_28_aarch64.whl`, `mxi-<version>-py3-none-macosx_13_0_arm64.whl` | the platform's wheel: the Python -- mxeq, the referee; `mxi_tools`; `mxi-view`, the viewer; `mxi-ui`, the interface -- and that platform's `mxi`, in the wheel's scripts, so that `pip install` puts it beside them (`scripts/make_wheel.py`); each installed in a fresh environment, and its `mxi` run, before it is released |
 | `mxi_cuda-<version>-py3-none-manylinux_2_28_x86_64.whl`, `mxi_cuda-<version>-py3-none-manylinux_2_28_aarch64.whl` | the same with the CUDA builds' `mxi`: a wheel of its own name, `mxi-cuda`, to install instead of `mxi` |
+| `mxi-<version>-windows-x86_64.zip`, `mxi-<version>-py3-none-win_amd64.whl` | Windows: `mxi.exe` alone, zipped, and the wheel with it -- built by `.github/workflows/windows.yml`, which the release workflow calls, with clang-cl and vcpkg's static libraries; its C++ tests run, the zip's DLLs checked to be Windows' own, the wheel installed and run (`docs/windows.md`) |
 
 A wheel's version is its tag's, as Python writes versions (PEP 440): `v1.3.0`
 gives `1.3.0`, `v1.3.0-rc2` `1.3.0rc2`, `-beta1` `b1`, `-alpha1` `a1` -- so a

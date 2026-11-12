@@ -121,3 +121,36 @@ def test_installed_mxi_runs_from_the_environment_not_activated(pure, program, tm
     assert run.stdout.strip() == "stand-in mxi --version"
     for command in ("mxi-ui", "mxi-view", "mxeq"):
         assert (venv / "bin" / command).exists(), command
+
+
+def test_the_tag_gives_the_wheel_its_version():
+    # Graeme: a candidate's wheels say rc as its tag does (PEP 440's form).
+    v = make_wheel.wheel_version
+    assert v("v1.3.0", "1.3.0") == "1.3.0"
+    assert v("v1.3.0-rc2", "1.3.0") == "1.3.0rc2"
+    assert v("v1.3.0-beta1", "1.3.0") == "1.3.0b1"
+    assert v("v1.3.0-alpha3", "1.3.0") == "1.3.0a3"
+    for bad in ("v1.2.0-rc1", "v1.3.1", "nightly", "v1.3.0-rc"):
+        with pytest.raises(SystemExit):
+            v(bad, "1.3.0")
+
+
+def test_a_candidates_wheel_says_so_throughout(pure, program, tmp_path):
+    source = pure.name.split("-")[1]
+    wheel = make_wheel.make(
+        pure, program, "macos-arm64", tmp_path / "out", f"v{source}-rc2"
+    )
+    version = f"{source}rc2"
+    assert wheel.name == f"mxi-{version}-py3-none-macosx_13_0_arm64.whl"
+    e = entries(wheel)
+    assert all(
+        not p.startswith(f"mxi-{source}.") for p in e
+    ), "no trace of the plain version"
+    assert f"Version: {version}\n" in e[f"mxi-{version}.dist-info/METADATA"][0].decode()
+    assert f"mxi-{version}.data/scripts/mxi" in e
+    for line in e[f"mxi-{version}.dist-info/RECORD"][0].decode().strip().split("\n"):
+        path, digest, size = line.rsplit(",", 2)
+        if digest:
+            body = e[path][0]
+            want = base64.urlsafe_b64encode(hashlib.sha256(body).digest()).rstrip(b"=")
+            assert digest == "sha256=" + want.decode() and int(size) == len(body), path

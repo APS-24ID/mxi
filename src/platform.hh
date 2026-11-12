@@ -5,6 +5,7 @@
 // layer). Header-only, as progress.hh and timing.hh are, for the spot
 // finder, which does not link the pipeline's library.
 //
+//   prepare_terminal                   -- UTF-8 out, on Windows (mxi's main)
 //   stderr_is_terminal, stderr_columns -- progress bars (progress.hh)
 //   peak_memory_mb                     -- --timing (timing.hh)
 //   open_for_reading, read_at          -- chunks read outside HDF5's lock,
@@ -13,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 
 #if defined(_WIN32)
@@ -34,6 +36,26 @@
 #endif
 
 namespace mxi::platform {
+
+//: The terminal made ready for what mxi writes, which is UTF-8 -- the progress
+//: bars' blocks among it. On Windows the console takes a code page, 437 or
+//: 850 by default, in which each block's three bytes showed as three other
+//: characters, and the bar, three times as wide as reckoned, wrapped at each
+//: redraw (Graeme, 12 November): UTF-8 for the run, the console's own put
+//: back as mxi exits -- the code page is the window's, not the process's.
+//: Linux and macOS: nothing to do.
+inline void prepare_terminal() {
+#if defined(_WIN32)
+  static UINT before = 0;
+  const UINT now = GetConsoleOutputCP();
+  if (now == 0 || now == CP_UTF8)
+    return; // no console, or UTF-8 already
+  if (SetConsoleOutputCP(CP_UTF8) == 0)
+    return;
+  before = now;
+  std::atexit([] { SetConsoleOutputCP(before); });
+#endif
+}
 
 //: Whether standard error is a terminal (not a file or a pipe).
 inline bool stderr_is_terminal() {

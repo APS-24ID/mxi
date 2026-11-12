@@ -23,7 +23,7 @@
 
 #include "commands.hh"
 #include "output.hh"
-
+#include "platform.hh"
 
 #define MXI_PROGRAM(name) std::int32_t mxi_##name##_main(int argc, char **argv);
 MXI_PROGRAM(import)
@@ -153,6 +153,7 @@ Command command_named(const char *name) {
 } // namespace mxi
 
 int main(int argc, char **argv) {
+  mxi::platform::prepare_terminal(); // UTF-8 out, on Windows
   // Called as mxi_find (a link): that is the command, argv as given.
   const char *base = std::strrchr(argv[0], '/');
   base = base ? base + 1 : argv[0];

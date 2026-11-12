@@ -105,7 +105,9 @@ TEST(a_column_too_large_for_msgpack_is_refused_rather_than_truncated) {
   bool refused = false;
   std::string said;
   try {
-    write_reflections("/dev/null", table);
+    // A scratch file, not /dev/null, which Windows has not: refused before
+    // anything is written.
+    write_reflections(check::scratch_path("refl_too_big.refl"), table);
   } catch (const ReflError &error) {
     refused = true;
     said = error.what();

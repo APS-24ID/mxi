@@ -1,0 +1,98 @@
+# Windows: mxi.exe built with clang-cl -- LLVM's compiler with Microsoft's
+# command line -- and vcpkg's static HDF5 and FFTW; its C++ tests run; packaged
+# as a zip of mxi.exe alone and as the platform's wheel, which is installed in
+# a fresh environment and its mxi.exe run (docs/windows.md).
+#
+# Run on a push to the branch windows, or by hand; the release workflow to
+# call it, once it passes, as one more platform:
+#
+#   git push origin HEAD:windows
+#   gh workflow run windows.yml [-f tag=v1.3.0-rc4]
+#
+# The Python suite is not run here yet: written for POSIX (stand-ins that
+# are shell scripts, chmod, /bin/sh), it is the next step once this passes.
+name: windows
+
+on:
+  push:
+    branches: [windows]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "A tag to build (else the branch run on)"
+        required: false
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: false
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          submodules: recursive
+      # Microsoft's build environment -- its linker, the Windows SDK -- for
+      # clang-cl, which the runner has with LLVM.
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      # Python 3.12, as the other platforms' builds use, for the wheel.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Tools -- Ninja; what the runner has of LLVM
+        run: |
+          python -m pip install -q ninja
+          clang-cl --version | head -1
+          llvm-objdump --version | head -2
+      - name: vcpkg, for a static HDF5
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.bat" -disableMetrics
+      # x64-windows-static: HDF5, zlib and FFTW linked in, and the C runtime
+      # (CMAKE_MSVC_RUNTIME_LIBRARY, CMakeLists.txt): one mxi.exe.
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl
+          -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=x64-windows-static
+          -DVCPKG_MANIFEST_FEATURES=fftw -DMXI_FFTW=ON
+      - name: Build
+        run: cmake --build build
+      - name: "Test: the C++ suite, on the CPU"
+        timeout-minutes: 30
+        run: |
+          ctest --test-dir build --output-on-failure -E 'gpu|device'
+          build/mxi.exe --version
+          build/mxi.exe help
+      - name: Package -- a zip of mxi.exe alone
+        run: scripts/package_release.sh build "$TAG" windows-x86_64
+      # The wheel, its version the tag's where this is a release's
+      # (scripts/make_wheel.py); installed in a fresh environment, not
+      # activated, and its mxi.exe run.
+      - name: The wheel -- mxi, with this mxi.exe in it
+        run: |
+          python -m pip install -q build
+          python -m build --wheel --outdir purewheel python
+          case "$TAG" in v[0-9]*) tag="$TAG" ;; *) tag= ;; esac
+          python scripts/make_wheel.py purewheel/*.whl build/mxi.exe windows-x86_64 dist $tag
+          python -m venv "$RUNNER_TEMP/try"
+          "$RUNNER_TEMP/try/Scripts/pip" install -q --no-deps dist/*.whl
+          "$RUNNER_TEMP/try/Scripts/mxi.exe" --version
+      - uses: actions/upload-artifact@v6
+        with:
+          name: windows-x86_64
+          path: |
+            mxi-*-windows-x86_64.zip
+            dist/*.whl

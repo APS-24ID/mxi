@@ -11,6 +11,11 @@ build=${1:?usage: package_release.sh BUILD TAG PLATFORM}
 tag=${2:?}
 platform=${3:?}
 name="mxi-${tag#v}-${platform}"
+# Windows (Git Bash on the runner): mxi.exe, its DLLs read with llvm-objdump,
+# and a zip -- what Windows has -- not a tarball (docs/windows.md).
+windows=no
+exe=mxi
+case "$(uname -s)" in MINGW* | MSYS* | CYGWIN*) windows=yes; exe=mxi.exe ;; esac
 root=$(cd "$(dirname "$0")/.." && pwd)
 rm -rf "$name"
 # Stripped: each program carries HDF5 within it, and its symbols are not needed.
@@ -78,9 +83,20 @@ fi
 # Self-contained: no HDF5, zlib or vcpkg library to be found at run time. On
 # Linux libcuda (the driver) is the system's, as it must be.
 bad=0
-for p in "$name"/bin/mxi "$name"/bin/mxi_*; do
-    [ -f "$p" ] && [ -x "$p" ] || continue
-    if [ "$(uname)" = Darwin ]; then
+for p in "$name"/bin/mxi "$name"/bin/mxi.exe "$name"/bin/mxi_*; do
+    [ -f "$p" ] || continue
+    if [ "$windows" = yes ]; then
+        # The DLLs it imports: Windows' own, and none of HDF5's, zlib's,
+        # szip's, libaec's or FFTW's -- nor the C runtime's, linked in.
+        imports=$(llvm-objdump -p "$p" | awk '/DLL Name:/ {print $3}')
+        # Every Windows program imports KERNEL32: not seeing it is not
+        # reading them, and a check that read nothing must not pass.
+        echo "$imports" | grep -q -i '^kernel32\.dll$' ||
+            { echo "$p: its DLLs not read (llvm-objdump -p)" >&2; exit 1; }
+        echo "$p imports: $(echo "$imports" | tr '\n' ' ')"
+        libs=$(echo "$imports" |
+            grep -i -E 'hdf5|zlib|szip|aec|fftw|vcruntime|msvcp|ucrtbase|api-ms-win-crt' || true)
+    elif [ "$(uname)" = Darwin ]; then
         libs=$(otool -L "$p" | tail -n +2 | awk '{print $1}' | grep -v -E '^(/usr/lib/|/System/)' || true)
     else
         libs=$(ldd "$p" | awk '{print $1}' | grep -i -E 'hdf5|libz\.|libsz|vcpkg' || true)
@@ -115,11 +131,16 @@ fi
 
 # FFTW in the program exactly when the build says so, so that its licence
 # goes with it whenever it is there.
-if grep -a -q 'fftw_plan' "$name/bin/mxi"; then
+if grep -a -q 'fftw_plan' "$name/bin/$exe"; then
     [ "$fftw" = yes ] || { echo "bin/mxi contains FFTW the build does not record" >&2; exit 1; }
 fi
 # One program, mxi, every other its subcommand.
-[ -x "$name/bin/mxi" ] || { echo "no bin/mxi" >&2; exit 1; }
-count=$("$name/bin/mxi" help | grep -c '^  [a-z]')
-tar -czf "$name.tar.gz" "$name"
-echo "$name.tar.gz: mxi and its $count commands"
+[ -f "$name/bin/$exe" ] || { echo "no bin/$exe" >&2; exit 1; }
+count=$("$name/bin/$exe" help | grep -c '^  [a-z]')
+if [ "$windows" = yes ]; then
+    7z a -tzip -bso0 "$name.zip" "$name"
+    echo "$name.zip: mxi and its $count commands"
+else
+    tar -czf "$name.tar.gz" "$name"
+    echo "$name.tar.gz: mxi and its $count commands"
+fi

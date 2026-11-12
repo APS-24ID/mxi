@@ -248,8 +248,16 @@ jobs:
             mxi-*-macos-arm64.tar.gz
             dist/*.whl
 
+  # Windows, its own workflow (windows.yml), called as one more platform: its
+  # zip of mxi.exe and its wheel, named for the tag (Graeme, 12 November --
+  # mxi.exe run on Windows, the wheel's mxi-ui and mxi-view too).
+  windows:
+    uses: ./.github/workflows/windows.yml
+    with:
+      tag: ${{ inputs.tag || github.ref_name }}
+
   release:
-    needs: [source, linux, macos]
+    needs: [source, linux, macos, windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -264,18 +272,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         # The files, wherever the artifacts put them: a platform's artifact
         # holds its archive and dist/ with its wheel, so merged they are
-        # assets/*.tar.gz and assets/dist/*.whl -- and assets/* had given gh
-        # the directory dist, which it cannot upload (v1.3.0-rc2). Counted
-        # first: the source and five archives, five wheels -- nothing
-        # published short of one (Windows, when it comes, one of each more).
+        # assets/*.tar.gz (Windows' *.zip) and assets/dist/*.whl -- and
+        # assets/* had given gh the directory dist, which it cannot upload
+        # (v1.3.0-rc2). Counted first: the source and six platforms'
+        # archives, Windows' a zip; six wheels -- nothing published short of
+        # one.
         run: |
           tag="$TAG"
-          files=$(find assets -type f \( -name '*.tar.gz' -o -name '*.whl' \) | sort)
+          files=$(find assets -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.whl' \) | sort)
           echo "$files"
-          archives=$(echo "$files" | grep -c '\.tar\.gz$' || true)
+          archives=$(echo "$files" | grep -c -E '\.(tar\.gz|zip)$' || true)
           wheels=$(echo "$files" | grep -c '\.whl$' || true)
-          if [ "$archives" -ne 6 ] || [ "$wheels" -ne 5 ]; then
-            echo "expected 6 archives and 5 wheels; found $archives and $wheels" >&2
+          if [ "$archives" -ne 7 ] || [ "$wheels" -ne 6 ]; then
+            echo "expected 7 archives and 6 wheels; found $archives and $wheels" >&2
             exit 1
           fi
           python3 scripts/release_notes.py "$tag" > notes.md

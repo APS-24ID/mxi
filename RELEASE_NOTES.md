@@ -7,6 +7,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.2.0
 
 **New**
+- Windows: `mxi.exe` for Windows 10 (1903) and 11 on x86_64, on the CPU, as a
+  zip of `mxi.exe` alone and as a wheel with the interface -- `pip install` it
+  into a Python 3.12 to 3.14 environment for `mxi`, `mxi-ui` and `mxi-view`
+  (docs/windows.md).
 - A wheel for each machine with everything in it: `pip install` it and get
   `mxi`, `mxi-ui`, `mxi-view` and `mxeq`, all of one version, with the Python
   they need -- `mxi` for the CPU and Metal builds, `mxi-cuda` for the CUDA

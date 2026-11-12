@@ -4,7 +4,7 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
-## Unreleased -- since 1.2.0
+## 1.3.0 -- 12 November 2026
 
 **New**
 - Windows: `mxi.exe` for Windows 10 (1903) and 11 on x86_64, on the CPU, as a

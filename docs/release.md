@@ -37,6 +37,14 @@ nothing is published.
 | `mxi-<version>-py3-none-manylinux_2_28_x86_64.whl`, `mxi-<version>-py3-none-manylinux_2_28_aarch64.whl`, `mxi-<version>-py3-none-macosx_13_0_arm64.whl` | the platform's wheel: the Python -- mxeq, the referee; `mxi_tools`; `mxi-view`, the viewer; `mxi-ui`, the interface -- and that platform's `mxi`, in the wheel's scripts, so that `pip install` puts it beside them (`scripts/make_wheel.py`); each installed in a fresh environment, and its `mxi` run, before it is released |
 | `mxi_cuda-<version>-py3-none-manylinux_2_28_x86_64.whl`, `mxi_cuda-<version>-py3-none-manylinux_2_28_aarch64.whl` | the same with the CUDA builds' `mxi`: a wheel of its own name, `mxi-cuda`, to install instead of `mxi` |
 
+A wheel's version is its tag's, as Python writes versions (PEP 440): `v1.3.0`
+gives `1.3.0`, `v1.3.0-rc2` `1.3.0rc2`, `-beta1` `b1`, `-alpha1` `a1` -- so a
+candidate's wheels say they are one, as its tag does, and `pip`, `mxi-ui
+--version` and `mxi-view --version` say so too (Graeme, 8 November).
+`scripts/make_wheel.py` refuses a tag whose release number is not the
+source's, so a version left unchanged stops the release rather than
+mislabelling it. `mxi` itself says the source's version, `1.3.0`, as before.
+
 Each archive is `bin/` -- `mxi` alone, every step a command of it; the Python
 is the wheel's (Graeme, 8 November: everything in the wheel) -- with the
 licence, the README and the release notes. Unpack it and put its `bin` on the

@@ -62,6 +62,8 @@ int main() {
             mxi::platform::kNoFile,
         "no file: kNoFile");
   check(mxi::platform::peak_memory_mb() > 0.0, "peak memory above 0");
+  mxi::platform::prepare_terminal(); // no console here: nothing to change
+  check(true, "prepare_terminal returns, with or without a console");
   std::printf("     peak %.1f MB, columns %d, terminal %d\n",
               mxi::platform::peak_memory_mb(),
               static_cast<int>(mxi::platform::stderr_columns()),

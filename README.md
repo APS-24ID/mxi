@@ -66,6 +66,14 @@ mxi --version
 mxi-ui --check                        # what the interface still needs, if anything
 ```
 
+Python 3.12, 3.13 or 3.14: every package the wheel needs has wheels of its
+own for these, on Linux, macOS and Windows alike. On a newer Python some may
+not yet -- in November 2026 gemmi and h5py had none for 3.15 -- and pip then
+tries to build them from source, which wants a compiler and HDF5 installed,
+and fails with a long error about them. With the Python launcher, choose the
+version: `py -3.14 -m venv mxi-env` on Windows, `python3.14 -m venv ~/mxi`
+elsewhere.
+
 Install `mxi` or `mxi-cuda`, not both: they give the same commands. The
 interface needs tkinter, which is not pip's to install -- python.org's Python
 has it; on Linux the system's `python3-tk`, and Homebrew's `python-tk` on

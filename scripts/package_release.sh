@@ -1,9 +1,9 @@
 #!/bin/sh
-# A release's binaries from a build: mxi, with the Python beside it -- the
-# commands mxi-view and mxi-ui, its package mxi_ui, and their
-# module mxi_tools.py -- installed into mxi-VERSION-PLATFORM/bin, with the
-# licence, the README and the release notes; checked to need nothing but the
-# system's own libraries -- HDF5 linked in, from vcpkg -- and archived.
+# A release's binary from a build: mxi alone -- the Python, mxi-ui and
+# mxi-view among it, is the platform's wheel, which carries mxi too
+# (scripts/make_wheel.py) -- installed into mxi-VERSION-PLATFORM/bin, with
+# the licence, the README and the release notes; checked to need nothing but
+# the system's own libraries -- HDF5 linked in, from vcpkg -- and archived.
 #
 #   scripts/package_release.sh build v1.0.6 linux-x86_64-cuda
 set -eu
@@ -80,7 +80,6 @@ fi
 bad=0
 for p in "$name"/bin/mxi "$name"/bin/mxi_*; do
     [ -f "$p" ] && [ -x "$p" ] || continue
-    head -c 4 "$p" | grep -q '#!' && continue   # mxi-view, mxi-ui: Python
     if [ "$(uname)" = Darwin ]; then
         libs=$(otool -L "$p" | tail -n +2 | awk '{print $1}' | grep -v -E '^(/usr/lib/|/System/)' || true)
     else

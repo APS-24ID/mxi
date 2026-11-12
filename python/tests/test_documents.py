@@ -47,7 +47,7 @@ PROGRAM = re.compile(r"`(mxi_[a-z]+)`")
 
 
 def _python_modules():
-    """The wheel's own modules and packages, mxi-python's: named in the
+    """The wheel's own modules and packages, mxi's: named in the
     documents as Python, not as programs -- mxi_tools, mxi_view, mxi_ui."""
     text = (ROOT / "python/pyproject.toml").read_text()
     found = re.search(r"py-modules\s*=\s*\[([^\]]*)\]", text)

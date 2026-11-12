@@ -18,12 +18,15 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 VERSION = "@PROJECT_VERSION@"
-# From the wheel (mxi-python), no build to stamp it in: the wheel's own.
+# From the wheel (mxi, or mxi-cuda), no build to stamp it in: the wheel's own.
 if VERSION.startswith("@"):
     try:
         from importlib.metadata import version as _version
 
-        VERSION = _version("mxi-python")
+        try:
+            VERSION = _version("mxi")
+        except Exception:  # noqa: BLE001 -- the CUDA build's wheel
+            VERSION = _version("mxi-cuda")
     except Exception:  # noqa: BLE001 -- run from a checkout, not installed
         VERSION = "unknown"
 

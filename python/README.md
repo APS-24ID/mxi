@@ -1,6 +1,6 @@
 # mxeq
 
-Part of `mxi-python`, the wheel of mxi's Python tools, with `mxi_tools`,
+Part of `mxi`, the wheel of mxi's Python tools and a platform's `mxi`, with `mxi_tools`,
 `mxi_view` and `mxi_ui`, the interface (`pip install -e python`; docs/ui.md).
 mxeq imports none of them: it judges mxi's files, so it must not share mxi's
 reading of them.

@@ -3,10 +3,11 @@
 #
 #   gh workflow run release.yml -f tag=v1.0.7
 #
-# The complete source, Linux x86_64 and ARM64 on the CPU and with CUDA, macOS
-# with Metal, and
-# the Python tools' wheel, mxi-python, each built from the tag and its tests run before anything is
-# published; then a GitHub release with them, its text RELEASE_NOTES.md's
+# The complete source; for Linux x86_64 and ARM64, on the CPU and with CUDA,
+# and macOS with Metal, mxi alone as an archive and the platform's wheel --
+# mxi, mxi-cuda for the CUDA builds -- with the Python and that mxi in one;
+# each built from the tag and its tests run before anything is published;
+# then a GitHub release with them, its text RELEASE_NOTES.md's
 # section for the version (scripts/release_notes.py). A tag with -rc, -alpha
 # or -beta makes a pre-release. docs/release.md.
 name: release
@@ -151,10 +152,24 @@ jobs:
           cd python && MXI_FIND="$GITHUB_WORKSPACE/build/mxi_find" MXI_BUILD="$GITHUB_WORKSPACE/build" PYTHONPATH=src:tests python -m pytest -q tests
       - name: Package
         run: scripts/package_release.sh build "$TAG" "${{ matrix.platform }}"
+      # The platform's wheel, mxi (mxi-cuda for a CUDA build): the Python and
+      # this mxi in one (scripts/make_wheel.py) -- installed in a fresh
+      # environment and run from it, not activated, so that a wheel whose mxi
+      # does not run is not released.
+      - name: The wheel -- mxi, with this platform's mxi in it
+        run: |
+          python -m pip install -q build
+          python -m build --wheel --outdir purewheel python
+          python scripts/make_wheel.py purewheel/*.whl build/mxi "${{ matrix.platform }}" dist
+          python -m venv /tmp/try
+          /tmp/try/bin/pip install -q --no-deps dist/*.whl
+          /tmp/try/bin/mxi --version
       - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.platform }}
-          path: mxi-*-${{ matrix.platform }}.tar.gz
+          path: |
+            mxi-*-${{ matrix.platform }}.tar.gz
+            dist/*.whl
 
   macos:
     runs-on: macos-15
@@ -214,28 +229,27 @@ jobs:
           cd python && MXI_FIND="$GITHUB_WORKSPACE/build/mxi_find" MXI_BUILD="$GITHUB_WORKSPACE/build" PYTHONPATH=src:tests python3 -m pytest -q tests
       - name: Package
         run: scripts/package_release.sh build "$TAG" macos-arm64
+      # The platform's wheel, mxi (mxi-cuda for a CUDA build): the Python and
+      # this mxi in one (scripts/make_wheel.py) -- installed in a fresh
+      # environment and run from it, not activated, so that a wheel whose mxi
+      # does not run is not released.
+      - name: The wheel -- mxi, with this platform's mxi in it
+        run: |
+          python3 -m pip install -q build
+          python3 -m build --wheel --outdir purewheel python
+          python3 scripts/make_wheel.py purewheel/*.whl build/mxi "macos-arm64" dist
+          python3 -m venv /tmp/try
+          /tmp/try/bin/pip install -q --no-deps dist/*.whl
+          /tmp/try/bin/mxi --version
       - uses: actions/upload-artifact@v6
         with:
           name: macos-arm64
-          path: mxi-*-macos-arm64.tar.gz
-
-  wheel:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.tag || github.ref }}
-      - name: The Python tools' wheel, mxi-python
-        run: |
-          python3 -m pip install -q build
-          python3 -m build --wheel --outdir dist python
-      - uses: actions/upload-artifact@v6
-        with:
-          name: wheel
-          path: dist/*.whl
+          path: |
+            mxi-*-macos-arm64.tar.gz
+            dist/*.whl
 
   release:
-    needs: [source, linux, macos, wheel]
+    needs: [source, linux, macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

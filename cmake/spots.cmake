@@ -542,8 +542,7 @@ if(MXI_TESTS)
     # subcommand of the one binary now.
     add_test(NAME log_mirror
              COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/tests/log_mirror.sh
-                     ${CMAKE_BINARY_DIR}/mxi_background ${CMAKE_BINARY_DIR}/mxi_index
-                     ${CMAKE_BINARY_DIR}/mxi_find)
+                     $<TARGET_FILE:mxi_program>)
 
 
 

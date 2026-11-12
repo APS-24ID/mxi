@@ -83,7 +83,10 @@ fi
 # Self-contained: no HDF5, zlib or vcpkg library to be found at run time. On
 # Linux libcuda (the driver) is the system's, as it must be.
 bad=0
-for p in "$name"/bin/mxi "$name"/bin/mxi.exe "$name"/bin/mxi_*; do
+# The platform's own name for it, bin/mxi or bin/mxi.exe, and not both: Git
+# Bash, as Windows does, finds bin/mxi.exe for [ -f bin/mxi ], and passed
+# the name without .exe to llvm-objdump, which did not (1.3.0, 12 November).
+for p in "$name/bin/$exe" "$name"/bin/mxi_*; do
     [ -f "$p" ] || continue
     if [ "$windows" = yes ]; then
         # The DLLs it imports: Windows' own, and none of HDF5's, zlib's,

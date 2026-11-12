@@ -177,7 +177,10 @@ TEST(a_monoclinic_cell_loses_only_what_its_two_fold_forbids) {
   check::close(after.c, before.c, 1e-9, "c kept");
   regularise_cell(p1, SpaceGroup::from_name("P 1"));
   for (std::size_t k = 0; k < 9; ++k)
-    check::close(p1.A.m[k], real.inverse().m[k], 0.0, "P 1 as it was");
+    // A unit or two in the last place, not none: Windows' maths library
+    // rounds the inverse's last bit otherwise than glibc's (0.0200001142885442
+    // 85 against 89, 12 November).
+    check::close(p1.A.m[k], real.inverse().m[k], 1e-15, "P 1 as it was");
 }
 
 } // namespace mxi

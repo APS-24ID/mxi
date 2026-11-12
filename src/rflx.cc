@@ -19,6 +19,7 @@ extern "C" {
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <mutex>
@@ -1293,8 +1294,14 @@ void write(const std::string &path, const json::Value *experiments,
     }
   }
   // Whole or not at all: the file appears under its name only once written.
-  if (std::rename(partial.c_str(), path.c_str()) != 0)
-    throw Error("cannot move " + partial + " to " + path);
+  // std::filesystem::rename replaces what is there, on every system; C's
+  // std::rename does on POSIX and refuses on Windows, where a step run again
+  // over its own output could not write it (docs/windows.md).
+  std::error_code failed;
+  std::filesystem::rename(partial, path, failed);
+  if (failed)
+    throw Error("cannot move " + partial + " to " + path + ": " +
+                failed.message());
 }
 
 } // namespace rflx

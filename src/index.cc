@@ -374,7 +374,7 @@ inverse_nearest_neighbours(const std::vector<Vec3> &points,
         // is on the shell, else its two z faces.
         for (std::int64_t x = cx - k; x <= cx + k; ++x)
           for (std::int64_t y = cy - k; y <= cy + k; ++y) {
-            if (std::labs(x - cx) == k || std::labs(y - cy) == k) {
+            if (std::abs(x - cx) == k || std::abs(y - cy) == k) {
               for (std::int64_t z = cz - k; z <= cz + k; ++z)
                 visit(x, y, z);
             } else {

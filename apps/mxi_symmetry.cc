@@ -59,7 +59,7 @@ std::string describe_element(const Rotation &r, std::int32_t order) {
     }
   std::int64_t g = 0;
   for (std::int64_t v : axis)
-    g = std::gcd(g, std::labs(v));
+    g = std::gcd(g, std::abs(v));
   if (g > 1)
     for (std::int64_t &v : axis)
       v /= g;

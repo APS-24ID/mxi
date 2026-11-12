@@ -1,5 +1,5 @@
 """mxeq, the referee, imports nothing of mxi's own Python, though it shares the
-wheel, mxi-python, with it: it judges mxi's files, so it must not share mxi's
+wheel, mxi, with it: it judges mxi's files, so it must not share mxi's
 reading of them -- a fault in mxi_tools would otherwise pass for agreement.
 Every module mxeq has, against every mxi_ module beside it in src/: today
 mxi_tools and mxi_view, and whatever is added, the interface among them."""

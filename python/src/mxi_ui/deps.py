@@ -86,7 +86,7 @@ def problems(need_display=True):
     missing = [p for p in PACKAGES if importlib.util.find_spec(p) is None]
     if missing:
         found.append(
-            f"{', '.join(missing)} missing: pip install mxi-python (the wheel from the release) "
+            f"{', '.join(missing)} missing: pip install mxi (the wheel for your platform, from the release) "
             f"or pip install {' '.join(missing)}"
         )
     if (

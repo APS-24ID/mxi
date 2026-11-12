@@ -41,44 +41,63 @@ CBF by [cbf2nxmx](https://github.com/graeme-winter/cbf2nxmx).
 
 ## Installing
 
-Each release on this repository's GitHub **Releases** page has `mxi` built,
-ready to run. Download the archive for your machine:
+Each release on this repository's GitHub **Releases** page has mxi built for
+each machine, in two forms: a **wheel** with everything, and an **archive**
+with `mxi` alone.
 
-| archive | for |
+**The wheel**, for most: `pip install` it, best into an environment of its
+own, and it brings `mxi`, `mxi-ui` (the interface), `mxi-view` (its image
+viewer and mask editor) and `mxeq` (the referee), all of one version, and the
+Python they need.
+
+| wheel | for |
 |---|---|
-| `mxi-<version>-linux-x86_64.tar.gz` | Linux on x86_64, on the CPU: glibc 2.28 or later -- RHEL 8 and 9 and their clones, Ubuntu 20.04 on, Debian 11 on -- no GPU or driver needed |
-| `mxi-<version>-linux-x86_64-cuda.tar.gz` | the same, with an NVIDIA GPU from Volta (V100) to Blackwell: needs the NVIDIA driver for CUDA 12 (525 or later) |
-| `mxi-<version>-linux-arm64.tar.gz` | Linux on ARM64, on the CPU, glibc 2.28 or later: a Raspberry Pi 4 or 5 with a 64-bit OS, ARM servers (Graviton, Ampere, Grace) |
-| `mxi-<version>-linux-arm64-cuda.tar.gz` | the same, with an NVIDIA GPU on an ARM server: the GH200 and GB200, Hopper and Blackwell; needs the NVIDIA driver for CUDA 12. Not Jetson |
-| `mxi-<version>-macos-arm64.tar.gz` | macOS 13 or later on Apple silicon, with Metal |
+| `mxi-<version>-py3-none-manylinux_2_28_x86_64.whl` | Linux on x86_64, on the CPU: glibc 2.28 or later -- RHEL 8 and 9 and their clones, Ubuntu 20.04 on, Debian 11 on -- no GPU or driver needed |
+| `mxi_cuda-<version>-py3-none-manylinux_2_28_x86_64.whl` | the same, with an NVIDIA GPU from Volta (V100) to Blackwell: needs the NVIDIA driver for CUDA 12 (525 or later) |
+| `mxi-<version>-py3-none-manylinux_2_28_aarch64.whl` | Linux on ARM64, on the CPU, glibc 2.28 or later: a Raspberry Pi 4 or 5 with a 64-bit OS, ARM servers (Graviton, Ampere, Grace) |
+| `mxi_cuda-<version>-py3-none-manylinux_2_28_aarch64.whl` | the same, with an NVIDIA GPU on an ARM server: the GH200 and GB200, Hopper and Blackwell; needs the NVIDIA driver for CUDA 12. Not Jetson |
+| `mxi-<version>-py3-none-macosx_13_0_arm64.whl` | macOS 13 or later on Apple silicon, with Metal |
 
-Unpack it and put its `bin` on the `PATH` -- nothing else needs installing:
+```sh
+python3 -m venv ~/mxi
+~/mxi/bin/pip install mxi-<version>-py3-none-manylinux_2_28_x86_64.whl
+export PATH="$HOME/mxi/bin:$PATH"     # and in ~/.bashrc
+mxi --version
+mxi-ui --check                        # what the interface still needs, if anything
+```
+
+Install `mxi` or `mxi-cuda`, not both: they give the same commands. The
+interface needs tkinter, which is not pip's to install -- python.org's Python
+has it; on Linux the system's `python3-tk`, and Homebrew's `python-tk` on
+macOS -- and `mxi-ui --check` says so if it is missing. `mxi-ui` finds the
+`mxi` installed with it whether or not the environment is on the `PATH`.
+
+**The archive**, for a machine without Python, or only the programs: unpack
+it and put its `bin` on the `PATH` -- `mxi` alone, nothing else to install:
 HDF5, FFTW and the rest are built in, their licences in the archive's
 `licenses/`. With FFTW, which is GPL, the released program is distributed
 under the GPL's terms; mxi's own source is BSD-3-Clause.
 
+| archive | for |
+|---|---|
+| `mxi-<version>-linux-x86_64.tar.gz` | as its wheel above |
+| `mxi-<version>-linux-x86_64-cuda.tar.gz` | |
+| `mxi-<version>-linux-arm64.tar.gz` | |
+| `mxi-<version>-linux-arm64-cuda.tar.gz` | |
+| `mxi-<version>-macos-arm64.tar.gz` | |
+
 ```sh
 tar -xzf mxi-<version>-linux-x86_64.tar.gz
 export PATH="$PWD/mxi-<version>-linux-x86_64/bin:$PATH"   # and in ~/.bashrc
-mxi find --version
+mxi --version
 ```
 
-On macOS the program is not signed, so macOS blocks it once downloaded:
-clear the quarantine flag once, after unpacking.
+On macOS the program in the archive is not signed, so macOS blocks it once
+downloaded: clear the quarantine flag once, after unpacking.
 
 ```sh
 xattr -dr com.apple.quarantine mxi-<version>-macos-arm64
 ```
-
-`mxi-ui`, the interface, and `mxi-view`, its image viewer and mask editor,
-are Python, with tkinter, numpy, h5py, hdf5plugin and matplotlib
-(`docs/ui.md`, `docs/mask.md`); `mxi-ui --check` says what is missing. Every
-other program runs without Python.
-
-mxi's Python tools are on the same page as one wheel, `mxi-python`:
-`pip install mxi_python-<version>-py3-none-any.whl`. It holds `mxeq`, the
-referee; `mxi_tools`, which reads mxi's files and images; `mxi-ui`, the
-interface; and `mxi-view`, its viewer.
 
 To build instead, take `mxi-<version>-source.tar.gz` from the same page: the
 complete source, its submodules included, which GitHub's own source archives
@@ -112,12 +131,13 @@ directory and put that on it:
 cmake --install build --prefix ~/.local     # then ~/.local/bin on the PATH
 ```
 
-`mxi-ui` and `mxi-view`, its image viewer and mask editor, are Python with
-tkinter (`docs/ui.md`), installed beside `mxi` with their package `mxi_ui`
-and module `mxi_tools.py`, which they find there. They come in the wheel
-`mxi-python` too, as `mxi-ui` and `mxi-view`, with mxeq, the referee -- which,
-sharing the wheel, still imports nothing of mxi's: it judges mxi's files, so
-it must not share mxi's reading of them.
+That installs `mxi` alone. `mxi-ui` and `mxi-view`, its image viewer and
+mask editor, are Python with tkinter (`docs/ui.md`), in the wheel with mxeq,
+the referee -- which, sharing the wheel, still imports nothing of mxi's: it
+judges mxi's files, so it must not share mxi's reading of them. From a
+checkout, `pip install ./python` gives them, finding the `mxi` on the `PATH`;
+the build directory has them beside its `mxi` too, to run and test from
+there.
 
 Build options:
 
@@ -295,7 +315,7 @@ Where they differ, and by how much, is in [`docs/review.md`](docs/review.md).
 reads files and imports nothing from `src/`.
 
 ```sh
-pip install -e python                    # mxi-python: mxeq, mxi_tools, mxi_view
+pip install -e python                    # mxeq, mxi_tools, mxi-ui, mxi-view
 ```
 
 **Comparing with DIALS** ([`python/README.md`](python/README.md)): `mxeq check` compares two

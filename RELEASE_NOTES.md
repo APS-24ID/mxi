@@ -7,10 +7,20 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.2.0
 
 **New**
+- A wheel for each machine with everything in it: `pip install` it and get
+  `mxi`, `mxi-ui`, `mxi-view` and `mxeq`, all of one version, with the Python
+  they need -- `mxi` for the CPU and Metal builds, `mxi-cuda` for the CUDA
+  ones (the platform wheels: manylinux_2_28 for Linux x86_64 and ARM64, macOS
+  13 on Apple silicon). `mxi-ui` finds the `mxi` installed with it whether or
+  not the environment is on the `PATH`.
 - `mxi process --timing`: `--timing` to every step that times itself, and at
   the end a table of each step's time, import and export too (Graeme).
 
 **Changed**
+- The release archives hold `mxi` alone, and the Python wheel is `mxi`, where
+  it was `mxi-python` without the program: the interface, its viewer and mxeq
+  come from the wheel, which now carries `mxi` too. An archive is for a
+  machine without Python, or only the programs.
 - The interface and its viewer are commands of their own: `mxi-ui` and
   `mxi-view`, where they had been `mxi ui` and `mxi view` -- the same
   arguments, beside `mxi` in a release (or from the wheel, `pip install

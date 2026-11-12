@@ -16,8 +16,10 @@ mxi-ui ~/data/run1     # in another
 mxi-ui --check         # whether it can run here, and what is missing
 ```
 
-From a release archive `mxi-ui` runs the interface beside `mxi`; from the
-wheel, `mxi-python`, the same is `mxi-ui`, or `python -m mxi_ui`.
+Installed from a release's wheel, `mxi` (or `mxi-cuda`), `mxi-ui` comes with
+the `mxi` it runs, of the same version, and finds it whether or not the
+environment is on the `PATH`; `python -m mxi_ui` is the same. From a build,
+`mxi-ui` beside the build's `mxi` runs that one.
 
 ## What it needs
 

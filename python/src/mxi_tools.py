@@ -44,6 +44,16 @@ def mxi_command(name: str) -> list[str]:
     )
     if os.path.isfile(here) and os.access(here, os.X_OK):
         return [here, name]
+    # Installed from the wheel: among this Python's own programs.
+    import sys
+    import sysconfig
+
+    for where in (sysconfig.get_path("scripts"), os.path.dirname(sys.executable)):
+        if not where:
+            continue
+        candidate = os.path.join(where, "mxi.exe" if os.name == "nt" else "mxi")
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return [candidate, name]
     found = shutil.which("mxi")
     if found:
         return [found, name]

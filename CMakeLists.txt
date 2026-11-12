@@ -491,13 +491,13 @@ foreach(program ${MXI_PROGRAMS})
   file(CREATE_LINK mxi ${CMAKE_CURRENT_BINARY_DIR}/${program} SYMBOLIC)
 endforeach()
 
-# Installing: mxi, with mxi-ui, mxi-view and the module they share beside it --
+# Installing: mxi alone --
 #   cmake --install build --prefix ~/.local
 # -- which then wants to be on the PATH. The library is linked in; nothing
-# else is needed beside it (the Metal libraries are compiled in).
+# else is needed beside it (the Metal libraries are compiled in). The
+# Python -- mxi-ui, mxi-view, mxeq, mxi_tools -- is the wheel's: pip install
+# ./python, which finds this mxi on the PATH; a release's wheel carries mxi
+# itself (scripts/make_wheel.py; Graeme, 8 November: everything in the
+# wheel, the release archives mxi alone). The build directory keeps its
+# copies of the Python beside mxi, to run and test from there.
 install(TARGETS mxi_program RUNTIME DESTINATION bin)
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/mxi-view DESTINATION bin)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mxi_tools.py DESTINATION bin)
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/mxi-ui DESTINATION bin)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mxi_ui DESTINATION bin
-        FILES_MATCHING PATTERN "*.py" PATTERN "__pycache__" EXCLUDE)

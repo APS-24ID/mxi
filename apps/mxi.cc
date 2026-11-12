@@ -123,14 +123,14 @@ void list(mxi::Stream out) {
 }
 
 // The interface, Python, is commands of its own -- mxi-ui, and mxi-view its
-// image viewer, beside mxi in a release archive, or from the wheel
-// mxi-python -- where mxi had started them for "mxi ui" and "mxi view"
-// (Graeme, 7 November: no process starting another, docs/windows.md). Those
-// words, typed, say where they went.
+// image viewer, installed with mxi by its wheel (Graeme, 8 November) --
+// where mxi had started them for "mxi ui" and "mxi view" (7 November: no
+// process starting another, docs/windows.md). Those words, typed, say where
+// they went.
 std::int32_t moved(const char *command) {
   const char *now = std::strcmp(command, "view") == 0 ? "mxi-view" : "mxi-ui";
   mxi::eprint("mxi %s is a command of its own now: %s, with the same arguments "
-              "(beside mxi in a release, or pip install mxi-python)\n",
+              "(pip install mxi, the wheel from the release)\n",
               command, now);
   return 2;
 }

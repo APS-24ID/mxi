@@ -4,3 +4,8 @@ build/
 *.refl
 # what every program writes where it runs, as DIALS writes dials.*.log
 mxi_*.log
+
+# Python bytecode caches, wherever Python makes them (scripts/ too: a
+# compiled install_cuda.py had been committed, and every run rewrote it).
+__pycache__/
+*.pyc

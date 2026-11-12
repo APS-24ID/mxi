@@ -509,13 +509,16 @@ target_include_directories(mxi_max PRIVATE src apps)
 
 # How fast the images can be read and decompressed, apart from the
 # programs: H5Dread_chunk against pread. Not used by the pipeline.
-add_library(mxi_readtest OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_readtest.cc)
-target_link_libraries(mxi_readtest
-                      PRIVATE mxi mxi_image_series mxi_decompress
-                              mxi_warnings)
-target_include_directories(mxi_readtest PRIVATE src apps)
-target_include_directories(mxi_readtest SYSTEM PRIVATE ${HDF5_C_INCLUDE_DIRS})
-target_link_libraries(mxi_readtest PRIVATE ${HDF5_C_LIBRARIES})
+# POSIX's own reads, timed: not on Windows (docs/windows.md).
+if(NOT WIN32)
+  add_library(mxi_readtest OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/apps/mxi_readtest.cc)
+  target_link_libraries(mxi_readtest
+                        PRIVATE mxi mxi_image_series mxi_decompress
+                                mxi_warnings)
+  target_include_directories(mxi_readtest PRIVATE src apps)
+  target_include_directories(mxi_readtest SYSTEM PRIVATE ${HDF5_C_INCLUDE_DIRS})
+  target_link_libraries(mxi_readtest PRIVATE ${HDF5_C_LIBRARIES})
+endif()
 
 if(MXI_TESTS)
     enable_testing()

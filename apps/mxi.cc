@@ -48,7 +48,9 @@ MXI_PROGRAM(background)
 MXI_PROGRAM(forward)
 MXI_PROGRAM(grid)
 MXI_PROGRAM(residuals)
+#if !defined(_WIN32) // POSIX's own reads, timed (docs/windows.md)
 MXI_PROGRAM(readtest)
+#endif
 MXI_PROGRAM(verify)
 MXI_PROGRAM(process)
 MXI_PROGRAM(triage)
@@ -99,7 +101,9 @@ const Command kCommands[] = {
     {"forward", mxi_forward_main, "spots rendered onto the pixels", true},
     {"grid", mxi_grid_main, "spots in Kabsch space", true},
     {"residuals", mxi_residuals_main, "centroid residuals, decomposed", true},
+#if !defined(_WIN32)
     {"readtest", mxi_readtest_main, "reading, timed", true},
+#endif
 };
 
 void list(mxi::Stream out) {

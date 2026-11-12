@@ -15,6 +15,27 @@ project(mxi VERSION 1.3.0 LANGUAGES C CXX)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 set(CMAKE_CXX_STANDARD 20)
+
+# Warnings, and what Windows wants, by compiler (docs/windows.md). clang-cl
+# and MSVC's cl take Microsoft's flags -- clang-cl reads -Wall as /Wall,
+# every warning clang has -- so /W4 there, clang's -Wall -Wextra in effect;
+# GCC and clang as before. MXI_WARNINGS on every program, the pedantic set on
+# the library.
+if(MSVC)
+    set(MXI_WARNINGS /W4)
+    set(MXI_WARNINGS_PEDANTIC /W4)
+    # The C runtime linked in, as vcpkg's x64-windows-static is: one mxi.exe,
+    # nothing to install beside it.
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    # windows.h's min and max macros would break std::min; fopen, getenv and
+    # the rest are not "unsafe"; UTF-8 source; mxi_integrate.cc is past the
+    # default limit of sections in an object.
+    add_compile_definitions(NOMINMAX _CRT_SECURE_NO_WARNINGS)
+    add_compile_options(/utf-8 /bigobj)
+else()
+    set(MXI_WARNINGS -Wall -Wextra)
+    set(MXI_WARNINGS_PEDANTIC -Wall -Wextra -Wpedantic)
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -174,19 +195,19 @@ endif()
 find_package(Threads REQUIRED)
 target_link_libraries(mxi PUBLIC Threads::Threads)
 target_include_directories(mxi PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_compile_options(mxi PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(mxi PRIVATE ${MXI_WARNINGS_PEDANTIC})
 
 add_library(mxi_index OBJECT apps/mxi_index.cc)
 target_link_libraries(mxi_index PRIVATE mxi)
-target_compile_options(mxi_index PRIVATE -Wall -Wextra)
+target_compile_options(mxi_index PRIVATE ${MXI_WARNINGS})
 
 add_library(mxi_refine OBJECT apps/mxi_refine.cc)
 target_link_libraries(mxi_refine PRIVATE mxi)
-target_compile_options(mxi_refine PRIVATE -Wall -Wextra)
+target_compile_options(mxi_refine PRIVATE ${MXI_WARNINGS})
 
 add_library(mxi_scale OBJECT apps/mxi_scale.cc)
 target_link_libraries(mxi_scale PRIVATE mxi)
-target_compile_options(mxi_scale PRIVATE -Wall -Wextra)
+target_compile_options(mxi_scale PRIVATE ${MXI_WARNINGS})
 
 # gemmi's MTZ writer, for mxi_export: a library of its own, as it wants zlib
 # and nothing else here does.
@@ -203,53 +224,53 @@ target_compile_options(mxi_gemmi_mtz PRIVATE -w)
 
 add_library(mxi_export OBJECT apps/mxi_export.cc)
 target_link_libraries(mxi_export PRIVATE mxi mxi_gemmi_mtz)
-target_compile_options(mxi_export PRIVATE -Wall -Wextra)
+target_compile_options(mxi_export PRIVATE ${MXI_WARNINGS})
 
 add_library(mxi_symmetry OBJECT apps/mxi_symmetry.cc)
 target_link_libraries(mxi_symmetry PRIVATE mxi)
-target_compile_options(mxi_symmetry PRIVATE -Wall -Wextra)
+target_compile_options(mxi_symmetry PRIVATE ${MXI_WARNINGS})
 add_library(mxi_show OBJECT apps/mxi_show.cc)
 target_link_libraries(mxi_show PRIVATE mxi)
-target_compile_options(mxi_show PRIVATE -Wall -Wextra)
+target_compile_options(mxi_show PRIVATE ${MXI_WARNINGS})
 
 add_library(mxi_correlation OBJECT apps/mxi_correlation.cc)
 target_link_libraries(mxi_correlation PRIVATE mxi)
-target_compile_options(mxi_correlation PRIVATE -Wall -Wextra)
+target_compile_options(mxi_correlation PRIVATE ${MXI_WARNINGS})
 add_library(mxi_report OBJECT apps/mxi_report.cc)
 target_link_libraries(mxi_report PRIVATE mxi)
-target_compile_options(mxi_report PRIVATE -Wall -Wextra)
+target_compile_options(mxi_report PRIVATE ${MXI_WARNINGS})
 
 add_library(mxi_residuals OBJECT apps/mxi_residuals.cc)
 target_link_libraries(mxi_residuals PRIVATE mxi)
-target_compile_options(mxi_residuals PRIVATE -Wall -Wextra)
+target_compile_options(mxi_residuals PRIVATE ${MXI_WARNINGS})
 
 add_library(mxi_profile OBJECT apps/mxi_profile.cc)
 target_link_libraries(mxi_profile PRIVATE mxi)
-target_compile_options(mxi_profile PRIVATE -Wall -Wextra)
+target_compile_options(mxi_profile PRIVATE ${MXI_WARNINGS})
 
 # Each predicted reflection's foreground region, for dials.image_viewer (was
 # mxi_mask, whose name the mask editor took, 22 October).
 add_library(mxi_foreground OBJECT apps/mxi_foreground.cc)
 target_link_libraries(mxi_foreground PRIVATE mxi)
-target_compile_options(mxi_foreground PRIVATE -Wall -Wextra)
+target_compile_options(mxi_foreground PRIVATE ${MXI_WARNINGS})
 
 add_library(mxi_background OBJECT apps/mxi_background.cc)
 target_link_libraries(mxi_background PRIVATE mxi)
-target_compile_options(mxi_background PRIVATE -Wall -Wextra)
+target_compile_options(mxi_background PRIVATE ${MXI_WARNINGS})
 
 add_library(mxi_forward OBJECT apps/mxi_forward.cc)
 target_link_libraries(mxi_forward PRIVATE mxi)
-target_compile_options(mxi_forward PRIVATE -Wall -Wextra)
+target_compile_options(mxi_forward PRIVATE ${MXI_WARNINGS})
 
 add_library(mxi_convert OBJECT apps/mxi_convert.cc)
 target_link_libraries(mxi_convert PRIVATE mxi)
-target_compile_options(mxi_convert PRIVATE -Wall -Wextra)
+target_compile_options(mxi_convert PRIVATE ${MXI_WARNINGS})
 add_library(mxi_combine OBJECT apps/mxi_combine.cc)
 target_link_libraries(mxi_combine PRIVATE mxi)
-target_compile_options(mxi_combine PRIVATE -Wall -Wextra)
+target_compile_options(mxi_combine PRIVATE ${MXI_WARNINGS})
 add_library(mxi_split OBJECT apps/mxi_split.cc)
 target_link_libraries(mxi_split PRIVATE mxi)
-target_compile_options(mxi_split PRIVATE -Wall -Wextra)
+target_compile_options(mxi_split PRIVATE ${MXI_WARNINGS})
 # mxi-view, in Python (mxi-ui's viewer, Tk): copied beside the programs, its
 # version filled in, with the module mxi's Python tools share -- a command of
 # its own, as mxi-ui is, mxi starting neither (docs/windows.md).
@@ -270,23 +291,23 @@ configure_file(python/launch/mxi-ui ${CMAKE_CURRENT_BINARY_DIR}/mxi-ui COPYONLY
                GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 add_library(mxi_untrusted OBJECT apps/mxi_untrusted.cc)
 target_link_libraries(mxi_untrusted PRIVATE mxi)
-target_compile_options(mxi_untrusted PRIVATE -Wall -Wextra)
+target_compile_options(mxi_untrusted PRIVATE ${MXI_WARNINGS})
 # How much of what each lattice predicts was seen (src/verify.hh).
 add_library(mxi_verify OBJECT apps/mxi_verify.cc)
 target_link_libraries(mxi_verify PRIVATE mxi)
-target_compile_options(mxi_verify PRIVATE -Wall -Wextra)
+target_compile_options(mxi_verify PRIVATE ${MXI_WARNINGS})
 # Every step in turn, as a script of them (apps/mxi_process.cc).
 add_library(mxi_process OBJECT apps/mxi_process.cc)
 target_link_libraries(mxi_process PRIVATE mxi)
-target_compile_options(mxi_process PRIVATE -Wall -Wextra)
+target_compile_options(mxi_process PRIVATE ${MXI_WARNINGS})
 # What the scaled data say of twinning, as phenix.xtriage (apps/mxi_triage.cc).
 add_library(mxi_triage OBJECT apps/mxi_triage.cc)
 target_link_libraries(mxi_triage PRIVATE mxi)
-target_compile_options(mxi_triage PRIVATE -Wall -Wextra)
+target_compile_options(mxi_triage PRIVATE ${MXI_WARNINGS})
 
 add_library(mxi_grid OBJECT apps/mxi_grid.cc)
 target_link_libraries(mxi_grid PRIVATE mxi)
-target_compile_options(mxi_grid PRIVATE -Wall -Wextra)
+target_compile_options(mxi_grid PRIVATE ${MXI_WARNINGS})
 
 # The spot finder and the image reader, which need HDF5 and the bitshuffle
 # submodule -- both required (below): without them nothing reads an image, and
@@ -445,7 +466,7 @@ add_executable(mxi_tests
   tests/test_profile_model.cc
 )
 target_link_libraries(mxi_tests PRIVATE mxi mxi_dext mxi_signal_order mxi_spots)
-target_compile_options(mxi_tests PRIVATE -Wall -Wextra)
+target_compile_options(mxi_tests PRIVATE ${MXI_WARNINGS})
 add_test(NAME mxi_tests COMMAND mxi_tests)
 
 # One program, mxi, every other a subcommand of it: mxi find, mxi index ...
@@ -458,6 +479,11 @@ set(MXI_PROGRAMS
   mxi_foreground mxi_forward mxi_grid mxi_import mxi_index mxi_integrate
   mxi_max mxi_profile mxi_readtest mxi_refine mxi_report mxi_residuals
   mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted mxi_verify mxi_process mxi_triage)
+# mxi_readtest, timing reads with POSIX's own calls, a diagnostic: not on
+# Windows (docs/windows.md); apps/mxi.cc leaves its command out there too.
+if(WIN32)
+  list(REMOVE_ITEM MXI_PROGRAMS mxi_readtest)
+endif()
 # No source in two commands: they are one binary, and a source compiled into
 # two is defined twice -- src/cuda_device.cu was, in mxi_find and
 # mxi_integrate, and the CUDA release build failed to link (1.1.0). Shared code
@@ -484,12 +510,16 @@ add_executable(mxi_program apps/mxi.cc)
 set_target_properties(mxi_program PROPERTIES OUTPUT_NAME mxi)
 target_link_libraries(mxi_program PRIVATE ${MXI_PROGRAMS} mxi)
 target_compile_definitions(mxi_program PRIVATE MXI_VERSION="${PROJECT_VERSION}")
-target_compile_options(mxi_program PRIVATE -Wall -Wextra)
+target_compile_options(mxi_program PRIVATE ${MXI_WARNINGS})
 # In the build directory, each program's old name a link to mxi, which runs
 # the program it is called by: the tests run them so. Not installed.
-foreach(program ${MXI_PROGRAMS})
-  file(CREATE_LINK mxi ${CMAKE_CURRENT_BINARY_DIR}/${program} SYMBOLIC)
-endforeach()
+# Not on Windows: a link there wants privileges, and would be to mxi, not
+# mxi.exe; its tests do not run them.
+if(NOT WIN32)
+  foreach(program ${MXI_PROGRAMS})
+    file(CREATE_LINK mxi ${CMAKE_CURRENT_BINARY_DIR}/${program} SYMBOLIC)
+  endforeach()
+endif()
 
 # Installing: mxi alone --
 #   cmake --install build --prefix ~/.local

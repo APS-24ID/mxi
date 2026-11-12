@@ -19,8 +19,10 @@ namespace mxi {
 
 namespace {
 
+// The system's temporary directory, as check::scratch_path's: /tmp is not
+// Windows' (docs/windows.md).
 std::string scratch(const char *name) {
-  return std::string("/tmp/mxi_test_rflx_") + name;
+  return check::scratch_path(std::string("rflx_") + name);
 }
 
 std::string bytes_of(const std::string &path) {

@@ -283,6 +283,22 @@ makes the four cases above right.
 * **Its own branch** until it passes, so that a Windows failure does not hold
   up a Linux or macOS release.
 
+**Written, 12 November, its first run to come** (Graeme: rc3's wheels
+installed and working; now Windows): `.github/workflows/windows.yml`, on a
+push to the branch `windows` or by hand, and callable by the release workflow
+once it passes -- clang-cl in Microsoft's environment (`ilammy/msvc-dev-cmd`),
+vcpkg's `x64-windows-static` with FFTW, the C++ suite, `mxi.exe --version` and
+`help`, the zip (`scripts/package_release.sh`'s Windows branch: `llvm-objdump
+-p` for the DLLs imported, which must include KERNEL32 -- a check that read
+nothing must not pass -- and none of HDF5's, zlib's, szip's, libaec's, FFTW's
+or the C runtime's; 7-Zip), and the wheel, installed in a fresh environment
+and its `mxi.exe` run. CMake: warnings by compiler (`MXI_WARNINGS`, `/W4` for
+clang-cl and cl, which read `-Wall` as every warning there is), the C runtime
+linked in, `NOMINMAX`, `_CRT_SECURE_NO_WARNINGS`, `/utf-8`, `/bigobj`;
+`mxi_readtest` and the build directory's command links left out on Windows.
+The C++ tests' `/tmp` and `/dev/null` made the system's temporary directory.
+The Python suite not yet run there: written for POSIX.
+
 ## What Graeme tests
 
 Unzip; `mxi --version`; `mxi process` on a data set, its merged statistics

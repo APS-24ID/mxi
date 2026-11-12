@@ -262,8 +262,23 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
+        # The files, wherever the artifacts put them: a platform's artifact
+        # holds its archive and dist/ with its wheel, so merged they are
+        # assets/*.tar.gz and assets/dist/*.whl -- and assets/* had given gh
+        # the directory dist, which it cannot upload (v1.3.0-rc2). Counted
+        # first: the source and five archives, five wheels -- nothing
+        # published short of one (Windows, when it comes, one of each more).
         run: |
           tag="$TAG"
+          files=$(find assets -type f \( -name '*.tar.gz' -o -name '*.whl' \) | sort)
+          echo "$files"
+          archives=$(echo "$files" | grep -c '\.tar\.gz$' || true)
+          wheels=$(echo "$files" | grep -c '\.whl$' || true)
+          if [ "$archives" -ne 6 ] || [ "$wheels" -ne 5 ]; then
+            echo "expected 6 archives and 5 wheels; found $archives and $wheels" >&2
+            exit 1
+          fi
           python3 scripts/release_notes.py "$tag" > notes.md
           case "$tag" in *-rc*|*-alpha*|*-beta*) pre=--prerelease ;; *) pre= ;; esac
-          gh release create "$tag" --verify-tag --title "mxi ${tag#v}" --notes-file notes.md $pre assets/*
+          # shellcheck disable=SC2086
+          gh release create "$tag" --verify-tag --title "mxi ${tag#v}" --notes-file notes.md $pre $files

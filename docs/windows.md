@@ -1,8 +1,13 @@
 # A Windows build: the plan, and the integer audit
 
-STATUS: investigation and documentation only, 7 November 2026 (Graeme: "Write
-up the plan and the long audit ... this should only be an investigation and
-documentation exercise"). Nothing here is built yet. `docs/outstanding.md`, 89.
+STATUS: built and released, 1.3.0, 12 November 2026: a zip of `mxi.exe` alone
+and a `win_amd64` wheel with the interface, built by
+`.github/workflows/windows.yml` (clang-cl, vcpkg's static libraries), which the
+release workflow calls; the C++ suite run there, the zip's DLLs checked to be
+Windows' own, the wheel installed and run. Graeme ran both on Windows ("In the
+release", below). Not yet: the Python suite on Windows and CUDA on Windows,
+`docs/outstanding.md` items 92 and 93. Below, the investigation of 7 November
+and the plan as written, then how it went; the plan's tense is the plan's.
 
 Graeme has no Windows development machine, but can test; the builds would run
 on GitHub Actions' Windows runners, as the Linux and macOS release builds run

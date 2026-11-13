@@ -1,7 +1,7 @@
 # Reviewing this code: a guide for DIALS developers
 
 STATUS: written 30 September 2026 for external review, brought up to date 12
-October and 6 November 2026. It says what this is,
+October, 6 November and 13 November 2026. It says what this is,
 how to build and run it on your own data, where the code for each step lives,
 what follows DIALS and where it departs from it, and how correctness has been
 established. Every claim points at the document with the evidence;
@@ -47,12 +47,15 @@ h5py and hdf5plugin, and matplotlib for the plots. The package is BSD
 that caused bugs, and what not to do again. It is worth reading for the same
 reason a DIALS developer's notes would be.
 
-Its size on 6 November 2026, excluding third-party code: the library 34590
-lines in `src/`, spot finding among it; 28 commands in 14407 lines in `apps/`;
-C++ tests 18244 lines; in Python, the comparison and regression tools,
-`mxeq`, 11520 lines, the interface, `mxi_ui`, 3749, with 11927 lines of tests;
-some 11300 lines of documents. 643 commits over two months, the latest
-release 1.1.5; `RELEASE_NOTES.md` says what each release changed.
+Its size on 13 November 2026, excluding third-party code: the library 35614
+lines in `src/`, spot finding among it; 26 commands in 14817 lines in `apps/`;
+C++ tests 19295 lines; in Python, the comparison and regression tools,
+`mxeq`, 11520 lines, the interface, `mxi_ui`, 3825, with 12569 lines of tests;
+some 15300 lines of documents. 692 commits over two months, the latest
+release 1.3.0, the first with Windows; `RELEASE_NOTES.md` says what each
+release changed. Small molecules are in scope: `mxi symmetry
+--small-molecule` considers every space group, centrosymmetric ones among
+them (`docs/symmetry.md`).
 `docs/algorithms.md` lists each stage's methods and their sources.
 
 `mxeq regress` runs the chain over real data sets on each machine and keeps
@@ -71,7 +74,7 @@ bitshuffle-LZ4 (`docs/rflx.md`).
 git clone --recursive <this repository> && cd mxi
 cmake -S . -B build && cmake --build build -j
 (cd build && ctest)              # the ctest suites, the spot finder's among them
-build/mxi_tests                  # 297 unit tests
+build/mxi_tests                  # 389 unit tests
 build/mxi_tests parallel         # only those whose name contains 'parallel'
 ```
 
@@ -134,7 +137,8 @@ find ...` runs `mxi_find_main` -- and each command is still its own source,
 `apps/mxi_<name>.cc`, built as an object library with its own settings and
 linked into `mxi`. `mxi-view` is Python, mxi-ui's viewer in a window of its
 own, `python/src/mxi_view.py`, copied beside `mxi` by the build with the module it
-shares, `python/src/mxi_tools.py`, and run by it. Both are also in the wheel
+shares, `python/src/mxi_tools.py`; a command of its own since 1.3.0, which
+finds `mxi`, where `mxi` starts no other program. Both are also in the wheel
 `mxi`, with mxeq and the platform's `mxi`: every Python tool is in `python/src/`. `mxi-ui`, the
 interface, is the package `python/src/mxi_ui` (`docs/ui.md`), copied beside
 `mxi` with its launcher `mxi-ui`; only its windows import tkinter. In the

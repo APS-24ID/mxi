@@ -1,10 +1,12 @@
 # Symmetry
 
-STATUS: `mxi symmetry` works on one sweep, and on several of one crystal
-indexed together (5 October 2026). Not yet: sweeps indexed apart, and so the
-indexing ambiguity between them; sweeps on much different scales, which would
-want each normalised before they are pooled. `docs/outstanding.md` has the
-whole list.
+STATUS: `mxi symmetry` works on one sweep, on several of one crystal indexed
+together, and on crystals indexed apart, brought to one setting by cosym first
+(`docs/correlation.md`; `--no-cosym` to pool them as they are). For a small
+molecule, `--small-molecule`: every space group with the Patterson group found,
+centrosymmetric too ("Small molecules", below). Not yet: sweeps on much
+different scales, which would want each normalised before they are pooled.
+`docs/outstanding.md` has the whole list.
 
 **Several sweeps** are pooled, as dials.symmetry takes them: every sweep's
 observations, each placed in the rotation by its own sweep's scan, merged in P1

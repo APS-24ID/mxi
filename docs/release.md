@@ -38,6 +38,20 @@ nothing is published.
 | `mxi_cuda-<version>-py3-none-manylinux_2_28_x86_64.whl`, `mxi_cuda-<version>-py3-none-manylinux_2_28_aarch64.whl` | the same with the CUDA builds' `mxi`: a wheel of its own name, `mxi-cuda`, to install instead of `mxi` |
 | `mxi-<version>-windows-x86_64.zip`, `mxi-<version>-py3-none-win_amd64.whl` | Windows: `mxi.exe` alone, zipped, and the wheel with it -- built by `.github/workflows/windows.yml`, which the release workflow calls, with clang-cl and vcpkg's static libraries; its C++ tests run, the zip's DLLs checked to be Windows' own, the wheel installed and run (`docs/windows.md`) |
 
+Thirteen files in all: seven archives, the source among them, and six wheels;
+the publishing step counts them and publishes nothing short of that. The release
+page shows fifteen: GitHub adds its own "Source code" zip and tar.gz to every
+release, and they cannot be turned off -- the repository alone, without its
+submodules, so they do not build; `mxi-<version>-source.tar.gz` is the one to
+use (1.3.0, Graeme).
+
+The x86 builds -- Linux, with and without CUDA, and Windows -- use SSE4.1, for
+the rounding instruction, throughout: any x86-64 processor from 2009 on. Before
+1.3.1 only the spot finder had it, the flag standing in CMakeLists.txt after the
+library was defined; the rest called the C library to round, and with GCC for
+fmax, round and sqrt, which made indexing on a user's Xeon eight times slower
+than on an M4 Max.
+
 A wheel's version is its tag's, as Python writes versions (PEP 440): `v1.3.0`
 gives `1.3.0`, `v1.3.0-rc2` `1.3.0rc2`, `-beta1` `b1`, `-alpha1` `a1` -- so a
 candidate's wheels say they are one, as its tag does, and `pip`, `mxi-ui

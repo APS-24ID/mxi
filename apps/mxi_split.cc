@@ -28,10 +28,10 @@ namespace {
 
 const char *const kUsage =
     "usage: mxi split FILE.rflx [--experiments 0,3,...] [-o PATH | --prefix "
+    "P]\n"
     "  -j, --threads N   threads for everything this does in parallel; 0, "
     "every\n"
     "                    core this job may use (0)\n"
-    "P]\n"
     "\n"
     "A file's data sets apart: each data set -- each experiment with a "
     "crystal,\n"

@@ -9,7 +9,8 @@ mxi is a data processing package for NXmx format macromolecular crystallography
 (MX) data: from the diffraction images to scaled, unmerged intensities ready for
 structure solution -- spot finding, indexing, refinement, integration, symmetry,
 scaling, the clustering of data from many crystals, and what the scaled data
-say of twinning.
+say of twinning. Small molecules too: `--small-molecule` lets the symmetry
+step consider every space group, centrosymmetric ones among them.
 
 **It is a new, standalone package.** mxi is a completely new project, written from
 scratch in C++. It contains no DIALS code and does not need DIALS installed.
@@ -36,6 +37,7 @@ CBF by [cbf2nxmx](https://github.com/graeme-winter/cbf2nxmx).
 * **How it works:** [`docs/algorithms.md`](docs/algorithms.md), each stage's methods and sources.
 * **A tutorial:** [`docs/tutorials/cows-pigs-people.md`](docs/tutorials/cows-pigs-people.md), many crystals, and which belong together.
 * **How it differs from DIALS, and why:** [`docs/review.md`](docs/review.md).
+* **Every command's options:** [`docs/commands.md`](docs/commands.md), from each command's own `--help`.
 * **What changed in each release:** [`RELEASE_NOTES.md`](RELEASE_NOTES.md).
 * **Open issues:** [`docs/outstanding.md`](docs/outstanding.md).
 
@@ -195,12 +197,14 @@ mxi export    scaled.rflx             # an unmerged MTZ                         
 Or all eight in turn, for routine data, with the options they share sent to
 the steps they belong to -- `-j` to every step, `--gpu` to spot finding and
 integration, a known cell and space group to indexing and scaling,
-`--no-joint` to indexing for several crystals, `--d-min-auto` to scaling:
+`--no-joint` to indexing for several crystals, `--small-molecule` to symmetry,
+`--d-min-auto` to scaling:
 
 ```sh
 mxi process master.nxs --gpu -j 8 --d-min-auto
 mxi process master.nxs --cell 78,78,78,90,90,90 --space-group I213
 mxi process CIX*.nxs --no-joint --d-min-auto   # several crystals, a sweep each
+mxi process master.nxs --small-molecule   # every space group, centrosymmetric too
 mxi process master.nxs --dry-run      # the eight commands, printed, none run
 mxi process strong.rflx -j 8          # picks up after the step that wrote it: index on
 mxi process ../cluster_0.rflx --d-min-auto   # a cluster from mxi correlation: scale, export
@@ -255,7 +259,8 @@ joined by `mxi combine a.rflx b.rflx ... -o combined.rflx`, then go through
 `mxi symmetry` and `mxi scale` together; `mxi split` takes data sets out
 again, each alone or a chosen few together.
 
-The options most often wanted:
+The options most often wanted -- every option of every command is in
+[`docs/commands.md`](docs/commands.md):
 
 | program | options |
 | --- | --- |
@@ -263,12 +268,12 @@ The options most often wanted:
 | `mxi index` | `--d-min D`; `--max-cell A`; `--max-lattices N`; `--no-joint` sweeps indexed apart; `--known-cell a,b,c,α,β,γ` with `--known-space-group NAME` the basis chosen to match a known cell; `--real-space-grid` the basis vectors by the real-space grid search, with a known cell |
 | `mxi refine` | `--static` one crystal setting for the scan; `--scan-varying N` N control points; `--shared-crystal`; `--joint` several sweeps in one fit, where by default each sweep is refined on its own; `--interval DEG` a control point per DEG degrees (10); `--crystal-restraint W` the scan-varying crystal tied to the static one (1e6); `--sample-offset` each crystal's centre of diffraction off the rotation axis, two parameters a lattice |
 | `mxi integrate` | `-g`/`--gpu`; `--d-min D`, `--d-max D`; `--postrefine`; `--summation-only` |
-| `mxi symmetry` | `--max-delta D` the lattice's tolerance; `--no-cosym` |
+| `mxi symmetry` | `--max-delta D` the lattice's tolerance; `--no-cosym`; `--small-molecule` every space group with the Patterson group, centrosymmetric, mirrors and glides too, the absences' ties broken by mean \|E²-1\| |
 | `mxi scale` | `--d-min-auto`, `--d-min D`, `--d-max D`; `--space-group NAME`; `--anomalous`; `--absorption-level low|medium|high`; `--error-model-fit regression|individual`; `--scale-restraint W` each sweep's scale tied to its level (1); `--exclude E:FIRST:LAST` an experiment's images left out, as many as wanted |
 | `mxi correlation` | `--write-clusters`, `--prefix P`; `--html FILE`; `--min-samples N`; `--dimensions N` |
-| `mxi triage` | what the scaled intensities say of twinning, as phenix.xtriage: moments, N(Z), the L test, the twin laws' H-test fractions, a summary -- begun ([`docs/triage.md`](docs/triage.md)) |
+| `mxi triage` | what the scaled intensities say of twinning, as phenix.xtriage: moments, N(Z), the L test, the twin laws' H-test fractions, a summary ([`docs/triage.md`](docs/triage.md)) |
 | `mxi export` | `--partiality-threshold P`; `--min-isigi S`; `--d-min D` |
-| `mxi process` | `--gpu`; `--cell a,b,c,α,β,γ`; `--space-group NAME`; `--no-joint` several sweeps, each a crystal indexed on its own; `--d-min-auto`; `--dry-run` the commands printed, none run; `--timing` each step's, and a table of the steps' |
+| `mxi process` | `--gpu`; `--cell a,b,c,α,β,γ`; `--space-group NAME`; `--no-joint` several sweeps, each a crystal indexed on its own; `--small-molecule`; `--d-min-auto`; `--dry-run` the commands printed, none run; `--timing` each step's, and a table of the steps' |
 | `mxi show` | `--models`; `--unit-cell` each crystal's cell, a line each; `--reflections`; `--summary`; `--step NAME` one step's record -- any of them, in that order; none, everything |
 
 ### The other tools

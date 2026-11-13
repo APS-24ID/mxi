@@ -2,13 +2,15 @@
 
 STATUS: a plan for a device at each stage, with how an experiment is judged;
 then the measurements, in three parts -- integration, indexing and refinement.
-Done: profile fitting on Metal, `mxi integrate --gpu`, the M4 Max's 16M
-integration 14.6 s against the CPU's 20.0. Tried and removed: reading frames
-around HDF5's lock. Paused: background and summation (item 47). The refinement
-target's port is designed here and not written; the spot finder's GPU threshold,
-written and running on Metal and CUDA, is in `docs/spots.md`. Within each part the
-sections are as they were written: a later one can overturn an earlier one, and
-says so.
+Done: profile fitting on a device, `mxi integrate --gpu`, on Metal and on CUDA
+-- the M4 Max's 16M integration 14.6 s against the CPU's 20.0. Tried and
+removed: reading frames around HDF5's lock. Paused: background and summation
+(item 47). The refinement target's port is designed here and not written; the
+spot finder's GPU threshold, written and running on Metal and CUDA, is in
+`docs/spots.md`. A discrete card is fed over PCIe, where Apple's shares the
+CPU's memory: what that costs, on a Ryzen with an RTX 4060, is in "A card on
+PCIe" at the end. Within each part the sections are as they were written: a
+later one can overturn an earlier one, and says so.
 
 ## A device for each stage: what to try, and how to judge it
 
@@ -965,3 +967,22 @@ reader.
 
 The solve is 0.000 s and that is not a broken timer: it is a Cholesky of a ten
 by ten matrix, done a handful of times.
+
+## A card on PCIe
+
+13 November 2026, ferritin, Graeme: an M4 Max integrating in 49 s, a Ryzen 9950X
+with an RTX 4060 in 106 s. The device's own work was not the difference: the CPU
+never waited for it (0.04 s), and the GPU sat idle much of the run. Profile
+fitting's CPU side was 26 s there against 8.5: the boxes copied into pinned
+memory for the card, 200 GB in 18.5 s, then 15 s over the 4060's eight PCIe
+lanes at 13.4 GB/s. On the M4 the GPU reads the CPU's memory; the same 200 GB is
+packed in 2.7 s and the upload costs nothing.
+
+The rest of the gap was memory: the desktop's some 45 GB/s, the M4 Max's several
+hundred, and integration passes over its boxes several times. Fixed that day: a
+decompressed frame buffer each frame, past what malloc keeps, a page fault a
+page (38 million to 7); the boxes' values zeroed twice before being filled.
+Integration 95 s. Growing CUDA's pinned and device buffers by half again, not to
+each batch, changed nothing measurable. What would move it is structural --
+boxes built where the device reads them, so no packing; counts as 16 bits --
+`docs/outstanding.md` item 11.

@@ -273,6 +273,17 @@ history on 20 October: four closed, nine rewritten to what is now true.
     From item 48 (closed): reading on 32 threads is bound by memory traffic,
     some 130 GB of decompressed pixels and 140 GB of box voxels a run; counts
     kept as 16 bits, not floats, would halve the latter -- untried.
+    13 November, ferritin on a Ryzen 9950X with an RTX 4060 against an M4 Max
+    (integration 106 s against 49): the desktop's memory some 45 GB/s, each
+    pass over the 6.2 million boxes some 200 GB. Fixed: a frame buffer a frame
+    (38 million page faults to 7), the boxes' values zeroed twice (opening 17 s
+    to 12.6); integration 95 s. Left, the structural part: boxes from arenas
+    reused chunk to chunk; built where the device reads them, so profile
+    fitting's packing -- 18.5 s copying 200 GB into pinned memory, then 15 s
+    over the 4060's eight PCIe lanes -- goes; counts as 16 bits and masks as
+    bits, shrinking filling and the upload; the background's zeroing, which a
+    failed background fit still relies on. Perhaps 60 to 70 s there.
+    `docs/gpu.md`.
 * **47.** **paused -- Background and summation on a device.** 3.0 s of the
   M4 Max's 14.6 s integration, the largest CPU phase after reading. On one
   thread here, 40 per cent of it is the GLM's iterations and 60 the passes over
@@ -448,13 +459,21 @@ history on 20 October: four closed, nine rewritten to what is now true.
     detector's first panel only (`docs/ui.md`).
 
 ## Infrastructure
-* **89.** **capability -- a Windows build** (Graeme, 7 November; investigated,
-    nothing built). `docs/windows.md`: six POSIX places with Windows
-    equivalents; the audit of `long`, 32 bits on 64-bit Windows -- four uses
-    wrong there (the shoeboxes' flat offsets, a doubling loop's signed overflow,
-    the max cell's cell keys, find's running totals), the rest safe or small;
-    a rule for sized integer types, to apply first on Linux and macOS; a
-    Windows job on GitHub Actions; what Graeme would test.
+* **92.** **capability -- the Python suite on Windows.** Written for POSIX:
+    shell stand-ins, chmod, /bin/sh, /tmp. The Windows workflow runs the C++
+    suite and mxi.exe, and installs the wheel and runs it; the Python tests
+    are not run there (`docs/windows.md`). Left from item 89.
+* **93.** **capability -- CUDA on Windows.** The Windows build is the CPU's
+    only; the spot finder's and profile fitting's CUDA paths are built and
+    tested on Linux. Left from item 89.
+* **94.** **speed -- x86's remaining calls for fmax and fmin.** GCC calls the C
+    library for std::fmax and std::fmin -- their NaN rules are not maxsd's --
+    where ARM has an instruction: indexing's choice of basis made 1.9 billion
+    such calls on a user's data (6 of 11 s on a Xeon), and uses
+    `max_finite` now. 122 calls to fmax and 43 to fmin remain in the binary;
+    which are hot wants `perf record` on a real data set on an x86 machine
+    (Graeme's Ryzen), and each one changed only where its values cannot be
+    NaN, mxi's mark of a missing value. 13 November.
 * **31.** **The C++ suite is slow**: mxi_tests about five minutes on one core
     here, most of it a handful of older refinement and indexing tests and, since
     October, the spot finder's tests joined to it. ctest runs it as one test.
@@ -466,6 +485,15 @@ history on 20 October: four closed, nine rewritten to what is now true.
     viewer's tests make their data with mxi, and without the build directory
     skip, every one, as on 7 November (`-rs` says why any is skipped).
 ## Closed
+
+* **89.** **Closed, 12 November: a Windows build, released in 1.3.0.** A zip
+    of `mxi.exe` alone and a `win_amd64` wheel with the interface, built by
+    `.github/workflows/windows.yml` -- clang-cl, vcpkg's static libraries --
+    which the release workflow calls; the C++ suite passing there, the zip's
+    DLLs checked to be Windows' own. Graeme ran both on Windows: results
+    matching, the progress bars right once the console was put in UTF-8, the
+    wheel's mxi-ui and mxi-view working in Python 3.14. What remains is items
+    92 (the Python suite on Windows) and 93 (CUDA on Windows).
 
 * **88.** **Closed, 6 November: overlaps fitted together, the default.** On
     ins2_27 the overlapped measurements went from +0.92 sigma from their

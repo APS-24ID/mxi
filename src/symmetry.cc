@@ -356,19 +356,26 @@ std::optional<Setting> reference_setting(const std::vector<Rotation> &rotations,
     inverted.rot = op.negated_rot();
     base.sym_ops.push_back(inverted);
   }
-  // Direct-space lattice vectors, components -2..2, where a conventional axis
+  // Direct-space lattice vectors, components -3..3, where a conventional axis
   // can lie: along a rotation axis, which some rotation fixes. A group with
   // a single axis -- cyclic -- has its conventional a and b perpendicular to
   // it, where no rotation of the group fixes them: a two-fold reverses them,
   // and for a three- or six-fold they are found by the cell's metric.
+  //
+  // Not -2..2, as it was: a rhombohedral lattice's three-fold, the hexagonal
+  // c, is the sum of three vectors of the rhombohedral cell, and in a reduced
+  // cell it can need a 3 -- on Graeme's small molecule (13 November) it was
+  // [2,-1,-3], so R -3 m and R -3 had no c to be found along, scored best
+  // and could not be named: mxi symmetry stopped.
   const gemmi::UnitCell metric = to_gemmi(cell);
   const auto cartesian = [&](const std::array<std::int32_t, 3> &v) {
     return metric.orth.mat.multiply(gemmi::Vec3(v[0], v[1], v[2]));
   };
   std::vector<std::array<std::int32_t, 3>> all;
-  for (std::int32_t x = -2; x <= 2; ++x)
-    for (std::int32_t y = -2; y <= 2; ++y)
-      for (std::int32_t z = -2; z <= 2; ++z)
+  constexpr std::int32_t kReach = 3;
+  for (std::int32_t x = -kReach; x <= kReach; ++x)
+    for (std::int32_t y = -kReach; y <= kReach; ++y)
+      for (std::int32_t z = -kReach; z <= kReach; ++z)
         if (x != 0 || y != 0 || z != 0)
           all.push_back({x, y, z});
   const auto image = [](const Rotation &r,

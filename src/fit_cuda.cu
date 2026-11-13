@@ -12,6 +12,7 @@
 // device has, where keeping them is memory, which it has less of.
 
 #include "cuda_device.hh"
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -243,6 +244,18 @@ __global__ void fit_kernel(Setup setup, const PanelF *panels, const BoxF *boxes,
   }
 }
 
+//: How much a buffer grows to: half as much again as it had, or what is
+//: asked if more. Grown to exactly what each batch asked, a buffer was made
+//: again whenever a batch was larger than any before -- batches of 4096 boxes
+//: vary, so again and again -- and each time cudaMallocHost locked every page
+//: of a few hundred megabytes, or cudaFree waited for the whole device: on a
+//: Ryzen 9950X with an RTX 4060, ferritin's packing 18.8 s, against 2.7 on an
+//: M4 Max (Graeme, 13 November). Geometric growth makes it a handful of times
+//: a run; where the larger size will not fit, the size asked, as before.
+std::size_t grown(std::size_t had, std::size_t asked) {
+  return std::max(asked, had + had / 2);
+}
+
 //: Page-locked host memory, which the device reads at the link's full speed,
 //: kept and grown as a Buffer is. A copy from ordinary memory is staged by the
 //: driver through its own pinned buffers, in pieces, well below that.
@@ -255,11 +268,20 @@ struct Pinned {
     if (p)
       cudaFreeHost(p);
     p = nullptr;
+    const std::size_t want = grown(size, bytes > 0 ? bytes : 1);
     size = 0;
-    if (cudaMallocHost(&p, bytes > 0 ? bytes : 1) != cudaSuccess)
-      return false;
-    size = bytes;
-    return true;
+    if (cudaMallocHost(&p, want) == cudaSuccess) {
+      size = want;
+      return true;
+    }
+    cudaGetLastError(); // the failed allocation's error, not the next call's
+    if (want > bytes &&
+        cudaMallocHost(&p, bytes > 0 ? bytes : 1) == cudaSuccess) {
+      size = bytes;
+      return true;
+    }
+    p = nullptr;
+    return false;
   }
 };
 
@@ -272,11 +294,19 @@ struct Buffer {
     if (p)
       cudaFree(p);
     p = nullptr;
+    const std::size_t want = grown(size, bytes > 0 ? bytes : 1);
     size = 0;
-    if (cudaMalloc(&p, bytes > 0 ? bytes : 1) != cudaSuccess)
-      return false;
-    size = bytes;
-    return true;
+    if (cudaMalloc(&p, want) == cudaSuccess) {
+      size = want;
+      return true;
+    }
+    cudaGetLastError(); // the failed allocation's error, not the next call's
+    if (want > bytes && cudaMalloc(&p, bytes > 0 ? bytes : 1) == cudaSuccess) {
+      size = bytes;
+      return true;
+    }
+    p = nullptr;
+    return false;
   }
 };
 

@@ -15,6 +15,15 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   memory held. Spot finding is unchanged.
 
 **Fixed**
+- mxi symmetry could not name a rhombohedral group, R -3 m or R -3, wherever
+  the primitive cell gave the three-fold a component of 3: the conventional
+  axes were sought among lattice vectors with components -2 to 2 only. A
+  rhombohedral lattice longer along its three-fold than across -- most real
+  ones, R3 and R32 macromolecules among them -- failed in every reduced cell
+  tried, its best group unnamed, and mxi symmetry, and so mxi process, stopped
+  ("could not be put in a reference setting"). Found by Graeme on a small
+  molecule, R 3 2:H; the components now reach 3, and a test names every
+  Bravais lattice from random reduced cells.
 - mxi integrate moves less memory: each worker keeps its frame buffers for the
   run, where a new 36 or 72 MB buffer a frame had cost a page fault a page
   (ferritin on a Ryzen 9950X: 38 million faults to 7 million, reading frames

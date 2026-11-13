@@ -335,6 +335,12 @@ history on 20 October: four closed, nine rewritten to what is now true.
     but no centred monoclinic case has been run to see the name reported
     follow it. Wanted: such a data set, against dials.symmetry.
 * **20.** **capability -- No obliquity (delta) column** in the table of subgroups.
+* **90.** **capability -- small molecules: mxi triage's resolution window.**
+    The twin tests take 10 to 3.5 A, xtriage's choice for a macromolecule; on
+    a small molecule's data to 1 A that leaves a handful of reflections --
+    ten, on Graeme's R -3 c crystal (13 November). The window should follow
+    the data where the cell is small, or `--small-molecule` choose it.
+    Parked by Graeme, 13 November.
 
 ## Scaling
 
@@ -358,6 +364,11 @@ history on 20 October: four closed, nine rewritten to what is now true.
 * **28.** **mxi export: mmCIF.** The unmerged MTZ is written, as dials.export's
     (`docs/export.md`); mmCIF is not. Planned, 6 November: `docs/mmcif.md`,
     the new dialect, merged and unmerged; parked, Graeme doing more homework.
+* **91.** **capability -- small molecules: mxi export to SHELX.** MTZ only;
+    a small molecule's programs want HKLF 4 -- h, k, l, I, sigma(I) in
+    3I4,2F8.2, scaled to fit the field -- and an .ins or .p4p with the cell
+    and the space group. Parked by Graeme, 13 November, with
+    `mxi symmetry --small-molecule` done.
 * **82.** **capability -- mxi triage, the rest of xtriage.** Begun with the
     intensity statistics and the twin laws (`docs/triage.md`); to come: the
     Britton plot and the maximum-likelihood twin fraction; translational NCS

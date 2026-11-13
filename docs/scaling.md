@@ -383,6 +383,16 @@ Printed under the slope ("random halves"), in the summary
 1.003 and 1.006; the two crystals: 0.969 and 0.961 -- no signal in either, and
 the sigmas right.
 
+In a centrosymmetric group -- a small molecule's, `mxi symmetry
+--small-molecule` -- every reflection is centric, its Friedel mate itself, and
+there is no anomalous difference to measure: the summary says so, "Anomalous
+statistics: none: the group is centrosymmetric", in place of completeness,
+multiplicity, correlation, slope, dF/F and dI/s(dI), and the summary's tables
+leave those columns out, as the report, mxi-ui and mxeq's regression take them.
+They had been printed regardless: completeness 0, and multiplicity the
+multiplicity, each centric reflection a Friedel group of its own (Graeme's R -3
+c crystal, 13 November). `--anomalous` there changes nothing, and says so.
+
 ## The normal equations, a group at a time
 
 An observation's row in the fit is d_i - g_i G, d_i its own few parameters'

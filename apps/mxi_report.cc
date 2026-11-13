@@ -704,10 +704,15 @@ std::string section_scale(const json::Value &s, Figures &f,
   if (is_table(m)) {
     const json::Array d = column(m, "d_min");
     o << "<div class=\"pair\">";
+    // CC anom only where there is one: a centrosymmetric group's table has
+    // no anomalous columns (mxi scale), and an empty trace drew a legend
+    // entry for nothing.
+    std::vector<json::Value> cc_traces = {
+        trace(d, column(m, "cc_half"), "CC&frac12;")};
+    if (!column(m, "cc_anom").empty())
+      cc_traces.push_back(trace(d, column(m, "cc_anom"), "CC anom"));
     o << f.plot("CC<sub>&frac12;</sub> by resolution",
-                "d<sub>min</sub> (&Aring;)", "CC<sub>&frac12;</sub>",
-                {trace(d, column(m, "cc_half"), "CC&frac12;"),
-                 trace(d, column(m, "cc_anom"), "CC anom")},
+                "d<sub>min</sub> (&Aring;)", "CC<sub>&frac12;</sub>", cc_traces,
                 true);
     o << f.plot("&lang;I/&sigma;&rang; by resolution",
                 "d<sub>min</sub> (&Aring;)", "&lang;I/&sigma;&rang;",

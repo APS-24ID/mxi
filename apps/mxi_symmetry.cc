@@ -111,8 +111,12 @@ void usage() {
       "                    core this job may use (0)\n"
       "  --no-cosym        several crystals pooled as they are, not first\n"
       "                    brought to one setting by cosym\n"
-      "every\n"
-      "                    core by default, the answer the same on any number\n"
+      "  --small-molecule  every space group, not only those of proper\n"
+      "                    rotations: centrosymmetric, mirrors and glides "
+      "too,\n"
+      "                    those the absences cannot tell apart chosen "
+      "between\n"
+      "                    by mean |E^2-1|\n"
       "  --max-delta D     the lattice's symmetry to D degrees of obliquity "
       "(2)\n"
       "  -o PATH           where to write: one .rflx (symmetrized.rflx), or "
@@ -129,10 +133,12 @@ void usage() {
 int run_symmetry(int argc, char **argv) {
   const std::set<std::string> known = {
       "--max-delta",        "--threads",     "--no-cosym",    "-o",
-      "--same-orientation", "--output-expt", "--output-refl", "--timing"};
+      "--same-orientation", "--output-expt", "--output-refl", "--timing",
+      "--small-molecule"};
   std::set<std::string> takes_value = known;
   takes_value.erase("--timing");
   takes_value.erase("--no-cosym");
+  takes_value.erase("--small-molecule");
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   // One .rflx stands for the experiment list and the reflections
   // (docs/rflx.md).
@@ -468,8 +474,38 @@ int run_symmetry(int argc, char **argv) {
     std::vector<Miller> hkl;
     for (const Miller &h : merged.hkl)
       hkl.push_back(best->cb.apply(h));
-    const SpaceGroupChoice choice =
-        choose_space_group(hkl, merged.i, merged.sigma, best->group);
+    // For a small molecule every group, not only those of proper rotations;
+    // and between those the absences cannot tell apart, the centre of
+    // symmetry the intensities' statistics suggest: mean |E^2-1| nearer
+    // 0.968 than 0.736 (Graeme, 13 November: small molecules in scope).
+    const bool small_molecule = args.has("--small-molecule");
+    SpaceGroupOptions group_options;
+    if (small_molecule) {
+      group_options.proper_only = false;
+      const double e = mean_abs_e2_minus_1(merged);
+      if (std::isfinite(e)) {
+        const double midway = 0.5 * (0.968 + 0.736);
+        group_options.centrosymmetric = e > midway;
+        mxi::print("\nMean |E^2-1| %.3f (0.968 with a centre of symmetry, "
+                   "0.736 without): %s\n",
+                   e, e > midway ? "centrosymmetric" : "non-centrosymmetric");
+        // Wilson's distributions assume many atoms placed at random. A small
+        // cell of high symmetry, heavy atoms on special positions, a few
+        // reflections holding most of the intensity, goes beyond both: on
+        // Graeme's R -3 c, 188 unique reflections, 2.7% of them half the
+        // intensity, 1.73 merged however it was taken.
+        if (e > 1.2 || e < 0.6)
+          mxi::print(
+              "  outside both: Wilson's statistics do not hold for these "
+              "data -- few atoms, or atoms on special positions -- so "
+              "this is a weak guide\n");
+      } else {
+        mxi::print("\nToo few reflections for mean |E^2-1|: no preference "
+                   "for a centre of symmetry\n");
+      }
+    }
+    const SpaceGroupChoice choice = choose_space_group(
+        hkl, merged.i, merged.sigma, best->group, group_options);
     phase("the space group, by absences");
     mxi::print(
         "\nSpace groups with Patterson group %s, judged by their absences\n",
@@ -477,9 +513,11 @@ int run_symmetry(int argc, char **argv) {
     mxi::print("  %-14s %8s %10s  %s\n", "space group", "tested", "<I/sigma>",
                "");
     for (const AbsenceTest &t : choice.candidates)
-      mxi::print("  %-14s %8zu %10.2f  %s\n", t.group.name().c_str(), t.tested,
-                 t.mean_i_over_sigma,
-                 t.consistent ? "consistent" : "inconsistent");
+      mxi::print(
+          "  %-14s %8zu %10.2f  %s%s\n", t.group.name().c_str(), t.tested,
+          t.mean_i_over_sigma, t.consistent ? "consistent" : "inconsistent",
+          small_molecule && t.group.centrosymmetric() ? ", centrosymmetric"
+                                                      : "");
     mxi::print("\nRecommended space group: %s\n", choice.chosen.name().c_str());
     for (const std::string &n : choice.indistinguishable)
       mxi::print("  indistinguishable by its absences from %s\n", n.c_str());

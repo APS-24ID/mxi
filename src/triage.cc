@@ -591,7 +591,15 @@ Triage triage(const TriageData &given, const UnitCell &cell,
     return std::round(x / unit) * unit;
   };
   const bool missed = highest && highest->h_alpha > 0.4 && !t.abnormal;
-  if (missed) {
+  if (t.l_test.pairs == 0) {
+    // Nothing to judge by: in a centrosymmetric group every reflection is
+    // centric, and the L test, of acentric neighbours, has none. Said as
+    // "as expected: no twinning", from statistics of nothing, it had been
+    // (Graeme's small molecule in R -3 m, 13 November).
+    v << "The L test has no pairs of acentric neighbours -- every reflection "
+         "is centric, as in a centrosymmetric group, or too few acentric ones "
+         "were measured -- so these statistics cannot judge twinning.";
+  } else if (missed) {
     v << "The intensities related by " << highest->text
       << " are nearly equal (H-test fraction "
       << round_to(highest->h_alpha, 0.01) << ", R "

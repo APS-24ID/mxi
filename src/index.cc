@@ -714,7 +714,7 @@ static std::size_t score_basis(const Mat3 &real_rows,
       // nanoseconds a value, and there are three of them per reflection per
       // triple scored.
       const double d = h[k] - std::rint(h[k]);
-      worst = std::fmax(worst, std::abs(d));
+      worst = max_finite(worst, std::abs(d)); // never NaN: one instruction
       miss += d * d;
     }
     if (worst < tolerance) {
@@ -1324,7 +1324,7 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
         const double rounded = std::round(h[k]);
         hkl[k] = static_cast<std::int64_t>(rounded);
         const double d = h[k] - rounded;
-        worst = std::fmax(worst, std::abs(d));
+        worst = max_finite(worst, std::abs(d)); // never NaN: one instruction
         miss += d * d;
       }
       if (worst >= options.tolerance || (!hkl[0] && !hkl[1] && !hkl[2]))

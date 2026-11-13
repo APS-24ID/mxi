@@ -4,6 +4,19 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
+## Unreleased -- since 1.3.0
+
+**Fixed**
+- Faster on x86 Linux, where a user's L40S workstation (a 2.9 GHz Xeon) ran
+  the 1.3.0 release's CPU steps 2 to 8 times slower than an M4 Max: indexing
+  11.5 s against 1.4, integration 43.6 s against 12.6. The flags for the
+  rounding instruction had never reached the library, standing after its
+  definition in CMakeLists.txt; and GCC called the C library for fmax, round,
+  lround and sqrt where Clang, Apple's on a Mac among them, inlines them. The
+  flags now come first, with -fno-math-errno and -fno-trapping-math, Clang's
+  own defaults; indexing's hot loop compares where it called fmax. No result
+  changes; indexing's choice of basis three times faster here, on one core.
+
 ## 1.3.0 -- 12 November 2026
 
 **New**

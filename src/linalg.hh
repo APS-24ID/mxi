@@ -19,6 +19,16 @@
 
 namespace mxi {
 
+//: The larger of two values that are never NaN, as one instruction on every
+//: system. std::fmax is defined for NaN -- the other value wins -- which x86's
+//: maxsd is not, so GCC calls the C library's fmax for it, every time; ARM has
+//: an instruction with fmax's own rules, and inlines it. In a hot loop that is
+//: the difference: score_basis's three a point, over 600 million points on a
+//: user's data set, cost 6 of indexing's 11 seconds on a Xeon, against 0.45
+//: on an M4 Max (13 November). For values that can be NaN, std::fmax still.
+inline double max_finite(double a, double b) { return a > b ? a : b; }
+inline double min_finite(double a, double b) { return a < b ? a : b; }
+
 struct Vec3 {
   double x = 0.0, y = 0.0, z = 0.0;
 

@@ -87,7 +87,7 @@ to 3.15 (the tests now in 3.12, set up for them).
 4 November, released as 1.1.4, its candidate's macOS build stalled (the
 runners, or a window waiting for a display: mxi ui's window tests are now not
 run in the release builds, MXI_NO_WINDOW_TESTS, and each test step has 30
-minutes). 12 November, released as 1.3.0 after four candidates, Windows in it (Graeme: its progress bars and results checked on Windows). Since 1.2.0, for 1.3.0 (version set, 8 November; 1.3.0 the release with
+minutes). 12 November, released as 1.3.0 after four candidates, Windows in it (Graeme: its progress bars and results checked on Windows). Since 1.3.0, for 1.3.1 (version set 13 November; not tagged until Graeme's real-data tests pass on his machines and integration is timed on the M4 Max, where not zeroing shoeboxes was once slower): x86 Linux code generation -- SSE4.1 and -fno-math-errno -fno-trapping-math before every target, max_finite in indexing's scoring (a user's L40S Xeon indexing 8 times slower than the M4); integration's frame buffers kept, its boxes' values not zeroed, a missing frame stopping it; CUDA buffers grown by half again; rhombohedral groups named from any reduced cell (reference_setting's axes to components of 3); --small-molecule for symmetry and process; scale's anomalous statistics none in a centrosymmetric group; triage's verdict with no acentric pairs; docs/commands.md generated, and five commands' damaged help mended. Since 1.2.0, for 1.3.0 (version set, 8 November; 1.3.0 the release with
 Windows builds, Graeme: its final when a Windows zip passes his test, the
 candidates before it): mxi-ui and mxi-view commands of their own (an
 interface change, hence 1.3.0); mxi process in code, --timing; output
@@ -119,9 +119,7 @@ mxi-python, every Python tool. Not yet: untrusted regions in the viewer, and
 then retiring napari's mxi view (done: mxi view is mxi ui's viewer, which
 sums images and draws the regions). Screenshots under xvfb were how its layout
 faults were found; the tests now check what they showed.
-For a new session to
-pick up
-from. `docs/outstanding.md` is the list of open work; this section is what is in
+For a new session to pick up from. `docs/outstanding.md` is the list of open work; this section is what is in
 flight and how the work is done here. People follow this project: keep the
 README, `docs/review.md` and this handover true as things change.
 

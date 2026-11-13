@@ -371,7 +371,11 @@ int run_scale(int argc, char **argv) {
                    level.c_str(), run.model.shape(0).lmax,
                    options.fit.absorption_restraint);
     }
-    if (!data.pair.empty())
+    if (options.anomalous && group.centrosymmetric())
+      mxi::print("--anomalous changes nothing here: %s is centrosymmetric, "
+                 "every reflection centric, I(+) and I(-) one reflection\n",
+                 group.name().c_str());
+    else if (!data.pair.empty())
       mxi::print(
           "Friedel mates kept apart (--anomalous): %zu groups scaled, from %zu "
           "symmetry-unique reflections\n",
@@ -576,6 +580,7 @@ int run_scale(int argc, char **argv) {
         std::snprintf(x, sizeof x, fmt, v);
         mxi::print("%-44s %8s\n", what, x);
       };
+      const bool centrosymmetric = group.centrosymmetric();
       line("High resolution limit", &MergingShell::d_min, "%.2f", 1.0);
       line("Low resolution limit", &MergingShell::d_max, "%.2f", 1.0);
       line("Completeness", &MergingShell::completeness, "%.1f", 100.0);
@@ -588,17 +593,27 @@ int run_scale(int argc, char **argv) {
       line("Rpim(I)", &MergingShell::rpim, "%.3f", 1.0);
       line("Rpim(I+/-)", &MergingShell::rpim_anom, "%.3f", 1.0);
       line("CC half", &MergingShell::cc_half, "%.3f", 1.0);
-      line("Anomalous completeness", &MergingShell::anom_completeness, "%.1f",
-           100.0);
-      line("Anomalous multiplicity", &MergingShell::anom_multiplicity, "%.1f",
-           1.0);
-      line("Anomalous correlation", &MergingShell::cc_anom, "%.3f", 1.0);
-      only("Anomalous slope", all.anom_slope, "%.3f");
-      // Its control: random halves, no signal -- near 1 if the sigmas are
-      // right, so the slope above it is the signal (docs/scaling.md).
-      only("  random halves", all.anom_slope_random, "%.3f");
-      only("dF/F", all.df_over_f, "%.3f");
-      only("dI/s(dI)", all.di_over_sig_di, "%.3f");
+      // In a centrosymmetric group every reflection is centric, its Friedel
+      // mate itself: no anomalous difference exists to measure. The lines
+      // had been printed anyway -- completeness 0, multiplicity the
+      // multiplicity, every centric reflection a group of its own (Graeme's
+      // small molecule in R -3 m, 13 November) -- and are said so instead.
+      if (centrosymmetric) {
+        mxi::print("%-44s %s\n", "Anomalous statistics",
+                   "none: the group is centrosymmetric");
+      } else {
+        line("Anomalous completeness", &MergingShell::anom_completeness, "%.1f",
+             100.0);
+        line("Anomalous multiplicity", &MergingShell::anom_multiplicity, "%.1f",
+             1.0);
+        line("Anomalous correlation", &MergingShell::cc_anom, "%.3f", 1.0);
+        only("Anomalous slope", all.anom_slope, "%.3f");
+        // Its control: random halves, no signal -- near 1 if the sigmas are
+        // right, so the slope above it is the signal (docs/scaling.md).
+        only("  random halves", all.anom_slope_random, "%.3f");
+        only("dF/F", all.df_over_f, "%.3f");
+        only("dI/s(dI)", all.di_over_sig_di, "%.3f");
+      }
       count("Total observations", &MergingShell::observations);
       count("Total unique", &MergingShell::unique);
     }
@@ -780,10 +795,14 @@ int run_scale(int argc, char **argv) {
         summary.set("resolution_cc_half_significance",
                     json::Value(res.d_min_significance));
 
+      // A centrosymmetric group's summary has no anomalous columns, which the
+      // report, mxi-ui and mxeq's regression all take as absent.
+      const bool anomalous_columns = !group.centrosymmetric();
       const auto shells_table =
           [&](const std::vector<const MergingShell *> &rows,
               const std::vector<std::string> &labels) {
-            std::vector<std::vector<json::Value>> c(18);
+            std::vector<std::vector<json::Value>> c(anomalous_columns ? 18
+                                                                      : 13);
             for (std::size_t k = 0; k < rows.size(); ++k) {
               const MergingShell &m = *rows[k];
               c[0].push_back(json::Value(labels.empty() ? std::to_string(k + 1)
@@ -801,6 +820,8 @@ int run_scale(int argc, char **argv) {
               c[10].push_back(json::Value(m.rmeas));
               c[11].push_back(json::Value(m.rpim));
               c[12].push_back(json::Value(m.cc_half));
+              if (!anomalous_columns)
+                continue;
               c[13].push_back(json::Value(100.0 * m.anom_completeness));
               c[14].push_back(json::Value(m.anom_multiplicity));
               c[15].push_back(json::Value(m.cc_anom));
@@ -809,24 +830,27 @@ int run_scale(int argc, char **argv) {
             }
             return c;
           };
-      const std::vector<std::string> names = {"shell",
-                                              "d_max",
-                                              "d_min",
-                                              "observations",
-                                              "unique",
-                                              "multiplicity",
-                                              "completeness",
-                                              "mean_i",
-                                              "i_over_sigma",
-                                              "rmerge",
-                                              "rmeas",
-                                              "rpim",
-                                              "cc_half",
-                                              "anom_completeness",
-                                              "anom_multiplicity",
-                                              "cc_anom",
-                                              "anom_slope",
-                                              "anom_slope_random"};
+      std::vector<std::string> names = {"shell",
+                                        "d_max",
+                                        "d_min",
+                                        "observations",
+                                        "unique",
+                                        "multiplicity",
+                                        "completeness",
+                                        "mean_i",
+                                        "i_over_sigma",
+                                        "rmerge",
+                                        "rmeas",
+                                        "rpim",
+                                        "cc_half",
+                                        "anom_completeness",
+                                        "anom_multiplicity",
+                                        "cc_anom",
+                                        "anom_slope",
+                                        "anom_slope_random"};
+      if (!anomalous_columns)
+        names.resize(13);
+      summary.set("centrosymmetric", json::Value(!anomalous_columns));
       std::vector<const MergingShell *> rows;
       for (const MergingShell &m : table)
         rows.push_back(&m);

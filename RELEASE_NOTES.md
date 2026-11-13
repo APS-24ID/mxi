@@ -23,6 +23,11 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   memory held. Spot finding is unchanged.
 
 **Fixed**
+- mxi scale in a centrosymmetric group -- every reflection centric -- printed
+  anomalous statistics there are none of: completeness 0, multiplicity the
+  multiplicity. It now says there are none, leaves the anomalous columns out
+  of its summary, and the report draws no CC anom; --anomalous there says it
+  changes nothing.
 - mxi triage, given data with no acentric reflections -- a centrosymmetric
   group, every reflection centric -- had said the L test's statistics were as
   expected and no twinning was suspected, from none; it now says it cannot

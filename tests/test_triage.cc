@@ -115,6 +115,22 @@ TEST(triage_untwinned_data_are_as_wilson_says) {
                  t.verdict);
 }
 
+TEST(triage_with_no_acentric_reflections_says_it_cannot_judge) {
+  // A centrosymmetric group: every reflection centric, the L test with no
+  // acentric neighbours -- which had said "as expected: no twinning is
+  // suspected" from statistics of nothing (a small molecule in R -3 m,
+  // 13 November).
+  const SpaceGroup p4m = SpaceGroup::from_name("P 4/m");
+  const Triage t = triage(as_data(wilson(p4m, 7), p4m, 8), kCell, p4m);
+  check::equal(static_cast<std::int64_t>(t.l_test.pairs), std::int64_t{0},
+               "no acentric pairs");
+  check::is_true(t.verdict.find("cannot judge twinning") != std::string::npos,
+                 t.verdict);
+  check::is_true(t.verdict.find("no twinning is suspected") ==
+                     std::string::npos,
+                 "and no verdict from nothing");
+}
+
 TEST(triage_twinned_data_are_said_so) {
   const SpaceGroup p4 = SpaceGroup::from_name("P 4");
   const Rotation law = twin_laws(kCell, p4, 3.0)[0].op;

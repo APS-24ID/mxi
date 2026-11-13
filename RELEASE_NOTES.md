@@ -6,6 +6,14 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 ## Unreleased -- since 1.3.0
 
+**New**
+- mxi symmetry --small-molecule, and mxi process --small-molecule: every space
+  group with the Patterson group found, not only the chiral ones a
+  macromolecule's crystal may be in -- centrosymmetric groups, mirrors and
+  glides, the glides judged by their absences -- and of those the absences
+  cannot tell apart, the one whose centre of symmetry agrees with mean
+  |E^2-1|, which is reported (docs/symmetry.md).
+
 **Changed**
 - mxi integrate stops, naming the image and the file, at a frame it cannot
   read -- an unallocated chunk, a frame the detector's writer never received.
@@ -15,6 +23,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   memory held. Spot finding is unchanged.
 
 **Fixed**
+- mxi triage, given data with no acentric reflections -- a centrosymmetric
+  group, every reflection centric -- had said the L test's statistics were as
+  expected and no twinning was suspected, from none; it now says it cannot
+  judge.
 - mxi symmetry could not name a rhombohedral group, R -3 m or R -3, wherever
   the primitive cell gave the three-fold a component of 3: the conventional
   axes were sought among lattice vectors with components -2 to 2 only. A

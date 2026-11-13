@@ -2,7 +2,7 @@
 // a script of the eight commands would run it, each its own mxi command on
 // the file the one before wrote, its own output and log. Options go where
 // they belong: -j to every step, --gpu to spot finding and integration,
-// --no-joint to indexing,
+// --no-joint to indexing, --small-molecule to symmetry,
 // --cell and --space-group to indexing (and the group to scaling),
 // --d-min-auto to scaling. A step that fails stops it, said by name, its
 // exit code and its log, with the command to run it again once put right
@@ -58,6 +58,8 @@ const char *const kUsage =
     "  --cell a,b,c,alpha,beta,gamma   the known cell: mxi index --known-cell\n"
     "  --no-joint        several sweeps, each a crystal indexed on its own:\n"
     "                    mxi index --no-joint\n"
+    "  --small-molecule  every space group, centrosymmetric too:\n"
+    "                    mxi symmetry --small-molecule\n"
     "  --space-group NAME  the known space group: mxi scale --space-group, "
     "and\n"
     "                    with --cell, mxi index --known-space-group\n"
@@ -182,9 +184,9 @@ std::string ends(const std::string &s, std::size_t n) {
 int mxi_process_main(int argc, char **argv) {
   using namespace mxi;
   const std::set<std::string> known = {
-      "--gpu",        "--cell",    "--space-group",
-      "--d-min-auto", "--dry-run", "--no-joint",
-      "--help",       "-h",        "--timing"};
+      "--gpu",     "--cell",     "--space-group",    "--d-min-auto",
+      "--dry-run", "--no-joint", "--small-molecule", "--help",
+      "-h",        "--timing"};
   const std::set<std::string> takes_value = {"--cell", "--space-group"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (!args.ok) {
@@ -238,6 +240,8 @@ int mxi_process_main(int argc, char **argv) {
   if (gpu)
     steps.back().args.push_back("--gpu");
   steps.push_back({"symmetry", {"integrated.rflx"}, "symmetrized.rflx"});
+  if (args.has("--small-molecule"))
+    steps.back().args.push_back("--small-molecule");
   steps.push_back({"scale", {"symmetrized.rflx"}, "scaled.rflx"});
   if (!group.empty())
     steps.back().args.insert(steps.back().args.end(), {"--space-group", group});

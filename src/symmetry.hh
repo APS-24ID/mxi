@@ -46,6 +46,8 @@ public:
   //: Whether hkl is forbidden by centring or a screw axis or glide.
   bool absent(const Miller &hkl) const;
   bool centric(const Miller &hkl) const;
+  //: Whether the group has a centre of symmetry: every reflection centric.
+  bool centrosymmetric() const;
 
 private:
   struct Impl;
@@ -119,10 +121,12 @@ double d_spacing(const UnitCell &cell, const Miller &hkl);
 std::optional<Setting> reference_setting(const std::vector<Rotation> &rotations,
                                          const UnitCell &cell);
 
-//: The space groups of proper rotations -- macromolecules being chiral -- in
-//: their reference settings, whose Patterson group is `patterson`: the
-//: candidates once the Laue group and lattice are known, lowest number first.
-std::vector<SpaceGroup>
-space_groups_with_patterson(const SpaceGroup &patterson);
+//: The space groups in their reference settings whose Patterson group is
+//: `patterson`: the candidates once the Laue group and lattice are known,
+//: lowest number first. Those of proper rotations only -- macromolecules
+//: being chiral -- unless proper_only is false, for a small molecule, when
+//: those with a centre, mirrors and glides too.
+std::vector<SpaceGroup> space_groups_with_patterson(const SpaceGroup &patterson,
+                                                    bool proper_only = true);
 
 } // namespace mxi

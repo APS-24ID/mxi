@@ -60,6 +60,7 @@ flowchart LR
 | `--cell a,b,c,α,β,γ` | index | `--known-cell` |
 | `--space-group NAME` | scale; and index where `--cell` is given | `--space-group`; `--known-space-group` (the known cell's setting, meaningless alone) |
 | `--no-joint` | index | `--no-joint`: several sweeps, each a crystal indexed on its own |
+| `--small-molecule` | symmetry | `--small-molecule`: every space group with the Patterson group, centrosymmetric too (docs/symmetry.md) |
 | `--d-min-auto` | scale | `--d-min-auto`: the resolution limit from CC½ |
 | `--dry-run` | -- | the commands printed, none run |
 | `--timing` | every step but import and export, which have nothing to time | `--timing`; and at the end mxi process's own table, each step's time -- its peak memory the run's so far, the steps one process |

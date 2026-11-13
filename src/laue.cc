@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <map>
 #include <numeric>
 #include <random>
@@ -555,8 +556,10 @@ LaueScores score_laue_groups(const P1Intensities &data,
 SpaceGroupChoice choose_space_group(const std::vector<Miller> &hkl,
                                     const std::vector<double> &intensity,
                                     const std::vector<double> &sigma,
-                                    const SpaceGroup &patterson) {
-  const std::vector<SpaceGroup> groups = space_groups_with_patterson(patterson);
+                                    const SpaceGroup &patterson,
+                                    const SpaceGroupOptions &options) {
+  const std::vector<SpaceGroup> groups =
+      space_groups_with_patterson(patterson, options.proper_only);
   SpaceGroupChoice out{groups.empty() ? patterson : groups.front(), {}, {}};
   for (const SpaceGroup &g : groups) {
     AbsenceTest t{g, 0, 0.0, true};
@@ -580,10 +583,51 @@ SpaceGroupChoice choose_space_group(const std::vector<Miller> &hkl,
       out.chosen = t.group;
       any = true;
     }
+  // Of those tied, the first -- the lowest number -- whose centre of
+  // symmetry agrees with the intensities' statistics, where they are known.
+  if (any && options.centrosymmetric &&
+      out.chosen.centrosymmetric() != *options.centrosymmetric)
+    for (const AbsenceTest &t : out.candidates)
+      if (t.consistent && t.tested == best &&
+          t.group.centrosymmetric() == *options.centrosymmetric) {
+        out.chosen = t.group;
+        break;
+      }
   for (const AbsenceTest &t : out.candidates)
     if (t.consistent && t.tested == best && t.group.name() != out.chosen.name())
       out.indistinguishable.push_back(t.group.name());
   return out;
+}
+
+double mean_abs_e2_minus_1(const P1Intensities &data, std::size_t per_shell) {
+  const std::size_t n = data.size();
+  if (per_shell == 0 || n < per_shell)
+    return std::numeric_limits<double>::quiet_NaN();
+  std::vector<std::size_t> order(n);
+  std::iota(order.begin(), order.end(), std::size_t{0});
+  std::sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) {
+    return data.d[a] > data.d[b];
+  });
+  // Shells of equal count; the last takes what is left over.
+  const std::size_t shells = n / per_shell;
+  double total = 0.0;
+  std::size_t counted = 0;
+  for (std::size_t s = 0; s < shells; ++s) {
+    const std::size_t a = s * per_shell,
+                      b = s + 1 == shells ? n : a + per_shell;
+    double mean = 0.0;
+    for (std::size_t k = a; k < b; ++k)
+      mean += data.i[order[k]];
+    mean /= static_cast<double>(b - a);
+    if (!(mean > 0.0))
+      continue;
+    for (std::size_t k = a; k < b; ++k) {
+      total += std::abs(data.i[order[k]] / mean - 1.0);
+      ++counted;
+    }
+  }
+  return counted ? total / static_cast<double>(counted)
+                 : std::numeric_limits<double>::quiet_NaN();
 }
 
 double laue_resolution_limit(const P1Intensities &data,

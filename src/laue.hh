@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -146,14 +147,35 @@ struct SpaceGroupChoice {
   std::vector<std::string> indistinguishable;
 };
 
+//: How the space group is chosen. For a macromolecule, the defaults: groups
+//: of proper rotations only. For a small molecule (mxi symmetry
+//: --small-molecule), every group, and of those the absences cannot tell
+//: apart -- R 3 2, R 3 m and R -3 m forbid nothing beyond their centring --
+//: those with a centre of symmetry first where `centrosymmetric` is true,
+//: without where false: what the intensities' statistics say (mean_abs_e2).
+struct SpaceGroupOptions {
+  bool proper_only = true;
+  std::optional<bool> centrosymmetric;
+};
+
 //: Of the space groups whose Patterson group is `patterson`, the one the
 //: absences support: consistent -- what it forbids beyond its centring has mean
 //: I/sigma of 3 or less, or it forbids nothing more -- and among those, the one
-//: explaining the most absences; a tie to the lowest number. `hkl` are in the
-//: Patterson group's setting.
+//: explaining the most absences; a tie to the one whose centre agrees with
+//: options.centrosymmetric where that is known, then to the lowest number.
+//: `hkl` are in the Patterson group's setting.
 SpaceGroupChoice choose_space_group(const std::vector<Miller> &hkl,
                                     const std::vector<double> &intensity,
                                     const std::vector<double> &sigma,
-                                    const SpaceGroup &patterson);
+                                    const SpaceGroup &patterson,
+                                    const SpaceGroupOptions &options = {});
+
+//: The mean of |E^2 - 1| over the reflections, E^2 the intensity over the
+//: mean of its shell of resolution (equal counts, `per_shell` each): 0.968
+//: for a structure with a centre of symmetry, 0.736 for one without (Wilson's
+//: distributions), the small-molecule crystallographer's test of which. NaN
+//: with fewer reflections than a shell.
+double mean_abs_e2_minus_1(const P1Intensities &data,
+                           std::size_t per_shell = 200);
 
 } // namespace mxi

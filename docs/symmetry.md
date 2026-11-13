@@ -70,9 +70,14 @@ every subgroup's, the space groups judged by their absences, and the choice.
    Wilson outliers are still found from E^2 by shells, as dials.symmetry finds
    them.
 3. **The space group** from the absences, among the chiral groups with that
-   Patterson group: consistent if what it forbids beyond its centring has mean
-   I/sigma of 3 or less, and of those the one explaining most; a tie to the
-   lowest number, the others reported as indistinguishable.
+   Patterson group -- or, with `--small-molecule`, every group with it,
+   centrosymmetric, mirrors and glides too: consistent if what it forbids beyond
+   its centring has mean I/sigma of 3 or less, and of those the one explaining
+   most; a tie to the lowest number, the others reported as indistinguishable.
+   With `--small-molecule` a tie goes first to the groups whose centre of
+   symmetry agrees with mean |E^2-1| -- intensities over their shell's mean --
+   nearer 0.968 (centrosymmetric) or 0.736 (not), the value reported, and said
+   to be a weak guide outside 0.6 to 1.2, where Wilson's statistics do not hold.
 
 On the 300 image sweep, integrated here:
 
@@ -195,3 +200,26 @@ merge in P1 sums by hash and then sorts as the ordered map it was gave its
 order -- each index's sums gathered in observation order either way. Before,
 all of it ran on one thread with ordered-map lookups: on a dense ferritin data
 set with 32 threads, 17 s on one core.
+
+## Small molecules
+
+Small molecules are in scope (Graeme, 13 November 2026). Their crystals need not
+be chiral, so `mxi symmetry --small-molecule`, and `mxi process
+--small-molecule`, consider every space group with the Patterson group found:
+for R -3 m, R 3 2, R 3 m, R 3 c, R -3 m and R -3 c, where a macromolecule's
+candidate is R 3 2 alone. Everything after symmetry works from the group's own
+operations -- merging, centric flags, absences (glides too), the Friedel pairs,
+which in a centrosymmetric group are one reflection -- and needed nothing new.
+
+On Graeme's small molecule: 211 reflections a c-glide forbids, mean I/sigma
+-0.31, so R 3 c or R -3 c; mean |E^2-1| 1.81, centrosymmetric, and R -3 c:H
+recommended, R 3 c:H indistinguishable by absences. 1.81 is beyond both
+reference values -- 188 unique reflections, 2.7% of them half the intensity, as
+merged by gemmi in R -3 c with the absences removed, 1.73 however taken -- which
+a small cell of high symmetry, its atoms on special positions, gives: so the
+program says the statistic is a weak guide there.
+
+The same crystal found the bug in naming rhombohedral groups
+(reference_setting's axes to components of 3), and with all reflections centric,
+mxi triage's L test, having no acentric pairs, had said no twinning was
+suspected; it now says it cannot judge.

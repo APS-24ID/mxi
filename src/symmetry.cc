@@ -62,6 +62,10 @@ bool SpaceGroup::absent(const Miller &hkl) const {
   return impl_->ops.is_systematically_absent(hkl);
 }
 
+bool SpaceGroup::centrosymmetric() const {
+  return impl_->ops.is_centrosymmetric();
+}
+
 bool SpaceGroup::centric(const Miller &hkl) const {
   return impl_->ops.is_reflection_centric(hkl);
 }
@@ -572,8 +576,8 @@ double d_spacing(const UnitCell &cell, const Miller &hkl) {
   return to_gemmi(cell).calculate_d(gemmi::Miller{hkl[0], hkl[1], hkl[2]});
 }
 
-std::vector<SpaceGroup>
-space_groups_with_patterson(const SpaceGroup &patterson) {
+std::vector<SpaceGroup> space_groups_with_patterson(const SpaceGroup &patterson,
+                                                    bool proper_only) {
   gemmi::GroupOps target = gemmi::symops_from_hall(patterson.hall().c_str());
   std::vector<SpaceGroup> out;
   for (const gemmi::SpaceGroup &sg : gemmi::spacegroup_tables::main) {
@@ -588,7 +592,7 @@ space_groups_with_patterson(const SpaceGroup &patterson) {
     for (const gemmi::Op &op : full.sym_ops)
       if (op.det_rot() < 0)
         proper = false;
-    if (!proper)
+    if (proper_only && !proper)
       continue;
     gemmi::GroupOps ops = full.derive_symmorphic();
     ops.add_inversion();

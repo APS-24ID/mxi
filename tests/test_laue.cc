@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <map>
 #include <random>
+#include <string>
+#include <vector>
 
 #include <gemmi/it92.hpp>
 
@@ -143,6 +145,105 @@ TEST(an_orthorhombic_crystal_comes_out_with_its_axes_in_order) {
                  "a <= b <= c by " + set->cb_text + ": " + std::to_string(r.a) +
                      " " + std::to_string(r.b) + " " + std::to_string(r.c));
   check::close(r.a, 5.42, 1e-6, "a, 5.42 A");
+}
+
+TEST(a_small_molecule_may_be_in_any_group_with_the_patterson_group) {
+  // A macromolecule's candidates are the groups of proper rotations; a small
+  // molecule's every group, centrosymmetric, mirrors and glides too (mxi
+  // symmetry --small-molecule).
+  const auto names = [](const std::vector<SpaceGroup> &groups) {
+    std::string out;
+    for (const SpaceGroup &g : groups)
+      out += (out.empty() ? "" : ", ") + g.name();
+    return out;
+  };
+  const SpaceGroup r = SpaceGroup::from_name("R -3 m:H");
+  check::is_true(names(space_groups_with_patterson(r)) == "R 3 2:H",
+                 names(space_groups_with_patterson(r)));
+  check::is_true(names(space_groups_with_patterson(r, false)) ==
+                     "R 3 2:H, R 3 m:H, R 3 c:H, R -3 m:H, R -3 c:H",
+                 names(space_groups_with_patterson(r, false)));
+  const SpaceGroup p2m = SpaceGroup::from_name("P 1 2/m 1");
+  check::equal(
+      static_cast<std::int64_t>(space_groups_with_patterson(p2m).size()),
+      std::int64_t{2}, "P 2 and P 21");
+  check::equal(
+      static_cast<std::int64_t>(space_groups_with_patterson(p2m, false).size()),
+      std::int64_t{8}, "and Pm, Pc, P2/m, P21/m, P2/c, P21/c");
+}
+
+TEST(a_tie_the_absences_cannot_break_goes_to_the_centre_asked_for) {
+  // Every reflection of a monoclinic P lattice measured strong: nothing
+  // absent, so P 2, P m and P 2/m alike forbid nothing -- a tie, broken by
+  // the centre the statistics ask for, then the lowest number.
+  const SpaceGroup p2m = SpaceGroup::from_name("P 1 2/m 1");
+  std::vector<Miller> hkl;
+  std::vector<double> i, sigma;
+  for (std::int32_t h = -6; h <= 6; ++h)
+    for (std::int32_t k = 0; k <= 6; ++k)
+      for (std::int32_t l = -6; l <= 6; ++l) {
+        if (h == 0 && k == 0 && l == 0)
+          continue;
+        hkl.push_back({h, k, l});
+        i.push_back(100.0);
+        sigma.push_back(10.0);
+      }
+  SpaceGroupOptions all;
+  all.proper_only = false;
+  check::is_true(choose_space_group(hkl, i, sigma, p2m, all).chosen.name() ==
+                     "P 1 2 1",
+                 "no preference: the lowest number");
+  all.centrosymmetric = true;
+  check::is_true(choose_space_group(hkl, i, sigma, p2m, all).chosen.name() ==
+                     "P 1 2/m 1",
+                 "a centre asked for: P 1 2/m 1");
+  all.centrosymmetric = false;
+  check::is_true(choose_space_group(hkl, i, sigma, p2m, all).chosen.name() ==
+                     "P 1 2 1",
+                 "none: P 1 2 1");
+  // Now h0l with l odd and 0k0 with k odd absent: a c-glide and a 21.
+  for (std::size_t n = 0; n < hkl.size(); ++n)
+    if ((hkl[n][1] == 0 && hkl[n][2] % 2 != 0) ||
+        (hkl[n][0] == 0 && hkl[n][2] == 0 && hkl[n][1] % 2 != 0))
+      i[n] = 0.0;
+  all.centrosymmetric.reset();
+  check::is_true(choose_space_group(hkl, i, sigma, p2m, all).chosen.name() ==
+                     "P 1 21/c 1",
+                 "P 1 21/c 1, the glide and the screw axis");
+  check::is_true(choose_space_group(hkl, i, sigma, p2m).chosen.name() ==
+                     "P 1 21 1",
+                 "a macromolecule's: P 1 21 1, the glide not a candidate");
+}
+
+TEST(mean_abs_e2_minus_1_tells_centric_from_acentric_intensities) {
+  // Wilson's distributions: acentric E^2 exponential, 0.736; centric E^2 the
+  // square of a normal deviate, 0.968 -- under a fall-off with resolution,
+  // which the shells take out.
+  std::mt19937 rng(11);
+  std::exponential_distribution<double> exponential(1.0);
+  std::normal_distribution<double> normal(0.0, 1.0);
+  P1Intensities acentric, centric;
+  for (std::int32_t n = 0; n < 40000; ++n) {
+    const double d = 1.0 + 9.0 * n / 40000.0;
+    const double fall_off = std::exp(-20.0 / (d * d));
+    acentric.hkl.push_back({n, 0, 0});
+    acentric.i.push_back(fall_off * exponential(rng));
+    acentric.sigma.push_back(1.0);
+    acentric.d.push_back(d);
+    const double x = normal(rng);
+    centric.hkl.push_back({n, 0, 0});
+    centric.i.push_back(fall_off * x * x);
+    centric.sigma.push_back(1.0);
+    centric.d.push_back(d);
+  }
+  check::close(mean_abs_e2_minus_1(acentric), 0.736, 0.02, "acentric 0.736");
+  check::close(mean_abs_e2_minus_1(centric), 0.968, 0.02, "centric 0.968");
+  P1Intensities few;
+  few.hkl = {{1, 0, 0}};
+  few.i = {1.0};
+  few.sigma = {1.0};
+  few.d = {2.0};
+  check::is_true(std::isnan(mean_abs_e2_minus_1(few)), "too few: NaN");
 }
 
 TEST(the_laue_group_planted_is_the_laue_group_found) {

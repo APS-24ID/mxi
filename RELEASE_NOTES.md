@@ -6,7 +6,21 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 ## Unreleased -- since 1.3.0
 
+**Changed**
+- mxi integrate stops, naming the image and the file, at a frame it cannot
+  read -- an unallocated chunk, a frame the detector's writer never received.
+  It had integrated around one, the boxes spanning it low, with a warning at
+  the end; its boxes' values are no longer cleared before being filled from
+  the frames, and a missing frame would leave them holding whatever their
+  memory held. Spot finding is unchanged.
+
 **Fixed**
+- mxi integrate moves less memory: each worker keeps its frame buffers for the
+  run, where a new 36 or 72 MB buffer a frame had cost a page fault a page
+  (ferritin on a Ryzen 9950X: 38 million faults to 7 million, reading frames
+  31 s to 24); its boxes' values are not zeroed, twice, before every one is
+  written from the frames; and CUDA profile fitting's buffers grow by half
+  again, not to each batch's size. The same results, column for column.
 - Faster on x86 Linux, where a user's L40S workstation (a 2.9 GHz Xeon) ran
   the 1.3.0 release's CPU steps 2 to 8 times slower than an M4 Max: indexing
   11.5 s against 1.4, integration 43.6 s against 12.6. The flags for the

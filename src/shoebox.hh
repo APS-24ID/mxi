@@ -29,7 +29,10 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
+#include <new>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "refl.hh"
@@ -45,12 +48,36 @@ constexpr std::uint8_t kForeground = 1 << 2;
 constexpr std::uint8_t kOverlapped = 1 << 3;
 } // namespace shoebox_mask
 
+//: An allocator that leaves what it makes as it found it: a vector of it
+//: resized is not cleared, so memory every voxel of which is about to be
+//: written is written once. std::vector's value-initialisation was the
+//: largest part of building a box: ferritin's 6.2 million boxes, some 160 GB
+//: of zeros written for each pass that cleared them -- and integration
+//: cleared them twice -- at 45 GB/s on a Ryzen 9950X (Graeme, 13 November).
+//: assign(n, value) still sets every element, as does a vector made with a
+//: count and a value; only resize(n), and a vector made with a count alone,
+//: leave the new elements as they were.
+template <typename T> struct Uninitialised : std::allocator<T> {
+  template <typename U> struct rebind {
+    using other = Uninitialised<U>;
+  };
+  Uninitialised() = default;
+  template <typename U> Uninitialised(const Uninitialised<U> &) noexcept {}
+  template <typename U> void construct(U *p) noexcept { ::new (p) U; }
+  template <typename U, typename... Args> void construct(U *p, Args &&...args) {
+    ::new (p) U(std::forward<Args>(args)...);
+  }
+};
+
+//: A shoebox's values: floats, not cleared when sized (Uninitialised).
+using Voxels = std::vector<float, Uninitialised<float>>;
+
 struct Shoebox {
   std::int32_t panel = 0;
   //: x0, x1, y0, y1, z0, z1, half open.
   std::int32_t bbox[6] = {0, 0, 0, 0, 0, 0};
   std::uint8_t flag = 0;
-  std::vector<float> data;
+  Voxels data; // resized, not cleared: written whole by whoever fills it
   std::vector<std::uint8_t> mask;
   std::vector<float> background;
 

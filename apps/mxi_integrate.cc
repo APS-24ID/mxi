@@ -1342,6 +1342,14 @@ int run_integrate(int argc, char **argv) {
     // (Graeme, four sweeps, 'frame ... outside every virtual mapping'
     // uncaught).
     std::vector<std::unique_ptr<mxi::series::Reader>> readers;
+    // Each worker's compressed frame and decompressed pixels, kept for the
+    // run, as series::Frame was made to be: a frame of a 16M detector is 36 or
+    // 72 MB, past what glibc's malloc keeps, so a new one each frame was a new
+    // mapping from the kernel, zero-filled page by page, then returned -- 38
+    // million page faults integrating ferritin on a Ryzen 9950X, reading
+    // frames 31 s against 6 on an M4 Max (Graeme, 13 November).
+    std::vector<mxi::series::Frame> raw_frames;
+    std::vector<std::vector<std::uint8_t>> frame_pixels;
     mxi::series::Info info;
     if (!images || !images->try_open(&info)) {
       mxi::eprint("mxi integrate: cannot open %s. If the data have moved "
@@ -2779,6 +2787,10 @@ int run_integrate(int argc, char **argv) {
       const double t_region_start = now_wall();
       if (readers.size() < fetch_by_thread.size())
         readers.resize(fetch_by_thread.size());
+      if (raw_frames.size() < fetch_by_thread.size()) {
+        raw_frames.resize(fetch_by_thread.size());
+        frame_pixels.resize(fetch_by_thread.size());
+      }
       in_parallel_by_worker(
           frame_numbers.size(), [&](std::size_t which, std::size_t worker) {
             // The worker's reader, for this run's images (`readers`), and
@@ -2790,7 +2802,7 @@ int run_integrate(int argc, char **argv) {
             const std::int32_t z = frame_numbers[which];
             if (z < 0 || static_cast<std::size_t>(z) >= keys.size())
               return;
-            mxi::series::Frame raw;
+            mxi::series::Frame &raw = raw_frames[slot]; // the worker's own
             const double t0 = now_wall();
             if (!mine->read(keys[static_cast<std::size_t>(z)], &raw)) {
               // A frame the writer never received: an unallocated chunk.
@@ -2805,7 +2817,11 @@ int run_integrate(int argc, char **argv) {
             const std::size_t width = static_cast<std::size_t>(raw.width);
             const std::size_t bytes =
                 mxi::decompress::frame_bytes(height, width, raw.bit_depth);
-            std::vector<std::uint8_t> pixels(bytes);
+            // The worker's buffer, grown once to a frame and reused: resize
+            // to the size it has already is nothing, and decompression
+            // writes every byte, so nothing need be cleared.
+            std::vector<std::uint8_t> &pixels = frame_pixels[slot];
+            pixels.resize(bytes);
             mxi::decompress::image(raw.data, raw.algorithm, raw.bit_depth,
                                    height, width, {pixels.data(), bytes});
             mxi::series::apply_pixel_mask(raw, {pixels.data(), bytes});

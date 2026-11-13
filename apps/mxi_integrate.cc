@@ -1832,7 +1832,6 @@ int run_integrate(int argc, char **argv) {
     mxi::series::Frame frame;
     std::vector<std::uint8_t> pixels;
     std::size_t frames_read = 0;
-    std::size_t frames_missing = 0;
     // Which frames any shoebox wanted, so "frames read" can be compared with
     // something rather than left to be compared with the image count.
     std::set<std::int32_t> wanted;
@@ -2732,9 +2731,12 @@ int run_integrate(int argc, char **argv) {
         BoxRejection ignored = BoxRejection::kNone;
         Shoebox &box = active[first_new + i];
         const std::uint32_t own = planned[at + i].lattice;
+        // Not cleared: every voxel is written from the frames before anything
+        // reads it -- the box lies on the scan's frames and the panel, and a
+        // frame that cannot be read stops the run (below).
         if (build_shoebox(experiments[own], *planned[at + i].prediction,
-                          lattice_masks[own], &box, &ignored)) {
-          box.data.assign(box.size(), 0.0f);
+                          lattice_masks[own], &box, &ignored,
+                          /*zero_pixels=*/false)) {
           built[i] = 1;
         }
       });
@@ -2780,6 +2782,7 @@ int run_integrate(int argc, char **argv) {
       std::atomic<std::size_t> frames_done{0};
       std::atomic<std::size_t> bad_here{0};
       std::atomic<std::size_t> unread{0};
+      std::atomic<std::int32_t> first_unread{-1};
       std::vector<double> fetch_by_thread(std::max<std::size_t>(workers, 1),
                                           0.0);
       std::vector<double> decompress_by_thread(fetch_by_thread.size(), 0.0);
@@ -2810,6 +2813,8 @@ int run_integrate(int argc, char **argv) {
               // will integrate low, and silently dropping it leaves "frames
               // read" less than the number of images with no explanation.
               unread.fetch_add(1);
+              std::int32_t none = -1;
+              first_unread.compare_exchange_strong(none, z);
               return;
             }
             const double t1 = now_wall();
@@ -2875,7 +2880,24 @@ int run_integrate(int argc, char **argv) {
       t_region += now_wall() - t_region_start;
       frames_read += frames_done.load();
       bad_pixels += bad_here.load();
-      frames_missing += unread.load();
+      // A frame the writer never received -- an unallocated chunk. Its
+      // boxes would be part-filled, and their pixels are not cleared to
+      // make that a slice of zeros: so the run stops. Graeme has never seen
+      // an NXmx file with one, over a great deal of data, and would rather
+      // mxi said so than integrated around it (13 November).
+      if (unread.load() > 0) {
+        const std::size_t n = unread.load();
+        mxi::eprint(
+            "mxi integrate: image %d of %s could not be read: the "
+            "file has no data for it, a frame the detector's writer "
+            "never received%s. The shoeboxes spanning it cannot be "
+            "integrated, so this stops here.\n",
+            first_unread.load() + 1, image_path.c_str(),
+            n > 1 ? (", and " + std::to_string(n - 1) + " more like it near it")
+                        .c_str()
+                  : "");
+        return 1;
+      }
       // Only frames the series has. A box can reach past the last image, and
       // counting frames that cannot be read made a slice of 300 frames read
       // twice report "356 wanted, each read 1.69 times" instead of 2.00.
@@ -3249,13 +3271,6 @@ int run_integrate(int argc, char **argv) {
       progress->finish();
     if (save)
       shoebox_bytes = encode_shoeboxes(saved);
-    if (frames_missing > 0) {
-      mxi::eprint(
-          "mxi integrate: %zu reads found no frame: an unallocated chunk is a "
-          "frame the writer never received, and a shoebox spanning one is "
-          "missing a slice\n",
-          frames_missing);
-    }
 
     // What a user reads to judge the run: the summaries dials.integrate
     // prints, against resolution and overall, from the columns just written.

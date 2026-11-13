@@ -98,11 +98,14 @@ bool integration_bbox(const Experiment &e, const Prediction &p,
                       BoxRejection *why = nullptr);
 
 //: A shoebox for that box, with the mask marking which voxels are inside the
-//: region: Valid | Foreground inside, Valid | Background outside. Values and
-//: background are zero.
+//: region: Valid | Foreground inside, Valid | Background outside. Background
+//: zero; values zero too, unless zero_pixels is false -- for a caller about to
+//: write every one, as integration does from the frames (every voxel of a box
+//: lies on a frame of the scan and on the panel: integration_bbox clamps it),
+//: when they are left as they were (Voxels).
 bool build_shoebox(const Experiment &e, const Prediction &p,
                    const MaskOptions &options, Shoebox *box,
-                   BoxRejection *why = nullptr);
+                   BoxRejection *why = nullptr, bool zero_pixels = true);
 
 //: Marks Overlapped every voxel of `box` inside the foreground of a neighbour
 //: q -- under q's experiment and q's profile model, which for a reflection of

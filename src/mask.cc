@@ -236,8 +236,8 @@ void region_of(const Experiment &e, const Prediction &p,
 } // namespace
 
 bool build_shoebox(const Experiment &e, const Prediction &p,
-                   const MaskOptions &options, Shoebox *box,
-                   BoxRejection *why) {
+                   const MaskOptions &options, Shoebox *box, BoxRejection *why,
+                   bool zero_pixels) {
   if (box == nullptr)
     return false;
   std::int32_t bbox[6];
@@ -249,7 +249,10 @@ bool build_shoebox(const Experiment &e, const Prediction &p,
     box->bbox[i] = bbox[i];
   box->flag = 2;
   const std::size_t n = box->size();
-  box->data.assign(n, 0.0f);
+  if (zero_pixels)
+    box->data.assign(n, 0.0f);
+  else
+    box->data.resize(n); // the caller writes every voxel
   box->background.assign(n, 0.0f);
   box->mask.assign(n, 0);
 

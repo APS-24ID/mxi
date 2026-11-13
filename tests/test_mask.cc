@@ -144,6 +144,50 @@ TEST(every_voxel_is_valid_and_either_foreground_or_background) {
   check::is_true(checked > 10, "enough boxes");
 }
 
+// zero_pixels false, as integration asks, which writes every voxel from the
+// frames: the same box -- its bounds, its mask, its background -- its values
+// sized and not cleared (shoebox.hh, Voxels). Ferritin's 6.2 million boxes
+// had some 160 GB of zeros written, twice, for nothing (13 November).
+TEST(a_box_built_for_filling_is_the_same_box_its_values_uncleared) {
+  const Experiment e = masking_experiment();
+  PredictOptions po;
+  po.d_min = 2.5;
+  const std::vector<Prediction> predictions = predict(e, po);
+  const MaskOptions options = options_for();
+  std::size_t checked = 0;
+  for (const Prediction &p : predictions) {
+    Shoebox cleared, uncleared;
+    BoxRejection why_cleared = BoxRejection::kNone,
+                 why_uncleared = BoxRejection::kNone;
+    const bool built = build_shoebox(e, p, options, &cleared, &why_cleared);
+    const bool built_uncleared =
+        build_shoebox(e, p, options, &uncleared, &why_uncleared, false);
+    check::is_true(built == built_uncleared, "built alike");
+    if (!built)
+      continue;
+    if (++checked > 50)
+      break;
+    for (std::int32_t i = 0; i < 6; ++i)
+      check::is_true(cleared.bbox[i] == uncleared.bbox[i], "the same bounds");
+    check::is_true(cleared.mask == uncleared.mask, "the same mask");
+    check::is_true(cleared.background == uncleared.background,
+                   "the same background");
+    check::is_true(uncleared.data.size() == cleared.data.size(),
+                   "values for every voxel");
+  }
+  check::is_true(checked > 10, "enough boxes");
+  // Voxels: assign sets every value, resize keeps those there and leaves
+  // the new ones uncleared -- written over here, then read.
+  Voxels v;
+  v.assign(4, 2.5f);
+  v.resize(8);
+  for (std::size_t i = 0; i < 4; ++i)
+    check::close(v[i], 2.5, 0.0, "assign set, resize kept");
+  for (std::size_t i = 4; i < 8; ++i)
+    v[i] = static_cast<float>(i);
+  check::close(v[7], 7.0, 0.0, "the new written");
+}
+
 TEST(a_wider_region_gives_a_bigger_box) {
   // The box follows n_sigma. If it did not, the picture would show the same
   // thing whatever was asked for, which is the sort of bug that survives

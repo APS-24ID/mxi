@@ -2464,3 +2464,38 @@ mxi_refine's files are byte-identical through it. The program composes two of
 its own runs around it, with the models written between, because integration is
 still one body inside `run_program`; making it a function is refactoring of its
 own.
+
+## Memory written once, and a missing frame an error
+
+Graeme compared ferritin on a Ryzen 9950X with an RTX 4060 against an M4 Max, 13
+November 2026: integration 106 s against 49, and almost all the difference in
+three parts that move memory -- reading frames 31 s against 6, profile fitting's
+packing, opening shoeboxes -- where the background fit, pure arithmetic, was
+faster on the Ryzen. The desktop's memory gives some 45 GB/s, the M4 Max's
+several hundred; and each pass over ferritin's 6.2 million shoeboxes is some 200
+GB.
+
+/usr/bin/time counted 38 million page faults. Each frame was decompressed into a
+new vector, 36 or 72 MB, past what glibc's malloc keeps: a new mapping from the
+kernel each frame, zero-filled page by page, then returned. Each worker now
+keeps its compressed frame and its pixels for the run, as `series::Frame` was
+made for and spot finding already did: 7 million faults, reading frames 24 s.
+
+Building a box zeroed its values, and integration zeroed them again, before
+filling every one from the frames: some 320 GB of zeros a run. The values are
+now `Voxels`, a vector whose resize does not clear, and `build_shoebox` leaves
+them uncleared when asked (`zero_pixels`), as integration asks. Every voxel of a
+box lies on the panel and on a frame of the scan -- `integration_bbox` clamps it
+to both -- so every voxel is written before it is read; the planted series
+integrates to the same columns, exactly, through the CPU and the emulated
+device, before and after. The background is still cleared: a box whose
+background fit fails keeps the zeros, and profile learning and saved shoeboxes
+read them.
+
+Which makes a missing frame -- an unallocated chunk, a frame the writer never
+received -- something integration can no longer carry: its boxes would hold
+whatever their memory held. It had been counted, the boxes spanning it
+integrating low with a slice of zeros, and a warning printed at the end. Graeme
+has never seen an NXmx file with one, over a great deal of data, and would
+rather mxi said so: integration now stops at the first, naming the image and the
+file. Spot finding still finds spots around one (docs/spots.md).

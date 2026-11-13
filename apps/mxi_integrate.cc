@@ -360,8 +360,6 @@ void usage(const char *program) {
       "and\n"
       "                    trimmed, with how many pixels: under investigation\n"
       "  --save-shoeboxes  keep the pixels and the mask in the output\n"
-      "one\n"
-      "                    per core, 1 is none (0)\n"
       "  --window N        frames read per chunk (64); boxes stay open across\n"
       "                    chunks, so this bounds memory, not re-reading\n"
       "  --max-boxes N     boxes opened per chunk (6000 a thread, at least\n"

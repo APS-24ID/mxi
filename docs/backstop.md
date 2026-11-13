@@ -169,8 +169,8 @@ advance.
 `integrated.refl` as `background.dispersion`, with how many pixels it was taken
 over, so that on ferritin `mxeq observations` and `mxeq equivalents` can show
 whether the edge stands out, where the flare falls, and whether dense regions
-flag falsely. Then the test, `mxi integrate --flag-background`, off until it has
-been judged; the flag goes into the table, so `mxeq` can count it.
+flag falsely. Then the test -- planned as `mxi integrate --flag-background`, not
+built -- off until it has been judged; the flag goes into the table, so `mxeq` can count it.
 
 ## 2. Outlier rejection that the few cannot win
 

@@ -230,12 +230,32 @@ with no branch, which the compiler makes SIMD, checked for the detector's marker
 by an OR across it, and gone over again only where it has one: on one thread
 here 1.41 s to 0.355, the same bytes.
 
-**Not zeroing a box when it opens was tried and reverted.** Every voxel is set
-to 0 at opening and then overwritten by the fill, some 140 GB of zeros a run on
-dense data, so leaving them unset -- zeroing only slices no frame fills -- looked
-free. It was byte-identical and changed nothing on the 32 thread machine
-(opening 15.05 s against 15.09), and was slower on a MacBook: opening's cost is
-building each voxel's mask, not writing its zero.
+**Not zeroing a box when it opens: tried, reverted, and done after all.** Every
+voxel was set to 0 at opening and then overwritten by the fill. Leaving them
+unset -- zeroing only slices no frame fills -- was tried and changed nothing on
+the 32 thread machine (opening 15.05 s against 15.09), and was slower on a
+MacBook. But `build_shoebox` zeroed the values too, before integration did, so
+that attempt left every box still zeroed once. On 13 November both went --
+`build_shoebox(..., zero_pixels = false)`, the values a `Voxels`, whose resize
+does not clear -- and on Graeme's Ryzen 9950X, ferritin's opening fell from 17.0
+s to 12.6, the planted series' every column the same. The MacBook's slowdown is
+to be measured again with both gone, before 1.3.1.
+
+**A frame that cannot be read stops integration.** With the values not zeroed, a
+box spanning a frame the file has no data for -- an unallocated chunk, a frame
+the detector's writer never received -- would hold whatever its memory held. It
+had been integrated around, its slice zero and the reflection low, with a
+warning at the end; now `mxi integrate` stops at the first, naming the image and
+the file. Graeme has never seen an NXmx file with one, over a great deal of
+data, and would rather it said so (13 November). Spot finding still finds spots
+around one.
+
+**A frame's buffers are kept.** Each worker keeps its compressed frame and its
+decompressed pixels for the run, as `series::Frame` was made for and spot
+finding does: a new 36 or 72 MB buffer a frame, past what glibc's malloc keeps,
+had been a new mapping from the kernel each time, faulted in a page at a time --
+38 million page faults on ferritin on the Ryzen, 7 million now, reading frames
+31 s to 24.
 
 **Chunking moves the last bits of the profile fit.** The reference profiles are
 sums over boxes in the order they close, which follows where chunks end: with

@@ -92,10 +92,8 @@ void usage() {
       "                    summation chosen by Rmeas\n"
       "  --shells N        resolution shells in the table (20)\n"
       "  -o PATH           where to write: one .rflx (scaled.rflx), or with a\n"
-      "                    .refl the DIALS pair, the .refl that\n"
+      "                    .refl the DIALS pair, its .expt at --output-expt\n"
       "  --output-expt PATH   the DIALS pair's experiment list (scaled.expt)\n"
-      "the\n"
-      "                    same for any number\n"
       "  --timing          where the time goes\n");
 }
 

@@ -16,6 +16,38 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 set(CMAKE_CXX_STANDARD 20)
 
+# Code generation, before any target is defined: add_compile_options reaches
+# only the targets defined after it, and this had stood after the library's,
+# which so had none of it -- only the spot finder's targets had SSE4.1. Found
+# 13 November on a user's L40S workstation, a 2.9 GHz Xeon: indexing 8 times
+# and integrating 3.5 times slower than on an M4 Max, from the same release.
+#
+# SSE4.1 on x86, for the rounding instruction. Baseline x86-64 predates it, so
+# std::rint compiles to a sequence rather than roundsd and the scoring loop in
+# indexing runs three times slower: 3.5 nanoseconds a value against 1.2, and
+# there are three values per reflection per triple of candidates scored.
+# Anything from 2009 onwards has it; -DMXI_SSE41=OFF for a machine that does
+# not. ARM needs nothing: the rounding instruction has always been there,
+# which is why the same scoring loop was twenty-two times faster on an Apple
+# machine than in this container, and why that difference first looked like
+# the data.
+option(MXI_SSE41 "Use SSE4.1 on x86, for the rounding instruction" ON)
+if(MXI_SSE41 AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i[36]86")
+    include(CheckCXXCompilerFlag)
+    check_cxx_compiler_flag(-msse4.1 MXI_COMPILER_TAKES_SSE41)
+    if(MXI_COMPILER_TAKES_SSE41)
+        add_compile_options(-msse4.1)
+        message(STATUS "x86: SSE4.1 enabled for the rounding instruction")
+    endif()
+endif()
+# And the C library's maths as Clang treats it by default, Apple's on a Mac
+# among them: no errno set by sqrt or lround, which mxi never reads, and no
+# floating-point exception flags, which it never tests. No result changes;
+# GCC then inlines sqrt, round and lround where it had called them.
+if(NOT MSVC)
+    add_compile_options(-fno-math-errno -fno-trapping-math)
+endif()
+
 # Warnings, and what Windows wants, by compiler (docs/windows.md). clang-cl
 # and MSVC's cl take Microsoft's flags -- clang-cl reads -Wall as /Wall,
 # every warning clang has -- so /W4 there, clang's -Wall -Wextra in effect;
@@ -319,25 +351,6 @@ target_compile_options(mxi_grid PRIVATE ${MXI_WARNINGS})
 # before the subdirectory was entered. It sat after for a long time, which
 # meant `ctest` from the top ran this project's tests and silently none of the
 # spot finder's.
-# SSE4.1 on x86, for the rounding instruction. Baseline x86-64 predates it, so
-# std::rint compiles to a sequence rather than roundsd and the scoring loop in
-# indexing runs three times slower: 3.5 nanoseconds a value against 1.2, and
-# there are three values per reflection per triple of candidates scored.
-# Anything from 2009 onwards has it; -DMXI_SSE41=OFF for a machine that does
-# not.
-#
-# ARM needs nothing: the rounding instruction has always been there, which is
-# why the same scoring loop was twenty-two times faster on an Apple machine
-# than in this container, and why that difference first looked like the data.
-option(MXI_SSE41 "Use SSE4.1 on x86, for the rounding instruction" ON)
-if(MXI_SSE41 AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i[36]86")
-    include(CheckCXXCompilerFlag)
-    check_cxx_compiler_flag(-msse4.1 MXI_COMPILER_TAKES_SSE41)
-    if(MXI_COMPILER_TAKES_SSE41)
-        add_compile_options(-msse4.1)
-        message(STATUS "x86: SSE4.1 enabled for the rounding instruction")
-    endif()
-endif()
 
 # AddressSanitizer and UndefinedBehaviorSanitizer, for running the tests under:
 #

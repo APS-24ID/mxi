@@ -76,7 +76,7 @@ public:
     // The names' column as wide as the widest name, not a fixed 42: a line
     // is that and 36 more, inside 80 columns for any name of 44 or fewer
     // (Graeme: mxi process's table too wide for an 80-column window).
-    std::size_t width = std::string("total").size();
+    std::size_t width = std::string("the rest").size();
     for (const Phase &p : phases_)
       width = std::max(width,
                        static_cast<std::size_t>(2 * p.depth) + p.name.size());
@@ -88,6 +88,18 @@ public:
                     name.c_str(), p.seconds,
                     total > 0.0 ? 100.0 * p.seconds / total : 0.0, p.peak_mb);
     }
+    // What no phase measured -- reading, setting up, summing up -- said, so
+    // the table adds to its total: integration's left a third of its 11.8 s
+    // on a GH200 unnamed, and every machine's some (Graeme, 14 November).
+    // Shown from a second's twentieth and a fiftieth of the run.
+    double measured = 0.0;
+    for (const Phase &p : phases_)
+      if (p.depth == 0)
+        measured += p.seconds;
+    const double rest = total - measured;
+    if (rest > 0.05 && rest > 0.02 * total)
+      mxi::print_to(out, "  %-*s %8.3f s %5.1f%%  peak %6.0f MB\n", w,
+                    "the rest", rest, 100.0 * rest / total, peak_memory_mb());
     mxi::print_to(out, "  %-*s %8.3f s\n", w, "total", total);
     for (const std::string &n : notes_)
       mxi::print_to(out, "  %s\n", n.c_str());

@@ -7,6 +7,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.3.1
 
 **New**
+- mxi process keeps each step's output in memory as it writes it, and the next
+  step reads it from there, not back from the disk; the files are written as
+  before (MXI_KEEP_WRITTEN=0 to read them from the disk). Every --timing table
+  now says where the time its phases did not account for went ("the rest");
+  mxi integrate's names its overlaps and planning, its chunks' own time, and
+  its summary.
 - Every program that keeps a log begins its output and every log with what
   made it: the version, the build (CUDA and its version, Metal, or the CPU
   only; the compiler), the machine's name, system, processor and cores

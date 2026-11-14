@@ -1113,6 +1113,15 @@ int run_integrate(int argc, char **argv) {
     double t_build = 0.0, t_mark = 0.0; // opening's two parts, wall
     double t_region = 0.0;
     double t_integrate = 0.0, t_write = 0.0;
+    // Between the boxes and the first chunk -- overlapping foregrounds found
+    // and grouped, the chunks planned -- and between the last chunk and the
+    // writing -- the columns filled, the summaries made: neither had been
+    // timed, a third of 11.8 s on a GH200 (Graeme, 14 November).
+    double t_plan = 0.0, t_summary = 0.0;
+    // And the chunk loop's own wall, to show what of it no phase inside it
+    // measured (on the planted series a third: the image file opened, the
+    // threads started, the boxes moved between the passes).
+    double t_loop = 0.0;
 
     // The lattices integrated; the sweep's own crystal-less experiment
     // carried through (docs/multi-lattice.md, stage 2).
@@ -1449,6 +1458,7 @@ int run_integrate(int argc, char **argv) {
       }
     }
     t_boxes = now_wall() - t_boxes_start;
+    const double t_plan_start = now_wall();
     {
       std::size_t left_out = outside_range;
       for (const auto &entry : refused)
@@ -2708,6 +2718,7 @@ int run_integrate(int argc, char **argv) {
     if (planned.size() >= progress_from)
       progress.emplace("integrating", static_cast<double>(z_last - z_first),
                        "images");
+    t_plan = now_wall() - t_plan_start;
     while (at < planned.size() || !active.empty()) {
       if (active.empty() && at < planned.size()) {
         chunk_start = std::max(chunk_start, planned[at].bbox[4]);
@@ -3284,6 +3295,8 @@ int run_integrate(int argc, char **argv) {
         }
       }
     }
+    const double t_summary_start = now_wall();
+    t_loop = t_summary_start - t_plan_start - t_plan;
     if (progress)
       progress->finish();
     if (save)
@@ -3395,6 +3408,7 @@ int run_integrate(int argc, char **argv) {
     // if asked for (docs/rflx.md).
     {
       const double t_write_start = now_wall();
+      t_summary = t_write_start - t_summary_start;
       ExperimentList written = experiments;
       written.profile.present = true;
       written.profile.sigma_b = sigma_b;
@@ -3453,11 +3467,19 @@ int run_integrate(int argc, char **argv) {
       timing.add("the profile model", t_profile);
       timing.add("prediction", t_predict);
       timing.add("bounding boxes", t_boxes);
+      timing.add("overlaps, and planning", t_plan);
       timing.add("opening shoeboxes", t_open);
       timing.add("reading frames, wall", t_region);
       timing.add("background and summation", t_integrate);
       timing.add("learning profiles", t_transform);
       timing.add("profile fitting", t_fit);
+      // t_transform and t_fit are counted inside the loop too, with the
+      // phases above them; "the chunks' rest" is the loop's wall less all.
+      const double in_loop =
+          t_open + t_region + t_integrate + t_transform + t_fit;
+      if (t_loop > in_loop)
+        timing.add("the chunks' rest", t_loop - in_loop);
+      timing.add("the summary, and the table", t_summary);
       timing.add("writing", t_write);
       timing.report(mxi::Stream::out);
       const auto per = [&](double seconds) {

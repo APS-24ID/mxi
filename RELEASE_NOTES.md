@@ -13,6 +13,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   (docs/output.md).
 
 **Fixed**
+- --gpu with no usable CUDA device gave the driver's and the build's CUDA
+  versions and left them to the reader, who took a newer driver for the
+  trouble. It now says what they mean: a driver older than the build needs
+  replacing; a newer one is as it should be, and where nvidia-smi works but
+  CUDA will not start, the GPU is not the process's to use -- on a cluster, a
+  job given one; elsewhere /dev/nvidia-uvm.
 - mxi integrate --gpu named a reflection with none of its foreground measured
   -- wholly in a gap -- only as "the device's fit failed"; it now says so, as
   without --gpu, from the mask before the device is given it, and the CPU says

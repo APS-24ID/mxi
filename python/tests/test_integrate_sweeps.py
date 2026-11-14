@@ -5,12 +5,14 @@ The 300 image insulin sweep split at image 150 into two experiments -- each its
 own beam, detector, goniometer, scan, image set, and crystal, the crystal being
 scan-varying and so cut at its 150th point -- and the reflections given the id
 of the half their frame is in. Integrated with the profile model given, each
-row's id must match its frame, each sweep must have its own profile model, and
-a reflection well inside either half must sum to exactly what the sweep
-integrated whole gives it: summation depends on the box and the background, not
-on the reference profiles, so a difference would be a sweep's geometry -- its
-angles above all -- wrong. Needs MXI_INTEGRATE, MXI_POSTREFINE_EXPT and
-MXI_POSTREFINE_REFL.
+row's id must match its frame, each sweep must have its own profile model, and a
+reflection well inside either half must sum to exactly what the sweep integrated
+whole gives it: summation depends on the box and the background, not on the
+reference profiles, so a difference would be a sweep's geometry -- its angles
+above all -- wrong. Needs MXI_INTEGRATE, MXI_POSTREFINE_EXPT and
+MXI_POSTREFINE_REFL. A reflection fitted with its neighbours, as by default
+since 6 November, has its sum corrected by their fitted counts, which follow
+each sweep's own reference profiles: those are left out of the comparison.
 """
 
 import copy
@@ -144,6 +146,15 @@ def test_two_sweeps_integrate_as_the_sweep_whole_does(tmp_path):
             & (bb[:, 5] <= 298)
         )
         good = inside & ((flags & (1 << 8)) != 0)
+        # A reflection fitted with its neighbours (the default since 6
+        # November) has its summed intensity corrected by their fitted counts,
+        # which follow the reference profiles -- each sweep's own, learned from
+        # its half -- so its sum is no longer the box's and the background's
+        # alone, anywhere in the sweep. Those fitted alone still are (13
+        # November: up to 1.68 apart, unfiltered).
+        if "profile.fitted_together" in t.columns:
+            together = np.asarray(t.columns["profile.fitted_together"]).ravel()
+            good &= together == 0
         return {
             (tuple(h), round(float(zz), 1)): v
             for h, zz, v, g in zip(hkl, z, s, good)

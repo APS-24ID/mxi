@@ -203,12 +203,16 @@ int mxi_convert_main(int argc, char **argv) {
         output.empty() ? with_extension(other.front(), ".rflx") : output;
     rflx::write(out, experiments ? &*experiments : nullptr,
                 reflections ? &*reflections : nullptr, "mxi_convert", compress);
-    mxi::print("Wrote %s%s%s\n", out.c_str(),
-               experiments ? ": the experiment list" : ":",
-               reflections ? (", " + std::to_string(reflections->nrows) +
-                              " reflections")
-                                 .c_str()
-                           : "");
+    // What it holds, of the two: "Wrote out.rflx:, 22 reflections" had come
+    // of a reflection table alone (13 November).
+    std::string holds;
+    if (experiments)
+      holds = "the experiment list";
+    if (reflections)
+      holds += (holds.empty() ? "" : ", ") +
+               std::to_string(reflections->nrows) + " reflections";
+    mxi::print("Wrote %s%s%s\n", out.c_str(), holds.empty() ? "" : ": ",
+               holds.c_str());
     return 0;
   } catch (const std::exception &e) {
     mxi::eprint("mxi convert: %s\n", e.what());

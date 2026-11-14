@@ -2480,6 +2480,25 @@ int run_integrate(int argc, char **argv) {
               failed(row, FitFailure::no_reference);
               continue;
             }
+            // No foreground voxel measured -- the reflection wholly in a gap
+            // or masked: the CPU's fit says so (foreground_masked), and the
+            // mask alone shows it, so it is said here too rather than sent to
+            // fail on the device as "the device's fit failed" -- 49066 of
+            // insulin's on a Quadro RTX 5000, which the CPU named (Graeme,
+            // 14 November). The CPU would first say profile_off_foreground of
+            // a box whose profile is also zero over the foreground, which
+            // only the device knows here: rare, and named this way instead.
+            bool measured_foreground = false;
+            for (const std::uint8_t m : box.mask)
+              if ((m & shoebox_mask::kForeground) &&
+                  (m & shoebox_mask::kValid)) {
+                measured_foreground = true;
+                break;
+              }
+            if (!measured_foreground) {
+              failed(row, FitFailure::foreground_masked);
+              continue;
+            }
             const Prediction &q = *planned[row].prediction;
             entries.push_back(
                 {&box, q.s1, q.phi, bmean.reals[row], &locals[n]});

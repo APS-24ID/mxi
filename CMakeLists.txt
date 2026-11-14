@@ -390,6 +390,13 @@ if(MXI_VERSION_LABEL STREQUAL "snapshot")
         set(mxi_version_text "${PROJECT_VERSION}+snapshot")
     endif()
 elseif(MXI_VERSION_LABEL)
+    # A version, a candidate's or a release's, or nothing: anything else is a
+    # mistake to stop at here, not to compile into every program -- as the
+    # snapshot's first macOS build did, its label the rest of a shell line.
+    if(NOT MXI_VERSION_LABEL MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.]+)?$")
+        message(FATAL_ERROR "MXI_VERSION_LABEL \"${MXI_VERSION_LABEL}\" is "
+                "neither a version (1.3.2, 1.3.2-rc1) nor snapshot")
+    endif()
     set(mxi_version_text "${MXI_VERSION_LABEL}")
 endif()
 message(STATUS "mxi calls itself ${mxi_version_text}")

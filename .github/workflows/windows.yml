@@ -39,7 +39,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          # A release's tag; otherwise the commit being built -- the snapshot's
+          # "tag" names no ref, and checking it out failed (14 November).
+          ref: ${{ startsWith(inputs.tag, 'v') && inputs.tag || github.sha }}
           submodules: recursive
       # Microsoft's build environment -- its linker, the Windows SDK -- for
       # clang-cl, which the runner has with LLVM.
@@ -61,6 +63,18 @@ jobs:
           "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.bat" -disableMetrics
       # x64-windows-static: HDF5, zlib and FFTW linked in, and the C runtime
       # (CMAKE_MSVC_RUNTIME_LIBRARY, CMakeLists.txt): one mxi.exe.
+      # What the build calls itself (MXI_VERSION_LABEL): a v-tag's version, or
+      # "snapshot". Worked out here, not inside $( ) in the configure line:
+      # macOS's bash 3.2 reads a case pattern's ) there as the substitution's
+      # end, and the snapshot's first macOS build was configured with the
+      # rest of the line as its label (14 November).
+      - name: What this build calls itself
+        run: |
+          case "$TAG" in
+            v[0-9]*) label="${TAG#v}" ;;
+            *) label=snapshot ;;
+          esac
+          echo "MXI_LABEL=$label" >> "$GITHUB_ENV"
       - name: Configure
         run: >
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -68,7 +82,7 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake"
           -DVCPKG_TARGET_TRIPLET=x64-windows-static
           -DVCPKG_MANIFEST_FEATURES=fftw -DMXI_FFTW=ON
-          -DMXI_VERSION_LABEL="$(case "$TAG" in v[0-9]*) echo "${TAG#v}" ;; *) echo snapshot ;; esac)"
+          -DMXI_VERSION_LABEL="$MXI_LABEL"
       - name: Build
         run: cmake --build build
       - name: "Test: the C++ suite, on the CPU"

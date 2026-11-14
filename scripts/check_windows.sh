@@ -13,7 +13,7 @@ h5=$(dirname "$(find /usr/include -name hdf5.h | head -1)")
 stub=$(mktemp -d)
 trap 'rm -rf "$stub"' EXIT
 touch "$stub/features.h"
-flags="-std=c++20 -fsyntax-only -Wall -Wextra -D__USE_MINGW_ANSI_STDIO=1 -DMXI_VERSION=\"check\" -Isrc -Iapps \
+flags="-std=c++20 -fsyntax-only -Wall -Wextra -D__USE_MINGW_ANSI_STDIO=1 -DMXI_VERSION=\"check\" -DMXI_BUILD_DESCRIPTION=\"check\" -Isrc -Iapps \
   -Ithird_party/gemmi/include -Ithird_party/bitshuffle/src -Ithird_party/bitshuffle/lz4 \
   -I$stub -I$h5"
 files=0 failed=0 warned=0

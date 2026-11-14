@@ -523,6 +523,20 @@ add_executable(mxi_program apps/mxi.cc)
 set_target_properties(mxi_program PROPERTIES OUTPUT_NAME mxi)
 target_link_libraries(mxi_program PRIVATE ${MXI_PROGRAMS} mxi)
 target_compile_definitions(mxi_program PRIVATE MXI_VERSION="${PROJECT_VERSION}")
+# What this build is, for the banner every program prints first and every log
+# begins with: the accelerator and its version, and the compiler (Graeme, 13
+# November -- logs sent from a dozen machines had none of it).
+if(MXI_CUDA)
+    string(REGEX MATCH "^[0-9]+\\.[0-9]+" mxi_cuda_short "${CMAKE_CUDA_COMPILER_VERSION}")
+    set(mxi_accelerator "CUDA ${mxi_cuda_short}")
+elseif(MXI_METAL)
+    set(mxi_accelerator "Metal")
+else()
+    set(mxi_accelerator "CPU only")
+endif()
+string(REGEX MATCH "^[0-9]+\\.[0-9]+" mxi_cxx_short "${CMAKE_CXX_COMPILER_VERSION}")
+target_compile_definitions(mxi_program PRIVATE
+    MXI_BUILD_DESCRIPTION="${mxi_accelerator}, ${CMAKE_CXX_COMPILER_ID} ${mxi_cxx_short}")
 target_compile_options(mxi_program PRIVATE ${MXI_WARNINGS})
 # In the build directory, each program's old name a link to mxi, which runs
 # the program it is called by: the tests run them so. Not installed.

@@ -52,6 +52,8 @@ namespace output_detail {
 struct State {
   std::mutex lock;
   std::vector<std::FILE *> logs; //: the open logs, the last the one written
+  std::string banner;            //: each log's first lines (set_banner)
+  bool banner_shown = false;     //: on the terminal yet, at the first log
 };
 
 inline State &state() {
@@ -139,14 +141,34 @@ inline void flush() {
 //: Logs nest: the last opened is written, the one before it again once the
 //: last is closed (mxi process, running each step in its own process now,
 //: in code later -- docs/windows.md).
+//: A log opened begins with the banner, if one is set: what mxi this is and
+//: where it ran (mxi's main sets it). The first log opened shows it on the
+//: terminal too, once: so a run with a record -- every processing command
+//: keeps a log -- says what made it, and mxi show, whose lines are often read
+//: by a program, says nothing more. A step's log under mxi process has it as
+//: well, the terminal not again.
 inline bool open_log(const char *path) {
   std::FILE *f = std::fopen(path, "wb");
   if (f == nullptr)
     return false;
   output_detail::State &s = output_detail::state();
   const std::lock_guard<std::mutex> hold(s.lock);
+  if (!s.banner.empty()) {
+    if (!s.banner_shown) {
+      std::fputs(s.banner.c_str(), stdout);
+      s.banner_shown = true;
+    }
+    std::fputs(s.banner.c_str(), f);
+  }
   s.logs.push_back(f);
   return true;
+}
+
+//: The banner each log begins with, its newlines its own; empty for none.
+inline void set_banner(const std::string &text) {
+  output_detail::State &s = output_detail::state();
+  const std::lock_guard<std::mutex> hold(s.lock);
+  s.banner = text;
 }
 
 //: How many logs are open: mxi process notes it before a step, and closes

@@ -17,7 +17,7 @@ for f in src/*.cc apps/*.cc tests/*.cc tests/spots/*.cc tests/tools/*.cc; do
     [ -f "$f" ] || continue
     case $f in *metal*|*cuda*|*fft_fftw*|*dext_gpu*) continue ;; esac
     files=$((files + 1))
-    if ! out=$(clang++ -std=c++20 -stdlib=libc++ -fsyntax-only -w -DMXI_VERSION='"check"' \
+    if ! out=$(clang++ -std=c++20 -stdlib=libc++ -fsyntax-only -w -DMXI_VERSION='"check"' -DMXI_BUILD_DESCRIPTION='"check"' \
             -Isrc -Iapps -Itests -Ithird_party/gemmi/include -Ithird_party/bitshuffle/src \
             -Ithird_party/bitshuffle/lz4 -I"$h5" "$f" 2>&1); then
         failed=$((failed + 1))

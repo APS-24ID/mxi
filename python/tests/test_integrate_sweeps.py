@@ -12,7 +12,9 @@ reference profiles, so a difference would be a sweep's geometry -- its angles
 above all -- wrong. Needs MXI_INTEGRATE, MXI_POSTREFINE_EXPT and
 MXI_POSTREFINE_REFL. A reflection fitted with its neighbours, as by default
 since 6 November, has its sum corrected by their fitted counts, which follow
-each sweep's own reference profiles: those are left out of the comparison.
+each sweep's own reference profiles: those are left out of the comparison, as
+are those whose box overlaps, in the sweep whole, a box of the other half -- a
+neighbour masked out of the background there, absent from the half.
 """
 
 import copy
@@ -95,6 +97,31 @@ def integrate(tmp_path, expt, reflections, name, *extra):
     )
 
 
+def lost_neighbours(t):
+    """The reflections, keyed as compared, whose box in the whole sweep's table
+    overlaps the box of a reflection in the other half."""
+    hkl = np.asarray(t.columns["miller_index"]).reshape(-1, 3)
+    z = np.asarray(t.columns["xyzcal.px"], float).reshape(-1, 3)[:, 2]
+    bb = np.asarray(t.columns["bbox"]).reshape(-1, 6)
+    first = z < SPLIT
+    crossing = np.flatnonzero(
+        (first & (bb[:, 5] > SPLIT)) | (~first & (bb[:, 4] < SPLIT))
+    )
+    touched = np.zeros(len(z), bool)
+    for n in crossing:
+        c = bb[n]
+        overlap = (
+            (bb[:, 0] < c[1])
+            & (c[0] < bb[:, 1])
+            & (bb[:, 2] < c[3])
+            & (c[2] < bb[:, 3])
+            & (bb[:, 4] < c[5])
+            & (c[4] < bb[:, 5])
+        )
+        touched |= overlap & (first != first[n])
+    return {(tuple(h), round(float(zz), 1)) for h, zz in zip(hkl[touched], z[touched])}
+
+
 @needs
 def test_two_sweeps_integrate_as_the_sweep_whole_does(tmp_path):
     split(tmp_path)
@@ -162,7 +189,14 @@ def test_two_sweeps_integrate_as_the_sweep_whole_does(tmp_path):
         }
 
     a, b = keyed(whole), keyed(two)
-    common = sorted(set(a) & set(b))
+    # And those whose box, integrated whole, overlaps a box of the other half:
+    # a neighbour whose foreground is masked out of its background there, and
+    # which split from it is not there at all. Such boxes reach back across
+    # the split by as much as 21 images: on Graeme's run all 24 sums that
+    # still differed, by up to 1.30, were these, their own boxes the same
+    # (13 November). Only boxes that cross the split can reach the other half.
+    lost = lost_neighbours(whole)
+    common = sorted((set(a) & set(b)) - lost)
     assert len(common) > 0.9 * min(len(a), len(b))
     x = np.array([a[k] for k in common])
     y = np.array([b[k] for k in common])

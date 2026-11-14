@@ -23,6 +23,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   memory held. Spot finding is unchanged.
 
 **Fixed**
+- A thread count (-j or --threads) stopped any command that runs itself for
+  each part of the whole: mxi integrate on several sweeps or lattices, and
+  with --postrefine; mxi index --no-joint; mxi refine a group at a time -- so
+  mxi process -j N on several sweeps. Each part's run was given "-j" without
+  its number and stopped ("option '-j' needs a number of threads"); the count
+  is now passed on once, as --threads N.
 - mxi scale in a centrosymmetric group -- every reflection centric -- printed
   anomalous statistics there are none of: completeness 0, multiplicity the
   multiplicity. It now says there are none, leaves the anomalous columns out

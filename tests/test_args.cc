@@ -35,6 +35,35 @@ Arguments run(const std::vector<std::string> &words) {
 
 } // namespace
 
+TEST(options_passed_on_to_a_part_parse_again_with_the_thread_count) {
+  // A run of a command for one part of the whole -- a sweep, a lattice, a
+  // group refined apart -- is given the whole's options. The thread count is
+  // held under -j and --threads both, which no command's takes_value lists:
+  // each part had been given "-j" bare, then "--threads", not a number, and
+  // stopped (mxi integrate on two sweeps, 13 November). Passed on, the
+  // options parse again, the count once, the rest as they were.
+  for (const std::string spelt : {"-j", "--threads"}) {
+    const Arguments whole =
+        run({"a.expt", spelt, "3", "--outlier-sigma", "4", "--beam"});
+    check::is_true(whole.ok, whole.error);
+    std::vector<std::string> words = {"a.expt"};
+    for (const auto &[flag, value] : whole.options)
+      pass_on(words, flag, value, {"--outlier-sigma", "--output-expt"});
+    std::int64_t threads = 0;
+    for (const std::string &w : words)
+      threads += w == "-j" || w == "--threads";
+    check::equal(threads, std::int64_t{1}, "the thread count passed on once");
+    const Arguments part = run(words);
+    check::is_true(part.ok, part.error);
+    check::is_true(part.options.at("-j") == "3" &&
+                       part.options.at("--threads") == "3",
+                   "and parsed again: 3");
+    check::is_true(part.options.at("--outlier-sigma") == "4",
+                   "a value passed on with its option");
+    check::is_true(part.has("--beam"), "a flag passed on alone");
+  }
+}
+
 TEST(options_may_come_before_the_file_names) {
   const Arguments a = run({"--beam", "indexed.expt", "indexed.refl"});
   check::is_true(a.ok, a.error.empty() ? "parsed" : a.error);

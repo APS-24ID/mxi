@@ -452,9 +452,7 @@ integrate_with_postrefinement(const Arguments &args, const char *program,
         continue;
       if (first && (flag == "--save-shoeboxes" || flag == "--save-profiles"))
         continue;
-      words.push_back(flag);
-      if (takes_value.count(flag))
-        words.push_back(value);
+      pass_on(words, flag, value, takes_value);
     }
     // The first run writes the pair beside the result, removed; the second the
     // result, as asked: the .rflx, or the pair -- its models now carrying the
@@ -655,11 +653,12 @@ std::int32_t integrate_sweeps(const Arguments &args, const char *program,
       for (const auto &[flag, value] : args.options) {
         if (flag == "-o" || flag == "--output-expt")
           continue;
-        words.push_back(flag);
-        if (flag == "--save-profiles")
+        if (flag == "--save-profiles") {
+          words.push_back(flag);
           words.push_back(profiles_of(value, g));
-        else if (takes_value.count(flag))
-          words.push_back(value);
+        } else {
+          pass_on(words, flag, value, takes_value);
+        }
       }
       words.insert(words.end(),
                    {"-o", got_refl, "--output-expt", got_expt, "--sweep-run"});
@@ -825,11 +824,12 @@ std::int32_t integrate_several(const Arguments &args, const char *program,
       for (const auto &[flag, value] : args.options) {
         if (flag == "-o" || flag == "--output-expt")
           continue;
-        base_words[i].push_back(flag);
-        if (flag == "--save-profiles")
+        if (flag == "--save-profiles") {
+          base_words[i].push_back(flag);
           base_words[i].push_back(profiles_of(value, i));
-        else if (takes_value.count(flag))
-          base_words[i].push_back(value);
+          continue;
+        }
+        pass_on(base_words[i], flag, value, takes_value);
       }
     }
 

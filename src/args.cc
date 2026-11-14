@@ -106,4 +106,14 @@ Arguments parse_arguments(int argc, char **argv,
   return out;
 }
 
+void pass_on(std::vector<std::string> &words, const std::string &flag,
+             const std::string &value,
+             const std::set<std::string> &takes_value) {
+  if (flag == "-j")
+    return; // the same count as --threads, passed on once there
+  words.push_back(flag);
+  if (flag == "--threads" || takes_value.count(flag))
+    words.push_back(value);
+}
+
 } // namespace mxi

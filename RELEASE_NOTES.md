@@ -7,6 +7,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.3.1, for 1.3.2
 
 **New**
+- A snapshot of every push to main: each platform's mxi binary, at a fixed
+  address under the pre-release "snapshot", for machines with no compilers.
+  Builds say what they are: a candidate 1.3.2-rc1, a snapshot the version and
+  the commit, 1.3.2+3806819 (docs/release.md).
 - mxi process keeps each step's output in memory as it writes it, and the next
   step reads it from there, not back from the disk; the files are written as
   before (MXI_KEEP_WRITTEN=0 to read them from the disk). Every --timing table

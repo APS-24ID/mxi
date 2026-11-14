@@ -371,7 +371,29 @@ enable_testing()
 # files, .rflx, are HDF5, and so every program needs it, not only the spot
 # finder and the importer.
 # Every program's --version (src/args.cc).
-target_compile_definitions(mxi PRIVATE MXI_VERSION="${PROJECT_VERSION}")
+# What this build calls itself -- mxi --version, the banner, every file's
+# creator: the source's version, or what the build was asked to call it.
+# A release's tag without its v (1.3.2-rc1, a candidate saying so), or
+# "snapshot": the version and the commit (1.3.2+3806819), the rolling builds
+# of every push to main telling one from another (Graeme, 14 November).
+set(MXI_VERSION_LABEL "" CACHE STRING
+    "What mxi calls itself: a release's tag without its v, or snapshot")
+set(mxi_version_text "${PROJECT_VERSION}")
+if(MXI_VERSION_LABEL STREQUAL "snapshot")
+    execute_process(COMMAND git rev-parse --short=7 HEAD
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                    OUTPUT_VARIABLE mxi_commit OUTPUT_STRIP_TRAILING_WHITESPACE
+                    ERROR_QUIET RESULT_VARIABLE mxi_git)
+    if(mxi_git EQUAL 0 AND mxi_commit)
+        set(mxi_version_text "${PROJECT_VERSION}+${mxi_commit}")
+    else()
+        set(mxi_version_text "${PROJECT_VERSION}+snapshot")
+    endif()
+elseif(MXI_VERSION_LABEL)
+    set(mxi_version_text "${MXI_VERSION_LABEL}")
+endif()
+message(STATUS "mxi calls itself ${mxi_version_text}")
+target_compile_definitions(mxi PRIVATE MXI_VERSION="${mxi_version_text}")
 find_package(HDF5 REQUIRED COMPONENTS C)
 target_include_directories(mxi SYSTEM PUBLIC ${HDF5_C_INCLUDE_DIRS})
 target_link_libraries(mxi PUBLIC ${HDF5_C_LIBRARIES})
@@ -522,7 +544,7 @@ endforeach()
 add_executable(mxi_program apps/mxi.cc)
 set_target_properties(mxi_program PROPERTIES OUTPUT_NAME mxi)
 target_link_libraries(mxi_program PRIVATE ${MXI_PROGRAMS} mxi)
-target_compile_definitions(mxi_program PRIVATE MXI_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(mxi_program PRIVATE MXI_VERSION="${mxi_version_text}")
 # What this build is, for the banner every program prints first and every log
 # begins with: the accelerator and its version, and the compiler (Graeme, 13
 # November -- logs sent from a dozen machines had none of it).

@@ -68,6 +68,7 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake"
           -DVCPKG_TARGET_TRIPLET=x64-windows-static
           -DVCPKG_MANIFEST_FEATURES=fftw -DMXI_FFTW=ON
+          -DMXI_VERSION_LABEL="$(case "$TAG" in v[0-9]*) echo "${TAG#v}" ;; *) echo snapshot ;; esac)"
       - name: Build
         run: cmake --build build
       - name: "Test: the C++ suite, on the CPU"

@@ -120,6 +120,17 @@ To build instead, take `mxi-<version>-source.tar.gz` from the same page: the
 complete source, its submodules included, which GitHub's own source archives
 leave out. How releases are made: `docs/release.md`.
 
+The latest build of `main`, not yet released, is the pre-release `snapshot`,
+rebuilt on every push: the `mxi` binary alone for each platform, at a fixed
+address -- for a machine with no compilers, to try what is coming:
+
+```sh
+curl -LO https://github.com/graeme-winter/mxi/releases/download/snapshot/mxi-snapshot-linux-arm64-cuda.tar.gz
+```
+
+Its `mxi --version`, and the first line of every log, give the version and the
+commit it was built from: `mxi 1.3.2+3806819`.
+
 ## Building
 
 Requires CMake 3.20 or later (tried with 3.22, Ubuntu 22.04's, and 4.4), a

@@ -72,6 +72,23 @@ tkinter (`docs/ui.md`).
 
 One program, not 24 each with its own HDF5: the archive is a few megabytes, where 24 programs had made it some 50.
 
+## Snapshots
+
+Every push to `main` runs the same workflow, and its builds -- the six
+platforms', tested as a release's are -- replace the rolling pre-release
+`snapshot`, its tag moved to the commit: `mxi-snapshot-<platform>.tar.gz`,
+Windows' `.zip`, at
+`https://github.com/graeme-winter/mxi/releases/download/snapshot/`. No wheels
+and no source archive: the binary, for a machine with no compilers -- the GH200
+Graeme tests on is not his (14 November). A newer push cancels an older one's
+run; six archives or nothing is replaced.
+
+What a build calls itself is set when it is configured, `MXI_VERSION_LABEL`: a
+release's tag without its `v` -- a candidate says `1.3.2-rc1` -- or `snapshot`,
+the source's version and the commit, `1.3.2+3806819`. Built by hand with
+neither, the source's version, as before. `mxi --version` says it, and the
+banner, the first line of every log.
+
 ## Licences
 
 mxi's source is BSD-3-Clause. The release builds include FFTW, for indexing's

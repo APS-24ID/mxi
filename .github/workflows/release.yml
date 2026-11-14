@@ -139,6 +139,18 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
           "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+      # What the build calls itself (MXI_VERSION_LABEL): a v-tag's version, or
+      # "snapshot". Worked out here, not inside $( ) in the configure line:
+      # macOS's bash 3.2 reads a case pattern's ) there as the substitution's
+      # end, and the snapshot's first macOS build was configured with the
+      # rest of the line as its label (14 November).
+      - name: What this build calls itself
+        run: |
+          case "$TAG" in
+            v[0-9]*) label="${TAG#v}" ;;
+            *) label=snapshot ;;
+          esac
+          echo "MXI_LABEL=$label" >> "$GITHUB_ENV"
       - name: Configure
         run: >
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -147,7 +159,7 @@ jobs:
           -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc"
           -DVCPKG_MANIFEST_FEATURES=fftw -DMXI_FFTW=ON
           -DMXI_CUDA=${{ matrix.cuda }} -DCMAKE_CUDA_ARCHITECTURES="${{ matrix.cuda_architectures || '90' }}"
-          -DMXI_VERSION_LABEL="$(case "$TAG" in v[0-9]*) echo "${TAG#v}" ;; *) echo snapshot ;; esac)"
+          -DMXI_VERSION_LABEL="$MXI_LABEL"
       - name: Build
         run: cmake --build build
       - name: "Test: the CPU paths, the runner having no GPU"
@@ -209,6 +221,18 @@ jobs:
       # triplet, cmake/triplets); unset, both took the runner's macOS 15 as
       # their minimum. Any API newer than 13 used without a check is an
       # error, so that the binaries cannot fail on an older macOS at run time.
+      # What the build calls itself (MXI_VERSION_LABEL): a v-tag's version, or
+      # "snapshot". Worked out here, not inside $( ) in the configure line:
+      # macOS's bash 3.2 reads a case pattern's ) there as the substitution's
+      # end, and the snapshot's first macOS build was configured with the
+      # rest of the line as its label (14 November).
+      - name: What this build calls itself
+        run: |
+          case "$TAG" in
+            v[0-9]*) label="${TAG#v}" ;;
+            *) label=snapshot ;;
+          esac
+          echo "MXI_LABEL=$label" >> "$GITHUB_ENV"
       - name: Configure
         run: >
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -219,7 +243,7 @@ jobs:
           -DCMAKE_CXX_FLAGS="-Werror=unguarded-availability-new"
           -DVCPKG_MANIFEST_FEATURES=fftw -DMXI_FFTW=ON
           -DMXI_METAL=ON -DMETAL_CPP_DIR="$METAL_CPP_DIR"
-          -DMXI_VERSION_LABEL="$(case "$TAG" in v[0-9]*) echo "${TAG#v}" ;; *) echo snapshot ;; esac)"
+          -DMXI_VERSION_LABEL="$MXI_LABEL"
       - name: Build
         run: cmake --build build
       # A Python of our choosing, as the Linux builds' containers give theirs

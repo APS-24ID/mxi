@@ -24,12 +24,16 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#include <intrin.h>
 #include <io.h>
 #include <windows.h>
 // K32GetProcessMemoryInfo is kernel32's own: no psapi library to link.
 #include <psapi.h>
 #else
 #include <fcntl.h>
+#if defined(__APPLE__)
+#include <sys/sysctl.h>
+#endif
 #include <sys/ioctl.h>
 #include <sys/resource.h>
 #include <unistd.h>
@@ -55,6 +59,85 @@ inline void prepare_terminal() {
   before = now;
   std::atexit([] { SetConsoleOutputCP(before); });
 #endif
+}
+
+//: The system and the processor's architecture, as built for.
+#if defined(_WIN32)
+inline constexpr const char *kSystem = "Windows";
+#elif defined(__APPLE__)
+inline constexpr const char *kSystem = "macOS";
+#else
+inline constexpr const char *kSystem = "Linux";
+#endif
+#if defined(__aarch64__) || defined(_M_ARM64)
+inline constexpr const char *kArchitecture = "arm64";
+#else
+inline constexpr const char *kArchitecture = "x86_64";
+#endif
+
+//: The machine's name, its first part; empty where it cannot say.
+inline std::string host_name() {
+#if defined(_WIN32)
+  char name[256] = {};
+  DWORD size = sizeof(name);
+  if (!GetComputerNameA(name, &size))
+    return {};
+  return std::string(name, size);
+#else
+  char name[256] = {};
+  if (gethostname(name, sizeof(name) - 1) != 0)
+    return {};
+  const std::string whole(name);
+  return whole.substr(0, whole.find('.'));
+#endif
+}
+
+//: The processor's name, as it gives it -- "Intel(R) Xeon(R) W-2275 CPU @
+//: 3.30GHz", "Apple M4 Max" -- its runs of spaces made one; empty where it
+//: cannot say (Linux on ARM, whose /proc/cpuinfo names no model).
+inline std::string cpu_name() {
+  std::string name;
+#if defined(_WIN32)
+  // The brand string, from CPUID: no library, every x86-64 processor.
+  std::int32_t regs[12] = {};
+  __cpuid(regs, 0x80000002);
+  __cpuid(regs + 4, 0x80000003);
+  __cpuid(regs + 8, 0x80000004);
+  name.assign(reinterpret_cast<const char *>(regs), sizeof(regs));
+  name = name.c_str();
+#elif defined(__APPLE__)
+  char buffer[256] = {};
+  std::size_t size = sizeof(buffer) - 1;
+  if (sysctlbyname("machdep.cpu.brand_string", buffer, &size, nullptr, 0) == 0)
+    name = buffer;
+#else
+  if (std::FILE *f = std::fopen("/proc/cpuinfo", "r")) {
+    char line[512];
+    while (std::fgets(line, sizeof(line), f) != nullptr) {
+      const std::string text(line);
+      if (text.rfind("model name", 0) == 0) {
+        const std::size_t colon = text.find(':');
+        if (colon != std::string::npos)
+          name = text.substr(colon + 1);
+        break;
+      }
+    }
+    std::fclose(f);
+  }
+#endif
+  std::string out;
+  for (const char c : name) {
+    const bool space = c == ' ' || c == '\t' || c == '\n' || c == '\r';
+    if (space) {
+      if (!out.empty() && out.back() != ' ')
+        out.push_back(' ');
+    } else {
+      out.push_back(c);
+    }
+  }
+  while (!out.empty() && out.back() == ' ')
+    out.pop_back();
+  return out;
 }
 
 //: Whether standard error is a terminal (not a file or a pipe).

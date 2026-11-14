@@ -162,3 +162,26 @@ nothing.
 Every program's `--timing` table gives each phase's wall time, its share, and
 the process's peak memory as the phase ended (`src/timing.hh`); the peak only
 rises, so the phase after which it jumps is the one that asked for it.
+
+## The banner
+
+Every program that keeps a log begins its output, and every log, with one line
+saying what made it and where (Graeme, 14 November -- logs sent from a dozen
+machines had said none of it, and each time it was asked or worked out):
+
+``` mxi 1.3.1 (CUDA 12.8, GNU 14.2) on ws448: Linux x86_64, Intel(R) Xeon(R)
+W-2275 CPU @ 3.30GHz, 28 cores ```
+
+The version; the build -- CUDA and its version, Metal, or the CPU only, and the
+compiler -- from CMake (`MXI_BUILD_DESCRIPTION`); the machine's name, its system
+and architecture, its processor as it names itself (CPUID on Windows, sysctl on
+macOS, /proc/cpuinfo on Linux, nothing on Linux's ARM, which names no model),
+and the cores the job may use, as `-j 0` takes them. mxi's main sets it
+(`set_banner`); `open_log` writes it at the head of each log, and the first log
+opened shows it on the terminal, once: so mxi process's log and each of its
+steps' logs begin with it, the terminal showing it once.
+
+Not shown: by `mxi show`, `mxi report` and `mxi readtest`, which keep no log --
+`mxi show --unit-cell`'s lines are read by programs -- nor for `--help`, nor for
+`mxi process --dry-run`, whose lines are commands to run as they stand. `mxi
+--version` says the version alone, as before, for scripts.

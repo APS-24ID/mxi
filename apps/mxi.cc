@@ -23,6 +23,7 @@
 
 #include "commands.hh"
 #include "output.hh"
+#include "parallel.hh"
 #include "platform.hh"
 
 #define MXI_PROGRAM(name) std::int32_t mxi_##name##_main(int argc, char **argv);
@@ -150,6 +151,38 @@ Command command_named(const char *name) {
   return nullptr;
 }
 
+//: The first line of every program's output and of every log: which mxi,
+//: built how, on which machine -- "mxi 1.3.1 (CUDA 12.8, GNU 14.2) on ws448:
+//: Linux x86_64, Intel(R) Xeon(R) W-2275 CPU @ 3.30GHz, 28 cores". Logs
+//: sent from a dozen machines had said none of it, and each time it had to be
+//: asked or worked out (Graeme, 13 November).
+std::string banner() {
+  std::string out = "mxi " MXI_VERSION " (" MXI_BUILD_DESCRIPTION ")";
+  const std::string host = platform::host_name();
+  if (!host.empty())
+    out += " on " + host;
+  out += std::string(": ") + platform::kSystem + " " + platform::kArchitecture;
+  const std::string cpu = platform::cpu_name();
+  if (!cpu.empty())
+    out += ", " + cpu;
+  const std::size_t cores = available_cores();
+  out += ", " + std::to_string(cores) + (cores == 1 ? " core" : " cores");
+  return out;
+}
+
+//: The banner set, for the first log the command opens to show and every log
+//: to begin with (open_log) -- unless the command was asked only for its
+//: help, which is then all it prints, or for mxi process's --dry-run, whose
+//: lines are commands to be run as they stand.
+void announce(std::int32_t argc, char **argv, std::int32_t first) {
+  for (std::int32_t i = first; i < argc; ++i)
+    if (std::strcmp(argv[i], "--help") == 0 ||
+        std::strcmp(argv[i], "-h") == 0 ||
+        std::strcmp(argv[i], "--dry-run") == 0)
+      return;
+  set_banner(banner() + "\n\n");
+}
+
 } // namespace mxi
 
 int main(int argc, char **argv) {
@@ -159,8 +192,10 @@ int main(int argc, char **argv) {
   base = base ? base + 1 : argv[0];
   if (std::strncmp(base, "mxi_", 4) == 0) {
     for (const Command &c : kCommands)
-      if (c.run && std::strcmp(base + 4, c.name) == 0)
+      if (c.run && std::strcmp(base + 4, c.name) == 0) {
+        mxi::announce(argc, argv, 1);
         return c.run(argc, argv);
+      }
   }
   if (argc < 2 || std::strcmp(argv[1], "help") == 0 ||
       std::strcmp(argv[1], "--help") == 0 || std::strcmp(argv[1], "-h") == 0) {
@@ -181,6 +216,7 @@ int main(int argc, char **argv) {
     std::vector<char *> args(argv + 1, argv + argc);
     args[0] = typed.data();
     args.push_back(nullptr);
+    mxi::announce(argc, argv, 2);
     return c.run(argc - 1, args.data());
   }
   mxi::eprint("mxi: no command '%s'\n\n", argv[1]);

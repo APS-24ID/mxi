@@ -62,6 +62,12 @@ int main() {
             mxi::platform::kNoFile,
         "no file: kNoFile");
   check(mxi::platform::peak_memory_mb() > 0.0, "peak memory above 0");
+  // The banner's machine: a name, and the processor's from CPUID.
+  const std::string host = mxi::platform::host_name();
+  const std::string cpu = mxi::platform::cpu_name();
+  std::printf("     host \"%s\", processor \"%s\"\n", host.c_str(), cpu.c_str());
+  check(!host.empty(), "the machine's name");
+  check(!cpu.empty() && cpu.back() != ' ', "the processor's name, its spaces trimmed");
   mxi::platform::prepare_terminal(); // no console here: nothing to change
   check(true, "prepare_terminal returns, with or without a console");
   std::printf("     peak %.1f MB, columns %d, terminal %d\n",

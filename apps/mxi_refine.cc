@@ -251,9 +251,7 @@ std::int32_t refine_apart(const Arguments &args,
     for (const auto &[flag, value] : args.options) {
       if (flag == "-o" || flag == "--output-expt" || flag == "--output-refl")
         continue;
-      words.push_back(flag);
-      if (takes_value.count(flag))
-        words.push_back(value);
+      pass_on(words, flag, value, takes_value);
     }
     words.insert(words.end(), {"-o", got});
     mxi::print("\n=== Group %zu of %zu: experiment%s", g + 1, groups.size(),

@@ -297,9 +297,7 @@ std::int32_t index_apart(const Arguments &args,
       if (flag == "-o" || flag == "--output-expt" || flag == "--output-refl" ||
           flag == "--no-joint")
         continue;
-      words.push_back(flag);
-      if (takes_value.count(flag))
-        words.push_back(value);
+      pass_on(words, flag, value, takes_value);
     }
     words.insert(words.end(), {"-o", got});
     mxi::print("\n=== Sweep %zu of %zu: experiment %zu ===\n", i + 1, n, i);

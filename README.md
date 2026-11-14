@@ -357,12 +357,40 @@ mxeq regress compare --against reference # what changed, past its tolerance
 
 ## Tests
 
-`ctest --test-dir build` runs the C++ tests. `pytest python/tests` runs
-mxeq's, and those of the programs that need real data, given the programs and
-data through `MXI_*` environment variables; without them those tests are
-skipped ([`python/README.md`](python/README.md)). mxi-ui's window tests need a
-display -- a desktop, or xvfb -- and are skipped where `MXI_NO_WINDOW_TESTS` is
-set, as the release builds set it.
+`ctest --test-dir build` runs the C++ tests. `pytest python/tests` runs the
+Python tests: mxeq's, the interface's, and those of the programs, which run
+them on data given through `MXI_*` environment variables and are skipped,
+saying which, without them (`pytest -rs` lists the reasons).
+
+`MXI_BUILD`, the build directory, is the one most need: the programs are found
+in it -- `MXI_FIND`, `MXI_INTEGRATE` and the like, each from the build's link
+to `mxi` for that command, unless set apart. The data:
+
+| variable | what | for |
+|---|---|---|
+| `MXI_POSTREFINE_EXPT`, `MXI_POSTREFINE_REFL` | a refined model and its indexed reflections, the DIALS pair (`mxi convert refined.rflx`), of a rotation sweep of 150 images or more -- the tests' was the 300-image insulin sweep | one pass against two, the device's fit against the CPU's, several sweeps, post-refinement, sweeps indexed and refined apart |
+| `MXI_TEST_EXPT`, `MXI_TEST_REFL` | the same kind of pair; the same files will do | integration's reproducibility across thread counts |
+| `MXI_POSTREFINE_IMAGES`, `MXI_TEST_IMAGES` | the images, where the `.expt` does not find them | as above |
+| `MXI_SCALE_EXPT`, `MXI_SCALE_REFL` | an integrated sweep, the DIALS pair | scaling, its options and models, export |
+| `MXI_TWO_LATTICES`, `_REFINED`, `_INTEGRATED`, `_SYMMETRIZED`, `_SCALED` | two lattices in one sweep, at each step | several lattices, from indexing to export |
+| `MXI_SMALL_MOLECULE` | an integrated small molecule, its group centrosymmetric | `--small-molecule` and scaling in such a group |
+| `MXI_TEMPLATE_EXPT` | an experiment list to borrow geometry from | the spot finder's scan range |
+| `MXI_DIALS_IMPORTED` | dials.import's `imported.expt`, with `MXI_TEST_IMAGES` | import against DIALS |
+
+For example, from mxi's own steps on a sweep:
+
+```sh
+mxi process master.nxs                     # or the steps to mxi refine alone
+mxi convert refined.rflx integrated.rflx   # refined.expt/.refl, integrated.expt/.refl
+export MXI_BUILD=$HOME/git/mxi/build
+export MXI_POSTREFINE_EXPT=$PWD/refined.expt MXI_POSTREFINE_REFL=$PWD/refined.refl
+export MXI_TEST_EXPT=$MXI_POSTREFINE_EXPT MXI_TEST_REFL=$MXI_POSTREFINE_REFL
+export MXI_SCALE_EXPT=$PWD/integrated.expt MXI_SCALE_REFL=$PWD/integrated.refl
+pytest -rs python/tests
+```
+
+mxi-ui's window tests need a display -- a desktop, or xvfb -- and are skipped
+where `MXI_NO_WINDOW_TESTS` is set, as the release builds set it.
 
 ## Acknowledgements
 

@@ -63,4 +63,16 @@ Arguments parse_arguments(int argc, char **argv,
                           const std::set<std::string> &takes_value,
                           const std::set<std::string> &optional_value = {});
 
+//: One option of this run passed on to a run of the command for a part of
+//: it -- a sweep, a lattice, a group refined apart -- appended to `words`:
+//: with its value where it takes one (`takes_value`, the command's own). The
+//: thread count once, as --threads N: parse_arguments holds it under both -j
+//: and --threads, which no command's takes_value need list, and each part's
+//: run had been given "-j" bare, then "--threads" -- not a number -- and
+//: stopped (13 November: mxi integrate on two sweeps, test_integrate_sweeps;
+//: so too mxi index --no-joint and mxi refine a group at a time, given -j).
+void pass_on(std::vector<std::string> &words, const std::string &flag,
+             const std::string &value,
+             const std::set<std::string> &takes_value);
+
 } // namespace mxi

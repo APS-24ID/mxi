@@ -39,6 +39,11 @@ def integrate(tmp_path, name, *extra):
             "--scan-blocks",
             "6",
             "--save-shoeboxes",
+            # Overlapping reflections are fitted together in one pass by
+            # default (6 November), which two passes cannot do: each would
+            # be another calculation, and one pass's table a column the more
+            # (profile.fitted_together). The passes are what is compared.
+            "--no-fit-overlaps",
             "--threads",
             "2",
             "-o",

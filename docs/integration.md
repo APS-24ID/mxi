@@ -238,8 +238,9 @@ MacBook. But `build_shoebox` zeroed the values too, before integration did, so
 that attempt left every box still zeroed once. On 13 November both went --
 `build_shoebox(..., zero_pixels = false)`, the values a `Voxels`, whose resize
 does not clear -- and on Graeme's Ryzen 9950X, ferritin's opening fell from 17.0
-s to 12.6, the planted series' every column the same. The MacBook's slowdown is
-to be measured again with both gone, before 1.3.1.
+s to 12.6, the planted series' every column the same. On the M4 Max, ferritin's
+opening went from 9.06 s to 8.20 and integration from 48.6 s to 47.8 (13
+November): the MacBook's slowdown of the first attempt was not this.
 
 **A frame that cannot be read stops integration.** With the values not zeroed, a
 box spanning a frame the file has no data for -- an unallocated chunk, a frame

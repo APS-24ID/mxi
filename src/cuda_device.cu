@@ -43,6 +43,21 @@ std::string unavailable_reason() {
   why += versions;
   if (const char *visible = std::getenv("CUDA_VISIBLE_DEVICES"))
     why += std::string("; CUDA_VISIBLE_DEVICES is \"") + visible + "\"";
+  // What the versions mean, which the bare numbers had left to the reader --
+  // on a cluster node, a 13.4 driver beside this build's 12.8 runtime read
+  // as the trouble, and was not: CUDA would start for no program there, the
+  // GPU not the session's to use (Graeme, 14 November). A driver older than
+  // the runtime is the one case the versions explain.
+  if (driver > 0 && driver < runtime)
+    why += ". The driver is older than this build's runtime: a newer NVIDIA "
+           "driver is needed";
+  else if (driver > 0)
+    why += ". A driver as new as this build's runtime, or newer, is as it "
+           "should be: the versions are not the trouble. Where nvidia-smi "
+           "works but CUDA will not start, the GPU is not this process's to "
+           "use -- on a cluster, run in a job given one (srun --gpus=1, or "
+           "your scheduler's like); on a machine of one's own, "
+           "/dev/nvidia-uvm missing (nvidia-modprobe -u -c=0, as root)";
   return why;
 }
 

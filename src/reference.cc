@@ -707,12 +707,24 @@ ProfileFit fit_on_pixels(const Shoebox &box,
   // saturated, and that is most of its value beyond the variance.
   double profile_sum = 0.0;
   double seen = 0.0;
+  bool any_measured = false;
   for (std::size_t i = 0; i < box.size(); ++i) {
     if ((box.mask[i] & shoebox_mask::kForeground) == 0)
       continue;
     profile_sum += pixel_profile[i];
-    if (box.mask[i] & shoebox_mask::kValid)
+    if (box.mask[i] & shoebox_mask::kValid) {
       seen += pixel_profile[i];
+      any_measured = true;
+    }
+  }
+  // No foreground voxel measured at all -- the reflection wholly in a gap --
+  // is said first, whatever the profile: it is the more useful reason, and
+  // the mask alone shows it, so integration's device path, which has no
+  // profile on the host, says the same of the same reflection (14 November).
+  if (!any_measured) {
+    out.why = FitFailure::foreground_masked;
+    out.measured = 0.0;
+    return out;
   }
   if (!(profile_sum > 0.0)) {
     out.why = FitFailure::profile_off_foreground;
@@ -1263,12 +1275,21 @@ std::vector<ProfileFit> fit_together(const std::vector<OverlapMember> &members,
   std::vector<double> profile_sum(k_n, 0.0), seen(k_n, 0.0);
   for (std::size_t k = 0; k < k_n; ++k) {
     const Shoebox &b = *members[k].box;
+    bool any_measured = false;
     for (std::size_t i = 0; i < b.size(); ++i) {
       if ((b.mask[i] & shoebox_mask::kForeground) == 0)
         continue;
       profile_sum[k] += members[k].profile[i];
-      if (b.mask[i] & shoebox_mask::kValid)
+      if (b.mask[i] & shoebox_mask::kValid) {
         seen[k] += members[k].profile[i];
+        any_measured = true;
+      }
+    }
+    // As fit_on_pixels: no foreground measured said first.
+    if (!any_measured) {
+      for (ProfileFit &f : out)
+        f.why = FitFailure::foreground_masked;
+      return out;
     }
     if (!(profile_sum[k] > 0.0)) {
       for (ProfileFit &f : out)

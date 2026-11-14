@@ -4,6 +4,22 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
+## Unreleased -- since 1.3.1
+
+**New**
+- Every program that keeps a log begins its output and every log with what
+  made it: the version, the build (CUDA and its version, Metal, or the CPU
+  only; the compiler), the machine's name, system, processor and cores
+  (docs/output.md).
+
+**Fixed**
+- mxi integrate --gpu named a reflection with none of its foreground measured
+  -- wholly in a gap -- only as "the device's fit failed"; it now says so, as
+  without --gpu, from the mask before the device is given it, and the CPU says
+  it first too: the reasons in profile.failure the same on both.
+- mxi convert of a reflection table alone said "Wrote out.rflx:, 22
+  reflections".
+
 ## 1.3.1 -- 14 November 2026
 
 **New**

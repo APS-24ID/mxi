@@ -1119,7 +1119,66 @@ void set_uncompressed(bool on) {
   g_uncompressed = on;
 }
 
+namespace {
+
+//: The last file written, kept (keep_written): what was written, and the
+//: file's size and time then, so that a read finding it changed reads it.
+struct Kept {
+  bool on = false;
+  std::string path;
+  std::uintmax_t size = 0;
+  std::filesystem::file_time_type time{};
+  std::optional<json::Value> experiments, summary;
+  std::optional<Table> reflections;
+  std::string creator;
+};
+
+Kept &kept() {
+  static Kept k;
+  return k;
+}
+
+std::mutex &kept_lock() {
+  static std::mutex m;
+  return m;
+}
+
+std::string absolute_of(const std::string &path) {
+  std::error_code e;
+  const std::filesystem::path p = std::filesystem::absolute(path, e);
+  return e ? path : p.lexically_normal().string();
+}
+
+//: The kept file, if it is `path` and unchanged since written; else none.
+const Kept *kept_for(const std::string &path) {
+  const Kept &k = kept();
+  if (!k.on || k.path.empty() || k.path != absolute_of(path))
+    return nullptr;
+  std::error_code e;
+  const std::uintmax_t size = std::filesystem::file_size(path, e);
+  if (e || size != k.size)
+    return nullptr;
+  const std::filesystem::file_time_type time =
+      std::filesystem::last_write_time(path, e);
+  if (e || time != k.time)
+    return nullptr;
+  return &k;
+}
+
+} // namespace
+
+void keep_written(bool on) {
+  const std::lock_guard<std::mutex> hold(kept_lock());
+  kept() = Kept{};
+  kept().on = on;
+}
+
 std::optional<json::Value> read_summary(const std::string &path) {
+  {
+    const std::lock_guard<std::mutex> hold(kept_lock());
+    if (const Kept *k = kept_for(path))
+      return k->summary;
+  }
   const std::lock_guard<std::mutex> guard(lock());
   const Quiet quiet;
   H file(H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
@@ -1132,6 +1191,11 @@ std::optional<json::Value> read_summary(const std::string &path) {
 }
 
 std::string read_creator(const std::string &path) {
+  {
+    const std::lock_guard<std::mutex> hold(kept_lock());
+    if (const Kept *k = kept_for(path))
+      return k->creator;
+  }
   const std::lock_guard<std::mutex> guard(lock());
   const Quiet quiet;
   H file(H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
@@ -1141,6 +1205,11 @@ std::string read_creator(const std::string &path) {
 }
 
 std::optional<json::Value> read_experiments(const std::string &path) {
+  {
+    const std::lock_guard<std::mutex> hold(kept_lock());
+    if (const Kept *k = kept_for(path))
+      return k->experiments;
+  }
   const std::lock_guard<std::mutex> guard(lock());
   const Quiet quiet;
   H file(H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
@@ -1154,6 +1223,11 @@ std::optional<json::Value> read_experiments(const std::string &path) {
 
 std::optional<Table> read_reflections(const std::string &path,
                                       std::vector<std::string> *skipped) {
+  {
+    const std::lock_guard<std::mutex> hold(kept_lock());
+    if (const Kept *k = kept_for(path))
+      return k->reflections; // every column written was of a kind kept
+  }
   const std::lock_guard<std::mutex> guard(lock());
   const Quiet quiet;
   H file(H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
@@ -1302,6 +1376,28 @@ void write(const std::string &path, const json::Value *experiments,
   if (failed)
     throw Error("cannot move " + partial + " to " + path + ": " +
                 failed.message());
+  // Kept, where keep_written asked, for the next step's reading.
+  const std::lock_guard<std::mutex> hold(kept_lock());
+  Kept &k = kept();
+  if (!k.on)
+    return;
+  std::error_code e;
+  const std::uintmax_t size = std::filesystem::file_size(path, e);
+  const std::filesystem::file_time_type time =
+      e ? std::filesystem::file_time_type{}
+        : std::filesystem::last_write_time(path, e);
+  k.path.clear();
+  if (e)
+    return; // not kept: read from the file
+  k.path = absolute_of(path);
+  k.size = size;
+  k.time = time;
+  k.experiments =
+      experiments ? std::optional<json::Value>(*experiments) : std::nullopt;
+  k.summary = summary ? std::optional<json::Value>(*summary) : std::nullopt;
+  k.reflections =
+      reflections ? std::optional<Table>(*reflections) : std::nullopt;
+  k.creator = creator;
 }
 
 } // namespace rflx

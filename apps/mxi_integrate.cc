@@ -1118,6 +1118,12 @@ int run_integrate(int argc, char **argv) {
     // writing -- the columns filled, the summaries made: neither had been
     // timed, a third of 11.8 s on a GH200 (Graeme, 14 November).
     double t_plan = 0.0, t_summary = 0.0;
+    // Its parts, for the table (Graeme's M4 Max: 0.73 s, the parts unknown).
+    double t_plan_sort = 0.0, t_plan_tiles = 0.0, t_plan_look = 0.0,
+           t_plan_meet = 0.0, t_plan_groups = 0.0;
+    // And the profile model's (0.97 s on the M4 Max, 1.6 on the GH200).
+    double t_model_read = 0.0, t_model_select = 0.0, t_model_b = 0.0,
+           t_model_m = 0.0;
     // And the chunk loop's own wall, to show what of it no phase inside it
     // measured (on the planted series a third: the image file opened, the
     // threads started, the boxes moved between the passes).
@@ -1192,8 +1198,10 @@ int run_integrate(int argc, char **argv) {
         double lb = given_b, lm = given_m;
         if ((!(lb > 0.0) || !(lm > 0.0)) && !strong_path.empty()) {
           if (!strong) {
+            const double t_read_start = now_wall();
             strong = read_reflections(strong_path);
             strong_boxes = decode_shoeboxes(*strong);
+            t_model_read += now_wall() - t_read_start;
             if (strong_boxes.empty()) {
               mxi::eprint("mxi integrate: %s has no shoeboxes, so the profile "
                           "model cannot be estimated from it\n",
@@ -1218,6 +1226,7 @@ int run_integrate(int argc, char **argv) {
           const Column &cal_in = strong->at("xyzcal.mm");
           const bool by_id =
               (n_lattices > 1 || views.any_crystal_less()) && strong->has("id");
+          const double t_select_start = now_wall();
           std::vector<Shoebox> selected;
           std::vector<Vec3> beams;
           std::vector<RangeSample> samples;
@@ -1245,13 +1254,18 @@ int run_integrate(int argc, char **argv) {
               samples.push_back(sample);
             }
           }
+          const double t_b_start = now_wall();
+          t_model_select += t_b_start - t_select_start;
           std::size_t used = 0;
           if (!(lb > 0.0))
             lb = beam_divergence(le, selected, beams, &used);
+          const double t_m_start = now_wall();
+          t_model_b += t_m_start - t_b_start;
           if (!(lm > 0.0)) {
             lm = reflecting_range(samples, Scan::radians(le.scan.osc_width),
                                   0.0, sigma_m_weighted);
           }
+          t_model_m += now_wall() - t_m_start;
           // Which were estimated: a number given is not.
           sources[l] =
               given_b > 0.0
@@ -1486,10 +1500,12 @@ int run_integrate(int argc, char **argv) {
     // sorted before the neighbours are found, which are indices into it: found
     // first, the sort shuffled them, and each box was masked with the
     // reflections of others.
+    const double t_sort_start = now_wall();
     std::sort(planned.begin(), planned.end(),
               [](const Planned &a, const Planned &b) {
                 return a.bbox[4] < b.bbox[4];
               });
+    t_plan_sort = now_wall() - t_sort_start;
 
     // NEIGHBOURS, MASKED (docs/multi-lattice.md). Each reflection's box with
     // the voxels inside another reflection's foreground marked Overlapped:
@@ -1608,6 +1624,7 @@ int run_integrate(int argc, char **argv) {
       const auto floor_div = [](std::int32_t a, std::int32_t b) {
         return a >= 0 ? a / b : -((-a + b - 1) / b);
       };
+      const double t_tiles_start = now_wall();
       std::unordered_map<std::uint64_t, std::vector<std::uint32_t>> tiles;
       tiles.reserve(planned.size() + others.size());
       for (std::size_t i = 0; i < planned.size() + others.size(); ++i) {
@@ -1653,10 +1670,13 @@ int run_integrate(int argc, char **argv) {
         const std::size_t parts =
             std::max<std::size_t>(1, std::min(workers, n));
         std::vector<std::thread> pool;
+        const double t_look_start = now_wall();
+        t_plan_tiles = t_look_start - t_tiles_start;
         for (std::size_t k = 0; k < parts; ++k)
           pool.emplace_back(look_up, n * k / parts, n * (k + 1) / parts);
         for (std::thread &t : pool)
           t.join();
+        t_plan_look = now_wall() - t_look_start;
       }
       std::size_t meeting = 0;
       for (const auto &n : neighbours)
@@ -1688,11 +1708,14 @@ int run_integrate(int argc, char **argv) {
           const std::size_t parts =
               std::max<std::size_t>(1, std::min(workers, n));
           std::vector<std::thread> pool;
+          const double t_meet_start = now_wall();
           for (std::size_t k = 0; k < parts; ++k)
             pool.emplace_back(meet_range, n * k / parts, n * (k + 1) / parts);
           for (std::thread &t : pool)
             t.join();
+          t_plan_meet = now_wall() - t_meet_start;
         }
+        const double t_groups_start = now_wall();
         std::vector<std::uint32_t> parent(planned.size());
         for (std::size_t i = 0; i < planned.size(); ++i)
           parent[i] = static_cast<std::uint32_t>(i);
@@ -1727,6 +1750,7 @@ int run_integrate(int argc, char **argv) {
             "Overlapping foregrounds: %zu reflections in %zu groups, to be "
             "fitted together\n",
             in_groups, group_size.size());
+        t_plan_groups = now_wall() - t_groups_start;
       }
     }
 
@@ -3465,9 +3489,18 @@ int run_integrate(int argc, char **argv) {
     if (args.has("--timing")) {
       Timing timing(true, t_start);
       timing.add("the profile model", t_profile);
+      timing.add("the indexed spots read", t_model_read, 1);
+      timing.add("spots chosen, samples taken", t_model_select, 1);
+      timing.add("sigma_b", t_model_b, 1);
+      timing.add("sigma_m", t_model_m, 1);
       timing.add("prediction", t_predict);
       timing.add("bounding boxes", t_boxes);
       timing.add("overlaps, and planning", t_plan);
+      timing.add("sorting", t_plan_sort, 1);
+      timing.add("the tiles", t_plan_tiles, 1);
+      timing.add("finding neighbours", t_plan_look, 1);
+      timing.add("overlapping pairs", t_plan_meet, 1);
+      timing.add("the groups", t_plan_groups, 1);
       timing.add("opening shoeboxes", t_open);
       timing.add("reading frames, wall", t_region);
       timing.add("background and summation", t_integrate);

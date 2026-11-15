@@ -466,6 +466,17 @@ history on 20 October: four closed, nine rewritten to what is now true.
 * **93.** **capability -- CUDA on Windows.** The Windows build is the CPU's
     only; the spot finder's and profile fitting's CUDA paths are built and
     tested on Linux. Left from item 89.
+* **95.** **speed -- writing and reading .rflx files.** Parked by Graeme, 15
+    November: diminishing returns. Some 7 s of a 63 s run on the two-socket
+    Xeon with the L40S, 2.5 s on the M4 Max, all on one thread. Measured
+    here: a million-row, forty-column table written in 0.37 s, its columns'
+    bitshuffle-LZ4 compression alone 0.12 -- a third. Refinement's writing
+    0.82 s for 160000 rows on the Xeon points at something besides the table
+    (the scan-varying experiment list's JSON, or the summary). If it ever
+    matters: time the parts first; then chunks compressed in parallel and
+    written raw (H5Dwrite_chunk, the bytes the filter would write), reading
+    likewise. Not: keeping steps' output in memory between them, tried and
+    reverted (its revert's commit message, 15 November, says why).
 * **94.** **speed -- x86's remaining calls for fmax and fmin.** GCC calls the C
     library for std::fmax and std::fmin -- their NaN rules are not maxsd's --
     where ARM has an instruction: indexing's choice of basis made 1.9 billion

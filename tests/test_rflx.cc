@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
-#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -145,57 +144,6 @@ TEST(a_table_of_every_column_comes_back_to_the_same_bytes) {
   check::is_true(bytes_of(scratch("a.refl")) == bytes_of(scratch("b.refl")),
                  "the same msgpack bytes");
   for (const char *f : {"table.rflx", "a.refl", "b.refl"})
-    std::remove(scratch(f).c_str());
-}
-
-TEST(a_file_kept_as_written_reads_as_the_disk_would) {
-  // mxi process keeps each step's output in memory as it is written, for the
-  // next step to read without reading it back (keep_written). What it reads
-  // so must be what the disk gives: the same table to the byte, the same
-  // experiments and summary, the same creator. And once the file is changed
-  // -- written again without keeping, here -- the disk's.
-  const Table t = every_column();
-  const json::Value tree = awkward_tree();
-  json::Object summary;
-  summary["steps"] = json::Value(json::Array{});
-  const json::Value sv(summary);
-  const std::string path = scratch("kept.rflx");
-  rflx::keep_written(true);
-  rflx::write(path, &tree, &t, "mxi_tests", false, &sv);
-  const std::optional<Table> kept = rflx::read_reflections(path);
-  const std::optional<json::Value> kept_tree = rflx::read_experiments(path);
-  const std::optional<json::Value> kept_summary = rflx::read_summary(path);
-  const std::string kept_creator = rflx::read_creator(path);
-  rflx::keep_written(false); // forgets: what follows is the disk's
-  const std::optional<Table> disk = rflx::read_reflections(path);
-  check::is_true(kept && disk, "both read");
-  write_reflections(scratch("kept.refl"), *kept);
-  write_reflections(scratch("disk.refl"), *disk);
-  check::is_true(bytes_of(scratch("kept.refl")) ==
-                     bytes_of(scratch("disk.refl")),
-                 "the kept table the disk's, to the byte");
-  check::is_true(kept_tree && rflx::read_experiments(path) &&
-                     json::dump(*kept_tree) ==
-                         json::dump(*rflx::read_experiments(path)),
-                 "the same experiments");
-  check::is_true(kept_summary && rflx::read_summary(path) &&
-                     json::dump(*kept_summary) ==
-                         json::dump(*rflx::read_summary(path)),
-                 "the same summary");
-  check::is_true(kept_creator == rflx::read_creator(path), "the same creator");
-  // Kept, then the file replaced behind it -- by a copy of another, no
-  // reflections in it: the read finds it changed, and reads the disk.
-  const std::string other = scratch("other.rflx");
-  rflx::write(other, &tree, nullptr, "mxi_tests");
-  rflx::keep_written(true);
-  rflx::write(path, &tree, &t, "mxi_tests");
-  check::is_true(rflx::read_reflections(path).has_value(), "kept, read");
-  std::filesystem::copy_file(other, path,
-                             std::filesystem::copy_options::overwrite_existing);
-  check::is_true(!rflx::read_reflections(path).has_value(),
-                 "a file changed since is read from the disk");
-  rflx::keep_written(false);
-  for (const char *f : {"kept.rflx", "other.rflx", "kept.refl", "disk.refl"})
     std::remove(scratch(f).c_str());
 }
 

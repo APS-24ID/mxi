@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -59,7 +60,7 @@ struct BatchEntry {
   const Shoebox *box;
   Vec3 s1;
   double phi, background;
-  const std::vector<double> *reference;
+  std::span<const double> reference; //: the box's local reference profile
 };
 void add_to_batch(FitBatch *batch, const std::vector<BatchEntry> &entries,
                   bool to_device = false);

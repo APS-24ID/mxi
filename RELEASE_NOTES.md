@@ -7,6 +7,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.3.1, for 1.3.2
 
 **New**
+- mxi integrate --gpu: each box's local reference profile written into one
+  buffer, reused batch after batch, where a vector a box had been some 10 GB
+  of new memory a run -- "preparing" 4.9 s on a two-socket Xeon against 0.45
+  on an M4 Max. The same results.
 - The Linux builds use mimalloc in place of the C library's malloc. On a
   two-socket Xeon with an L40S, integrating 3600 insulin images took 38 s, 11
   of them glibc's allocator with 48 threads building boxes and freeing each

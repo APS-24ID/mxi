@@ -40,6 +40,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include "geometry.hh"
@@ -182,6 +183,15 @@ std::vector<Neighbour> neighbours_of(const ReferenceProfiles &reference,
 std::vector<double> profile_at(const ReferenceProfiles &reference,
                                const Panel &panel, std::size_t which_panel,
                                double px_fast, double px_slow, double z);
+
+//: As profile_at, written into `out` -- its size the reference grid's -- for
+//: a caller holding a buffer for many: integration's device path, which had
+//: made a vector a box, some 10 GB a run of new memory, "preparing" 4.9 s on
+//: a two-socket Xeon against 0.45 on an M4 Max (Graeme, 15 November). False,
+//: and nothing written, where `out` is not the grid's size.
+bool profile_at(const ReferenceProfiles &reference, const Panel &panel,
+                std::size_t which_panel, double px_fast, double px_slow,
+                double z, std::span<double> out);
 
 ReferenceProfiles make_reference(const GridSpec &spec, std::int32_t divisions,
                                  std::int32_t blocks, std::size_t panels,

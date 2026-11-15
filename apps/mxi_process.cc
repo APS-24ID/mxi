@@ -4,9 +4,9 @@
 // they belong: -j to every step, --gpu to spot finding and integration,
 // --no-joint to indexing, --small-molecule to symmetry,
 // --cell and --space-group to indexing (and the group to scaling),
-// --d-min-auto to scaling. A step that fails stops it, said by name, its
-// exit code and its log, with the command to run it again once put right
-// (Graeme, 5 November: "given the simple script I typically use").
+// --d-min-auto and --anomalous to scaling. A step that fails stops it, said by
+// name, its exit code and its log, with the command to run it again once put
+// right (Graeme, 5 November: "given the simple script I typically use").
 //
 // Given a .rflx instead of images, it picks up after the step that wrote it
 // and finishes: a cluster mxi correlation wrote is scaled and exported, each
@@ -64,6 +64,8 @@ const char *const kUsage =
     "and\n"
     "                    with --cell, mxi index --known-space-group\n"
     "  --d-min-auto      mxi scale --d-min-auto: the limit from CC half\n"
+    "  --anomalous       mxi scale --anomalous: Friedel mates apart, for a\n"
+    "                    strong anomalous signal\n"
     "  --dry-run         the commands, printed; nothing run\n"
     "  --timing          to every step that times itself (find to scale),\n"
     "                    and at the end each step's time, import and export\n"
@@ -186,7 +188,7 @@ int mxi_process_main(int argc, char **argv) {
   const std::set<std::string> known = {
       "--gpu",     "--cell",     "--space-group",    "--d-min-auto",
       "--dry-run", "--no-joint", "--small-molecule", "--help",
-      "-h",        "--timing"};
+      "-h",        "--timing",   "--anomalous"};
   const std::set<std::string> takes_value = {"--cell", "--space-group"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (!args.ok) {
@@ -247,6 +249,10 @@ int mxi_process_main(int argc, char **argv) {
     steps.back().args.insert(steps.back().args.end(), {"--space-group", group});
   if (args.has("--d-min-auto"))
     steps.back().args.push_back("--d-min-auto");
+  // Graeme, 15 November: given to mxi process, refused as unknown -- the
+  // anomalous data set's run had to be scaled again by hand.
+  if (args.has("--anomalous"))
+    steps.back().args.push_back("--anomalous");
   steps.push_back({"export", {"scaled.rflx"}, "scaled.mtz"});
 
   // One .rflx: from the step after the one that wrote it, that file its
@@ -332,6 +338,8 @@ int mxi_process_main(int argc, char **argv) {
     shared += " --no-joint";
   if (args.has("--d-min-auto"))
     shared += " --d-min-auto";
+  if (args.has("--anomalous"))
+    shared += " --anomalous";
   if (!threads.empty())
     shared += " -j " + threads[1];
   if (timing)

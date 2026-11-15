@@ -175,6 +175,7 @@ Build options:
 | `-DMXI_METAL=ON -DMETAL_CPP_DIR=DIR` | the same on Apple silicon; `DIR` holds `Metal/Metal.hpp`, Apple's metal-cpp from <https://developer.apple.com/metal/cpp/>. One device backend at a time. |
 | `-DMXI_FFTW=ON` | indexing's transform by FFTW, about three times the built-in's speed; GPL, so opt-in; the releases include it, and are distributed under the GPL's terms. `-DFFTW3_LIBRARY=... -DFFTW3_INCLUDE_DIR=...` where it is not found. |
 | `-DMXI_AVX2=OFF` | a binary for x86 CPUs without AVX2 |
+| `-DMXI_MIMALLOC=OFF` | the C library's `malloc`, not mimalloc (`third_party/mimalloc`), which Linux builds use by default: glibc's, with many threads on two sockets, cost integration 11 s of 38 |
 | `-DMXI_SSE41=OFF` | for x86 CPUs without SSE4.1 (before 2009) |
 | `-DMXI_SANITIZE=ON` | AddressSanitizer and UndefinedBehaviorSanitizer, for the tests |
 

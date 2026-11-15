@@ -101,7 +101,8 @@ with the notices below.
 
 The code linked into the program comes with its notices, in each archive's
 `licenses/`: gemmi (MPL-2.0, its source in the source archive), bitshuffle
-(MIT) and the LZ4 within it (BSD-2), from the submodules; HDF5, libaec, zlib
+(MIT) and the LZ4 within it (BSD-2), and in the Linux builds mimalloc (MIT),
+from the submodules; HDF5, libaec, zlib
 and FFTW, from vcpkg's copyright files; NVIDIA's CUDA runtime in the CUDA
 build; and a README saying which is which, and what FFTW makes of the whole.
 `scripts/package_release.sh` fails if a notice is missing, or if the program

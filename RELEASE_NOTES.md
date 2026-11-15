@@ -4,35 +4,35 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
-## Unreleased -- since 1.3.1, for 1.3.2
+## 1.3.2 -- 15 November 2026
 
 **New**
-- mxi integrate --gpu: each box's local reference profile written into one
-  buffer, reused batch after batch, where a vector a box had been some 10 GB
-  of new memory a run -- "preparing" 4.9 s on a two-socket Xeon against 0.45
-  on an M4 Max. The same results.
 - The Linux builds use mimalloc in place of the C library's malloc. On a
   two-socket Xeon with an L40S, integrating 3600 insulin images took 38 s, 11
   of them glibc's allocator with 48 threads building boxes and freeing each
   other's; 27 s with a scalable allocator, every result the same. The banner
   says "mimalloc"; -DMXI_MIMALLOC=OFF to build without it.
+- mxi integrate --gpu: each box's local reference profile written into one
+  buffer, reused batch after batch, where a vector a box had been some 10 GB
+  of new memory a run -- "preparing" 4.9 s on a two-socket Xeon against 0.45
+  on an M4 Max. The same results.
 - mxi integrate: its profile model's reflecting range (sigma_m) fitted across
   the threads, and its search for neighbouring boxes' tiles built across them,
   where each ran on one: on an M4 Max 0.69 s and 0.41 s of insulin's
   integration, on one thread each. The same on any number of threads; sigma_m
   differs from 1.3.1's in its eighth figure, the search settling elsewhere in
   the likelihood's flat minimum.
-- A snapshot of every push to main: each platform's mxi binary, at a fixed
-  address under the pre-release "snapshot", for machines with no compilers.
-  Builds say what they are: a candidate 1.3.2-rc1, a snapshot the version and
-  the commit, 1.3.2+3806819 (docs/release.md).
-- Every --timing table now says where the time its phases did not account for
-  went ("the rest"); mxi integrate's names its overlaps and planning, its
-  chunks' own time, and its summary.
 - Every program that keeps a log begins its output and every log with what
   made it: the version, the build (CUDA and its version, Metal, or the CPU
   only; the compiler), the machine's name, system, processor and cores
   (docs/output.md).
+- Every --timing table now says where the time its phases did not account for
+  went ("the rest"); mxi integrate's names its overlaps and planning, its
+  chunks' own time, and its summary.
+- A snapshot of every push to main: each platform's mxi binary, at a fixed
+  address under the pre-release "snapshot", for machines with no compilers.
+  Builds say what they are: a candidate 1.3.2-rc1, a snapshot the version and
+  the commit, 1.3.2+3806819 (docs/release.md).
 
 **Fixed**
 - --gpu with no usable CUDA device gave the driver's and the build's CUDA

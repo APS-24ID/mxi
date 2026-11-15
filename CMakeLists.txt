@@ -456,7 +456,35 @@ else()
     target_sources(mxi_integrate PRIVATE src/fit_device_none.cc)
 endif()
 
+# mimalloc in place of the C library's malloc, on Linux: glibc's, with 48
+# threads on a two-socket Xeon allocating shoeboxes and freeing each other's,
+# cost integration 11 s of 38 -- building boxes 12.7 s, 24 threads or 48 alike;
+# Intel's scalable allocator preloaded, 4.3 s, every result the same (Graeme,
+# 15 November, an L40S workstation). Linked as objects defining malloc, free
+# and the rest, it serves everything in the process: mxi, the C++ library,
+# HDF5, CUDA's runtime. macOS's allocator was never the trouble; Windows'
+# untried. -DMXI_MIMALLOC=OFF for the C library's.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(mxi_mimalloc_default ON)
+else()
+    set(mxi_mimalloc_default OFF)
+endif()
+option(MXI_MIMALLOC "Link mimalloc in place of malloc (Linux by default)"
+       ${mxi_mimalloc_default})
+if(MXI_MIMALLOC)
+    set(MI_OVERRIDE ON CACHE BOOL "" FORCE)
+    set(MI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(MI_BUILD_STATIC OFF CACHE BOOL "" FORCE)
+    set(MI_BUILD_OBJECT ON CACHE BOOL "" FORCE)
+    set(MI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    add_subdirectory(third_party/mimalloc EXCLUDE_FROM_ALL)
+    message(STATUS "malloc: mimalloc (third_party/mimalloc)")
+else()
+    message(STATUS "malloc: the C library's")
+endif()
+
 add_executable(mxi_tests
+  tests/test_allocator.cc
   tests/main.cc
   tests/test_combine.cc
   tests/test_summary_cut.cc
@@ -508,6 +536,11 @@ add_executable(mxi_tests
   tests/test_profile_model.cc
 )
 target_link_libraries(mxi_tests PRIVATE mxi mxi_dext mxi_signal_order mxi_spots)
+if(MXI_MIMALLOC)
+    # The tests on the allocator the program has.
+    target_link_libraries(mxi_tests PRIVATE mimalloc-obj)
+    target_compile_definitions(mxi_tests PRIVATE MXI_MIMALLOC)
+endif()
 target_compile_options(mxi_tests PRIVATE ${MXI_WARNINGS})
 add_test(NAME mxi_tests COMMAND mxi_tests)
 
@@ -551,6 +584,9 @@ endforeach()
 add_executable(mxi_program apps/mxi.cc)
 set_target_properties(mxi_program PROPERTIES OUTPUT_NAME mxi)
 target_link_libraries(mxi_program PRIVATE ${MXI_PROGRAMS} mxi)
+if(MXI_MIMALLOC)
+    target_link_libraries(mxi_program PRIVATE mimalloc-obj)
+endif()
 target_compile_definitions(mxi_program PRIVATE MXI_VERSION="${mxi_version_text}")
 # What this build is, for the banner every program prints first and every log
 # begins with: the accelerator and its version, and the compiler (Graeme, 13
@@ -564,8 +600,13 @@ else()
     set(mxi_accelerator "CPU only")
 endif()
 string(REGEX MATCH "^[0-9]+\\.[0-9]+" mxi_cxx_short "${CMAKE_CXX_COMPILER_VERSION}")
+if(MXI_MIMALLOC)
+    set(mxi_allocator ", mimalloc")
+else()
+    set(mxi_allocator "")
+endif()
 target_compile_definitions(mxi_program PRIVATE
-    MXI_BUILD_DESCRIPTION="${mxi_accelerator}, ${CMAKE_CXX_COMPILER_ID} ${mxi_cxx_short}")
+    MXI_BUILD_DESCRIPTION="${mxi_accelerator}, ${CMAKE_CXX_COMPILER_ID} ${mxi_cxx_short}${mxi_allocator}")
 target_compile_options(mxi_program PRIVATE ${MXI_WARNINGS})
 # In the build directory, each program's old name a link to mxi, which runs
 # the program it is called by: the tests run them so. Not installed.

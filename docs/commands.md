@@ -429,6 +429,8 @@ exported; strong.rflx is indexed, and so on.
   --space-group NAME  the known space group: mxi scale --space-group, and
                     with --cell, mxi index --known-space-group
   --d-min-auto      mxi scale --d-min-auto: the limit from CC half
+  --anomalous       mxi scale --anomalous: Friedel mates apart, for a
+                    strong anomalous signal
   --dry-run         the commands, printed; nothing run
   --timing          to every step that times itself (find to scale),
                     and at the end each step's time, import and export

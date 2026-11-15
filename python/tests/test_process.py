@@ -26,6 +26,7 @@ ALL = [
     "I213",
     "--d-min-auto",
     "--no-joint",
+    "--anomalous",
 ]
 
 
@@ -45,7 +46,7 @@ def test_each_option_goes_to_its_steps():
         "mxi refine indexed.rflx -j 4",
         "mxi integrate refined.rflx --gpu -j 4",
         "mxi symmetry integrated.rflx -j 4",
-        "mxi scale symmetrized.rflx --space-group I213 --d-min-auto -j 4",
+        "mxi scale symmetrized.rflx --space-group I213 --d-min-auto --anomalous -j 4",
         "mxi export scaled.rflx -j 4",
     ]
     assert dry("a.nxs") == [

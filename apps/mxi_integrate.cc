@@ -59,6 +59,7 @@
 #include "decompress.hh"
 #include "image_series.hh"
 #include "output.hh"
+#include "parallel.hh"
 #include "rflx.hh"
 
 #include <memory>
@@ -1625,19 +1626,50 @@ int run_integrate(int argc, char **argv) {
         return a >= 0 ? a / b : -((-a + b - 1) / b);
       };
       const double t_tiles_start = now_wall();
-      std::unordered_map<std::uint64_t, std::vector<std::uint32_t>> tiles;
-      tiles.reserve(planned.size() + others.size());
-      for (std::size_t i = 0; i < planned.size() + others.size(); ++i) {
+      // The tiles in slabs of images, a table each, the slabs filled at
+      // once: one table on one thread had been 0.41 s of 0.77 on an M4 Max
+      // (Graeme, 14 November). A box crossing slabs is in each; the search
+      // looks a tile up in its slab's table. Its neighbours sorted and made
+      // unique after, the tables' order is nothing to the answer.
+      const std::size_t boxes = planned.size() + others.size();
+      std::int32_t tz_lo = std::numeric_limits<std::int32_t>::max();
+      std::int32_t tz_hi = std::numeric_limits<std::int32_t>::min();
+      for (std::size_t i = 0; i < boxes; ++i) {
         const std::int32_t *b = box_of(i);
-        for (std::int32_t tx = floor_div(b[0], kTile);
-             tx <= floor_div(b[1] - 1, kTile); ++tx)
-          for (std::int32_t ty = floor_div(b[2], kTile);
-               ty <= floor_div(b[3] - 1, kTile); ++ty)
-            for (std::int32_t tz = floor_div(b[4], kTileZ);
-                 tz <= floor_div(b[5] - 1, kTileZ); ++tz)
-              tiles[key(panel_of(i), tx, ty, tz)].push_back(
-                  static_cast<std::uint32_t>(i));
+        tz_lo = std::min(tz_lo, floor_div(b[4], kTileZ));
+        tz_hi = std::max(tz_hi, floor_div(b[5] - 1, kTileZ));
       }
+      const std::int32_t span = boxes ? tz_hi - tz_lo + 1 : 0;
+      const std::int32_t slabs_wanted =
+          static_cast<std::int32_t>(kParallelBlocks);
+      const std::int32_t per =
+          std::max<std::int32_t>(1, (span + slabs_wanted - 1) / slabs_wanted);
+      const std::size_t slabs =
+          span > 0 ? static_cast<std::size_t>((span + per - 1) / per) : 0;
+      std::vector<std::unordered_map<std::uint64_t, std::vector<std::uint32_t>>>
+          tiles(slabs);
+      for_each_block(slabs, [&](std::size_t slab) {
+        const std::int32_t lo = tz_lo + static_cast<std::int32_t>(slab) * per;
+        const std::int32_t hi = lo + per - 1;
+        auto &table = tiles[slab];
+        for (std::size_t i = 0; i < boxes; ++i) {
+          const std::int32_t *b = box_of(i);
+          const std::int32_t z0 = std::max(floor_div(b[4], kTileZ), lo);
+          const std::int32_t z1 = std::min(floor_div(b[5] - 1, kTileZ), hi);
+          if (z0 > z1)
+            continue;
+          for (std::int32_t tx = floor_div(b[0], kTile);
+               tx <= floor_div(b[1] - 1, kTile); ++tx)
+            for (std::int32_t ty = floor_div(b[2], kTile);
+                 ty <= floor_div(b[3] - 1, kTile); ++ty)
+              for (std::int32_t tz = z0; tz <= z1; ++tz)
+                table[key(panel_of(i), tx, ty, tz)].push_back(
+                    static_cast<std::uint32_t>(i));
+        }
+      });
+      const auto slab_of = [&](std::int32_t tz) {
+        return static_cast<std::size_t>((tz - tz_lo) / per);
+      };
       const auto look_up = [&](std::size_t from, std::size_t to) {
         for (std::size_t i = from; i < to; ++i) {
           const std::int32_t *b = planned[i].bbox;
@@ -1648,9 +1680,10 @@ int run_integrate(int argc, char **argv) {
                  ty <= floor_div(b[3] - 1, kTile); ++ty)
               for (std::int32_t tz = floor_div(b[4], kTileZ);
                    tz <= floor_div(b[5] - 1, kTileZ); ++tz) {
+                const auto &table = tiles[slab_of(tz)];
                 const auto it =
-                    tiles.find(key(planned[i].prediction->panel, tx, ty, tz));
-                if (it == tiles.end())
+                    table.find(key(planned[i].prediction->panel, tx, ty, tz));
+                if (it == table.end())
                   continue;
                 for (std::uint32_t j : it->second) {
                   if (j == i)

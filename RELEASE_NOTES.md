@@ -7,6 +7,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.3.1, for 1.3.2
 
 **New**
+- mxi integrate: its profile model's reflecting range (sigma_m) fitted across
+  the threads, and its search for neighbouring boxes' tiles built across them,
+  where each ran on one: on an M4 Max 0.69 s and 0.41 s of insulin's
+  integration, on one thread each. The same on any number of threads; sigma_m
+  differs from 1.3.1's in its eighth figure, the search settling elsewhere in
+  the likelihood's flat minimum.
 - A snapshot of every push to main: each platform's mxi binary, at a fixed
   address under the pre-release "snapshot", for machines with no compilers.
   Builds say what they are: a candidate 1.3.2-rc1, a snapshot the version and

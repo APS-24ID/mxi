@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "../src/parallel.hh"
 #include "../src/profile_grid.hh"
 #include "../src/profile_model.hh"
 #include "../src/shoebox.hh"
@@ -254,6 +255,68 @@ TEST(the_recorded_fraction_is_a_density_in_delta) {
     total += recorded_fraction(delta, 0.7, sigma, oscillation) * step;
   }
   check::close(total, 1.0, 1e-6, "integrates to one");
+}
+
+TEST(the_reflecting_range_is_the_same_on_any_number_of_threads) {
+  // The likelihood summed in fixed blocks across the threads (14 November:
+  // 0.69 s on one thread of an M4 Max): the same to the bit on one thread
+  // and on four, and the one thread's plain sum, which it replaced, within
+  // its last bits.
+  const double oscillation = Scan::radians(0.1);
+  const double planted = Scan::radians(0.12);
+  std::uint64_t state = 99;
+  const auto uniform = [&state]() {
+    state = state * std::uint64_t{6364136223846793005u} +
+            std::uint64_t{1442695040888963407u};
+    return static_cast<double>((state >> 11) &
+                               ((std::uint64_t{1u} << 53) - 1)) /
+           static_cast<double>(std::uint64_t{1u} << 53);
+  };
+  std::vector<RangeSample> samples;
+  for (std::int32_t i = 0; i < 50000; ++i) {
+    const double u1 = std::fmax(uniform(), 1e-12);
+    const double normal = std::sqrt(-2.0 * std::log(u1)) *
+                          std::cos(2.0 * 3.14159265358979323846 * uniform());
+    const double zeta = 0.3 + 0.7 * uniform();
+    samples.push_back(
+        {(uniform() - 0.5) * oscillation + normal * planted / zeta, zeta,
+         1.0 + 100.0 * uniform()});
+  }
+  set_parallel_threads(1);
+  const double one = reflecting_range(samples, oscillation, 0.05, true);
+  set_parallel_threads(4);
+  const double four = reflecting_range(samples, oscillation, 0.05, true);
+  set_parallel_threads(0);
+  check::is_true(one == four, "the same to the bit on one thread and four");
+  // The search as it was, its sum a plain one over the samples in order.
+  const auto nll = [&](double sigma) {
+    double total = 0.0;
+    for (const RangeSample &r : samples)
+      if (std::fabs(r.zeta) >= 0.05)
+        total -=
+            r.counts * std::log(std::fmax(recorded_fraction(r.delta, r.zeta,
+                                                            sigma, oscillation),
+                                          1e-300));
+    return total;
+  };
+  double low = Scan::radians(0.001), high = Scan::radians(2.0);
+  const double phi = 0.5 * (std::sqrt(5.0) - 1.0);
+  double b = high - phi * (high - low), c = low + phi * (high - low);
+  double fb = nll(b), fc = nll(c);
+  for (std::int32_t i = 0; i < 200 && (high - low) > 1e-12; ++i) {
+    if (fb < fc) {
+      high = c, c = b, fc = fb, b = high - phi * (high - low), fb = nll(b);
+    } else {
+      low = b, b = c, fb = fc, c = low + phi * (high - low), fc = nll(c);
+    }
+  }
+  const double before = Scan::degrees(0.5 * (low + high));
+  // Not to the bit: near the minimum the likelihood is so flat that the
+  // search's comparisons are decided by rounding, so summed in another order
+  // it settles elsewhere in that flat bottom -- 7e-8 apart here, where 50000
+  // samples determine the range to some 1e-3, and it is printed to four
+  // figures.
+  check::close(one, before, 1e-6 * before, "the plain sum's answer, nearly");
 }
 
 TEST(a_planted_reflecting_range_comes_back) {

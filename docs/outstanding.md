@@ -466,6 +466,17 @@ history on 20 October: four closed, nine rewritten to what is now true.
 * **93.** **capability -- CUDA on Windows.** The Windows build is the CPU's
     only; the spot finder's and profile fitting's CUDA paths are built and
     tested on Linux. Left from item 89.
+* **96.** **scale -- the calibration's robust columns, where boxes are empty.**
+    Noted by Graeme, 15 November: a pathological set, nothing made. (1.4826
+    MAD)^2 assumes the deviations vary continuously; where over half a shell's
+    boxes hold no photons, profile fitting gives them all one deviation and the
+    robust variance collapses -- ins10_1 past 1.8 A, robust 0.03 to 0.7 against
+    final mean squares of 0.99 to 1.05, background 0.03 to 0.12 counts a pixel.
+    Simulated: 52% of boxes empty, robust 0.000, mean square 1.05. If it comes
+    to matter: a trimmed mean square (z^2 without the largest 1% of |z|, over
+    its normal expectation, 0.925) resists the wild few and not identical
+    values; the table's heading, mxi report's plot and legend, and a test of a
+    shell mostly empty. docs/scaling.md, The calibration.
 * **95.** **speed -- writing and reading .rflx files.** Parked by Graeme, 15
     November: diminishing returns. Some 7 s of a 63 s run on the two-socket
     Xeon with the L40S, 2.5 s on the M4 Max, all on one thread. Measured

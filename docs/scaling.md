@@ -368,6 +368,18 @@ model: the strongest sixth 7.8 plain, 2.3 robust -- a tail of a few -- 1.10 and
 0.76 after. Written for Graeme's 6S0R set, whose error model came out a = 4.8
 while its anomalous slope's control said the sigmas were three times too large.
 
+Where the robust columns cannot be trusted (15 November): where most of a
+shell's observations hold no photons at all. Profile fitting gives every empty
+box the same intensity and sigma, so they share one deviation; once they are
+half a shell, its median absolute deviation is nothing, and the robust variance
+falls towards 0 while the mean square is right. Graeme's ins10_1 sweep,
+integrated to 1.06 A with a background of 0.03 to 0.12 counts a pixel past 1.8
+A: robust 0.03 to 0.7 there, the final mean square 0.99 to 1.05. A pathological
+set -- data integrated well past where there is any signal, on next to no
+background -- and the mean squares are the measure to read; simulated, half the
+boxes empty gave robust 0.000 against a mean square of 1.05. A trimmed mean
+square would not break so (item 96), not made: the case is rare.
+
 ## The anomalous slope and its control
 
 The anomalous slope -- the normal probability plot's slope of dI/sigma(dI) over

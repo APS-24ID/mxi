@@ -11,6 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <vector>
 
 namespace mxi {
 
@@ -141,15 +142,32 @@ double reflecting_range(const std::vector<RangeSample> &samples,
   if (used.size() < 2)
     return 0.0;
 
+  // Each evaluation sums over every sample -- some million of insulin's, an
+  // erf and a log each -- some fifty times in the search: 0.69 s on one
+  // thread of an M4 Max, the most of the profile model (Graeme, 14
+  // November). In the fixed blocks of for_each_block, each block's sum then
+  // the blocks' in order: the same on any number of threads, and differing
+  // from the one thread's sum it replaced in the last bits only.
+  std::vector<double> partial(kParallelBlocks);
   const auto negative_log_likelihood = [&](double sigma) {
+    for_each_block(kParallelBlocks, [&](std::size_t block) {
+      double total = 0.0;
+      const std::size_t a = block_begin(used.size(), kParallelBlocks, block);
+      const std::size_t b =
+          block_begin(used.size(), kParallelBlocks, block + 1);
+      for (std::size_t i = a; i < b; ++i) {
+        const RangeSample &s = used[i];
+        const double r = recorded_fraction(s.delta, s.zeta, sigma, oscillation);
+        // A sample the model says is impossible would take the whole sum to
+        // infinity; floored so that one such sample cannot decide the answer
+        // on its own.
+        total -= (weighted ? s.counts : 1.0) * std::log(std::fmax(r, 1e-300));
+      }
+      partial[block] = total;
+    });
     double total = 0.0;
-    for (const RangeSample &s : used) {
-      const double r = recorded_fraction(s.delta, s.zeta, sigma, oscillation);
-      // A sample the model says is impossible would take the whole sum to
-      // infinity; floored so that one such sample cannot decide the answer on
-      // its own.
-      total -= (weighted ? s.counts : 1.0) * std::log(std::fmax(r, 1e-300));
-    }
+    for (const double t : partial)
+      total += t;
     return total;
   };
 

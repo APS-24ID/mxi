@@ -86,7 +86,7 @@ void add_to_batch(FitBatch *batch, const std::vector<BatchEntry> &entries,
     f.reference_at = static_cast<std::uint32_t>(reference);
     f.corners_at = static_cast<std::uint32_t>(corners);
     voxels += box.size();
-    reference += x.reference->size();
+    reference += x.reference.size();
     corners += 2 * static_cast<std::size_t>(f.nx + 1) *
                static_cast<std::size_t>(f.ny + 1);
     batch->boxes.push_back(f);
@@ -111,9 +111,8 @@ void add_to_batch(FitBatch *batch, const std::vector<BatchEntry> &entries,
     const mxi::fitdev::BoxF &f = batch->boxes[k];
     std::copy(x.box->data.begin(), x.box->data.end(), into.data + f.voxels_at);
     std::copy(x.box->mask.begin(), x.box->mask.end(), into.mask + f.voxels_at);
-    for (std::size_t i = 0; i < x.reference->size(); ++i)
-      into.reference[f.reference_at + i] =
-          static_cast<float>((*x.reference)[i]);
+    for (std::size_t i = 0; i < x.reference.size(); ++i)
+      into.reference[f.reference_at + i] = static_cast<float>(x.reference[i]);
   });
 }
 

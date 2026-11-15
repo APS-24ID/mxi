@@ -955,6 +955,17 @@ std::vector<double> profile_at(const ReferenceProfiles &reference,
                                const Panel &panel, std::size_t which_panel,
                                double px_fast, double px_slow, double z) {
   std::vector<double> out(reference.spec.size(), 0.0);
+  profile_at(reference, panel, which_panel, px_fast, px_slow, z,
+             std::span<double>(out));
+  return out;
+}
+
+bool profile_at(const ReferenceProfiles &reference, const Panel &panel,
+                std::size_t which_panel, double px_fast, double px_slow,
+                double z, std::span<double> out) {
+  if (out.size() != reference.spec.size())
+    return false;
+  std::fill(out.begin(), out.end(), 0.0);
   const std::vector<Neighbour> near =
       neighbours_of(reference, panel, which_panel, px_fast, px_slow, z);
   double total = 0.0;
@@ -969,7 +980,7 @@ std::vector<double> profile_at(const ReferenceProfiles &reference,
     total += n.weight;
   }
   if (!(total > 0.0))
-    return out;
+    return true;
   double sum = 0.0;
   for (double v : out)
     sum += v;
@@ -977,7 +988,7 @@ std::vector<double> profile_at(const ReferenceProfiles &reference,
     for (double &v : out)
       v /= sum;
   }
-  return out;
+  return true;
 }
 
 ReferenceProfiles make_reference(const GridSpec &spec, std::int32_t divisions,

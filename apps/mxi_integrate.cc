@@ -2510,10 +2510,18 @@ int run_integrate(int argc, char **argv) {
         const ReferenceProfiles &own = references[lattice];
         const GridSpec &own_grid = grids[lattice];
         const std::size_t chunk = 4096;
+        // A batch's local references in one buffer, made once and written
+        // over batch after batch: a vector a box had been some 10 GB of new
+        // memory a run, faulted in page by page -- "preparing" 4.9 s on a
+        // two-socket Xeon, 0.45 on an M4 Max (15 November). Packing copies
+        // each into the batch before the next batch writes here.
+        const std::size_t grid_size = own_grid.size();
+        std::vector<double> local_store(chunk * grid_size);
+        std::vector<std::uint8_t> local_ok(chunk);
         for (std::size_t from = 0; from < which.size(); from += chunk) {
           const std::size_t to = std::min(which.size(), from + chunk);
           const double t_prepare = Timing::now();
-          std::vector<std::vector<double>> locals(to - from);
+          std::fill(local_ok.begin(), local_ok.end(), 0);
           in_parallel(to - from, [&](std::size_t n) {
             Shoebox &box = held[which[from + n]];
             if (box.data.empty())
@@ -2527,9 +2535,11 @@ int run_integrate(int argc, char **argv) {
             if (save)
               box.background.assign(box.size(),
                                     static_cast<float>(bmean.reals[row]));
-            locals[n] =
+            local_ok[n] =
                 profile_at(own, panel, static_cast<std::size_t>(q.panel),
-                           q.px_fast, q.px_slow, q.z);
+                           q.px_fast, q.px_slow, q.z,
+                           std::span<double>(local_store.data() + n * grid_size,
+                                             grid_size));
           });
           const double t_packing = Timing::now();
           t_gpu_prepare.add(t_packing - t_prepare);
@@ -2543,7 +2553,7 @@ int run_integrate(int argc, char **argv) {
               failed(row, FitFailure::no_box);
               continue;
             }
-            if (locals[n].size() != own_grid.size()) {
+            if (!local_ok[n]) {
               failed(row, FitFailure::no_reference);
               continue;
             }
@@ -2568,7 +2578,9 @@ int run_integrate(int argc, char **argv) {
             }
             const Prediction &q = *planned[row].prediction;
             entries.push_back(
-                {&box, q.s1, q.phi, bmean.reals[row], &locals[n]});
+                {&box, q.s1, q.phi, bmean.reals[row],
+                 std::span<const double>(local_store.data() + n * grid_size,
+                                         grid_size)});
             in_batch.push_back(row);
           }
           // A slot must be free before the batch can be packed into it.

@@ -102,12 +102,6 @@ std::string read_creator(const std::string &path);
 //: LZ4 (HDF5 filter 32008) otherwise, which a reader must have -- h5py with
 //: hdf5plugin, DIALS's HDF5. mxi_convert --no-compress, for one that has not.
 void set_uncompressed(bool on);
-//: Whether the last file written is kept in memory as well, for the reads
-//: of it that follow -- the next step's, under mxi process: what it wrote,
-//: not read back and decoded. The file is written all the same; a read of
-//: another file, or of this one changed since, reads the disk. Off unless
-//: asked; turning it on or off forgets what was kept.
-void keep_written(bool on);
 
 } // namespace rflx
 } // namespace mxi

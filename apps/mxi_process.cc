@@ -25,7 +25,6 @@
 
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <exception>
 #include <set>
@@ -340,16 +339,6 @@ int mxi_process_main(int argc, char **argv) {
   // Each step's time, for --timing's table at the end -- the steps' own
   // tables say where in each the time went; this, which step took it.
   Timing whole(timing);
-  // Each step's output kept in memory as it is written, for the next step to
-  // read without reading it back -- some 5 s of 30 on a GH200, writing and
-  // reading files between the steps (Graeme, 14 November). Written all the
-  // same. MXI_KEEP_WRITTEN=0 to read every file from the disk, as a step run
-  // alone does: the comparison that the two give the same is that.
-  const char *keep = std::getenv("MXI_KEEP_WRITTEN");
-  mxi::rflx::keep_written(keep == nullptr || std::strcmp(keep, "0") != 0);
-  struct Forget {
-    ~Forget() { mxi::rflx::keep_written(false); }
-  } forget;
   const std::size_t n = steps.size();
   for (std::size_t i = 0; i < n; ++i) {
     const Step &s = steps[i];

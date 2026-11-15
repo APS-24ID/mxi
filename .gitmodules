@@ -10,3 +10,9 @@
 [submodule "third_party/gemmi"]
 	path = third_party/gemmi
 	url = https://github.com/project-gemmi/gemmi.git
+# mimalloc, in place of the C library's malloc on Linux (MXI_MIMALLOC): glibc's,
+# with many threads on two sockets, cost integration 11 s of 38 (15 November).
+# Pinned at v2.5.2, the 2.x line.
+[submodule "third_party/mimalloc"]
+	path = third_party/mimalloc
+	url = https://github.com/microsoft/mimalloc.git

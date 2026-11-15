@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 
+#include "../src/platform.hh"
 #include "../src/refl.hh"
 #include "../src/shoebox.hh"
 #include "check.hh"
@@ -88,6 +89,12 @@ TEST(a_column_too_large_for_msgpack_is_refused_rather_than_truncated) {
   check::skip("a four gigabyte allocation under AddressSanitizer");
 #endif
 #endif
+  // Asked first, not found out by trying: under mimalloc (Linux's malloc
+  // since 15 November) four gigabytes are reserved without the kernel's
+  // check, so the allocation succeeds where there is not the memory, and
+  // filling it had the out-of-memory killer take the whole suite.
+  if (mxi::platform::physical_memory_mb() < 8192.0)
+    check::skip("not enough memory for a four gigabyte column");
   Table::Opaque big;
   big.type = "Shoebox<>";
   big.rows = 1;

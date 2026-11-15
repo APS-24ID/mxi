@@ -140,6 +140,24 @@ inline std::string cpu_name() {
   return out;
 }
 
+//: The machine's physical memory in MB; 0 where it cannot say.
+inline double physical_memory_mb() {
+#if defined(_WIN32)
+  MEMORYSTATUSEX status;
+  status.dwLength = sizeof(status);
+  if (!GlobalMemoryStatusEx(&status))
+    return 0.0;
+  return static_cast<double>(status.ullTotalPhys) / (1024.0 * 1024.0);
+#else
+  const long pages = sysconf(_SC_PHYS_PAGES);
+  const long page = sysconf(_SC_PAGESIZE);
+  if (pages <= 0 || page <= 0)
+    return 0.0;
+  return static_cast<double>(pages) * static_cast<double>(page) /
+         (1024.0 * 1024.0);
+#endif
+}
+
 //: Whether standard error is a terminal (not a file or a pipe).
 inline bool stderr_is_terminal() {
 #if defined(_WIN32)

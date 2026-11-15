@@ -7,6 +7,11 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.3.1, for 1.3.2
 
 **New**
+- The Linux builds use mimalloc in place of the C library's malloc. On a
+  two-socket Xeon with an L40S, integrating 3600 insulin images took 38 s, 11
+  of them glibc's allocator with 48 threads building boxes and freeing each
+  other's; 27 s with a scalable allocator, every result the same. The banner
+  says "mimalloc"; -DMXI_MIMALLOC=OFF to build without it.
 - mxi integrate: its profile model's reflecting range (sigma_m) fitted across
   the threads, and its search for neighbouring boxes' tiles built across them,
   where each ran on one: on an M4 Max 0.69 s and 0.41 s of insulin's

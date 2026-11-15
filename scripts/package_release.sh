@@ -34,6 +34,11 @@ cp "$root/LICENSE" "$lic/mxi.txt"
 cp "$root/third_party/gemmi/LICENSE.txt" "$lic/gemmi.txt"
 cp "$root/third_party/bitshuffle/LICENSE" "$lic/bitshuffle.txt"
 cp "$root/third_party/bitshuffle/lz4/LICENSE" "$lic/lz4.txt"
+# mimalloc (MIT), in place of the C library's malloc in the Linux builds
+# (MXI_MIMALLOC, on by default there).
+case "$platform" in
+    linux-*) cp "$root/third_party/mimalloc/LICENSE" "$lic/mimalloc.txt" ;;
+esac
 installed=${VCPKG_INSTALLED_DIR:-$build/vcpkg_installed}
 for package in hdf5 libaec zlib; do
     found=$(find "$installed" -path "*/share/$package/copyright" 2>/dev/null | head -1)
@@ -70,6 +75,12 @@ mxi is BSD-3-Clause (mxi.txt). The program also contains, linked in: gemmi
 bitshuffle (MIT) and the LZ4 within it (BSD-2), HDF5, libaec and zlib, each
 under the licence here; and, in the CUDA build, NVIDIA's CUDA runtime.
 NOTE
+case "$platform" in
+    linux-*) cat >> "$lic/README" <<'NOTE'
+And mimalloc (MIT, mimalloc.txt), in place of the C library's malloc.
+NOTE
+        ;;
+esac
 if [ "$fftw" = yes ]; then
     cat >> "$lic/README" <<'NOTE'
 

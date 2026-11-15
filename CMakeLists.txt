@@ -386,6 +386,12 @@ if(MXI_VERSION_LABEL STREQUAL "snapshot")
                     ERROR_QUIET RESULT_VARIABLE mxi_git)
     if(mxi_git EQUAL 0 AND mxi_commit)
         set(mxi_version_text "${PROJECT_VERSION}+${mxi_commit}")
+    elseif(DEFINED ENV{GITHUB_SHA} AND NOT "$ENV{GITHUB_SHA}" STREQUAL "")
+        # In the Linux builds' container git will not read a checkout owned
+        # by another user ("dubious ownership"), and the first snapshots said
+        # 1.3.2+snapshot: the workflow's own record of the commit instead.
+        string(SUBSTRING "$ENV{GITHUB_SHA}" 0 7 mxi_commit)
+        set(mxi_version_text "${PROJECT_VERSION}+${mxi_commit}")
     else()
         set(mxi_version_text "${PROJECT_VERSION}+snapshot")
     endif()

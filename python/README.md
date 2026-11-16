@@ -68,6 +68,30 @@ shows it against image, resolution and detector position, with a summary that
 separates the systematic offset, the counting noise and the prediction error.
 See `docs/integration.md` for what it cannot tell you in z.
 
+## Two unmerged MTZ files, side by side
+
+`mxeq mtz a.mtz b.mtz --labels DIALS mxi` compares the two pipelines' main
+products, their unmerged scaled MTZ files (Graeme, 15 November), in four parts.
+The files: space group, cell, wavelength, rows, batches, resolution and the
+columns each has, by name and type -- differences there are the export's to
+explain. The indexing: where the lattice has more symmetry than the space group,
+as insulin's I 2 3 in a cubic lattice, the two may be indexed either of its
+ways; each observation's original indices (from M/ISYM) and batch fix which, so
+of the lattice's operations the one under which most observations match is
+taken. The observations, matched by original indices and batch, each file's
+batches counted from its first: the intensities' CC, their ratio for the strong
+and the sigmas', overall and in ten bins of batch, where scaling's differences
+against the image show. The merged data, both merged here the same way --
+inverse-variance means over the Laue group's equivalents, Friedel mates apart
+with `--anomalous` -- by resolution shell: counts, CC, ratio, <I/sigma> and
+multiplicity.
+
+`--columns I SIGI` names the intensity and sigma if not I and SIGI; `--csv`
+writes every matched unique reflection. What the batch headers hold --
+orientation, goniometer -- is not decoded: AIMLESS given both files is the test
+of those. `mxeq unique`, below, compares the same data from the scaled
+reflection files, splitting I/sigma into its parts.
+
 ## Two scaled data sets, one unique reflection at a time
 
 `mxeq unique a.expt a.refl b.expt b.refl` -- DIALS's scaled data against mxi's,

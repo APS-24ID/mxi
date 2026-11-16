@@ -6,6 +6,13 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 ## Unreleased -- since 1.3.2
 
+**New**
+- mxeq mtz: two unmerged scaled MTZ files compared -- DIALS's and mxi's, say:
+  their headers and columns, the indexing between them found from the
+  observations, each observation matched by original indices and batch (ratios
+  overall and against batch), and the merged data by resolution shell
+  (python/README.md).
+
 **Fixed**
 - mxi process refused --anomalous as unknown, so an anomalous data set had to
   be scaled again by hand; it now passes it to mxi scale, as it does

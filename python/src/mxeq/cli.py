@@ -446,6 +446,38 @@ def build_parser() -> argparse.ArgumentParser:
         "--labels", nargs=2, default=None, metavar=("A", "B"), help="names for the two"
     )
 
+    mz = sub.add_parser(
+        "mtz",
+        help="two unmerged scaled MTZ files, DIALS's and mxi's say, compared: "
+        "their headers and columns, the indexing between them, each observation "
+        "matched by original indices and batch, and the merged data by shell",
+    )
+    mz.add_argument("mtz_a", help="the first unmerged MTZ")
+    mz.add_argument("mtz_b", help="the second")
+    mz.add_argument(
+        "--labels", nargs=2, default=None, metavar=("A", "B"), help="names for the two"
+    )
+    mz.add_argument(
+        "--shells", type=int, default=10, help="resolution shells, of equal counts (10)"
+    )
+    mz.add_argument(
+        "--anomalous",
+        action="store_true",
+        help="Friedel mates apart in the merged data",
+    )
+    mz.add_argument(
+        "--columns",
+        nargs=2,
+        default=("I", "SIGI"),
+        metavar=("I", "SIGI"),
+        help="the intensity and its sigma, in both files (I SIGI)",
+    )
+    mz.add_argument(
+        "--csv",
+        default=None,
+        help="also write every matched unique reflection to this file",
+    )
+
     tr = sub.add_parser(
         "truth",
         help="each scaled observation against a refined structure's Fc^2 (a "
@@ -691,6 +723,15 @@ def main(argv: list[str] | None = None) -> int:
         a = unique.load(args.expt_a, args.refl_a, names[0])
         b = unique.load(args.expt_b, args.refl_b, names[1])
         print(unique.compare(a, b, args.shells, args.csv))
+        return 0
+
+    if args.command == "mtz":
+        from . import mtz
+
+        names = args.labels or [args.mtz_a, args.mtz_b]
+        a = mtz.load(args.mtz_a, names[0], tuple(args.columns))
+        b = mtz.load(args.mtz_b, names[1], tuple(args.columns))
+        print(mtz.compare(a, b, args.shells, args.anomalous, args.csv))
         return 0
 
     if args.command == "truth":

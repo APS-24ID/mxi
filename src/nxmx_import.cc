@@ -846,6 +846,35 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
     const std::vector<Step> rest(fast_chain.begin() + 1, fast_chain.end());
     const Pose place = pose_of(rest);
     Vec3 origin = place.t + place.R * fast.offset;
+    // A detector upstream of the sample, between it and the source, as some
+    // DECTRIS file writers have written it (escoa_17938, proteindiffraction.
+    // org; Graeme, 22 November): every spot then at under 0.6 A. In NeXus's
+    // McStas frame the beam runs along +z, so it is a negative z. DIALS
+    // reverses the detector's translation along the beam, and so does this:
+    // each translation step along z, its values' signs turned, the rest --
+    // the module's own offsets in the plane -- as they are.
+    if (origin.z < 0.0) {
+      std::vector<Step> turned = rest;
+      bool any = false;
+      for (Step &st : turned)
+        if (st.type == "translation" && !st.values.empty() &&
+            std::fabs(st.vector.z) > 0.9 * st.vector.norm()) {
+          for (double &v : st.values)
+            v = -v;
+          any = true;
+        }
+      const Pose again = pose_of(turned);
+      const Vec3 reversed = again.t + again.R * fast.offset;
+      if (!any || !(reversed.z > 0.0))
+        throw std::runtime_error(
+            module + " is upstream of the sample, between it and the source, "
+                     "and no translation along the beam turns it round");
+      origin = reversed;
+      notes->push_back(
+          "the detector's translation along the beam put it upstream of the "
+          "sample, between it and the source (as some DECTRIS file writers "
+          "have written it): reversed, as DIALS does");
+    }
     Vec3 fast_axis = place.R * fast.vector;
     const Pose slow_place =
         pose_of(std::vector<Step>(slow_chain.begin() + 1, slow_chain.end()));

@@ -55,6 +55,7 @@ def plant(
     offset_m=OFFSET_M,
     offset_vec=OFFSET_VEC,
     frame_time=None,
+    det_z_vector=(0, 0, 1.0),
 ):
     with h5py.File(path, "w") as f:
         e = f.create_group("entry")
@@ -109,7 +110,7 @@ def plant(
         dz.attrs.update(
             {
                 "transformation_type": "translation",
-                "vector": [0, 0, 1.0],
+                "vector": list(det_z_vector),
                 "units": "m",
                 "depends_on": "two_theta",
             }
@@ -631,3 +632,33 @@ def test_split_makes_sweeps_of_consecutive_images(tmp_path):
         text=True,
     )
     assert too_many.returncode != 0
+
+
+@needs_import
+def test_a_detector_upstream_of_the_sample_is_turned_round(tmp_path):
+    # Some DECTRIS file writers have put the detector's translation along the
+    # beam the wrong way: the detector between the source and the sample, every
+    # spot at under 0.6 A (escoa_17938, proteindiffraction.org; Graeme, 22
+    # November). DIALS reverses it; so does mxi import, and says so.
+    right, wrong = tmp_path / "right.nxs", tmp_path / "wrong.nxs"
+    plant(right)
+    plant(wrong, det_z_vector=(0, 0, -1.0))
+    outs = {}
+    for name in ("right", "wrong"):
+        run = subprocess.run(
+            [
+                IMPORT,
+                str(tmp_path / f"{name}.nxs"),
+                "-o",
+                str(tmp_path / f"{name}.expt"),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert run.returncode == 0, run.stderr
+        outs[name] = run.stdout
+        assert ("upstream of the sample" in run.stdout) == (name == "wrong")
+    a = json.load(open(tmp_path / "right.expt"))["detector"][0]["panels"][0]
+    b = json.load(open(tmp_path / "wrong.expt"))["detector"][0]["panels"][0]
+    for k in ("origin", "fast_axis", "slow_axis"):
+        assert np.allclose(a[k], b[k], atol=1e-9), (k, a[k], b[k])

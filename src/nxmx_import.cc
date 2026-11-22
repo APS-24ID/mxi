@@ -849,18 +849,20 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
     // A detector upstream of the sample, between it and the source, as some
     // DECTRIS file writers have written it (escoa_17938, proteindiffraction.
     // org; Graeme, 22 November): every spot then at under 0.6 A. In NeXus's
-    // McStas frame the beam runs along +z, so it is a negative z. DIALS
-    // reverses the detector's translation along the beam, and so does this:
-    // each translation step along z, its values' signs turned, the rest --
-    // the module's own offsets in the plane -- as they are.
+    // McStas frame the beam runs along +z, so it is a negative z. Turned
+    // round by reversing the z component of each translation placing the
+    // module -- not the translation whole: that file's one translation is
+    // 0.2236 m along (0.516, 0.533, -0.671), the beam centre's offsets in x
+    // and y and the distance in z together, and reversing it all would have
+    // put the beam centre in the opposite corner. A translation along z
+    // alone is reversed by it entirely.
     if (origin.z < 0.0) {
       std::vector<Step> turned = rest;
       bool any = false;
       for (Step &st : turned)
-        if (st.type == "translation" && !st.values.empty() &&
-            std::fabs(st.vector.z) > 0.9 * st.vector.norm()) {
-          for (double &v : st.values)
-            v = -v;
+        if (st.type == "translation" && std::fabs(st.raw.z) > 0.0) {
+          st.raw.z = -st.raw.z;
+          st.vector.z = -st.vector.z;
           any = true;
         }
       const Pose again = pose_of(turned);
@@ -868,12 +870,13 @@ json::Value import_nxmx(const std::string &master, const ImportOverrides &o,
       if (!any || !(reversed.z > 0.0))
         throw std::runtime_error(
             module + " is upstream of the sample, between it and the source, "
-                     "and no translation along the beam turns it round");
+                     "and reversing its translations' components along the "
+                     "beam does not turn it round");
       origin = reversed;
       notes->push_back(
-          "the detector's translation along the beam put it upstream of the "
-          "sample, between it and the source (as some DECTRIS file writers "
-          "have written it): reversed, as DIALS does");
+          "the detector's translation put it upstream of the sample, between "
+          "it and the source (as some DECTRIS file writers have written it): "
+          "its component along the beam reversed, as DIALS does");
     }
     Vec3 fast_axis = place.R * fast.vector;
     const Pose slow_place =

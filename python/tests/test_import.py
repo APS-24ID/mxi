@@ -634,16 +634,30 @@ def test_split_makes_sweeps_of_consecutive_images(tmp_path):
     assert too_many.returncode != 0
 
 
+# The translation placing the detector, right and as some DECTRIS writers
+# wrote it: along the beam alone, and -- as escoa_17938's master has it, its
+# one translation carrying the beam centre's offsets and the distance together
+# -- along (0.516, 0.533, -0.671). Only the component along the beam is wrong.
+UPSTREAM = {
+    "along the beam": ((0, 0, 1.0), (0, 0, -1.0)),
+    "with the beam centre": (
+        (0.5160794, 0.53251612, 0.67088645),
+        (0.5160794, 0.53251612, -0.67088645),
+    ),
+}
+
+
 @needs_import
-def test_a_detector_upstream_of_the_sample_is_turned_round(tmp_path):
-    # Some DECTRIS file writers have put the detector's translation along the
-    # beam the wrong way: the detector between the source and the sample, every
-    # spot at under 0.6 A (escoa_17938, proteindiffraction.org; Graeme, 22
-    # November). DIALS reverses it; so does mxi import, and says so.
+@pytest.mark.parametrize("form", sorted(UPSTREAM))
+def test_a_detector_upstream_of_the_sample_is_turned_round(tmp_path, form):
+    # Some DECTRIS file writers have put the detector upstream of the sample,
+    # between it and the source, every spot at under 0.6 A (escoa_17938,
+    # proteindiffraction.org; Graeme, 22 November). DIALS reverses the
+    # translation's component along the beam; so does mxi import, and says so.
+    good, bad = UPSTREAM[form]
     right, wrong = tmp_path / "right.nxs", tmp_path / "wrong.nxs"
-    plant(right)
-    plant(wrong, det_z_vector=(0, 0, -1.0))
-    outs = {}
+    plant(right, det_z_vector=good)
+    plant(wrong, det_z_vector=bad)
     for name in ("right", "wrong"):
         run = subprocess.run(
             [
@@ -656,7 +670,6 @@ def test_a_detector_upstream_of_the_sample_is_turned_round(tmp_path):
             text=True,
         )
         assert run.returncode == 0, run.stderr
-        outs[name] = run.stdout
         assert ("upstream of the sample" in run.stdout) == (name == "wrong")
     a = json.load(open(tmp_path / "right.expt"))["detector"][0]["panels"][0]
     b = json.load(open(tmp_path / "wrong.expt"))["detector"][0]["panels"][0]

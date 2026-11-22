@@ -9,8 +9,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 **Fixed**
 - mxi import put the detector where some DECTRIS file writers wrongly write
   it, upstream of the sample, between it and the source, so that every spot
-  came out below 0.6 A. It now reverses the detector's translation along the
-  beam, as DIALS does, and says so.
+  came out below 0.6 A. It now reverses the component along the beam of the
+  translations placing the detector, as DIALS does -- the beam centre's
+  offsets, which such a file may carry in the same translation, left as they
+  are -- and says so.
 
 ## 1.3.3 -- 22 November 2026
 

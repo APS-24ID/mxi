@@ -350,6 +350,23 @@ the 300 image sweep had said 49000 and 1.1 -- boxes wait longer than the estimat
 allowed. Integration there took 19.4 s against two passes' 28.4, and decompressing
 41 thread-seconds against 80.
 
+**One pass or two, by memory (1.3.3 onwards, 22 November).** A single pass holds
+each closed box until the block after its own is complete, and on crowded data
+that is most of its memory: Graeme's 900 images of a cell with c 200 A, sigma_m
+0.17 degrees on 0.2 degree images, took a footprint of 21.1 GB in one pass and
+7.2 GB in two (`/usr/bin/time -l`, peak memory footprint), in the same 29 s on
+an M4 Max -- too much for a 16 GB laptop. So before an image is read the single
+pass's holding is predicted from the boxes: walking the images, a box open a
+chunk at a time (9 bytes a voxel: pixels, background, mask), then held (5) until
+the block after its own completes; the largest total, its footprint taken as
+twice that, as measured (the allocator cannot give back what the churn of boxes
+leaves scattered). Over the budget -- `--max-memory` GB, else half the machine's
+memory, or a container's or job's limit if smaller -- two passes are taken, and
+said; `--one-pass` insists. The two passes so chosen are `--two-pass`'s own,
+column for column; with `--gpu` they fit on the CPU, as `--two-pass` does.
+`--timing` gives the prediction beside what was held: on the 30 degree insulin
+set one pass 0.40 GB predicted against 0.34 held, two 0.16 against 0.16.
+
 ## Near the rotation axis: --min-zeta
 
 A reflection's extent in phi goes as 1/|zeta|, so those nearest the rotation

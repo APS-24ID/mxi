@@ -55,6 +55,10 @@ const char *const kUsage =
     "exported; strong.rflx is indexed, and so on.\n"
     "  -j N              to every step\n"
     "  --gpu             spot finding and integration on the GPU\n"
+    "  --one-pass        mxi integrate --one-pass: one pass over the images\n"
+    "                    however much memory it would hold\n"
+    "  --max-memory GB   mxi integrate's budget for one pass, beyond which it\n"
+    "                    takes two (half the machine's memory)\n"
     "  --cell a,b,c,alpha,beta,gamma   the known cell: mxi index --known-cell\n"
     "  --no-joint        several sweeps, each a crystal indexed on its own:\n"
     "                    mxi index --no-joint\n"
@@ -186,10 +190,12 @@ std::string ends(const std::string &s, std::size_t n) {
 int mxi_process_main(int argc, char **argv) {
   using namespace mxi;
   const std::set<std::string> known = {
-      "--gpu",     "--cell",     "--space-group",    "--d-min-auto",
-      "--dry-run", "--no-joint", "--small-molecule", "--help",
-      "-h",        "--timing",   "--anomalous"};
-  const std::set<std::string> takes_value = {"--cell", "--space-group"};
+      "--gpu",       "--cell",     "--space-group",    "--d-min-auto",
+      "--dry-run",   "--no-joint", "--small-molecule", "--help",
+      "-h",          "--timing",   "--anomalous",      "--one-pass",
+      "--max-memory"};
+  const std::set<std::string> takes_value = {"--cell", "--space-group",
+                                             "--max-memory"};
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   if (!args.ok) {
     mxi::eprint("mxi process: %s\n", args.error.c_str());
@@ -241,6 +247,13 @@ int mxi_process_main(int argc, char **argv) {
   steps.push_back({"integrate", {"refined.rflx"}, "integrated.rflx"});
   if (gpu)
     steps.back().args.push_back("--gpu");
+  // Integration's one pass or two (22 November): its memory budget, and
+  // insisting on one, passed on.
+  if (args.has("--one-pass"))
+    steps.back().args.push_back("--one-pass");
+  if (args.has("--max-memory"))
+    steps.back().args.insert(steps.back().args.end(),
+                             {"--max-memory", args.value("--max-memory", "")});
   steps.push_back({"symmetry", {"integrated.rflx"}, "symmetrized.rflx"});
   if (args.has("--small-molecule"))
     steps.back().args.push_back("--small-molecule");

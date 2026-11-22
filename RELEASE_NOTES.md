@@ -7,6 +7,13 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.3.3
 
 **New**
+- mxi integrate takes two passes over the images where one would need more
+  memory than the machine can spare: the single pass's holding predicted from
+  the boxes before an image is read, against a budget, --max-memory or half
+  the machine's memory (a container's or job's limit if smaller), and said
+  when it switches. --one-pass insists; mxi process passes both on. On a
+  crowded data set one pass had a footprint of 21 GB, two 7 GB, in the same
+  time.
 - mxi integrate --timing says where the memory goes: boxes open, boxes held
   for fitting and boxes held in overlap groups, each at its largest and the
   three together, beside the process's peak; and the process at its most -- on

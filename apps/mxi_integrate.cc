@@ -396,6 +396,10 @@ void usage(const char *program) {
       "  --two-pass        read the images twice, to learn and then to fit, "
       "as\n"
       "                    before one pass; the same answer, byte for byte\n"
+      "  --one-pass        one pass whatever its memory: by default two are\n"
+      "                    taken when one would need more than the budget\n"
+      "  --max-memory GB   that budget (half the machine's memory, or a\n"
+      "                    container's or job's limit if smaller)\n"
       "  -g, --gpu         profile fitting on the GPU, in single precision; "
       "the\n"
       "                    CPU's is in double. One pass only\n"
@@ -989,7 +993,8 @@ int run_integrate(int argc, char **argv) {
       "--sigma-m",
       "--sigma-m-estimator",
       "--n-sigma",
-      "--box-scale", "--foreground",
+      "--box-scale",
+      "--foreground",
       "--d-min",
       "--d-max",
       "--first-image",
@@ -1009,6 +1014,8 @@ int run_integrate(int argc, char **argv) {
       "--summation-only",
       "--save-background-parameters",
       "--two-pass",
+      "--one-pass",
+      "--max-memory",
       "--no-mask-neighbours",
       "--fit-overlaps",
       "--no-fit-overlaps",
@@ -1031,6 +1038,7 @@ int run_integrate(int argc, char **argv) {
   takes_value.erase("--summation-only");
   takes_value.erase("--save-background-parameters");
   takes_value.erase("--two-pass");
+  takes_value.erase("--one-pass");
   takes_value.erase("--no-mask-neighbours");
   takes_value.erase("--fit-overlaps");
   takes_value.erase("--no-fit-overlaps");
@@ -1521,6 +1529,107 @@ int run_integrate(int argc, char **argv) {
     if (planned.empty())
       return 1;
 
+    // ONE PASS OR TWO (Graeme, 22 November). A single pass holds each closed
+    // box until the scan block after its own is complete; on crowded data
+    // that is most of its memory -- 900 images with c 200 A and sigma_m 0.17
+    // degrees on 0.2 degree images: a footprint of 21.1 GB in one pass, 7.2 in
+    // two, in the same 29 s on an M4 Max, too much for a small laptop. So
+    // predicted here, from the boxes alone, before an image is read: walking
+    // the images, each box open from its first to its last (pixels,
+    // background and mask, 9 bytes a voxel), then held (5: the background
+    // given back) until the block after its own -- 10 degrees, or
+    // --scan-blocks -- is complete; the largest total. The footprint is taken
+    // as twice that, as measured there (21.1 GB against 9.9 live: the
+    // allocator cannot give back what the churn of boxes leaves scattered).
+    // Over the budget -- --max-memory, else half the machine's memory, or a
+    // container's or job's limit -- two passes, and said; --one-pass insists.
+    bool two_pass = args.has("--two-pass");
+    double predicted_one_pass_gb = -1.0, predicted_two_pass_gb = -1.0;
+    if (two_pass && args.has("--one-pass")) {
+      mxi::eprint("mxi integrate: --one-pass or --two-pass, not both\n");
+      return 2;
+    }
+    if (!args.has("--summation-only")) {
+      std::int32_t z_lo = std::numeric_limits<std::int32_t>::max(), z_hi = 0,
+                   deepest = 0;
+      for (const Planned &q : planned) {
+        z_lo = std::min(z_lo, q.bbox[4]);
+        z_hi = std::max(z_hi, q.bbox[5]);
+        deepest = std::max(deepest, q.bbox[5] - q.bbox[4]);
+      }
+      const double degrees =
+          std::abs(e.scan.osc_width) * std::max(last_image - first_image, 1.0);
+      const std::int32_t blocks =
+          args.has("--scan-blocks")
+              ? std::max(1, static_cast<std::int32_t>(
+                                args.number("--scan-blocks", 1.0)))
+              : std::max(
+                    1, static_cast<std::int32_t>(std::lround(degrees / 10.0)));
+      const std::int32_t span = std::max(z_hi - z_lo, 1);
+      const std::int32_t block_len = (span + blocks - 1) / blocks;
+      const std::int32_t chunk = static_cast<std::int32_t>(
+          std::max(1.0, args.number("--window", 64.0)));
+      const std::size_t n = static_cast<std::size_t>(span) + 2;
+      std::vector<double> open_change(n, 0.0), held_change(n, 0.0);
+      for (const Planned &q : planned) {
+        const double voxels = static_cast<double>(q.bbox[1] - q.bbox[0]) *
+                              static_cast<double>(q.bbox[3] - q.bbox[2]) *
+                              static_cast<double>(q.bbox[5] - q.bbox[4]);
+        const auto at = [&](std::int32_t z) {
+          return static_cast<std::size_t>(std::clamp(z - z_lo, 0, span + 1));
+        };
+        // Open from the start of the chunk its first image is in to the end
+        // of the chunk its last is in: boxes are opened and closed a chunk
+        // at a time (--window, 64 images).
+        const std::int32_t opened = z_lo + ((q.bbox[4] - z_lo) / chunk) * chunk;
+        const std::int32_t closed =
+            z_lo + ((q.bbox[5] - 1 - z_lo) / chunk + 1) * chunk;
+        open_change[at(opened)] += 9.0 * voxels;
+        open_change[at(closed)] -= 9.0 * voxels;
+        const std::int32_t block =
+            ((q.bbox[4] + q.bbox[5]) / 2 - z_lo) / std::max(block_len, 1);
+        const std::int32_t release =
+            block + 1 >= blocks ? z_hi
+                                : z_lo + (block + 2) * block_len + deepest;
+        if (release > closed) {
+          held_change[at(closed)] += 5.0 * voxels;
+          held_change[at(release)] -= 5.0 * voxels;
+        }
+      }
+      double open = 0.0, held = 0.0, most_one = 0.0, most_two = 0.0;
+      for (std::size_t z = 0; z < n; ++z) {
+        open += open_change[z];
+        held += held_change[z];
+        most_one = std::max(most_one, open + held);
+        most_two = std::max(most_two, open);
+      }
+      predicted_one_pass_gb = most_one / 1e9;
+      predicted_two_pass_gb = most_two / 1e9;
+      const bool told = args.has("--max-memory");
+      const double budget_gb =
+          told ? args.number("--max-memory", 0.0)
+               : 0.5 * mxi::platform::physical_memory_mb() / 1024.0;
+      const double footprint_gb = 2.0 * predicted_one_pass_gb;
+      if (!two_pass && budget_gb > 0.0 && footprint_gb > budget_gb) {
+        const std::string budget =
+            told ? "--max-memory" : "half of this machine's memory";
+        if (args.has("--one-pass")) {
+          mxi::print("One pass, as asked (--one-pass), though it would hold "
+                     "about %.3g GB of shoeboxes at once, some %.3g GB in all, "
+                     "above %s (%.3g GB)\n",
+                     predicted_one_pass_gb, footprint_gb, budget.c_str(),
+                     budget_gb);
+        } else {
+          two_pass = true;
+          mxi::print("Two passes over the images: one would hold about %.3g "
+                     "GB of shoeboxes at once, some %.3g GB in all, above %s "
+                     "(%.3g GB); two, about %.3g GB. --one-pass to insist\n",
+                     predicted_one_pass_gb, footprint_gb, budget.c_str(),
+                     budget_gb, predicted_two_pass_gb);
+        }
+      }
+    }
+
     // In order of first image, so a block is a contiguous run of this vector --
     // sorted before the neighbours are found, which are indices into it: found
     // first, the sort shuffled them, and each box was masked with the
@@ -1554,8 +1663,7 @@ int run_integrate(int argc, char **argv) {
             "--no-mask-neighbours\n");
       fit_overlaps = false;
     }
-    if (fit_overlaps &&
-        (args.has("--two-pass") || args.has("--summation-only"))) {
+    if (fit_overlaps && (two_pass || args.has("--summation-only"))) {
       if (asked_overlaps)
         mxi::print("--fit-overlaps fits in the one pass's profile fitting: not "
                    "with --two-pass or --summation-only\n");
@@ -2217,7 +2325,7 @@ int run_integrate(int argc, char **argv) {
     // soon as the scan blocks its profile is interpolated from are complete,
     // its shoebox held until then. See "One pass over the images" in
     // docs/integration.md; the answer is the two passes' own, byte for byte.
-    const bool single_pass = fitting && !args.has("--two-pass");
+    const bool single_pass = fitting && !two_pass;
     // Which reflections are worth learning from: strong, nearly whole, and
     // mostly inside the grid. DIALS marks these `reference_spot`.
     const double least_signal = args.number("--reference-signal", 10.0);
@@ -3645,6 +3753,13 @@ int run_integrate(int argc, char **argv) {
                  "opened a chunk, %zu "
                  "open at once\n",
                  workers, window, max_boxes, most_open);
+      if (predicted_one_pass_gb >= 0.0)
+        mxi::print("  memory, predicted from the boxes: one pass %.2f GB of "
+                   "boxes at most, two %.2f GB; the budget %.1f GB\n",
+                   predicted_one_pass_gb, predicted_two_pass_gb,
+                   args.has("--max-memory")
+                       ? args.number("--max-memory", 0.0)
+                       : 0.5 * mxi::platform::physical_memory_mb() / 1024.0);
       mxi::print("  memory, by what holds it, each at its largest: boxes open "
                  "%.2f GB (%zu), held for fitting %.2f GB (%zu), held in "
                  "overlap groups %.2f GB (%zu)\n",

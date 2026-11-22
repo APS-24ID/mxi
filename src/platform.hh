@@ -142,24 +142,6 @@ inline std::string cpu_name() {
   return out;
 }
 
-//: The machine's physical memory in MB; 0 where it cannot say.
-inline double physical_memory_mb() {
-#if defined(_WIN32)
-  MEMORYSTATUSEX status;
-  status.dwLength = sizeof(status);
-  if (!GlobalMemoryStatusEx(&status))
-    return 0.0;
-  return static_cast<double>(status.ullTotalPhys) / (1024.0 * 1024.0);
-#else
-  const long pages = sysconf(_SC_PHYS_PAGES);
-  const long page = sysconf(_SC_PAGESIZE);
-  if (pages <= 0 || page <= 0)
-    return 0.0;
-  return static_cast<double>(pages) * static_cast<double>(page) /
-         (1024.0 * 1024.0);
-#endif
-}
-
 //: Whether standard error is a terminal (not a file or a pipe).
 inline bool stderr_is_terminal() {
 #if defined(_WIN32)
@@ -264,6 +246,45 @@ inline MemoryNow memory_now() {
   }
 #endif
   return m;
+}
+
+//: The memory the process may use, in MB; 0 where it cannot say. The
+//: machine's physical memory -- or, on Linux, a container's or job's limit
+//: if smaller (cgroup v2 memory.max, v1 memory.limit_in_bytes), as on a
+//: cluster's shared node. For mxi integrate's choice of one pass or two.
+inline double physical_memory_mb() {
+  constexpr double kMB = 1024.0 * 1024.0;
+#if defined(_WIN32)
+  MEMORYSTATUSEX status{};
+  status.dwLength = sizeof status;
+  if (GlobalMemoryStatusEx(&status) == 0)
+    return 0.0;
+  return static_cast<double>(status.ullTotalPhys) / kMB;
+#elif defined(__APPLE__)
+  std::uint64_t bytes = 0;
+  std::size_t size = sizeof bytes;
+  if (sysctlbyname("hw.memsize", &bytes, &size, nullptr, 0) != 0)
+    return 0.0;
+  return static_cast<double>(bytes) / kMB;
+#else
+  const long pages = sysconf(_SC_PHYS_PAGES), page = sysconf(_SC_PAGESIZE);
+  double mb = pages > 0 && page > 0
+                  ? static_cast<double>(pages) * static_cast<double>(page) / kMB
+                  : 0.0;
+  for (const char *path : {"/sys/fs/cgroup/memory.max",
+                           "/sys/fs/cgroup/memory/memory.limit_in_bytes"})
+    if (std::FILE *f = std::fopen(path, "r")) {
+      unsigned long long limit = 0;
+      // "max" (no limit) does not scan; v1's no-limit is a huge number.
+      if (std::fscanf(f, "%llu", &limit) == 1 && limit > 0) {
+        const double limit_mb = static_cast<double>(limit) / kMB;
+        if (mb <= 0.0 || limit_mb < mb)
+          mb = limit_mb;
+      }
+      std::fclose(f);
+    }
+  return mb;
+#endif
 }
 
 //: A file opened for reading at offsets, by any number of threads at once:

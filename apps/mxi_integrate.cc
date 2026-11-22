@@ -2304,6 +2304,13 @@ int run_integrate(int argc, char **argv) {
     // than computing them again.
     std::vector<PixelCells> held_cells;
     std::size_t most_held = 0;
+    // A box's memory as allocated: its pixels, mask and background. The held
+    // figure had counted the first two only (22 November).
+    const auto box_memory = [](const Shoebox &b) {
+      return static_cast<double>(b.data.capacity() * sizeof(float) +
+                                 b.mask.capacity() +
+                                 b.background.capacity() * sizeof(float));
+    };
     double most_held_bytes = 0.0;
 
     // One reflection's profile fit, which both ways of reading the images
@@ -2735,8 +2742,7 @@ int run_integrate(int argc, char **argv) {
       most_held = std::max(most_held, held.size());
       double bytes = 0.0;
       for (const Shoebox &box : held)
-        bytes += static_cast<double>(box.data.size() * sizeof(float) +
-                                     box.mask.size());
+        bytes += box_memory(box);
       for (const PixelCells &c : held_cells)
         bytes += static_cast<double>((c.start.size() + c.cell.size()) *
                                          sizeof(std::uint32_t) +
@@ -2794,6 +2800,45 @@ int run_integrate(int argc, char **argv) {
     std::atomic<bool> learned_into_final{false};
 
     std::vector<Shoebox> active;
+    // Memory, by what holds it, for --timing (Graeme, 22 November: 25 GB on
+    // a crowded 900 images, a third of it accounted for). Sampled when a
+    // chunk's boxes have just opened: each part's largest, and the three
+    // together at their largest, with what each was then.
+    struct MemorySample {
+      double open = 0.0, held = 0.0, groups = 0.0;
+      std::size_t n_open = 0, n_held = 0, n_groups = 0;
+    };
+    MemorySample memory_most, memory_together;
+    const bool timing_on = args.has("--timing");
+    const auto sample_memory = [&]() {
+      if (!timing_on)
+        return;
+      MemorySample now;
+      for (const Shoebox &b : active)
+        now.open += box_memory(b);
+      now.n_open = active.size();
+      for (const Shoebox &b : held)
+        now.held += box_memory(b);
+      for (const PixelCells &c : held_cells)
+        now.held += static_cast<double>((c.start.size() + c.cell.size()) *
+                                            sizeof(std::uint32_t) +
+                                        c.hits.size() * sizeof(std::uint16_t));
+      now.n_held = held.size();
+      for (const auto &[g, members] : overlap_held)
+        for (const OverlapHeld &m : members) {
+          now.groups += box_memory(m.box);
+          ++now.n_groups;
+        }
+      if (now.open > memory_most.open)
+        memory_most.open = now.open, memory_most.n_open = now.n_open;
+      if (now.held > memory_most.held)
+        memory_most.held = now.held, memory_most.n_held = now.n_held;
+      if (now.groups > memory_most.groups)
+        memory_most.groups = now.groups, memory_most.n_groups = now.n_groups;
+      if (now.open + now.held + now.groups >
+          memory_together.open + memory_together.held + memory_together.groups)
+        memory_together = now;
+    };
     std::vector<std::size_t> active_rows;
     std::int32_t chunk_start = planned.empty() ? 0 : planned[0].bbox[4];
     // Progress, on a run long enough to want it, in images read from the first
@@ -2883,6 +2928,7 @@ int run_integrate(int argc, char **argv) {
       at = stop;
       t_open += now_wall() - t_open_start;
       most_open = std::max(most_open, active.size());
+      sample_memory();
 
       // Which open boxes each of THIS chunk's frames touches.
       std::map<std::int32_t, std::vector<std::size_t>> touching;
@@ -3210,6 +3256,7 @@ int run_integrate(int argc, char **argv) {
             moved_to_held[i] = true;
           }
           finalise_closed(chunk_end);
+          sample_memory(); // the boxes held at their most, before fitting
           fit_ready(false);
         }
       } else {
@@ -3338,6 +3385,7 @@ int run_integrate(int argc, char **argv) {
               saved[held_rows[k]] = std::move(held[k]);
             }
         } else if (single_pass) {
+          sample_memory();
           fit_ready(true);
           if (fit_overlaps) {
             // Each overlapped reflection's fit together over its fit alone --
@@ -3591,6 +3639,20 @@ int run_integrate(int argc, char **argv) {
                  "opened a chunk, %zu "
                  "open at once\n",
                  workers, window, max_boxes, most_open);
+      mxi::print("  memory, by what holds it, each at its largest: boxes open "
+                 "%.2f GB (%zu), held for fitting %.2f GB (%zu), held in "
+                 "overlap groups %.2f GB (%zu)\n",
+                 memory_most.open / 1e9, memory_most.n_open,
+                 memory_most.held / 1e9, memory_most.n_held,
+                 memory_most.groups / 1e9, memory_most.n_groups);
+      mxi::print("  the three together at most %.2f GB -- open %.2f, held "
+                 "%.2f, groups %.2f -- of the process's peak %.2f GB; the rest "
+                 "the images, the tables and what the allocator keeps\n",
+                 (memory_together.open + memory_together.held +
+                  memory_together.groups) /
+                     1e9,
+                 memory_together.open / 1e9, memory_together.held / 1e9,
+                 memory_together.groups / 1e9, peak_memory_mb() / 1e3);
       mxi::print("  %zu frames read, %zu wanted by a shoebox, each read %.2f "
                  "times; %zu voxels "
                  "on masked pixels\n",

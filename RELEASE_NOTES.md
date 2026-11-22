@@ -6,6 +6,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 ## Unreleased -- since 1.3.3
 
+**New**
+- mxi integrate --timing says where the memory goes: boxes open, boxes held
+  for fitting and boxes held in overlap groups, each at its largest and the
+  three together, beside the process's peak. The held figure had left out each
+  box's background.
+
 **Fixed**
 - mxi import put the detector where some DECTRIS file writers wrongly write
   it, upstream of the sample, between it and the source, so that every spot

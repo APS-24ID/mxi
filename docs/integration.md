@@ -567,6 +567,17 @@ Two numbers are defined so as to be read beside DIALS', and one is not:
   crossing one of its job boundaries into separate partial rows, and counts
   reflections running off the ends of the scan.
 
+With `--timing`, memory by what holds it (22 November, after a crowded 900
+images -- c 200 A, sigma_m 0.17 degrees on 0.2 degree images -- peaked at 25 GB,
+a third of it accounted for): the boxes open, the boxes held for fitting (a
+single pass holds each until its reference profile is learned) and the boxes
+held in overlap groups (until the group's last member is in), each at its
+largest with how many, and the three together at their largest, beside the
+process's peak; what is left is the images, the tables and what the allocator
+keeps for reuse. A box counts its pixels, mask and background as allocated --
+the held figure had left out the background. Sampled when a chunk's boxes have
+opened and before each round of fitting.
+
 ## Time on long scans (14 October)
 
 Graeme's 36000 images, 7.4 million reflections: 238.5 s on 32 Linux threads,

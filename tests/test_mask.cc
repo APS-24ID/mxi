@@ -44,6 +44,9 @@ MaskOptions options_for(double n_sigma = 3.0) {
   o.box_scale = 1.0; // no rim, so the box is the region
   o.sigma_d = 0.031;
   o.sigma_m = 0.098;
+  // These tests are about Kabsch's box rule and the ellipsoid against it;
+  // DIALS's, the default since 1.3.3, has its own below.
+  o.shape = RegionShape::kBox;
   return o;
 }
 
@@ -338,6 +341,68 @@ TEST(the_region_is_an_ellipsoid_in_sigmas_not_in_degrees) {
     return; // one reflection is enough to pin the arithmetic
   }
   check::is_true(false, "no reflection was built");
+}
+
+TEST(dials_foreground_is_one_face_on_every_image_and_judged_at_corners) {
+  // DIALS's rule (gaussian_rs MaskCalculator3D, as dxi reproduces it), the
+  // default since 1.3.3: a circle in eps1 and eps2, a pixel foreground when
+  // its nearest CORNER is inside, the same on every image of the box. So:
+  // each image's foreground is the first's; and it holds the circle judged
+  // at pixel centres -- the ellipsoid's foreground on its fullest image, the
+  // box being the same -- with more besides.
+  const Experiment e = masking_experiment();
+  PredictOptions po;
+  po.d_min = 2.5;
+  const std::vector<Prediction> predictions = predict(e, po);
+  MaskOptions dials = options_for();
+  dials.shape = RegionShape::kDials;
+  MaskOptions ellipsoid = options_for();
+  ellipsoid.shape = RegionShape::kEllipsoid;
+  std::size_t checked = 0, more = 0, dials_total = 0, centres_total = 0;
+  for (const Prediction &p : predictions) {
+    Shoebox d, el;
+    if (!build_shoebox(e, p, dials, &d) || !build_shoebox(e, p, ellipsoid, &el))
+      continue;
+    if (++checked > 60)
+      break;
+    const std::int32_t nx = d.nx(), ny = d.ny(), nz = d.nz();
+    const auto fg = [](const Shoebox &b, std::int32_t x, std::int32_t y,
+                       std::int32_t z) {
+      return (b.mask[b.at(x, y, z)] & shoebox_mask::kForeground) != 0;
+    };
+    // The same face on every image.
+    bool same = true;
+    for (std::int32_t z = 1; z < nz; ++z)
+      for (std::int32_t y = 0; y < ny; ++y)
+        for (std::int32_t x = 0; x < nx; ++x)
+          same = same && fg(d, x, y, z) == fg(d, x, y, 0);
+    check::is_true(same, "one face on every image");
+    // The ellipsoid's fullest image: the circle judged at centres.
+    std::int32_t best = 0;
+    std::size_t best_n = 0;
+    for (std::int32_t z = 0; z < nz; ++z) {
+      std::size_t n = 0;
+      for (std::int32_t y = 0; y < ny; ++y)
+        for (std::int32_t x = 0; x < nx; ++x)
+          n += fg(el, x, y, z);
+      if (n > best_n)
+        best_n = n, best = z;
+    }
+    std::size_t face = 0;
+    bool holds = true;
+    for (std::int32_t y = 0; y < ny; ++y)
+      for (std::int32_t x = 0; x < nx; ++x) {
+        face += fg(d, x, y, 0);
+        holds = holds && (!fg(el, x, y, best) || fg(d, x, y, 0));
+      }
+    check::is_true(holds, "the centres' circle inside the corners'");
+    more += face > best_n;
+    dials_total += face;
+    centres_total += best_n;
+  }
+  check::is_true(checked > 10, "enough boxes");
+  check::is_true(more > checked / 2, "the corners reach further, mostly");
+  check::is_true(dials_total > centres_total, "and in all");
 }
 
 TEST(a_refused_box_says_which_reason) {

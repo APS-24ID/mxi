@@ -175,6 +175,42 @@ A reflection crossing a module gap is fitted to the pixels it has, and its
 intensity is the fitted scale times the WHOLE profile, not the visible part --
 which is what lets a fitted intensity recover what the gap took.
 
+## The foreground, and sigma_m (1.3.3)
+
+Since 1.3.3 the foreground is DIALS's, and so is the estimate of sigma_m: both
+found by comparing with dxi's reimplementation of DIALS, which reproduces DIALS
+exactly (22 November).
+
+**The foreground.** DIALS marks a pixel foreground when the nearest of its four
+corners lies within the circle of radius n sigma_D in the Kabsch coordinates
+eps1, eps2, and marks it so on every image of the box -- the box alone limits it
+in rotation (gaussian_rs's MaskCalculator3D). mxi had judged each pixel at its
+centre, each of eps1, eps2 and eps3 within n sigma (`--foreground box`, Kabsch's
+section 3.1), which left out the box's first and last images where their centres
+fell outside n sigma_M. Given DIALS's own refined model and profile model of the
+30 degree ins10_1, mxi's foreground was 0.81 to 0.85 of DIALS's in pixels; its
+summation 1 to 3.4 per cent low; its background 0.2 to 1 per cent high (the
+tails counted as background); and its profile fitting 6 to 8 per cent high from
+2 A out. With DIALS's rule (`--foreground dials`, the default): the foreground
+DIALS's for 99.5 per cent of reflections, summation correlation 1.0000 and
+median difference 0.05 per cent, the background within 0.2 per cent, profile
+fitting within 1 per cent in every shell. The price: a larger foreground carries
+more background noise, I/sigma some 5 per cent lower on the full sweep; profile
+fitting, weighting the outer pixels down, loses least.
+
+**sigma_m.** mxi's default estimator had been the basic one, each image of a
+reflection counted once, believed to be DIALS's; DIALS's is the extended one,
+each image weighted by its counts (`--sigma-m-estimator extended`, the default).
+On the 30 degree ins10_1: extended 0.0835 degrees, DIALS 0.0886, basic 0.1286.
+Changed alone it had merged worse (outstanding 3) -- the box foreground had been
+compensating for the wider sigma_m; changed together, the full sweep's merging
+is the same or a shade better.
+
+Still different from DIALS: profile fitting's sigmas, DIALS's some 20 per cent
+larger -- DIALS fits on the reference's reciprocal-space grid, mxi on the
+pixels; and the boxes, mxi's some 9 per cent smaller in volume. `--foreground
+box` and `--sigma-m-estimator basic` give 1.3.2's behaviour.
+
 ## Why a reflection is not profile fitted
 
 Scaling takes only profile-fitted observations, so a reflection the fit loses is

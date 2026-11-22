@@ -199,6 +199,12 @@ history on 20 October: four closed, nine rewritten to what is now true.
   intensity and a reflection split by integration's blocks to be combined
   before scaling (docs/scaling.md): to measure again with `mxeq equivalents`
   before anything else is done (review, 20 October).
+  22 November: on the full 360 degree sweep, with the extended sigma_m (0.0802
+  degrees) and DIALS's foreground, partials still read +4.2 per cent (+8.0 as
+  before), their best sigma_m 0.064 -- but they are a few hundred at the scan's
+  ends among 200,000 fully recorded, 0.1 degree images on 360 degrees having
+  almost no others. Open: it needs data with real partials, wider images or a
+  short sweep.
 * **2.** **correctness -- Reflections cut by a gap come out a few per cent high** (by gaps masked on purpose: +2 at a tenth cut, +6 at a third; a third less at --grid-points 6, now the default); with real gaps, mixed. First recorded as gap-crossing reflections about 3 per cent low, 3.4 by
    symmetry equivalents in scaling; the suspect is profile learning from
    reflections that are themselves cut. `docs/integration.md`, open questions.
@@ -227,6 +233,13 @@ history on 20 October: four closed, nine rewritten to what is now true.
 * **4.** **correctness -- The background is about one per cent high at low
    resolution.** A guard ring around the foreground would likely fix it.
    `docs/integration.md`.
+  **Resolved, 22 November (1.3.3):** the foreground's shape, not a missing guard
+  ring. Integrating DIALS's own models of the 30 degree ins10_1 with DIALS's
+  profile model, mxi's foreground was 0.81 to 0.85 of DIALS's in pixels, the
+  tails it left out counted as background: 0.2 to 1 per cent high. With DIALS's
+  rule (`docs/integration.md`, "The foreground"), now the default, the
+  foreground is DIALS's for 99.5 per cent of reflections and the background
+  within 0.2 per cent.
   Measured on bare background (insulin's crystal turned 3 degrees): mean I
   -0.5 to -1.0 per cent of the background under the foreground from 55 to 2.25
   A, at 4 to 6 standard errors, nothing at high resolution. With no spot
@@ -564,6 +577,12 @@ Closed in the review of 20 October, against the code and the history:
 * **55.** **Summation 2 to 3 per cent below DIALS's**, understood: the foreground's
   extent, a constant fraction which scaling takes up -- an error only if it
   varies with the geometry, which nothing has shown.
+  Resolved 22 November (1.3.3): it was the foreground's shape -- mxi judged a
+  pixel at its centre and limited eps3, DIALS at its nearest corner on every
+  image of the box. With DIALS's rule, now the default, summation of DIALS's
+  models agrees with DIALS's at correlation 1.0000, median difference 0.05 per
+  cent; profile fitting within 1 per cent in every shell, where it had been 6 to
+  8 per cent high from 2 A out.
 * **48.** **Integration's threads idle while reading.** The box cap was the cause
   (now 6000 a thread); the fill converts a row at a time; boxes left unzeroed
   tried and reverted. What is left, reading bound by memory traffic, is in 11.
@@ -650,6 +669,13 @@ Closed in the review of 20 October, against the code and the history:
     degrees insulin merged worse, R merge 0.035 to 0.038 (October); the
     partials' small excess, item 1, is a few dozen observations at a scan's
     ends.
+    Revisited 22 November: it was too wide. mxi's default estimator, basic, was
+    believed DIALS's; DIALS's is extended (dxi's reproduction), which gives
+    0.0835 degrees on the 30 degree ins10_1 against DIALS's 0.0886 (basic
+    0.1286), and 0.0802 on the full sweep. 0.086 had merged worse because the
+    foreground's shape had been compensating for the wider sigma_m; with both
+    changed, as the defaults since 1.3.3, the full sweep's merging is the same
+    or a shade better, R merge 0.070 against 0.072, I/sigma 5 per cent lower.
 
 * **61.** Strong reflections on a near-empty background: the fit's weights
     on 0.05 again, its variance the fit's own on 0.001 (`docs/integration.md`,

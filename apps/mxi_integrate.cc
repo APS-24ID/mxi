@@ -330,10 +330,22 @@ void usage(const char *program) {
       "                    if given -- indexed or refined reflections, not a\n"
       "                    spot finder's -- else taken from EXPT's profile "
       "block\n"
-      "  --sigma-m-estimator basic|extended  sigma_m with each image holding\n"
-      "                    foreground counted once (basic, the default, as\n"
-      "                    DIALS's) or weighted by its counts (extended)\n"
+      "  --sigma-m-estimator extended|basic  sigma_m with each image weighted\n"
+      "                    by its foreground counts (extended, the default, "
+      "as\n"
+      "                    DIALS's) or counted once (basic, mxi's before "
+      "1.3.3,\n"
+      "                    typically half as large again)\n"
       "  --n-sigma N       foreground spans plus and minus N sigma (3)\n"
+      "  --foreground dials|box|ellipsoid  which pixels are foreground: "
+      "DIALS's\n"
+      "                    rule, a circle in eps1 and eps2 judged at each "
+      "pixel's\n"
+      "                    nearest corner, on every image of the box (dials, "
+      "the\n"
+      "                    default); each eps within n sigma at the centre "
+      "(box,\n"
+      "                    mxi's before 1.3.3); or the ellipsoid\n"
       "  --box-scale S     box is S times wider than the foreground (1.9)\n"
       "  --min-zeta Z      skip reflections nearer the rotation axis than "
       "this\n"
@@ -1152,10 +1164,13 @@ int run_integrate(int argc, char **argv) {
     const double t_profile_start = now_wall();
     MaskOptions mask_options;
     mask_options.box_scale = args.number("--box-scale", 1.9);
-    // Temporary, for comparing with DIALS (dxi's reproduction): the
-    // foreground's shape. 22 November.
-    if (args.has("--foreground")) {
-      const std::string shape = args.value("--foreground", "box");
+    // The foreground's shape: DIALS's rule by default (mask.hh, kDials).
+    {
+      const std::string shape = args.value("--foreground", "dials");
+      if (shape != "dials" && shape != "box" && shape != "ellipsoid") {
+        mxi::eprint("mxi integrate: --foreground is dials, box or ellipsoid\n");
+        return 2;
+      }
       mask_options.shape = shape == "dials"       ? RegionShape::kDials
                            : shape == "ellipsoid" ? RegionShape::kEllipsoid
                                                   : RegionShape::kBox;
@@ -1183,7 +1198,7 @@ int run_integrate(int argc, char **argv) {
     // sigma_m by the counts-weighted likelihood (dials's `extended`), or each
     // image with foreground counted once (`basic`); see reflecting_range.
     const std::string sigma_m_estimator =
-        args.value("--sigma-m-estimator", "basic");
+        args.value("--sigma-m-estimator", "extended");
     if (sigma_m_estimator != "basic" && sigma_m_estimator != "extended") {
       mxi::eprint("mxi integrate: --sigma-m-estimator is basic or extended\n");
       return 2;

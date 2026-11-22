@@ -49,11 +49,14 @@ void usage(const char *program) {
       "                    detector, to hold background (1.9)\n"
       "  --sigma-b B --sigma-m M   use these instead of estimating from REFL\n"
       "  --d-min D         resolution limit for prediction\n"
-      "  --shape box|ellipsoid   the box is Kabsch's mask, each coordinate\n"
-      "                    separately within n sigma; the ellipsoid is the\n"
-      "                    surface the Gaussian is actually constant on, and "
-      "is\n"
-      "                    pi/6 of the box (box)\n"
+      "  --shape dials|box|ellipsoid   dials is DIALS's rule, integration's\n"
+      "                    default: a circle in eps1 and eps2 judged at each\n"
+      "                    pixel's nearest corner, on every image of the box;\n"
+      "                    the box is Kabsch's mask, each coordinate "
+      "separately\n"
+      "                    within n sigma; the ellipsoid is the surface the\n"
+      "                    Gaussian is actually constant on, pi/6 of the box\n"
+      "                    (dials)\n"
       "  --min-zeta Z      skip reflections whose zeta is below Z (0.05)\n"
       "  --first-image N --last-image N   restrict to part of the scan; a "
       "whole\n"
@@ -105,10 +108,15 @@ int run_foreground(int argc, char **argv) {
     options.n_sigma = args.number("--n-sigma", 3.0);
     options.box_scale = args.number("--box-scale", 1.9);
     options.min_zeta = args.number("--min-zeta", 0.05);
-    if (args.value("--shape", "box") == "ellipsoid") {
+    const std::string shape = args.value("--shape", "dials");
+    if (shape == "ellipsoid") {
       options.shape = RegionShape::kEllipsoid;
-    } else if (args.value("--shape", "box") != "box") {
-      mxi::eprint("mxi foreground: --shape is box or ellipsoid\n");
+    } else if (shape == "box") {
+      options.shape = RegionShape::kBox;
+    } else if (shape == "dials") {
+      options.shape = RegionShape::kDials;
+    } else {
+      mxi::eprint("mxi foreground: --shape is dials, box or ellipsoid\n");
       return 2;
     }
     options.sigma_d = args.number("--sigma-b", 0.0);
@@ -166,7 +174,9 @@ int run_foreground(int argc, char **argv) {
     }
     mxi::print("sigma_b %.6f  sigma_m %.6f  n_sigma %.1f  shape %s\n",
                options.sigma_d, options.sigma_m, options.n_sigma,
-               options.shape == RegionShape::kEllipsoid ? "ellipsoid" : "box");
+               options.shape == RegionShape::kEllipsoid ? "ellipsoid"
+               : options.shape == RegionShape::kBox     ? "box"
+                                                        : "dials");
     if (!(options.sigma_d > 0.0) || !(options.sigma_m > 0.0)) {
       mxi::eprint("mxi foreground: the profile model came out empty\n");
       return 1;

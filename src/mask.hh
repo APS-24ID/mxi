@@ -29,7 +29,8 @@ namespace mxi {
 enum class RegionShape {
   //: |eps1| <= n sigma_D and |eps2| <= n sigma_D and |eps3| <= n sigma_M,
   //: at the pixel's centre. What Kabsch section 3.1 writes for the
-  //: reflection mask, and mxi's default. Not DIALS's, as had been said here:
+  //: reflection mask, and mxi's default until 1.3.3. Not DIALS's, as had been
+  //: said here:
   //: dxi's reproduction of DIALS (22 November) shows DIALS's rule is kDials's,
   //: and with it mxi's foreground is 15 to 19 per cent larger on ins10_1,
   //: summation 1 to 3 per cent higher, the background lower.
@@ -39,7 +40,11 @@ enum class RegionShape {
   kEllipsoid,
   //: DIALS's, as dxi reproduces it (gaussian_rs MaskCalculator3D): the circle
   //: (eps1^2 + eps2^2) <= (n sigma_D)^2, judged at a pixel's NEAREST CORNER,
-  //: on every image of the box -- no limit in eps3 beyond the box's own.
+  //: on every image of the box -- no limit in eps3 beyond the box's own. The
+  //: default (Graeme, 22 November): with it mxi's integration of DIALS's own
+  //: models agrees with DIALS's within 1 per cent, the background no longer
+  //: high nor summation low; the price some 5 per cent in I/sigma, a larger
+  //: foreground carrying more background noise.
   kDials,
 };
 
@@ -70,7 +75,7 @@ struct MaskOptions {
   //: them. The box is the larger region and captures slightly more of the
   //: density, 0.9919 against 0.9707, but it buys that with volume that holds
   //: essentially nothing.
-  RegionShape shape = RegionShape::kBox;
+  RegionShape shape = RegionShape::kDials;
   double sigma_d = 0.0; //: degrees
   double sigma_m = 0.0; //: degrees
   //: Reflections whose zeta is smaller than this are skipped: their region in

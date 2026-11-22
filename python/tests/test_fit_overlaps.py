@@ -23,7 +23,13 @@ MXI = os.path.join(BUILD, "mxi")
 
 pytestmark = pytest.mark.skipif(not os.path.exists(MXI), reason="mxi is not built")
 
-WIDE = ["--sigma-b", "0.6", "--sigma-m", "0.1", "-j", "2"]
+# The box rule, mxi's before 1.3.3: this geometry, sigma_b widened to 0.6
+# degrees to make overlaps, was tuned to it. Under DIALS's rule, the default
+# since, every image of each box is foreground, so so much empty background is
+# summed into the planted spots that none reaches the I/sigma of 10 needed to
+# learn reference profiles from (22 November). This tests fitting overlaps
+# together, not the foreground's shape.
+WIDE = ["--sigma-b", "0.6", "--sigma-m", "0.1", "-j", "2", "--foreground", "box"]
 
 
 @pytest.fixture(scope="module")

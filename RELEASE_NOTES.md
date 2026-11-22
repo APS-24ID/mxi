@@ -6,6 +6,21 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
 ## Unreleased -- since 1.3.2
 
+**Changed**
+- mxi integrate's foreground is DIALS's: a circle in eps1 and eps2 judged at
+  each pixel's nearest corner, on every image of the box, where mxi had judged
+  each pixel's centre and limited eps3 too. Given the same models, mxi's
+  integration now agrees with DIALS's within 1 per cent, summation and profile
+  fitting alike; the background is no longer 1 per cent high, nor summation 1
+  to 3 per cent low. --foreground box gives the old rule (docs/integration.md,
+  "The foreground, and sigma_m").
+- sigma_m is estimated as DIALS estimates it by default, each image weighted
+  by its counts (--sigma-m-estimator extended): on insulin 0.080 degrees where
+  it had been 0.119. --sigma-m-estimator basic gives the old estimate.
+- Together these change every integration's results: on a full insulin sweep,
+  merging the same or a shade better (R merge 0.070 against 0.072), I/sigma
+  some 5 per cent lower, a larger foreground carrying more background.
+
 **New**
 - Hot pixels: mxi find counts how many images each pixel is signal on, and
   says how many are on a quarter of them or more (--hot-fraction), from 100

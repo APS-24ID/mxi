@@ -249,10 +249,16 @@ usage: mxi integrate [options] EXPT [INDEXED_REFL]
   --sigma-b B --sigma-m M   profile model. Estimated from INDEXED_REFL
                     if given -- indexed or refined reflections, not a
                     spot finder's -- else taken from EXPT's profile block
-  --sigma-m-estimator basic|extended  sigma_m with each image holding
-                    foreground counted once (basic, the default, as
-                    DIALS's) or weighted by its counts (extended)
+  --sigma-m-estimator extended|basic  sigma_m with each image weighted
+                    by its foreground counts (extended, the default, as
+                    DIALS's) or counted once (basic, mxi's before 1.3.3,
+                    typically half as large again)
   --n-sigma N       foreground spans plus and minus N sigma (3)
+  --foreground dials|box|ellipsoid  which pixels are foreground: DIALS's
+                    rule, a circle in eps1 and eps2 judged at each pixel's
+                    nearest corner, on every image of the box (dials, the
+                    default); each eps within n sigma at the centre (box,
+                    mxi's before 1.3.3); or the ellipsoid
   --box-scale S     box is S times wider than the foreground (1.9)
   --min-zeta Z      skip reflections nearer the rotation axis than this
                     (0.05, as DIALS): no box, no reading, no part in the
@@ -719,10 +725,13 @@ for dials.image_viewer. Pixel values are left at zero.
                     detector, to hold background (1.9)
   --sigma-b B --sigma-m M   use these instead of estimating from REFL
   --d-min D         resolution limit for prediction
-  --shape box|ellipsoid   the box is Kabsch's mask, each coordinate
-                    separately within n sigma; the ellipsoid is the
-                    surface the Gaussian is actually constant on, and is
-                    pi/6 of the box (box)
+  --shape dials|box|ellipsoid   dials is DIALS's rule, integration's
+                    default: a circle in eps1 and eps2 judged at each
+                    pixel's nearest corner, on every image of the box;
+                    the box is Kabsch's mask, each coordinate separately
+                    within n sigma; the ellipsoid is the surface the
+                    Gaussian is actually constant on, pi/6 of the box
+                    (dials)
   --min-zeta Z      skip reflections whose zeta is below Z (0.05)
   --first-image N --last-image N   restrict to part of the scan; a whole
                     sweep of shoeboxes does not fit in memory

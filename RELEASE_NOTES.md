@@ -4,7 +4,7 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
-## Unreleased -- since 1.3.2
+## Unreleased -- since 1.3.2, for 1.3.3
 
 **Changed**
 - mxi integrate's foreground is DIALS's: a circle in eps1 and eps2 judged at

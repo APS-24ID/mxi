@@ -208,6 +208,41 @@ void region_of(const Experiment &e, const Prediction &p,
         Scan::degrees(frame.zeta * (phi - p.phi));
   }
 
+  if (options.shape == RegionShape::kDials) {
+    // DIALS's rule: eps1, eps2 at the pixel CORNERS, a pixel foreground when
+    // the nearest is within n sigma_D, the same on every image of the box.
+    const std::int32_t cx = nx + 1, cy = ny + 1;
+    std::vector<double> r2(static_cast<std::size_t>(cx) *
+                           static_cast<std::size_t>(cy));
+    const double limit = options.n_sigma * options.sigma_d;
+    for (std::int32_t y = 0; y < cy; ++y)
+      for (std::int32_t x = 0; x < cx; ++x) {
+        const Epsilon c = epsilon_of(e, frame, panel,
+                                     static_cast<double>(bbox[0] + x),
+                                     static_cast<double>(bbox[2] + y), p.phi,
+                                     p.phi);
+        r2[static_cast<std::size_t>(y) * static_cast<std::size_t>(cx) +
+           static_cast<std::size_t>(x)] =
+            (c.e1 * c.e1 + c.e2 * c.e2) / (limit * limit);
+      }
+    std::vector<std::uint8_t> face_in(static_cast<std::size_t>(face));
+    for (std::int32_t y = 0; y < ny; ++y)
+      for (std::int32_t x = 0; x < nx; ++x) {
+        const std::size_t a = static_cast<std::size_t>(y) *
+                                  static_cast<std::size_t>(cx) +
+                              static_cast<std::size_t>(x);
+        const double nearest =
+            std::min(std::min(r2[a], r2[a + 1]),
+                     std::min(r2[a + static_cast<std::size_t>(cx)],
+                              r2[a + static_cast<std::size_t>(cx) + 1]));
+        face_in[static_cast<std::size_t>(y) * static_cast<std::size_t>(nx) +
+                static_cast<std::size_t>(x)] = nearest <= 1.0 ? 1 : 0;
+      }
+    for (std::int32_t z = 0; z < nz; ++z)
+      std::copy(face_in.begin(), face_in.end(),
+                inside->begin() + static_cast<std::ptrdiff_t>(z) * face);
+    return;
+  }
   std::size_t at = 0;
   for (std::int32_t z = 0; z < nz; ++z) {
     for (std::int32_t y = 0; y < ny; ++y) {

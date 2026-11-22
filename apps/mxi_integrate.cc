@@ -976,7 +976,7 @@ int run_integrate(int argc, char **argv) {
       "--sigma-m",
       "--sigma-m-estimator",
       "--n-sigma",
-      "--box-scale",
+      "--box-scale", "--foreground",
       "--d-min",
       "--d-max",
       "--first-image",
@@ -1152,6 +1152,14 @@ int run_integrate(int argc, char **argv) {
     const double t_profile_start = now_wall();
     MaskOptions mask_options;
     mask_options.box_scale = args.number("--box-scale", 1.9);
+    // Temporary, for comparing with DIALS (dxi's reproduction): the
+    // foreground's shape. 22 November.
+    if (args.has("--foreground")) {
+      const std::string shape = args.value("--foreground", "box");
+      mask_options.shape = shape == "dials"       ? RegionShape::kDials
+                           : shape == "ellipsoid" ? RegionShape::kEllipsoid
+                                                  : RegionShape::kBox;
+    }
     // How near the rotation axis a reflection may be and still be integrated.
     //
     // This is the lever on the near-axis reflections, and they are worth a

@@ -27,13 +27,20 @@ namespace mxi {
 
 //: What "within n sigma" means for a three-dimensional Gaussian.
 enum class RegionShape {
-  //: |eps1| <= n sigma_D and |eps2| <= n sigma_D and |eps3| <= n sigma_M.
-  //: What Kabsch section 3.1 writes for the reflection mask, and what DIALS
-  //: uses, so it is the default.
+  //: |eps1| <= n sigma_D and |eps2| <= n sigma_D and |eps3| <= n sigma_M,
+  //: at the pixel's centre. What Kabsch section 3.1 writes for the
+  //: reflection mask, and mxi's default. Not DIALS's, as had been said here:
+  //: dxi's reproduction of DIALS (22 November) shows DIALS's rule is kDials's,
+  //: and with it mxi's foreground is 15 to 19 per cent larger on ins10_1,
+  //: summation 1 to 3 per cent higher, the background lower.
   kBox,
   //: (eps1/sigma_D)^2 + (eps2/sigma_D)^2 + (eps3/sigma_M)^2 <= n^2. The
   //: surface on which the model's density is actually constant.
   kEllipsoid,
+  //: DIALS's, as dxi reproduces it (gaussian_rs MaskCalculator3D): the circle
+  //: (eps1^2 + eps2^2) <= (n sigma_D)^2, judged at a pixel's NEAREST CORNER,
+  //: on every image of the box -- no limit in eps3 beyond the box's own.
+  kDials,
 };
 
 struct MaskOptions {

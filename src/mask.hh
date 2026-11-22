@@ -60,10 +60,14 @@ struct MaskOptions {
   //: DIALS `integrated.refl`: foreground 462 voxels, background 3094, and
   //: their sum is the whole box for every row.
   //:
-  //: The value here reproduces DIALS' box widths on that data. It is
-  //: empirical: DIALS' own box is not simply n_sigma times anything this can
-  //: see, and the factor is recorded as measured rather than derived.
-  double box_scale = 1.9;
+  //: DIALS's box is the square of half-width n sigma_b times 2 in eps1 and
+  //: eps2, its corners' pixels rounded outwards (BBoxCalculator3D, sigma_b
+  //: multiplier 2, as dxi reproduces it). 1.9 had been measured, not derived,
+  //: matching DIALS's widths on one run (September); on DIALS's own models of
+  //: ins10_1 it made boxes a pixel narrower in x and y. 2.0: the boxes DIALS's
+  //: for 99.9 per cent of reflections, summation equal to DIALS's to one part
+  //: in ten million (22 November).
+  double box_scale = 2.0;
   //: The box is a region in which each coordinate is separately within n
   //: sigma; the ellipsoid is the one on which the Gaussian is constant. They
   //: are not the same set, and the difference is not small: the ellipsoid is

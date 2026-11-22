@@ -106,7 +106,7 @@ int run_foreground(int argc, char **argv) {
 
     MaskOptions options;
     options.n_sigma = args.number("--n-sigma", 3.0);
-    options.box_scale = args.number("--box-scale", 1.9);
+    options.box_scale = args.number("--box-scale", 2.0);
     options.min_zeta = args.number("--min-zeta", 0.05);
     const std::string shape = args.value("--shape", "dials");
     if (shape == "ellipsoid") {

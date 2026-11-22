@@ -346,7 +346,8 @@ void usage(const char *program) {
       "                    default); each eps within n sigma at the centre "
       "(box,\n"
       "                    mxi's before 1.3.3); or the ellipsoid\n"
-      "  --box-scale S     box is S times wider than the foreground (1.9)\n"
+      "  --box-scale S     box is S times wider than the foreground (2, as "
+      "DIALS)\n"
       "  --min-zeta Z      skip reflections nearer the rotation axis than "
       "this\n"
       "                    (0.05, as DIALS): no box, no reading, no part in "
@@ -1163,7 +1164,7 @@ int run_integrate(int argc, char **argv) {
 
     const double t_profile_start = now_wall();
     MaskOptions mask_options;
-    mask_options.box_scale = args.number("--box-scale", 1.9);
+    mask_options.box_scale = args.number("--box-scale", 2.0);
     // The foreground's shape: DIALS's rule by default (mask.hh, kDials).
     {
       const std::string shape = args.value("--foreground", "dials");

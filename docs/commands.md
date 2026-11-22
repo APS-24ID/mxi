@@ -259,7 +259,7 @@ usage: mxi integrate [options] EXPT [INDEXED_REFL]
                     nearest corner, on every image of the box (dials, the
                     default); each eps within n sigma at the centre (box,
                     mxi's before 1.3.3); or the ellipsoid
-  --box-scale S     box is S times wider than the foreground (1.9)
+  --box-scale S     box is S times wider than the foreground (2, as DIALS)
   --min-zeta Z      skip reflections nearer the rotation axis than this
                     (0.05, as DIALS): no box, no reading, no part in the
                     profile model. A reflection's extent in phi goes as

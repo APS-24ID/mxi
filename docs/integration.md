@@ -73,7 +73,7 @@ first integration byte for byte.
 | purpose | options |
 | --- | --- |
 | what to integrate | `--d-min`, `--d-max` (a low resolution limit), `--first-image`, `--last-image`, `--min-zeta` (0.05) |
-| the profile model | `--sigma-b`, `--sigma-m`, `--n-sigma` (3), `--box-scale` (1.9), `--gain` (1) |
+| the profile model | `--sigma-b`, `--sigma-m`, `--n-sigma` (3), `--box-scale` (2), `--gain` (1) |
 | reference profiles | `--scan-blocks` (one per 10 degrees), `--regions` (3), `--reference-signal` (10), `--grid-points` (6; 4 before, `docs/outstanding.md` item 2), `--subdivisions` (5) |
 | profile fitting | `--least-measured` (0.6), `--summation-only`, `--two-pass`, `-g`/`--gpu` (single precision on the device, `docs/gpu.md`), `--gpu-emulate` |
 | speed and memory | `-j`/`--threads` (0, every core this job may use, as every command), `--window` (64), `--max-boxes` (6000 a thread, at least 20000) |
@@ -206,10 +206,23 @@ Changed alone it had merged worse (outstanding 3) -- the box foreground had been
 compensating for the wider sigma_m; changed together, the full sweep's merging
 is the same or a shade better.
 
-Still different from DIALS: profile fitting's sigmas, DIALS's some 20 per cent
-larger -- DIALS fits on the reference's reciprocal-space grid, mxi on the
-pixels; and the boxes, mxi's some 9 per cent smaller in volume. `--foreground
-box` and `--sigma-m-estimator basic` give 1.3.2's behaviour.
+The boxes are DIALS's too (`--box-scale`, 2 since 1.3.3, as DIALS's sigma_b
+multiplier; 1.9 had been measured against one DIALS run and left them a pixel
+narrower): given DIALS's own models of ins10_1, the boxes are DIALS's for 99.9
+per cent of reflections and summation agrees with DIALS's to one part in ten
+million, intensities and sigmas alike.
+
+Still different, deliberately: profile fitting's sigma, DIALS's some 20 per cent
+larger in every shell. DIALS reports no variance of the fit: when its weighted
+least squares converges it gives V = |I| + |sum of the background|, what a
+summation over the profile's region would have (ProfileFitter, as dxi reproduces
+it) -- never less than the fit's own, since fitting beats summation by weighting
+the tails down. mxi reports the fit's variance from the weights it used ("The
+fitted variance", below), calibrated against the scatter of equivalents. DIALS's
+error model takes up the difference: a = 0.46 on the 30 degree ins10_1, its
+sigmas halved to match the data. The intensities agree, to 0.7 per cent.
+`--foreground box`, `--sigma-m-estimator basic` and `--box-scale 1.9` give
+1.3.2's behaviour.
 
 ## Why a reflection is not profile fitted
 

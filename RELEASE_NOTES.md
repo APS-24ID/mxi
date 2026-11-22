@@ -17,6 +17,13 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 - sigma_m is estimated as DIALS estimates it by default, each image weighted
   by its counts (--sigma-m-estimator extended): on insulin 0.080 degrees where
   it had been 0.119. --sigma-m-estimator basic gives the old estimate.
+- mxi integrate's boxes are DIALS's: twice n sigma_b in eps1 and eps2
+  (--box-scale 2, as DIALS's sigma_b multiplier), where 1.9 had been measured
+  against one run and left them a pixel narrower. Given the same models,
+  summation now agrees with DIALS's to one part in ten million. Profile
+  fitting's sigmas stay mxi's, the fit's own variance, where DIALS reports a
+  summation's over the profile's region, some 20 per cent larger
+  (docs/integration.md).
 - Together these change every integration's results: on a full insulin sweep,
   merging the same or a shade better (R merge 0.070 against 0.072), I/sigma
   some 5 per cent lower, a larger foreground carrying more background.

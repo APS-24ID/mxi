@@ -187,3 +187,54 @@ def test_the_worst_are_written_with_their_reference_beside_them():
         out.columns["miller_index"], table.columns["miller_index"][[1, 2, 3, 49]]
     )
     assert np.allclose(out.columns["equivalents.reference"], 10.0)
+
+
+def test_a_crystal_less_sweep_first_is_passed_over(monkeypatch):
+    # mxi index carries each sweep's own experiment through, crystal-less and
+    # first (dials/dials#1029): from_files had taken the first experiment and
+    # said "has no crystal" of every mxi file (Graeme, 22 November). The
+    # crystal's experiment is used, and the sweep's rows -- its unindexed
+    # spots -- left out.
+    from types import SimpleNamespace
+
+    import mxeq.equivalents as eq
+
+    crystal = SimpleNamespace(hall=" I 2 2 3")
+    scan = SimpleNamespace(num_images=100)
+
+    class Listed:
+        experiments = [
+            SimpleNamespace(crystal=None, scan=scan),
+            SimpleNamespace(crystal=crystal, scan=scan),
+        ]
+
+        def __getitem__(self, i):
+            return self.experiments[i]
+
+    experiments = Listed()
+    rng = np.random.default_rng(3)
+    n = 400
+    hkl = rng.integers(-8, 9, size=(n, 3))
+    hkl[:, 2] = (hkl[:, 0] + hkl[:, 1]) % 2 + 2 * rng.integers(0, 4, size=n)
+    true_i = 1000.0 + 50.0 * np.abs(hkl).sum(axis=1)
+    ids = np.where(np.arange(n) < 40, 0, 1)  # the first 40 rows the sweep's
+    columns = {
+        "miller_index": hkl,
+        "flags": np.full(n, eq.PRF | eq.SUM, dtype=np.int64),
+        "intensity.prf.value": true_i,
+        "intensity.prf.variance": np.full(n, 100.0),
+        "intensity.sum.value": true_i,
+        "intensity.sum.variance": np.full(n, 100.0),
+        "xyzcal.px": np.column_stack([np.zeros(n), np.zeros(n), np.full(n, 50.0)]),
+        "id": ids,
+    }
+    table = SimpleNamespace(columns=columns, nrows=n)
+    monkeypatch.setattr(eq.expt_module, "load", lambda path: experiments)
+    monkeypatch.setattr(eq.refl, "load", lambda path: table)
+    results, prepared = eq.from_files("x.expt", "x.refl", kinds=("prf",))
+    assert results, "analysed, not refused"
+    # counted_rows is a mask over the rows considered: the crystal's 360,
+    # the sweep's 40 not among them.
+    rows = results[0].counted_rows
+    assert rows is not None and len(rows) == n - 40
+    assert rows.any()

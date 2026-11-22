@@ -21,6 +21,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   (python/README.md).
 
 **Fixed**
+- mxeq equivalents said "has no crystal" of every mxi file since 12 October:
+  it took the first experiment, and mxi index carries each sweep's own
+  experiment through first, crystal-less (dials/dials#1029). It now takes the
+  experiments with crystals, and leaves the sweep's unindexed spots out.
 - The Linux arm64 build of 1.3.2 died with an illegal instruction on ARMv8.0
   CPUs, a Raspberry Pi 4 for one, before printing anything: mimalloc was
   compiled for ARMv8.1, its atomics needing LSE. It is compiled for ARMv8.0

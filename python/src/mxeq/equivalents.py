@@ -343,9 +343,24 @@ def from_files(
 ) -> tuple[list[Result], Prepared]:
     """The analysis for a scaled (or integrated) .expt and .refl."""
     experiments = expt_module.load(expt_path)
-    if not experiments.experiments or experiments[0].crystal is None:
+    # The experiments with crystals: mxi index carries each sweep's own
+    # experiment through, crystal-less and FIRST (dials/dials#1029), its
+    # unindexed spots its own -- so the first experiment is not the
+    # crystal's, and taking it said "has no crystal" of every mxi file since
+    # 12 October (Graeme, 22 November).
+    with_crystal = [
+        i for i, e in enumerate(experiments.experiments) if e.crystal is not None
+    ]
+    if not with_crystal:
         raise ValueError(f"{expt_path} has no crystal")
-    e0 = experiments[0]
+    e0 = experiments[with_crystal[0]]
+    halls = {experiments[i].crystal.hall for i in with_crystal}
+    if len(halls) > 1:
+        raise ValueError(
+            f"{expt_path}'s crystals have different space groups "
+            f"({', '.join(sorted(h or '?' for h in halls))}): one analysis "
+            "needs one"
+        )
     hall = e0.crystal.hall
     if not hall:
         raise ValueError(f"{expt_path}'s crystal has no space group")
@@ -385,6 +400,9 @@ def from_files(
     from_start, from_end = z, images - z
 
     keep = (flags & (OUTLIER_IN_SCALING | EXCLUDED_FOR_SCALING)) == 0
+    # Only the crystals' rows: a crystal-less sweep's are unindexed spots.
+    if "id" in c:
+        keep &= np.isin(np.asarray(c["id"]).astype(np.int64), with_crystal)
     if np.any(flags & SCALED):
         keep &= (flags & SCALED) != 0
     keys = asu_keys(hkl, hall, anomalous)

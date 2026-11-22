@@ -32,6 +32,8 @@
 #else
 #include <fcntl.h>
 #if defined(__APPLE__)
+#include <mach/mach.h>
+#include <malloc/malloc.h>
 #include <sys/sysctl.h>
 #endif
 #include <sys/ioctl.h>
@@ -203,6 +205,65 @@ inline double peak_memory_mb() {
   return static_cast<double>(u.ru_maxrss) / 1024.0; // kB
 #endif
 #endif
+}
+
+#if !defined(_WIN32) && !defined(__APPLE__)
+// mimalloc's, where it is linked in (MXI_MIMALLOC, Linux's default): found
+// when the program runs, so a build without it reads no allocator figure.
+extern "C" void
+mi_process_info(std::size_t *elapsed_msecs, std::size_t *user_msecs,
+                std::size_t *system_msecs, std::size_t *current_rss,
+                std::size_t *peak_rss, std::size_t *current_commit,
+                std::size_t *peak_commit, std::size_t *page_faults)
+    __attribute__((weak));
+#endif
+
+//: The process's memory now, in MB, and what the allocator says of it; a
+//: figure below 0 where it cannot say. For --timing's memory by what holds
+//: it (mxi integrate): a crowded 900 images peaked at 25 GB, its boxes 10 of
+//: it (Graeme, 22 November).
+struct MemoryNow {
+  double resident = 0.0;
+  double heap_in_use = -1.0; //: macOS: the allocator's blocks in use
+  double heap_free = -1.0;   //: macOS: what it holds, not in use
+  double committed = -1.0;   //: Linux with mimalloc: what it has committed
+};
+
+inline MemoryNow memory_now() {
+  constexpr double kMB = 1024.0 * 1024.0;
+  MemoryNow m;
+#if defined(_WIN32)
+  PROCESS_MEMORY_COUNTERS counters{};
+  if (K32GetProcessMemoryInfo(GetCurrentProcess(), &counters,
+                              sizeof counters) != 0)
+    m.resident = static_cast<double>(counters.WorkingSetSize) / kMB;
+#elif defined(__APPLE__)
+  mach_task_basic_info_data_t info{};
+  mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
+  if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO,
+                reinterpret_cast<task_info_t>(&info), &count) == KERN_SUCCESS)
+    m.resident = static_cast<double>(info.resident_size) / kMB;
+  malloc_statistics_t stats{};
+  malloc_zone_statistics(nullptr, &stats); // every zone
+  m.heap_in_use = static_cast<double>(stats.size_in_use) / kMB;
+  m.heap_free =
+      static_cast<double>(stats.size_allocated - stats.size_in_use) / kMB;
+#else
+  if (std::FILE *f = std::fopen("/proc/self/statm", "r")) {
+    unsigned long size = 0, pages = 0;
+    if (std::fscanf(f, "%lu %lu", &size, &pages) == 2)
+      m.resident = static_cast<double>(pages) *
+                   static_cast<double>(sysconf(_SC_PAGESIZE)) / kMB;
+    std::fclose(f);
+  }
+  if (mi_process_info != nullptr) {
+    std::size_t e = 0, u = 0, sy = 0, rss = 0, prss = 0, commit = 0,
+                pcommit = 0, faults = 0;
+    mi_process_info(&e, &u, &sy, &rss, &prss, &commit, &pcommit, &faults);
+    m.committed = static_cast<double>(commit) / kMB;
+  }
+#endif
+  return m;
 }
 
 //: A file opened for reading at offsets, by any number of threads at once:

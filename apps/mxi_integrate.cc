@@ -2809,6 +2809,9 @@ int run_integrate(int argc, char **argv) {
       std::size_t n_open = 0, n_held = 0, n_groups = 0;
     };
     MemorySample memory_most, memory_together;
+    // The process at the sample with the most resident: what the allocator
+    // says of it, and so what lies outside the boxes.
+    mxi::platform::MemoryNow memory_resident_most;
     const bool timing_on = args.has("--timing");
     const auto sample_memory = [&]() {
       if (!timing_on)
@@ -2838,6 +2841,9 @@ int run_integrate(int argc, char **argv) {
       if (now.open + now.held + now.groups >
           memory_together.open + memory_together.held + memory_together.groups)
         memory_together = now;
+      const mxi::platform::MemoryNow process = mxi::platform::memory_now();
+      if (process.resident > memory_resident_most.resident)
+        memory_resident_most = process;
     };
     std::vector<std::size_t> active_rows;
     std::int32_t chunk_start = planned.empty() ? 0 : planned[0].bbox[4];
@@ -3653,6 +3659,35 @@ int run_integrate(int argc, char **argv) {
                      1e9,
                  memory_together.open / 1e9, memory_together.held / 1e9,
                  memory_together.groups / 1e9, peak_memory_mb() / 1e3);
+      {
+        const mxi::platform::MemoryNow &m = memory_resident_most;
+        std::string said;
+        char part[160];
+        if (m.heap_in_use >= 0.0) {
+          std::snprintf(part, sizeof part,
+                        " -- the allocator's blocks in use %.2f GB, held free "
+                        "%.2f GB, the rest %.2f GB (device buffers, the "
+                        "program, mapped files)",
+                        m.heap_in_use / 1e3, m.heap_free / 1e3,
+                        (m.resident - m.heap_in_use - m.heap_free) / 1e3);
+          said = part;
+        } else if (m.committed >= 0.0) {
+          // Committed is not resident: memory committed and never touched is
+          // not yet physical, so the difference is no measure of the rest.
+          std::snprintf(part, sizeof part,
+                        " -- mimalloc has committed %.2f GB, not all of it "
+                        "touched",
+                        m.committed / 1e3);
+          said = part;
+        }
+        mxi::print("  the process at the sample with the most: %.2f GB "
+                   "resident%s\n",
+                   m.resident / 1e3, said.c_str());
+        if (m.resident < 0.8 * peak_memory_mb())
+          mxi::print("  the peak, %.2f GB, came between the samples: a "
+                     "moment's copies, as a batch is packed\n",
+                     peak_memory_mb() / 1e3);
+      }
       mxi::print("  %zu frames read, %zu wanted by a shoebox, each read %.2f "
                  "times; %zu voxels "
                  "on masked pixels\n",

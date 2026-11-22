@@ -576,7 +576,13 @@ largest with how many, and the three together at their largest, beside the
 process's peak; what is left is the images, the tables and what the allocator
 keeps for reuse. A box counts its pixels, mask and background as allocated --
 the held figure had left out the background. Sampled when a chunk's boxes have
-opened and before each round of fitting.
+opened and before each round of fitting. And the process at the sample with the
+most resident memory: on macOS, the allocator's blocks in use, what it holds
+free and the rest -- device buffers, which on unified memory are the process's
+own, the program and mapped files; on Linux with mimalloc, what it has
+committed, not all of it touched. A peak well above every sample came between
+them, a moment's copies. (Graeme's crowded 900 images: 25 GB in one pass on the
+GPU, the boxes 10 of it; 8.7 GB with --two-pass, at the same 29 s.)
 
 ## Time on long scans (14 October)
 

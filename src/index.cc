@@ -1137,18 +1137,9 @@ bool refit(const std::vector<Vec3> &points, double tolerance, Mat3 *A,
 
 } // namespace
 
-IndexResult index(ExperimentList &experiments, Table &reflections,
-                  const IndexOptions &options) {
-  IndexResult result;
-  const double t_total = now_seconds();
-  const double t_points = now_seconds();
-  const std::vector<Vec3> points =
-      reciprocal_lattice_points(experiments, reflections);
-  result.timing.reciprocal_points = now_seconds() - t_points;
-  result.n_total = points.size();
-  if (points.size() < 10)
-    return result;
-
+bool search_scale(const ExperimentList &experiments, const Table &reflections,
+                  const std::vector<Vec3> &points, const IndexOptions &options,
+                  SearchScale *out) {
   double d_min = options.d_min;
   if (d_min <= 0.0) {
     // The resolution of the data itself, taken at the 95th percentile of
@@ -1158,15 +1149,15 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
     lengths.reserve(points.size());
     for (const Vec3 &r : points)
       lengths.push_back(r.norm());
+    if (lengths.empty())
+      return false;
     std::sort(lengths.begin(), lengths.end());
     const double q =
         lengths[static_cast<std::size_t>(0.95 * (lengths.size() - 1))];
     d_min = q > 0.0 ? 1.0 / q : 0.0;
   }
   if (!(d_min > 0.0))
-    return result;
-
-  const double t_max_cell = now_seconds();
+    return false;
   double max_cell = options.max_cell;
   if (max_cell <= 0.0) {
     // Grouped by sweep and turn, so that a reflection measured again on the
@@ -1179,15 +1170,38 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
     max_cell = estimate_max_cell_as_dials(experiments, reflections, points);
   }
   if (!(max_cell > 0.0))
-    return result;
-  result.timing.max_cell = now_seconds() - t_max_cell;
-
+    return false;
   std::size_t grid = options.grid;
   if (grid == 0) {
     grid = next_power_of_two(
         static_cast<std::size_t>(std::ceil(5.0 * max_cell / d_min)));
     grid = std::min<std::size_t>(std::max<std::size_t>(grid, 64), 256);
   }
+  out->d_min = d_min;
+  out->max_cell = max_cell;
+  out->grid = grid;
+  return true;
+}
+
+IndexResult index(ExperimentList &experiments, Table &reflections,
+                  const IndexOptions &options) {
+  IndexResult result;
+  const double t_total = now_seconds();
+  const double t_points = now_seconds();
+  const std::vector<Vec3> points =
+      reciprocal_lattice_points(experiments, reflections);
+  result.timing.reciprocal_points = now_seconds() - t_points;
+  result.n_total = points.size();
+  if (points.size() < 10)
+    return result;
+
+  const double t_max_cell = now_seconds();
+  SearchScale scale;
+  if (!search_scale(experiments, reflections, points, options, &scale))
+    return result;
+  result.timing.max_cell = now_seconds() - t_max_cell;
+  const double d_min = scale.d_min, max_cell = scale.max_cell;
+  const std::size_t grid = scale.grid;
 
   result.d_min = d_min;
   result.max_cell = max_cell;

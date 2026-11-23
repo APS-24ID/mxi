@@ -55,6 +55,7 @@ MXI_PROGRAM(readtest)
 MXI_PROGRAM(verify)
 MXI_PROGRAM(process)
 MXI_PROGRAM(triage)
+MXI_PROGRAM(search_beam)
 #undef MXI_PROGRAM
 
 namespace {
@@ -81,6 +82,8 @@ const Command kCommands[] = {
      false},
     {"triage", mxi_triage_main,
      "twinning and the intensities' statistics, as xtriage", false},
+    {"search-beam", mxi_search_beam_main,
+     "the beam centre from the spots, when indexing fails", false},
     {"combine", mxi_combine_main, "experiment lists joined", false},
     {"split", mxi_split_main, "an experiment list taken apart", false},
     {"convert", mxi_convert_main, ".rflx to and from .expt and .refl", false},
@@ -191,8 +194,12 @@ int main(int argc, char **argv) {
   const char *base = std::strrchr(argv[0], '/');
   base = base ? base + 1 : argv[0];
   if (std::strncmp(base, "mxi_", 4) == 0) {
+    // A command with a hyphen in its name is linked with an underscore:
+    // mxi_search_beam for search-beam.
+    std::string linked = base + 4;
+    std::replace(linked.begin(), linked.end(), '_', '-');
     for (const Command &c : kCommands)
-      if (c.run && std::strcmp(base + 4, c.name) == 0) {
+      if (c.run && linked == c.name) {
         mxi::announce(argc, argv, 1);
         return c.run(argc, argv);
       }

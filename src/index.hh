@@ -272,6 +272,19 @@ std::vector<std::int32_t> observation_groups(const ExperimentList &experiments,
                                              const Table &reflections,
                                              double block_degrees = 30.0);
 
+//: The basis search's scale, from the reciprocal lattice points: d_min the
+//: 95th percentile of |r| (unless given), the largest cell as dials.index's
+//: find_max_cell (unless given), the FFT grid to sample them. Shared by
+//: index() and the beam centre search (beam_search.hh), so that both find
+//: the same candidates. False where either cannot be had.
+struct SearchScale {
+  double d_min = 0.0, max_cell = 0.0;
+  std::size_t grid = 0;
+};
+bool search_scale(const ExperimentList &experiments, const Table &reflections,
+                  const std::vector<Vec3> &points, const IndexOptions &options,
+                  SearchScale *out);
+
 // Candidate real-space basis vectors, strongest first.
 std::vector<Vec3> find_candidate_vectors(const std::vector<Vec3> &points,
                                          const IndexOptions &options,

@@ -12,6 +12,7 @@ its conclusions sometimes overturned later, with an index of those.
 | [`docs/review.md`](review.md) | guide | for reviewers: what this is, how it differs from DIALS, where things are |
 | [`docs/algorithms.md`](algorithms.md) | reference | each stage's methods, their sources, where they live and how they differ from DIALS |
 | [`docs/ui.md`](ui.md) | guide | mxi-ui, the interface: starting it, what it needs, the window, running a step, its summary and plots, the image viewer, how it works, what is not yet done |
+| [`docs/search_beam.md`](search_beam.md) | built | `mxi search-beam`, the beam centre from the spots, as dials.search_beam_position (LABELIT's method): how it works, aliases, its tests |
 | [`docs/triage.md`](triage.md) | built | `mxi triage`, what the data say of twinning, as phenix.xtriage: the statistics, the twin laws, the summary, where it differs from xtriage, what is to come |
 | [`docs/windows.md`](windows.md) | built | the Windows build, released in 1.3.0: what was POSIX and its Windows equivalent, the audit of `long` (32 bits on Windows) and a rule for sized integer types, the build on GitHub Actions, what Graeme tests, the phases |
 | [`docs/mmcif.md`](mmcif.md) | plan, parked | mxi export to PDBx/mmCIF, merged and unmerged, in the new dialect: Graeme's decisions, the dialect as it stands, what goes in and from where, the phases, how it will be judged |

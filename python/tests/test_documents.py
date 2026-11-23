@@ -147,7 +147,7 @@ def test_every_mxeq_subcommand_named_exists():
 # The commands mxi has (apps/mxi.cc's table): mxi find, mxi view ...
 def _commands():
     text = (ROOT / "apps/mxi.cc").read_text()
-    return set(re.findall(r'^\s*\{"([a-z]+)", ', text, re.M))
+    return set(re.findall(r'^\s*\{"([a-z]+(?:-[a-z]+)*)", ', text, re.M))
 
 
 # The histories, which name programs as they were: mxi_find before 1.1.
@@ -166,7 +166,8 @@ def test_programs_are_named_as_mxi_commands(document):
     text = (ROOT / document).read_text()
     commands = _commands()
     assert "find" in commands and "view" in commands
-    named = set(re.findall(r"`(?:\./build/)?mxi ([a-z]+)\b", text))
+    # A command may have a hyphen: mxi search-beam.
+    named = set(re.findall(r"`(?:\./build/)?mxi ([a-z]+(?:-[a-z]+)*)\b", text))
     unknown = named - commands - {"help"}
     assert not unknown, f"{document} names commands mxi does not have: {unknown}"
     if document in HISTORIES:

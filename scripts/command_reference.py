@@ -30,7 +30,7 @@ def commands(mxi):
     text = subprocess.run([mxi, "--help"], capture_output=True, text=True).stdout
     out = []
     for line in text.splitlines():
-        m = re.match(r"^  ([a-z]+)\s{2,}(.+)$", line)
+        m = re.match(r"^  ([a-z]+(?:-[a-z]+)*)\s{2,}(.+)$", line)
         if m and not m.group(2).startswith("now "):
             out.append((m.group(1), m.group(2).strip()))
     return out

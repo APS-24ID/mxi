@@ -180,6 +180,7 @@ add_library(mxi
   src/verify.cc
   src/summary_cut.cc
   src/triage.cc
+  src/beam_search.cc
   src/experiment_images.cc
   src/hdf5_handle.cc
   src/combine.cc
@@ -336,6 +337,11 @@ target_compile_options(mxi_process PRIVATE ${MXI_WARNINGS})
 add_library(mxi_triage OBJECT apps/mxi_triage.cc)
 target_link_libraries(mxi_triage PRIVATE mxi)
 target_compile_options(mxi_triage PRIVATE ${MXI_WARNINGS})
+# The beam centre from the spots, as dials.search_beam_position
+# (apps/mxi_search_beam.cc).
+add_library(mxi_search_beam OBJECT apps/mxi_search_beam.cc)
+target_link_libraries(mxi_search_beam PRIVATE mxi)
+target_compile_options(mxi_search_beam PRIVATE ${MXI_WARNINGS})
 
 add_library(mxi_grid OBJECT apps/mxi_grid.cc)
 target_link_libraries(mxi_grid PRIVATE mxi)
@@ -503,6 +509,7 @@ add_executable(mxi_tests
   tests/test_combine.cc
   tests/test_summary_cut.cc
   tests/test_triage.cc
+  tests/test_beam_search.cc
   tests/test_fit_together.cc
   tests/test_index_neighbours.cc
   tests/test_output.cc
@@ -567,7 +574,8 @@ set(MXI_PROGRAMS
   mxi_background mxi_combine mxi_convert mxi_correlation mxi_export mxi_find
   mxi_foreground mxi_forward mxi_grid mxi_import mxi_index mxi_integrate
   mxi_max mxi_profile mxi_readtest mxi_refine mxi_report mxi_residuals
-  mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted mxi_verify mxi_process mxi_triage)
+  mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted mxi_verify mxi_process mxi_triage
+  mxi_search_beam)
 # mxi_readtest, timing reads with POSIX's own calls, a diagnostic: not on
 # Windows (docs/windows.md); apps/mxi.cc leaves its command out there too.
 if(WIN32)

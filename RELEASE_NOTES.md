@@ -7,6 +7,13 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.3.3
 
 **New**
+- mxi search-beam: the beam centre from the strong spots, as
+  dials.search_beam_position does by default (LABELIT's method), for when the
+  header's centre is too far out for indexing to find the lattice. It writes
+  the experiments with the detector moved, ready for mxi index. On insulin,
+  centres given up to 4 mm out came back within 3 pixels; where DIALS's rule
+  took an alias -- the lattice shifted by one of its own vectors -- the truth
+  is chosen (docs/search_beam.md).
 - mxi triage measures anisotropy: the anisotropic Wilson model's B tensor,
   constrained to the crystal's symmetry, by its principal directions -- none,
   an axis and the plane across it, or three -- and how far the data reach

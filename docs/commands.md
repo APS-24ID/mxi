@@ -19,6 +19,7 @@ programs do and why; this says what each takes. Every command also takes
 | [`mxi process`](#mxi-process) | every step above in turn, import to export |
 | [`mxi correlation`](#mxi-correlation) | crystals clustered, as cosym |
 | [`mxi triage`](#mxi-triage) | twinning and the intensities' statistics, as xtriage |
+| [`mxi search-beam`](#mxi-search-beam) | the beam centre from the spots, when indexing fails |
 | [`mxi combine`](#mxi-combine) | experiment lists joined |
 | [`mxi split`](#mxi-split) | an experiment list taken apart |
 | [`mxi convert`](#mxi-convert) | .rflx to and from .expt and .refl |
@@ -511,6 +512,28 @@ that calls the data twinned only where both kinds say so.
                     each shell, never coarser than 3.5 A)
   --max-delta D     twin laws within D degrees' obliquity (3)
   --min-partiality P  observations kept, as mxi correlation's (0.4)
+```
+
+## mxi search-beam
+
+the beam centre from the spots, when indexing fails.
+
+```
+usage: mxi search-beam STRONG.rflx [options]
+       mxi search-beam IMPORTED.expt STRONG.refl [options]
+The beam centre found from the strong spots, as dials.search_beam_position
+finds it by default (LABELIT's method): with the centre right, the
+reciprocal lattice's planes pass through the origin, so along each of the
+lattice's strong periodicities every spot projects to an integer. The
+detector moved across the beam over a grid, each trial scored by how
+nearly that holds, the best refined. For when the header's centre is too
+far out for indexing to find the lattice.
+  --scope MM        the search's reach either way across the beam (4)
+  --binning N       its grid's step, in pixels (2)
+  --d-min D         spots finer than D A left out
+  --max-cell A      the largest cell (from the spots)
+  --max-reflections N   a random subset of at most N spots (10000)
+  -o, --output F    optimised.rflx; .expt and .refl for the pair
 ```
 
 ## mxi combine

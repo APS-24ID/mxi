@@ -161,6 +161,74 @@ int run_triage(int argc, char **argv) {
                group.name().c_str());
     mxi::print("  cell %.3f %.3f %.3f %.3f %.3f %.3f\n\n", cell.a, cell.b,
                cell.c, cell.alpha, cell.beta, cell.gamma);
+    {
+      // Anisotropy (triage.hh): the Wilson model's B by its principal
+      // directions, and how far the data reach along each.
+      const Anisotropy &a = t.anisotropy;
+      const auto reach = [](double d) {
+        char text[32];
+        if (d > 0.0)
+          std::snprintf(text, sizeof text, "%.2f", d);
+        else
+          std::snprintf(text, sizeof text, "-");
+        return std::string(text);
+      };
+      if (a.fitted) {
+        const char *names[3] = {"a*", "b*", "c*"};
+        const auto direction_of = [&](std::size_t q) {
+          int nearest = 0;
+          for (int k = 1; k < 3; ++k)
+            if (a.angle[q][k] < a.angle[q][nearest])
+              nearest = k;
+          char text[64];
+          if (a.angle[q][nearest] < 20.0)
+            std::snprintf(text, sizeof text, "%s (%.0f deg)", names[nearest],
+                          a.angle[q][nearest]);
+          else
+            std::snprintf(text, sizeof text, "a* %.0f, b* %.0f, c* %.0f deg",
+                          a.angle[q][0], a.angle[q][1], a.angle[q][2]);
+          return std::string(text);
+        };
+        if (a.distinct == 1) {
+          mxi::print("Anisotropy: none -- the Wilson model's B %.1f A^2 in "
+                     "every direction (within %.1f A^2); the data reach %s A\n",
+                     a.b_iso, a.b[0] - a.b[2], reach(a.d_min_all).c_str());
+        } else {
+          mxi::print("Anisotropy: the Wilson model's fall-off, B along its "
+                     "principal directions\n");
+          mxi::print("  %9s  %-30s %12s\n", "B (A^2)", "direction",
+                     "reaches (A)");
+          if (a.distinct == 2) {
+            const std::string axis = direction_of(a.unique);
+            mxi::print("  %9.1f  %-30s %12s\n", a.b[a.unique],
+                       ("along " + axis).c_str(),
+                       reach(a.d_min[a.unique]).c_str());
+            mxi::print("  %9.1f  %-30s %12s\n", a.b_plane,
+                       "across it, the plane", reach(a.d_min_plane).c_str());
+          } else {
+            for (std::size_t q = 0; q < 3; ++q)
+              mxi::print("  %9.1f  %-30s %12s\n", a.b[q],
+                         direction_of(q).c_str(), reach(a.d_min[q]).c_str());
+          }
+          mxi::print("  B iso %.1f A^2, Bmax - Bmin %.1f A^2; every direction "
+                     "reaches %s A\n",
+                     a.b_iso, a.b[0] - a.b[2], reach(a.d_min_all).c_str());
+        }
+        if (a.distinct == 1)
+          mxi::print("  reach: where the merged mean I/sigma falls below "
+                     "%.0f\n\n",
+                     a.least_i_over_sigma);
+        else
+          mxi::print("  reaches: where the merged mean I/sigma falls below "
+                     "%.0f, in shells of the reflections within %.0f degrees "
+                     "of the direction\n\n",
+                     a.least_i_over_sigma, a.cone_degrees);
+      } else {
+        mxi::print("Anisotropy: not judged, too few reflections to fit the "
+                   "Wilson model; every direction reaches %s A\n\n",
+                   reach(a.d_min_all).c_str());
+      }
+    }
     mxi::print("The twin tests: %.2f to %.2f A, %zu reflections (%zu "
                "acentric, %zu centric)\n",
                t.d_max, t.d_min, t.used, t.acentric, t.centric);

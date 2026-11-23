@@ -46,6 +46,49 @@ twin_analyses.py, absolute_scaling.py, twinning.h):
 - **Every E^2** for the moments and N(z), negative ones too; the positive only
   for the L test, which needs I1 + I2 above zero.
 
+## Anisotropy
+
+Reported first, before the twin tests (22 November): how the data fall off in
+different directions, and how far they reach in each.
+
+**The B tensor.** The anisotropic Wilson model the twin tests' data are
+sharpened by -- k f2(s) exp(-h.beta.h), fitted by maximum likelihood over d*^2
+0.008 to 0.690 (`laue.hh`) -- as the B tensor in A^2, B_cart = 2 B^-T beta B^-1
+with B Busing and Levy's (s = B h, |s| = 1/d), so that a B of 20 in every
+direction is an intensity falling as exp(-20 / 2d^2). The merged data are an
+asymmetric unit, a wedge, and a tensor fitted to a wedge need not have the
+crystal's symmetry -- cubic insulin's came out 28, 21 and 19 A^2 -- so it is
+averaged over the point group, beta to R beta R^T, as xtriage constrains it. Its
+principal values, the B along each principal direction, with the directions
+against a*, b* and c*.
+
+**The shape.** Principal values within 0.5 A^2, or 2 per cent of B iso, are
+taken as one, their directions then arbitrary and not given: all three one is no
+anisotropy, one line (cubic must be); two one is a unique axis and the plane
+across it (tetragonal, trigonal and hexagonal must be); otherwise three
+directions.
+
+**How far the data reach.** Along each direction, the resolution at which the
+merged mean I/sigma falls below 2, in shells of equal count of the reflections
+within 30 degrees of it -- for the plane, within 30 degrees of the plane -- each
+merged reflection standing for its symmetry equivalents and Friedel mates, so
+that a direction pointing out of the asymmetric unit finds its own; and the same
+over every direction, to compare. What users ask of anisotropy, which the B
+tensor alone does not say.
+
+**Its limit.** The fit takes negative intensities as zero, so where the data's
+noise is comparable with their mean -- the steep directions, at high resolution
+-- a noise floor flattens the fall-off and the anisotropy is underestimated: on
+synthetic data with B 10, 20 and 40 A^2, the spread found was 30 with sigma
+small, 25 with sigma 3, 15 with sigma 30. The reaches do not suffer from it.
+
+On the 30 degree insulin set:
+
+```
+Anisotropy: none -- the Wilson model's B 22.8 A^2 in every direction (within 0.0 A^2); the data reach 1.63 A
+  reach: where the merged mean I/sigma falls below 2
+```
+
 ## Statistics that do not depend on twin laws
 
 | | acentric untwinned | perfect twin | centric untwinned | perfect twin |

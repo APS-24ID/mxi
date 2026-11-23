@@ -1,5 +1,6 @@
 #include "triage.hh"
 
+#include "cosym.hh"
 #include "laue.hh"
 
 #include <algorithm>
@@ -15,6 +16,154 @@
 namespace mxi {
 
 namespace {
+
+// Busing and Levy's B: s = B h in reciprocal Angstrom, |s| = 1/d; a* along
+// x, b* in the xy plane.
+Mat3 busing_levy(const UnitCell &cell) {
+  const double ra = Scan::radians(cell.alpha), rb = Scan::radians(cell.beta),
+               rg = Scan::radians(cell.gamma);
+  const double ca = std::cos(ra), cb = std::cos(rb), cg = std::cos(rg);
+  const double sa = std::sin(ra), sb = std::sin(rb), sg = std::sin(rg);
+  const double v = cell.volume();
+  const double as = cell.b * cell.c * sa / v, bs = cell.a * cell.c * sb / v,
+               cs = cell.a * cell.b * sg / v;
+  const double cas = (cb * cg - ca) / (sb * sg),
+               cbs = (ca * cg - cb) / (sa * sg),
+               cgs = (ca * cb - cg) / (sa * sb);
+  const double sgs = std::sqrt(std::max(0.0, 1.0 - cgs * cgs)),
+               sbs = std::sqrt(std::max(0.0, 1.0 - cbs * cbs));
+  return {as,  bs * cgs, cs * cbs,        //
+          0.0, bs * sgs, -cs * sbs * cas, //
+          0.0, 0.0,      1.0 / cell.c};
+}
+
+// The resolution to which mean I/sigma stays at least `least`, walking
+// shells of equal count out from low resolution: the last shell's finest d
+// before the first below; 0 if the first is.
+double reach(std::vector<std::pair<double, double>> s_and_ratio, double least) {
+  if (s_and_ratio.size() < 25)
+    return 0.0;
+  std::sort(s_and_ratio.begin(), s_and_ratio.end());
+  const std::size_t per = std::max<std::size_t>(25, s_and_ratio.size() / 15);
+  double reached = 0.0;
+  for (std::size_t at = 0; at < s_and_ratio.size(); at += per) {
+    const std::size_t end = std::min(at + per, s_and_ratio.size());
+    if (end - at < 10)
+      break;
+    double sum = 0.0;
+    for (std::size_t i = at; i < end; ++i)
+      sum += s_and_ratio[i].second;
+    if (sum / static_cast<double>(end - at) < least)
+      break;
+    reached = 1.0 / s_and_ratio[end - 1].first;
+  }
+  return reached;
+}
+
+// See Anisotropy in triage.hh.
+Anisotropy anisotropy_of(const WilsonFit &fit, const UnitCell &cell,
+                         const SpaceGroup &group, const TriageData &data) {
+  Anisotropy out;
+  const Mat3 bl = busing_levy(cell);
+  const std::vector<Rotation> rotations = group.rotations();
+  // Every merged reflection as each of its equivalents and their Friedel
+  // mates: the data an asymmetric unit, a wedge, and a direction pointing
+  // out of it would find none of its own.
+  std::vector<Vec3> s;
+  std::vector<double> ratio;
+  std::vector<std::pair<double, double>> all;
+  for (std::size_t r = 0; r < data.hkl.size(); ++r) {
+    if (!(data.sigma[r] > 0.0))
+      continue;
+    const double i_over_sigma = data.intensity[r] / data.sigma[r];
+    std::set<Miller> images;
+    for (const Rotation &rot : rotations) {
+      const Miller m = apply(rot, data.hkl[r]);
+      images.insert(m);
+      images.insert(Miller{-m[0], -m[1], -m[2]});
+    }
+    for (const Miller &m : images) {
+      s.push_back(bl * Vec3{double(m[0]), double(m[1]), double(m[2])});
+      ratio.push_back(i_over_sigma);
+    }
+    // Every direction's reach from the merged reflections once each.
+    const Miller &m = data.hkl[r];
+    all.emplace_back(
+        (bl * Vec3{double(m[0]), double(m[1]), double(m[2])}).norm(),
+        i_over_sigma);
+  }
+  out.d_min_all = reach(all, out.least_i_over_sigma);
+  if (!fit.fitted)
+    return out;
+  out.fitted = true;
+  const Mat3 fitted{fit.b[0], fit.b[3], fit.b[4], //
+                    fit.b[3], fit.b[1], fit.b[5], //
+                    fit.b[4], fit.b[5], fit.b[2]};
+  // Fitted to an asymmetric unit, the tensor need not have the crystal's
+  // symmetry -- a cubic crystal's came out 28, 21 and 19 A^2: averaged over
+  // the point group, h -> R^T h taking beta to R beta R^T, as xtriage
+  // constrains it.
+  Mat3 beta;
+  for (const Rotation &rot : rotations) {
+    Mat3 r;
+    for (std::size_t k = 0; k < 9; ++k)
+      r.m[k] = static_cast<double>(rot[k]);
+    const Mat3 image = r * fitted * r.transpose();
+    for (std::size_t k = 0; k < 9; ++k)
+      beta.m[k] += image.m[k] / static_cast<double>(rotations.size());
+  }
+  const Mat3 inverse = bl.inverse();
+  const Mat3 tensor = inverse.transpose() * beta * inverse * 2.0;
+  std::vector<double> values, vectors;
+  symmetric_eigen(std::vector<double>(tensor.m.begin(), tensor.m.end()), 3,
+                  &values, &vectors);
+  std::array<std::size_t, 3> order{0, 1, 2};
+  std::sort(order.begin(), order.end(), [&](std::size_t x, std::size_t y) {
+    return values[x] > values[y];
+  });
+  out.b_iso = (values[0] + values[1] + values[2]) / 3.0;
+  const Vec3 axes[3] = {bl.column(0), bl.column(1), bl.column(2)};
+  const double cone = std::cos(Scan::radians(out.cone_degrees));
+  for (std::size_t q = 0; q < 3; ++q) {
+    const std::size_t e = order[q];
+    out.b[q] = values[e];
+    out.direction[q] =
+        Vec3{vectors[e], vectors[3 + e], vectors[6 + e]}.normalized();
+    for (std::size_t k = 0; k < 3; ++k)
+      out.angle[q][k] = Scan::degrees(std::acos(std::min(
+          1.0, std::abs(out.direction[q].dot(axes[k])) / axes[k].norm())));
+    std::vector<std::pair<double, double>> along;
+    for (std::size_t r = 0; r < s.size(); ++r) {
+      const double n = s[r].norm();
+      if (n > 0.0 && std::abs(s[r].dot(out.direction[q])) >= cone * n)
+        along.emplace_back(n, ratio[r]);
+    }
+    out.in_cone[q] = along.size();
+    out.d_min[q] = reach(along, out.least_i_over_sigma);
+  }
+  // The shape: equal principal values' directions are arbitrary.
+  const double tolerance = std::max(0.5, 0.02 * std::abs(out.b_iso));
+  if (out.b[0] - out.b[2] <= tolerance) {
+    out.distinct = 1;
+  } else if (out.b[0] - out.b[1] <= tolerance ||
+             out.b[1] - out.b[2] <= tolerance) {
+    out.distinct = 2;
+    out.unique = out.b[0] - out.b[1] <= tolerance ? 2 : 0;
+    const std::size_t p = out.unique == 0 ? 1 : 0, p2 = out.unique == 0 ? 2 : 1;
+    out.b_plane = 0.5 * (out.b[p] + out.b[p2]);
+    const double across = std::sin(Scan::radians(out.cone_degrees));
+    std::vector<std::pair<double, double>> plane;
+    for (std::size_t r = 0; r < s.size(); ++r) {
+      const double n = s[r].norm();
+      if (n > 0.0 &&
+          std::abs(s[r].dot(out.direction[out.unique])) <= across * n)
+        plane.emplace_back(n, ratio[r]);
+    }
+    out.in_plane = plane.size();
+    out.d_min_plane = reach(plane, out.least_i_over_sigma);
+  }
+  return out;
+}
 
 Rotation multiply(const Rotation &a, const Rotation &b) {
   Rotation c{};
@@ -252,6 +401,7 @@ TriageData prepared(const TriageData &given, const UnitCell &cell,
   if (!p1.hkl.empty())
     normalise(scratch, 200, &fit);
   t->sharpened = fit.fitted;
+  t->anisotropy = anisotropy_of(fit, cell, group, given);
   if (fit.fitted)
     for (std::size_t r = 0; r < window.hkl.size(); ++r) {
       const Miller &m = window.hkl[r];

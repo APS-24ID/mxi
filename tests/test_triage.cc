@@ -75,6 +75,102 @@ std::map<Miller, double> twinned(const std::map<Miller, double> &truth,
 
 } // namespace
 
+// Intensities with an anisotropic fall-off along the cell's axes,
+// exp(-(B_a s_a^2 + B_b s_b^2 + B_c s_c^2) / 2) with s = (h/a, k/b, l/c), an
+// orthogonal cell; Wilson's statistics; sigma a constant, so the data reach
+// further where they fall off least. The fit zeroes negative intensities, so
+// a noise floor flattens the fall-off where it is steepest: at sigma 3 the
+// spread found is some 15 per cent short, at 30 half -- so the tensor is
+// checked on precise data (0.3), the reach on noisier (3), where it ends
+// inside the data. Every unique reflection to 1.5 A.
+TriageData anisotropic(const UnitCell &cell, const SpaceGroup &group, double ba,
+                       double bb, double bc, double noise, std::uint32_t seed) {
+  std::mt19937 random(seed);
+  std::exponential_distribution<double> exponential(1.0);
+  std::normal_distribution<double> normal(0.0, 1.0);
+  std::set<Miller> seen;
+  TriageData data;
+  const std::int32_t hm = static_cast<std::int32_t>(cell.a / 1.5),
+                     km = static_cast<std::int32_t>(cell.b / 1.5),
+                     lm = static_cast<std::int32_t>(cell.c / 1.5);
+  for (std::int32_t h = -hm; h <= hm; ++h)
+    for (std::int32_t k = -km; k <= km; ++k)
+      for (std::int32_t l = -lm; l <= lm; ++l) {
+        const Miller m{h, k, l};
+        if ((h == 0 && k == 0 && l == 0) || group.absent(m) ||
+            d_spacing(cell, m) < 1.5)
+          continue;
+        const Miller unique = group.unique(m);
+        if (!seen.insert(unique).second)
+          continue;
+        const double sa = h / cell.a, sb = k / cell.b, sc = l / cell.c;
+        const double mean =
+            1000.0 * epsilon(group, unique) *
+            std::exp(-0.5 * (ba * sa * sa + bb * sb * sb + bc * sc * sc));
+        const double x = normal(random);
+        const double i =
+            group.centric(unique) ? mean * x * x : mean * exponential(random);
+        data.hkl.push_back(unique);
+        data.intensity.push_back(i + noise * normal(random));
+        data.sigma.push_back(noise);
+      }
+  return data;
+}
+
+TEST(triage_anisotropy_along_three_axes_is_found_and_reached) {
+  // Orthorhombic, B 10, 20 and 40 A^2 along a, b and c: three principal
+  // directions, the weakest along c* and the strongest along a*; their
+  // differences as made (the fit's own atoms' fall-off shifts each alike);
+  // the data reaching further along a* than along c*.
+  const UnitCell cell{60, 70, 80, 90, 90, 90};
+  const SpaceGroup group = SpaceGroup::from_name("P 2 2 2");
+  const Triage t =
+      triage(anisotropic(cell, group, 10, 20, 40, 0.3, 7), cell, group, {});
+  const Anisotropy &a = t.anisotropy;
+  check::is_true(a.fitted, "fitted");
+  check::equal(a.distinct, 3, "three directions");
+  check::close(a.b[0] - a.b[2], 30.0, 3.0, "the spread");
+  check::close(a.b[1] - a.b[2], 10.0, 2.0, "b's against a's");
+  check::is_true(a.angle[0][2] < 5.0, "the weakest along c*");
+  check::is_true(a.angle[2][0] < 5.0, "the strongest along a*");
+  const Triage noisy =
+      triage(anisotropic(cell, group, 10, 20, 40, 3.0, 7), cell, group, {});
+  const Anisotropy &n = noisy.anisotropy;
+  check::is_true(n.d_min[2] > 0.0 && n.d_min[0] > n.d_min[2] + 0.3,
+                 "reaching further along a* than c*");
+}
+
+TEST(triage_anisotropy_of_a_tetragonal_crystal_is_an_axis_and_a_plane) {
+  // B 15, 15, 40: two principal values one, so a unique axis, c*, and the
+  // plane across it -- their directions in the plane arbitrary, not given.
+  const UnitCell cell{60, 60, 80, 90, 90, 90};
+  const SpaceGroup group = SpaceGroup::from_name("P 4");
+  const Triage t =
+      triage(anisotropic(cell, group, 15, 15, 40, 0.3, 11), cell, group, {});
+  const Anisotropy &a = t.anisotropy;
+  check::equal(a.distinct, 2, "an axis and a plane");
+  check::is_true(a.angle[a.unique][2] < 5.0, "the axis c*");
+  check::close(a.b[a.unique] - a.b_plane, 25.0, 3.0, "the axis's B the more");
+  const Triage noisy =
+      triage(anisotropic(cell, group, 15, 15, 40, 3.0, 11), cell, group, {});
+  const Anisotropy &n = noisy.anisotropy;
+  check::equal(n.distinct, 2, "an axis and a plane, noisier");
+  check::is_true(n.d_min_plane > 0.0 && n.d_min[n.unique] > n.d_min_plane,
+                 "reaching further across than along");
+}
+
+TEST(triage_anisotropy_of_a_cubic_crystal_is_none) {
+  // Fitted to an asymmetric unit, the tensor came out 28, 21 and 19 A^2 for
+  // cubic insulin until it was averaged over the point group.
+  const UnitCell cell{60, 60, 60, 90, 90, 90};
+  const SpaceGroup group = SpaceGroup::from_name("P 2 3");
+  const Triage t =
+      triage(anisotropic(cell, group, 20, 20, 20, 3.0, 13), cell, group, {});
+  check::equal(t.anisotropy.distinct, 1, "isotropic");
+  check::is_true(t.anisotropy.b[0] - t.anisotropy.b[2] < 0.01,
+                 "the same B every way");
+}
+
 TEST(triage_twin_law_text_and_epsilon) {
   check::is_true(twin_law_text({0, 1, 0, 1, 0, 0, 0, 0, -1}) == "k,h,-l",
                  "k,h,-l");

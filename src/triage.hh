@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "geometry.hh"
+#include "linalg.hh"
 #include "symmetry.hh"
 
 namespace mxi {
@@ -86,6 +87,37 @@ struct TwinLaw {
   double r_obs = 0, h_alpha = 0;
 };
 
+//: How anisotropic the data are (Graeme, 22 November: triage needs a
+//: measure of it). The anisotropic Wilson model the twin tests' data are
+//: sharpened by (laue.hh's WilsonFit, exp(-h.beta.h)) as the B tensor in A^2,
+//: B_cart = 2 B^-T beta B^-1 with B Busing and Levy's (s = B h, |s| = 1/d):
+//: its principal values and their directions, as xtriage gives them. And
+//: what users ask of it, how far the data reach each way: along each
+//: direction, the resolution at which the merged mean I/sigma falls below
+//: 2, in shells of the reflections within 30 degrees of it -- and the same
+//: in every direction, to compare.
+struct Anisotropy {
+  bool fitted = false; //: false: the Wilson model not fitted, too few
+  double b_iso = 0.0;  //: the tensor's mean principal value, A^2
+  double b[3] = {0, 0,
+                 0}; //: principal values, A^2, largest -- weakest -- first
+  Vec3 direction[3]; //: theirs, unit, in Busing and Levy's frame
+  double angle[3][3] = {}; //: each direction's angle to a*, b*, c*, 0-90 deg
+  double d_min[3] = {0, 0, 0}; //: 0 where even the first shell is below
+  std::size_t in_cone[3] = {0, 0, 0};
+  double d_min_all = 0.0;
+  double cone_degrees = 30.0, least_i_over_sigma = 2.0;
+  //: The tensor's shape: principal values within 0.5 A^2, or 2 per cent of
+  //: B iso, are one -- their directions then arbitrary, so not given. 1: all
+  //: three one, isotropic (cubic must be); 2: two one, a unique axis and the
+  //: plane across it (tetragonal, trigonal, hexagonal must be); 3: three.
+  int distinct = 3;
+  std::size_t unique = 0;   //: for 2: which of the three is the axis
+  double b_plane = 0.0;     //: for 2: the other two's B
+  double d_min_plane = 0.0; //: within cone_degrees of the plane
+  std::size_t in_plane = 0;
+};
+
 struct Triage {
   double d_max = 0, d_min = 0; //: the twin tests' range
   //: As xtriage prepares the data before the twin tests: put on an absolute
@@ -105,6 +137,7 @@ struct Triage {
   //: good data's, which twinning never makes -- translational NCS can.
   bool wide = false;
   std::string verdict; //: xtriage's summary, in words
+  Anisotropy anisotropy;
 };
 
 //: epsilon: how many of the point group's rotations leave h as it is.

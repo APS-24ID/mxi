@@ -7,6 +7,11 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.3.3
 
 **New**
+- mxi triage measures anisotropy: the anisotropic Wilson model's B tensor,
+  constrained to the crystal's symmetry, by its principal directions -- none,
+  an axis and the plane across it, or three -- and how far the data reach
+  along each, where the merged mean I/sigma falls below 2 (docs/triage.md,
+  Anisotropy).
 - mxi integrate takes two passes over the images where one would need more
   memory than the machine can spare: the single pass's holding predicted from
   the boxes before an image is read, against a budget, --max-memory or half

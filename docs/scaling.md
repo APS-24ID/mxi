@@ -645,8 +645,9 @@ the flag, every table is byte-identical to before it.
 the others of its reflection, removing the worst and retesting the rest. Of two,
 which is wrong cannot be said, and a pair used to be left alone whatever its
 disagreement. Now two that disagree beyond the limit are both rejected: neither
-can be trusted. Graeme's P 41 21 2 had (0 0 4), near the rotation axis, at 3458
-+- 9 and -3 +- 0.3 once corrected; the near-zero observation's tiny sigma gave
-it an enormous weight, and whenever the random subset the model is fitted on
-drew it -- about one in eight -- the first fit's target rose from some 210
-thousand to 358, and the scales went negative.
+can be trusted. Graeme's 9uoa (proteindiffraction.org/project/9uoa), P 41 21 2,
+had (0 0 4), near the rotation axis, at 3458 +- 9 and -3 +- 0.3 once corrected;
+the near-zero observation's tiny sigma gave it an enormous weight, and whenever
+the random subset the model is fitted on drew it -- about one in eight -- the
+first fit's target rose from some 210 thousand to 358, and the scales went
+negative.

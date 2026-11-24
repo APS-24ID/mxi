@@ -233,13 +233,14 @@ analysis -- sd' = 2 sqrt(sd^2 + (0.03 I)^2), the variance at least a tenth of
 the original's, POINTLESS's "typical" SD factors -- and mxi symmetry had not. A
 counting sigma is far below unscaled data's real error, so E(CC; S) from the
 intensities, their variance over it plus the mean sigma^2, came out 0.999 where
-DIALS's was 0.852 on the same data (Graeme's P 41 21 2, mxi's integration
-converted), E(CC; S) 0.919 against 0.868, and every true element of P 4/m m m
-judged absent: P 1 21 1 recommended. Now each observation's sigma is corrected
-as DIALS corrects it, after the I/sigma cut and before merging in P1, for the
-Laue group analysis alone and only for unscaled data (no inverse_scale_factor);
-the absence tests keep the sigmas as they were, as DIALS's do. On 30 degrees of
-insulin the intensities' estimate went from 0.999 to 0.984, I 2 3 as before.
+DIALS's was 0.852 on the same data (Graeme's 9uoa
+(proteindiffraction.org/project/9uoa), P 41 21 2, mxi's integration converted),
+E(CC; S) 0.919 against 0.868, and every true element of P 4/m m m judged absent:
+P 1 21 1 recommended. Now each observation's sigma is corrected as DIALS
+corrects it, after the I/sigma cut and before merging in P1, for the Laue group
+analysis alone and only for unscaled data (no inverse_scale_factor); the absence
+tests keep the sigmas as they were, as DIALS's do. On 30 degrees of insulin the
+intensities' estimate went from 0.999 to 0.984, I 2 3 as before.
 
 Not yet understood on that data set: the true elements' CCs, 0.65 to 0.74 in mxi
 against 0.77 to 0.86 in dials.symmetry, the identity's 0.928 against 0.96.

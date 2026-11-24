@@ -495,6 +495,18 @@ history on 20 October: four closed, nine rewritten to what is now true.
     both timed with --timing on the GH200; kept as a second artifact only if
     it gains some 10% overall. The same question for x86: a whole-program
     x86-64-v3 build against the SSE4.1 baseline with AVX2 dispatched.
+* **98.** **scale -- the outlier rejection's centre.** Each observation is
+    compared with the weighted mean of its reflection's others, so one with an
+    absurdly small sigma rules that mean: on 9uoa
+    (proteindiffraction.org/project/9uoa) (0 0 4)'s four observations,
+    corrected, were 3458 +- 9, -3 +- 0.3 and two near 28,500, and the two good
+    ones were rejected first; the pair rule (24 November) then rejected the
+    rest, and the reflection is lost. A median, or a weight bounded below, would
+    keep the good pair. To try on 9uoa.
+* **99.** **scale -- R merge where the mean intensity is near nought.** In a
+    shell whose summed intensity is near zero the ratio is meaningless -- 9uoa's
+    1.94 to 1.89 A shell printed R merge 1,044,173 -- and the table should print
+    '-' there.
 * **96.** **scale -- the calibration's robust columns, where boxes are empty.**
     Noted by Graeme, 15 November: a pathological set, nothing made. (1.4826
     MAD)^2 assumes the deviations vary continuously; where over half a shell's

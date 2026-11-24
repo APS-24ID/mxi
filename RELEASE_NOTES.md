@@ -41,10 +41,11 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 - mxi scale could fit its model to nonsense -- negative scales, CC half near
   zero -- when the random subset it fits on drew a reflection whose last two
   observations disagreed hopelessly: its outlier rejection left any pair
-  alone, unable to say which was wrong. On a P 41 21 2 data set, (0 0 4), near
-  the rotation axis, kept 3458 +- 9 and -3 +- 0.3, and about one subset in
-  eight failed -- with --d-min-auto, so it seemed. A pair disagreeing beyond
-  the limit is now rejected whole.
+  alone, unable to say which was wrong. On 9uoa
+  (proteindiffraction.org/project/9uoa), P 41 21 2, (0 0 4), near the rotation
+  axis, kept 3458 +- 9 and -3 +- 0.3, and about one subset in eight failed --
+  with --d-min-auto, so it seemed. A pair disagreeing beyond the limit is now
+  rejected whole.
 - Random subsets and halves were different on macOS and Linux from the same
   seed -- std::shuffle is each C++ library's own algorithm -- so mxi scale
   could fit a different subset, and mxi symmetry, mxi triage, mxi search-beam
@@ -53,10 +54,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   from 1.3.3's.
 - mxi symmetry judged true symmetry absent in unscaled data: it took their
   counting sigmas as their error, so expected too high a correlation from a
-  true element -- on a P 41 21 2 data set, E(CC; S) 0.919 where
-  dials.symmetry's was 0.868, and P 1 21 1 recommended. The sigmas are now
-  corrected for the Laue group analysis as dials.symmetry corrects unscaled
-  data's (docs/symmetry.md).
+  true element -- on 9uoa (proteindiffraction.org/project/9uoa), P 41 21 2,
+  E(CC; S) 0.919 where dials.symmetry's was 0.868, and P 1 21 1 recommended.
+  The sigmas are now corrected for the Laue group analysis as dials.symmetry
+  corrects unscaled data's (docs/symmetry.md).
 - mxi import put the detector where some DECTRIS file writers wrongly write
   it, upstream of the sample, between it and the source, so that every spot
   came out below 0.6 A. It now reverses the component along the beam of the

@@ -1,4 +1,5 @@
 #include "resolution.hh"
+#include "portable_random.hh"
 
 #include <algorithm>
 #include <cmath>
@@ -178,7 +179,7 @@ cc_half_bins(const ScaleData &data, const std::vector<double> &g,
       std::vector<std::size_t> o = members[present[k]];
       if (o.size() < 2)
         continue;
-      std::shuffle(o.begin(), o.end(), rng);
+      portable_shuffle(o.begin(), o.end(), rng);
       const std::size_t split = o.size() / 2;
       double s1 = 0.0, s2 = 0.0;
       for (std::size_t j = 0; j < o.size(); ++j)

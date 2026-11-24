@@ -2,6 +2,7 @@
 
 #include "cosym.hh"
 #include "laue.hh"
+#include "portable_random.hh"
 
 #include <algorithm>
 #include <array>
@@ -649,7 +650,7 @@ Triage triage(const TriageData &given, const UnitCell &cell,
   std::mt19937 random(options.seed);
   double sum_abs = 0, sum_sq = 0;
   for (const auto &[h, i] : acentric_at) {
-    std::shuffle(offsets.begin(), offsets.end(), random);
+    portable_shuffle(offsets.begin(), offsets.end(), random);
     auto found = acentric_at.end();
     for (const Miller &dh : offsets) {
       const Miller mate = group.unique(add(h, dh));

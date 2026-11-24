@@ -5,6 +5,7 @@
 
 #include "parallel.hh"
 
+#include "portable_random.hh"
 #include "resolution.hh"
 #include "scale.hh"
 #include "timing.hh"
@@ -377,7 +378,7 @@ LaueScores score_laue_groups(const P1Intensities &data,
           by_d.begin() + static_cast<std::int64_t>(s),
           by_d.begin() +
               static_cast<std::int64_t>(std::min(by_d.size(), s + bin)));
-      std::shuffle(in.begin(), in.end(), rng);
+      portable_shuffle(in.begin(), in.end(), rng);
       for (std::size_t k = 0; k + 1 < in.size(); k += 2) {
         a.push_back(data.i[in[k]]);
         b.push_back(data.i[in[k + 1]]);
@@ -388,13 +389,13 @@ LaueScores score_laue_groups(const P1Intensities &data,
                       min_n = std::min<std::size_t>(5, max_n);
     if (max_n >= min_n + 4) {
       double sx = 0, sy = 0, sxx = 0, sxy = 0, k = 0;
-      std::uniform_int_distribution<std::size_t> pick(0, pairs - 1);
       for (std::size_t n = min_n; n <= max_n; ++n) {
         double ms = 0.0;
         for (std::int32_t rep = 0; rep < 200; ++rep) {
           Accumulator acc;
           for (std::size_t j = 0; j < n; ++j) {
-            const std::size_t p = pick(rng);
+            const std::size_t p =
+                static_cast<std::size_t>(random_below(rng, pairs));
             acc.add(a[p], b[p]);
           }
           ms += acc.cc() * acc.cc() / 200.0;

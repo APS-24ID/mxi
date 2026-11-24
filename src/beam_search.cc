@@ -10,6 +10,7 @@
 
 #include "index.hh"
 #include "parallel.hh"
+#include "portable_random.hh"
 
 namespace mxi {
 
@@ -142,7 +143,7 @@ BeamSearchResult search_beam(ExperimentList &experiments, const Table &strong,
   }
   if (rows.size() > options.max_reflections) {
     std::mt19937 random(options.seed);
-    std::shuffle(rows.begin(), rows.end(), random);
+    portable_shuffle(rows.begin(), rows.end(), random);
     rows.resize(options.max_reflections);
     std::sort(rows.begin(), rows.end());
   }

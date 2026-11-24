@@ -340,6 +340,44 @@ TEST(the_error_model_keeps_the_strong_reflections_term_whatever_a_is) {
                      std::to_string(em.a * em.b));
 }
 
+TEST(an_inconsistent_pair_is_rejected_whole_and_a_consistent_one_kept) {
+  // Which of two is wrong cannot be said; if they disagree beyond zmax,
+  // neither can be trusted. Kept whole, (0 0 4) of Graeme's P 41 21 2 -- near
+  // the rotation axis, its four observations once corrected 3458 +- 9, -3 +-
+  // 0.3 and two near 28500 -- was a pair left at 3458 and -3, a fit's
+  // starting target 358 thousand where 210 was usual, the scales negative.
+  ScaleData data;
+  const auto add = [&](std::size_t h, double i, double sigma) {
+    data.intensity.push_back(i);
+    data.variance.push_back(sigma * sigma);
+    data.group.push_back(h);
+    data.outlier.push_back(false);
+  };
+  for (std::int32_t h = 0; h < 3; ++h)
+    data.unique.push_back(Miller{h, 0, 4});
+  add(0, 100.0, 1.0); // 70 sigma apart
+  add(0, 200.0, 1.0);
+  add(1, 100.0, 10.0); // within their errors
+  add(1, 105.0, 10.0);
+  add(2, 3458.0, 9.0); // (0 0 4)
+  add(2, -3.0, 0.3);
+  add(2, 28500.0, 25.0);
+  add(2, 28700.0, 25.0);
+  const std::vector<double> g(data.intensity.size(), 1.0);
+  reject_outliers(data, g);
+  check::is_true(data.outlier[0] && data.outlier[1], "the pair apart, both");
+  check::is_true(!data.outlier[2] && !data.outlier[3],
+                 "the pair agreeing, kept");
+  std::size_t left = 0;
+  for (std::size_t i = 4; i < 8; ++i)
+    left += data.outlier[i] ? 0 : 1;
+  check::is_true(left != 2 || std::abs(data.intensity[4] - data.intensity[5]) <
+                                  1.0, // never 3458 and -3 left together
+                 "no inconsistent pair of (0 0 4) left");
+  check::is_true(!(!data.outlier[4] && !data.outlier[5]),
+                 "3458 and -3 not both kept");
+}
+
 TEST(the_intensity_combination_chosen_is_better_than_either_alone) {
   // Profile fitting less noisy for weak spots and five per cent wrong, at
   // random, for strong ones; summation counting-noisy throughout. The best

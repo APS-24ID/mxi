@@ -37,9 +37,20 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 - mxi scale's error model could throw away the strong reflections' error: b,
   derived from the fitted a^2 b^2 and a^2, was capped at 0.5, so where a^2
   came out small the strong reflections' variance was made a fraction of what
-  was fitted. On a P 41 21 2 data set cut to 1.76 A by --d-min-auto, it was a
-  thousandth: the scales went negative and CC half fell to 0.06. b is no
-  longer capped.
+  was fitted. b is no longer capped.
+- mxi scale could fit its model to nonsense -- negative scales, CC half near
+  zero -- when the random subset it fits on drew a reflection whose last two
+  observations disagreed hopelessly: its outlier rejection left any pair
+  alone, unable to say which was wrong. On a P 41 21 2 data set, (0 0 4), near
+  the rotation axis, kept 3458 +- 9 and -3 +- 0.3, and about one subset in
+  eight failed -- with --d-min-auto, so it seemed. A pair disagreeing beyond
+  the limit is now rejected whole.
+- Random subsets and halves were different on macOS and Linux from the same
+  seed -- std::shuffle is each C++ library's own algorithm -- so mxi scale
+  could fit a different subset, and mxi symmetry, mxi triage, mxi search-beam
+  and the resolution estimates draw different random halves, on a Mac. They
+  are now drawn the same everywhere; as a result some figures move slightly
+  from 1.3.3's.
 - mxi symmetry judged true symmetry absent in unscaled data: it took their
   counting sigmas as their error, so expected too high a correlation from a
   true element -- on a P 41 21 2 data set, E(CC; S) 0.919 where

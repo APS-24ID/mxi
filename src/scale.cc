@@ -1,6 +1,7 @@
 #include "scale.hh"
 
 #include "parallel.hh"
+#include "portable_random.hh"
 #include "processing.hh"
 #include "timing.hh"
 
@@ -352,7 +353,7 @@ std::vector<std::size_t> select_for_fitting(const ScaleData &data,
   std::vector<std::size_t> order(members.size());
   std::iota(order.begin(), order.end(), std::size_t{0});
   std::mt19937 rng(seed);
-  std::shuffle(order.begin(), order.end(), rng);
+  portable_shuffle(order.begin(), order.end(), rng);
   std::vector<std::size_t> out;
   std::size_t groups = 0;
   for (std::size_t h : order) {
@@ -746,8 +747,15 @@ std::size_t reject_outliers(ScaleData &data, const std::vector<double> &g,
           sd += w * g[i] * g[i];
           ++live;
         }
-        if (live < 3)
-          break; // with two, which of them is wrong cannot be said
+        // With two, which of them is wrong cannot be said -- but if they
+        // disagree beyond zmax, neither can be trusted, and both go. Kept
+        // whole, such a pair poisoned the first fit: Graeme's P 41 21 2,
+        // (0 0 4) near the rotation axis, 3458 +- 9 against -3 +- 0.3 once
+        // corrected, 149 thousand of a fit's starting target of 358
+        // thousand, the scales then negative -- whenever the random subset
+        // the model is fitted on drew it (about one in eight).
+        if (live < 2)
+          break;
         double worst = 0.0;
         std::size_t at = m.front();
         for (std::size_t i : m) {
@@ -765,6 +773,14 @@ std::size_t reject_outliers(ScaleData &data, const std::vector<double> &g,
         }
         if (worst <= zmax)
           break;
+        if (live == 2) {
+          for (std::size_t i : m)
+            if (!data.outlier[i]) {
+              data.outlier[i] = true;
+              ++count[blk];
+            }
+          break;
+        }
         data.outlier[at] = true;
         ++count[blk];
       }
@@ -1542,7 +1558,7 @@ std::pair<double, double> halves(const ScaleData &data,
                                  const std::vector<double> &g,
                                  std::vector<std::size_t> o,
                                  std::mt19937 &rng) {
-  std::shuffle(o.begin(), o.end(), rng);
+  portable_shuffle(o.begin(), o.end(), rng);
   const std::size_t split = o.size() / 2;
   double a = 0.0, b = 0.0;
   for (std::size_t k = 0; k < o.size(); ++k)
@@ -1629,7 +1645,7 @@ MergingShell merge_groups(const ScaleData &data, const std::vector<double> &g,
       // groups as large as I+'s and I-'s.
       std::vector<std::size_t> pooled = plus[h];
       pooled.insert(pooled.end(), minus[h].begin(), minus[h].end());
-      std::shuffle(pooled.begin(), pooled.end(), dealer);
+      portable_shuffle(pooled.begin(), pooled.end(), dealer);
       const std::vector<std::size_t> one(pooled.begin(),
                                          pooled.begin() + plus[h].size()),
           two(pooled.begin() + plus[h].size(), pooled.end());

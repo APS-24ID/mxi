@@ -208,8 +208,9 @@ void propagate_scale_variances(ScaleData &data, const std::vector<double> &g,
 //: Observations whose normalised deviation from their group's weighted mean,
 //: excluding themselves, exceeds zmax (Evans 2006), flagged in data.outlier.
 //: Every observation is retested, earlier outliers too; within a group the
-//: worst is removed and the rest retested, so one cannot hide another. Returns
-//: how many are flagged.
+//: worst is removed and the rest retested, so one cannot hide another. Two
+//: left that disagree beyond zmax are both flagged: which is wrong cannot be
+//: said, and neither can be trusted. Returns how many are flagged.
 std::size_t reject_outliers(ScaleData &data, const std::vector<double> &g,
                             double zmax = 6.0);
 

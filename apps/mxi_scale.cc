@@ -3,6 +3,7 @@
 // et al. (2020), with B-splines for the scale and decay; see
 // docs/scaling.md.
 
+#include <algorithm>
 #include <cinttypes>
 #include <cmath>
 #include <cstdint>
@@ -744,15 +745,21 @@ int run_scale(int argc, char **argv) {
       const TwoThetaResult &tt = two_theta;
       if (tt.valid) {
         const UnitCell &c = tt.cell;
-        mxi::print("Cell from two-theta, %zu reflections, %s, RMSD %.4f deg: "
-                   "%s %s %s A, %s %s %s deg\n",
-                   tt.reflections, name_of(tt.system), tt.rmsd_deg,
-                   with_esd(c.a, tt.esd[0]).c_str(),
-                   with_esd(c.b, tt.esd[1]).c_str(),
-                   with_esd(c.c, tt.esd[2]).c_str(),
-                   with_esd(c.alpha, tt.esd[3], 3).c_str(),
-                   with_esd(c.beta, tt.esd[4], 3).c_str(),
-                   with_esd(c.gamma, tt.esd[5], 3).c_str());
+        // Laid out to be copied (Graeme, 24 November): the cell on a line of
+        // its own, and the space group as CCP4 writes it, without spaces.
+        std::string symbol = group.name();
+        symbol.erase(std::remove(symbol.begin(), symbol.end(), ' '),
+                     symbol.end());
+        mxi::print("\nAfter refinement from two-theta (%zu reflections, %s, "
+                   "RMSD %.4f deg)\n\n",
+                   tt.reflections, name_of(tt.system), tt.rmsd_deg);
+        mxi::print(
+            "Unit cell: %s %s %s %s %s %s\n", with_esd(c.a, tt.esd[0]).c_str(),
+            with_esd(c.b, tt.esd[1]).c_str(), with_esd(c.c, tt.esd[2]).c_str(),
+            with_esd(c.alpha, tt.esd[3], 3).c_str(),
+            with_esd(c.beta, tt.esd[4], 3).c_str(),
+            with_esd(c.gamma, tt.esd[5], 3).c_str());
+        mxi::print("Symmetry: %s\n", symbol.c_str());
         json::Array cell, esd;
         const double v[6] = {c.a, c.b, c.c, c.alpha, c.beta, c.gamma};
         for (std::size_t k = 0; k < 6; ++k) {

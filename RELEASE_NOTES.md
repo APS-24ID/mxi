@@ -7,6 +7,9 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.3.3
 
 **New**
+- mxi scale ends with the cell refined from two-theta laid out to be copied:
+  the refinement's reflections and RMSD on one line, then "Unit cell:" with
+  the e.s.d.s and "Symmetry:" with the space group as CCP4 writes it (P41212).
 - mxi search-beam: the beam centre from the strong spots, as
   dials.search_beam_position does by default (LABELIT's method), for when the
   header's centre is too far out for indexing to find the lattice. It writes

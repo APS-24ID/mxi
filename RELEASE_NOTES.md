@@ -34,6 +34,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   held figure had left out each box's background.
 
 **Fixed**
+- mxi scale's error model could throw away the strong reflections' error: b,
+  derived from the fitted a^2 b^2 and a^2, was capped at 0.5, so where a^2
+  came out small the strong reflections' variance was made a fraction of what
+  was fitted. On a P 41 21 2 data set cut to 1.76 A by --d-min-auto, it was a
+  thousandth: the scales went negative and CC half fell to 0.06. b is no
+  longer capped.
 - mxi symmetry judged true symmetry absent in unscaled data: it took their
   counting sigmas as their error, so expected too high a correlation from a
   true element -- on a P 41 21 2 data set, E(CC; S) 0.919 where

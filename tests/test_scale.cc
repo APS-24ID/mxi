@@ -322,6 +322,24 @@ TEST(the_error_model_split_is_one_a_where_one_a_is_true) {
                      ", a = " + std::to_string(em.a));
 }
 
+TEST(the_error_model_keeps_the_strong_reflections_term_whatever_a_is) {
+  // Graeme's P 41 21 2, scaled with --d-min-auto: cut to 1.76 A the fit gave
+  // a^2 near nothing and a^2 b^2 as before, and b, derived as their ratio's
+  // root, was capped at 0.5 -- the strong reflections' variance, a^2 b^2 I^2,
+  // made a thousandth of what was fitted; the next fit started at a target of
+  // 3.6 million and the scales went negative. Planted so: the signal's term
+  // all but nothing, the strong reflections 20 per cent out, a b 0.2 -- where
+  // a^2, ill determined beside a^2 b^2, comes out some 0.04 and b must be
+  // near 1. (At 9 per cent b came out 0.47, under the cap by chance.)
+  const ScaleData data = planted_split(1.0, 0.02, 10.0, 47);
+  const ErrorModel em =
+      refine_error_model(data, std::vector<double>(data.size(), 1.0));
+  check::is_true(em.split, "split");
+  check::is_true(std::abs(em.a * em.b - 0.2) < 0.03,
+                 "a b, the strong reflections' fraction = " +
+                     std::to_string(em.a * em.b));
+}
+
 TEST(the_intensity_combination_chosen_is_better_than_either_alone) {
   // Profile fitting less noisy for weak spots and five per cent wrong, at
   // random, for strong ones; summation counting-noisy throughout. The best

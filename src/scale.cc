@@ -1157,7 +1157,12 @@ ErrorModel refine_error_model(const ScaleData &data,
   show(alpha, beta);
   if (alpha > 0.0) {
     em.a = std::sqrt(alpha);
-    em.b = std::min(std::sqrt(beta / alpha), 0.5);
+    // b as the fit's a^2 b^2 over its a^2, not capped: the regression fits
+    // a^2 b^2 itself, and a cap on b -- 0.5, the individual fit's bound --
+    // threw it away where a^2 came out small (refine_error_model's split
+    // below, Graeme's P 41 21 2 cut to 1.76 A: a^2 b^2 made a thousandth of
+    // what was fitted, the scales then negative).
+    em.b = std::sqrt(beta / alpha);
   }
   em.a_bg = em.a;
   // Split, where integration wrote each variance with no signal: one a for a
@@ -1286,7 +1291,8 @@ ErrorModel refine_error_model(const ScaleData &data,
         em.split = true;
         em.a_bg = std::sqrt(x3[0]);
         em.a = std::sqrt(x3[1]);
-        em.b = std::min(std::sqrt(std::fmax(x3[2], 0.0) / x3[1]), 0.5);
+        // Not capped: see the unsplit model's b above.
+        em.b = std::sqrt(std::fmax(x3[2], 0.0) / x3[1]);
         em.used = all.size();
       }
     }

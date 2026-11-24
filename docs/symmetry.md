@@ -242,8 +242,16 @@ analysis alone and only for unscaled data (no inverse_scale_factor); the absence
 tests keep the sigmas as they were, as DIALS's do. On 30 degrees of insulin the
 intensities' estimate went from 0.999 to 0.984, I 2 3 as before.
 
-Not yet understood on that data set: the true elements' CCs, 0.65 to 0.74 in mxi
-against 0.77 to 0.86 in dials.symmetry, the identity's 0.928 against 0.96.
-dials.symmetry scores unmerged observations with Friedel mates as one
-(anomalous_flag False) after an outlier rejection (simple, z 12; 3725 there);
-mxi merges in P1 with Friedel mates apart first.
+Then understood (24 November): the reflections taken. dials.symmetry takes only
+those integrated by summation as well as by profile fitting (402,452
+observations of 9uoa); mxi took every profile-fitted one (425,950). Summation
+fails where the foreground reaches a masked pixel -- 55,725 of 9uoa's
+reflections, its backstop large -- and the profile fit of a spot so clipped can
+be far out: (-3 5 12) measured 41 and 3919. A few hundred such values in 144,000
+pairs ruled every element's CC: on E^2 by resolution shell the symmetry elements
+correlated 0.05 to 0.07 (by rank 0.76 to 0.82), the Friedel pairs 0.45 -- and
+with the backstop masked or not, whichever survived tipped the choice, P 1 21 1,
+C 2 2 21. mxi symmetry now takes the same reflections as dials.symmetry, 402,452
+observations, and finds P 4/m m m, likelihood 0.53 against C m m m's 0.20; P 41
+21 2. The 20 IQR cut in each element's pairs, as DIALS's, mxi had already.
+Merging and the outlier rejection before it, tried, made no difference here.

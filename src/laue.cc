@@ -678,8 +678,28 @@ void select_resolution(P1Intensities &data, double d_min) {
 P1Intensities merge_in_p1(const ExperimentList &experiments,
                           const Table &reflections, P1Selection *report,
                           bool correct_sigmas) {
+  // Only reflections integrated by summation as well as by profile fitting,
+  // as dials.symmetry selects them ("integrated by profile and summation
+  // methods"). Summation fails where the foreground reaches a masked pixel,
+  // so this leaves out spots clipped by the backstop's shadow or a gap --
+  // the profile fit of a clipped spot can be far out, and on 9uoa
+  // (proteindiffraction.org/project/9uoa) such values took every symmetry
+  // element's CC on E^2 below 0.07 where by rank it was 0.76 to 0.82; the
+  // Friedel pairs' from 0.81 to 0.45 (24 November).
+  constexpr std::uint64_t kSummed = 1u << 8, kFitted = 1u << 9;
+  std::vector<std::size_t> both;
+  if (reflections.has("flags")) {
+    const Column &flags = reflections.at("flags");
+    for (std::size_t r = 0; r < reflections.nrows; ++r) {
+      const auto f = static_cast<std::uint64_t>(flags.ints[r]);
+      if ((f & kSummed) && (f & kFitted))
+        both.push_back(r);
+    }
+  }
+  const Table selected =
+      reflections.has("flags") ? select_rows(reflections, both) : reflections;
   ScaleData data =
-      build_scale_data(experiments, reflections, SpaceGroup::from_name("P 1"),
+      build_scale_data(experiments, selected, SpaceGroup::from_name("P 1"),
                        ScaleModelShape{1, 0, 0});
   P1Selection sel;
   sel.observations = data.size();

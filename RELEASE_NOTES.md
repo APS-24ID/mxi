@@ -34,6 +34,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   held figure had left out each box's background.
 
 **Fixed**
+- mxi symmetry takes only reflections integrated by summation as well as by
+  profile fitting, as dials.symmetry does. Summation fails where a spot
+  reaches a masked pixel, and the profile fits of spots clipped by a backstop
+  or a gap could be far enough out to hide the symmetry: on 9uoa
+  (proteindiffraction.org/project/9uoa) the choice fell to C 2 2 21 or P 1 21
+  1, depending on the mask, where it is P 41 21 2 (docs/symmetry.md).
 - mxi scale's error model could throw away the strong reflections' error: b,
   derived from the fitted a^2 b^2 and a^2, was capped at 0.5, so where a^2
   came out small the strong reflections' variance was made a fraction of what

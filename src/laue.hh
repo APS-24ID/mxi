@@ -44,9 +44,18 @@ struct P1Selection {
 //: sweep measured to the detector's corner had most of its reflections beyond
 //: the diffraction, noise that pulled every element's CC toward zero and left
 //: the true three-folds at 0.27.
+//: With `correct_sigmas`, each observation's sigma first corrected as
+//: dials.symmetry corrects unscaled data's -- sd' = 2 sqrt(sd^2 + (0.03 I)^2),
+//: its variance at least a tenth of the original's (POINTLESS's "typical"
+//: SD factors) -- for the Laue group analysis alone: a counting sigma is far
+//: below the error of unscaled data, and E(CC; S) from the intensities, var
+//: over var plus the mean sigma^2, came out 0.999 where DIALS's was 0.852 on
+//: the same P 41 21 2 data, every true element then judged absent (Graeme,
+//: 24 November).
 P1Intensities merge_in_p1(const ExperimentList &experiments,
                           const Table &reflections,
-                          P1Selection *report = nullptr);
+                          P1Selection *report = nullptr,
+                          bool correct_sigmas = false);
 
 //: The resolution to which <I>/<sigma> stays above the threshold, in shells of
 //: equal count from low resolution: the d_min of the last shell before the

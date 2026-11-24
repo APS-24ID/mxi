@@ -388,7 +388,13 @@ int run_symmetry(int argc, char **argv) {
                "the finer, %.2f A, used\n",
                selection.d_min_cc_half, selection.d_min_i_over_sigma,
                selection.d_min);
-    P1Intensities normalised = merged;
+    // The Laue group analysis on the sigmas corrected as dials.symmetry
+    // corrects unscaled data's (laue.hh, merge_in_p1); scaled data, whose
+    // sigmas the error model has already set, as they are -- as there.
+    const bool unscaled = !reflections.has("inverse_scale_factor");
+    P1Intensities normalised =
+        unscaled ? merge_in_p1(experiments, reflections, nullptr, true)
+                 : merged;
     WilsonFit wilson_fit;
     const std::size_t wilson = normalise(normalised, 200, &wilson_fit);
     if (wilson_fit.fitted) {

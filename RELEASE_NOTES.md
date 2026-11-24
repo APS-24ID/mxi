@@ -34,6 +34,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   held figure had left out each box's background.
 
 **Fixed**
+- mxi symmetry judged true symmetry absent in unscaled data: it took their
+  counting sigmas as their error, so expected too high a correlation from a
+  true element -- on a P 41 21 2 data set, E(CC; S) 0.919 where
+  dials.symmetry's was 0.868, and P 1 21 1 recommended. The sigmas are now
+  corrected for the Laue group analysis as dials.symmetry corrects unscaled
+  data's (docs/symmetry.md).
 - mxi import put the detector where some DECTRIS file writers wrongly write
   it, upstream of the sample, between it and the source, so that every spot
   came out below 0.6 A. It now reverses the component along the beam of the

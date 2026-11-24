@@ -675,7 +675,8 @@ void select_resolution(P1Intensities &data, double d_min) {
 }
 
 P1Intensities merge_in_p1(const ExperimentList &experiments,
-                          const Table &reflections, P1Selection *report) {
+                          const Table &reflections, P1Selection *report,
+                          bool correct_sigmas) {
   ScaleData data =
       build_scale_data(experiments, reflections, SpaceGroup::from_name("P 1"),
                        ScaleModelShape{1, 0, 0});
@@ -685,6 +686,15 @@ P1Intensities merge_in_p1(const ExperimentList &experiments,
     if (data.intensity[i] / std::sqrt(data.variance[i]) < -5.0) {
       data.outlier[i] = true;
       ++sel.negative;
+    }
+  // dials.symmetry's _correct_sigmas(sd_fac=2.0, sd_b=0.0, sd_add=0.03),
+  // after the I/sigma cut, as there (laue.hh).
+  if (correct_sigmas)
+    for (std::size_t i = 0; i < data.size(); ++i) {
+      const double v = data.variance[i];
+      const double add = 0.03 * data.intensity[i];
+      const double corrected = std::fmax(v + add * add, 0.1 * v);
+      data.variance[i] = 4.0 * corrected;
     }
   // CC half above 0.6, as dials.symmetry finds it: the tanh fit of
   // dials.estimate_resolution through 50 bins of equal count, where it crosses

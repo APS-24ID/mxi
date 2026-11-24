@@ -398,8 +398,9 @@ void usage(const char *program) {
       "                    before one pass; the same answer, byte for byte\n"
       "  --one-pass        one pass whatever its memory: by default two are\n"
       "                    taken when one would need more than the budget\n"
-      "  --max-memory GB   that budget (half the machine's memory, or a\n"
-      "                    container's or job's limit if smaller)\n"
+      "  --max-memory GB   that budget (three-quarters of the machine's\n"
+      "                    memory, or of a container's or job's limit if\n"
+      "                    smaller)\n"
       "  -g, --gpu         profile fitting on the GPU, in single precision; "
       "the\n"
       "                    CPU's is in double. One pass only\n"
@@ -1541,7 +1542,9 @@ int run_integrate(int argc, char **argv) {
     // --scan-blocks -- is complete; the largest total. The footprint is taken
     // as twice that, as measured there (21.1 GB against 9.9 live: the
     // allocator cannot give back what the churn of boxes leaves scattered).
-    // Over the budget -- --max-memory, else half the machine's memory, or a
+    // Over the budget -- --max-memory, else three-quarters of the machine's
+    // memory (half until 24 November: 9uoa peaked at 32 GB where 46 was
+    // predicted, 1.6 times its boxes, escoa_17938 2.1 times), or a
     // container's or job's limit -- two passes, and said; --one-pass insists.
     bool two_pass = args.has("--two-pass");
     double predicted_one_pass_gb = -1.0, predicted_two_pass_gb = -1.0;
@@ -1608,11 +1611,11 @@ int run_integrate(int argc, char **argv) {
       const bool told = args.has("--max-memory");
       const double budget_gb =
           told ? args.number("--max-memory", 0.0)
-               : 0.5 * mxi::platform::physical_memory_mb() / 1024.0;
+               : 0.75 * mxi::platform::physical_memory_mb() / 1024.0;
       const double footprint_gb = 2.0 * predicted_one_pass_gb;
       if (!two_pass && budget_gb > 0.0 && footprint_gb > budget_gb) {
         const std::string budget =
-            told ? "--max-memory" : "half of this machine's memory";
+            told ? "--max-memory" : "three-quarters of this machine's memory";
         if (args.has("--one-pass")) {
           mxi::print("One pass, as asked (--one-pass), though it would hold "
                      "about %.3g GB of shoeboxes at once, some %.3g GB in all, "
@@ -3759,7 +3762,7 @@ int run_integrate(int argc, char **argv) {
                    predicted_one_pass_gb, predicted_two_pass_gb,
                    args.has("--max-memory")
                        ? args.number("--max-memory", 0.0)
-                       : 0.5 * mxi::platform::physical_memory_mb() / 1024.0);
+                       : 0.75 * mxi::platform::physical_memory_mb() / 1024.0);
       mxi::print("  memory, by what holds it, each at its largest: boxes open "
                  "%.2f GB (%zu), held for fitting %.2f GB (%zu), held in "
                  "overlap groups %.2f GB (%zu)\n",
@@ -3779,12 +3782,21 @@ int run_integrate(int argc, char **argv) {
         std::string said;
         char part[160];
         if (m.heap_in_use >= 0.0) {
-          std::snprintf(part, sizeof part,
-                        " -- the allocator's blocks in use %.2f GB, held free "
-                        "%.2f GB, the rest %.2f GB (device buffers, the "
-                        "program, mapped files)",
-                        m.heap_in_use / 1e3, m.heap_free / 1e3,
-                        (m.resident - m.heap_in_use - m.heap_free) / 1e3);
+          // The rest only where it is one: free blocks need not be resident
+          // (macOS gave -1.82 GB on 9uoa), so where they outweigh it the
+          // difference measures nothing.
+          const double rest = m.resident - m.heap_in_use - m.heap_free;
+          if (rest >= 0.0)
+            std::snprintf(part, sizeof part,
+                          " -- the allocator's blocks in use %.2f GB, held "
+                          "free %.2f GB, the rest %.2f GB (device buffers, the "
+                          "program, mapped files)",
+                          m.heap_in_use / 1e3, m.heap_free / 1e3, rest / 1e3);
+          else
+            std::snprintf(part, sizeof part,
+                          " -- the allocator's blocks in use %.2f GB, held "
+                          "free %.2f GB, not all of it resident",
+                          m.heap_in_use / 1e3, m.heap_free / 1e3);
           said = part;
         } else if (m.committed >= 0.0) {
           // Committed is not resident: memory committed and never touched is

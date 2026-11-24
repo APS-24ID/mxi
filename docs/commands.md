@@ -299,8 +299,9 @@ usage: mxi integrate [options] EXPT [INDEXED_REFL]
                     before one pass; the same answer, byte for byte
   --one-pass        one pass whatever its memory: by default two are
                     taken when one would need more than the budget
-  --max-memory GB   that budget (half the machine's memory, or a
-                    container's or job's limit if smaller)
+  --max-memory GB   that budget (three-quarters of the machine's
+                    memory, or of a container's or job's limit if
+                    smaller)
   -g, --gpu         profile fitting on the GPU, in single precision; the
                     CPU's is in double. One pass only
   --gpu-emulate     the same single-precision fitting on the CPU, for
@@ -439,7 +440,7 @@ exported; strong.rflx is indexed, and so on.
   --one-pass        mxi integrate --one-pass: one pass over the images
                     however much memory it would hold
   --max-memory GB   mxi integrate's budget for one pass, beyond which it
-                    takes two (half the machine's memory)
+                    takes two (three-quarters of the machine's memory)
   --cell a,b,c,alpha,beta,gamma   the known cell: mxi index --known-cell
   --no-joint        several sweeps, each a crystal indexed on its own:
                     mxi index --no-joint

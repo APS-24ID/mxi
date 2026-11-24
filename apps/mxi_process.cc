@@ -58,7 +58,7 @@ const char *const kUsage =
     "  --one-pass        mxi integrate --one-pass: one pass over the images\n"
     "                    however much memory it would hold\n"
     "  --max-memory GB   mxi integrate's budget for one pass, beyond which it\n"
-    "                    takes two (half the machine's memory)\n"
+    "                    takes two (three-quarters of the machine's memory)\n"
     "  --cell a,b,c,alpha,beta,gamma   the known cell: mxi index --known-cell\n"
     "  --no-joint        several sweeps, each a crystal indexed on its own:\n"
     "                    mxi index --no-joint\n"

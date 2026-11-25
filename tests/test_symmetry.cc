@@ -184,3 +184,70 @@ TEST(a_monoclinic_cell_loses_only_what_its_two_fold_forbids) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+// Graeme, 25 November: ten sweeps of one hexagonal crystal, indexed apart,
+// eight with gamma 60 and two with 120 -- one lattice, the bases differing by
+// whether alpha and beta came out a little under 90 or a little over. mxi
+// symmetry compared the cells' parameters and refused to pool them.
+TEST(a_hexagonal_lattice_indexed_with_gamma_120_aligns_to_one_with_60) {
+  const double a = 61.4, c = 77.6, pi = 3.14159265358979323846;
+  const auto at = [&](double degrees) {
+    return Vec3{a * std::cos(degrees * pi / 180.0),
+                a * std::sin(degrees * pi / 180.0), 0.0};
+  };
+  const Crystal sixty =
+      Crystal::from_real_space(Vec3{a, 0, 0}, at(60.0), Vec3{0, 0, c});
+  const Crystal one_twenty =
+      Crystal::from_real_space(Vec3{a, 0, 0}, at(120.0), Vec3{0, 0, c});
+  check::close(one_twenty.cell().gamma, 120.0, 1e-6, "made with 120");
+  const LatticeAlignment aligned = align_lattice(sixty, one_twenty);
+  check::is_true(!aligned.identity, "a change of basis found");
+  check::is_true(aligned.worst < 0.001, "the cell then the reference's");
+  Crystal moved = one_twenty;
+  aligned.cb.apply(moved);
+  check::close(moved.cell().gamma, 60.0, 1e-6, "gamma 60 after");
+  // Already in the setting: left alone.
+  check::is_true(align_lattice(sixty, sixty).identity, "the same, untouched");
+
+  // One experiment of two reindexed, its rows alone, and each reflection
+  // the same point in reciprocal space: A' h' = A h.
+  ExperimentList list;
+  Experiment first, second;
+  first.crystal = sixty;
+  second.crystal = one_twenty;
+  list.experiments = {first, second};
+  Table t;
+  t.nrows = 4;
+  Column &hkl = t.int_column("miller_index", "cctbx::miller::index<>", 3);
+  Column &id = t.int_column("id", "int", 1);
+  const std::int64_t rows[4][4] = {
+      {1, 2, 3, 0}, {1, 2, 3, 1}, {-2, 1, 4, 1}, {0, 0, 0, 1}};
+  for (std::size_t r = 0; r < 4; ++r) {
+    for (std::size_t k = 0; k < 3; ++k)
+      hkl.ints[r * 3 + k] = rows[r][k];
+    id.ints[r] = rows[r][3];
+  }
+  const Mat3 before = list.experiments[1].crystal->A;
+  reindex_experiment(list, t, 1, aligned.cb);
+  const Column &after = t.at("miller_index");
+  check::is_true(after.ints[0] == 1 && after.ints[1] == 2 && after.ints[2] == 3,
+                 "the first experiment's row untouched");
+  for (std::size_t r = 1; r < 3; ++r) {
+    const Vec3 was = before * Vec3{double(rows[r][0]), double(rows[r][1]),
+                                   double(rows[r][2])};
+    const Vec3 now =
+        list.experiments[1].crystal->A * Vec3{double(after.ints[r * 3]),
+                                              double(after.ints[r * 3 + 1]),
+                                              double(after.ints[r * 3 + 2])};
+    check::close((now - was).norm(), 0.0, 1e-12, "the same reciprocal vector");
+  }
+  check::is_true(after.ints[9] == 0 && after.ints[10] == 0 &&
+                     after.ints[11] == 0,
+                 "an unindexed row left as it is");
+  check::close(list.experiments[1].crystal->cell().gamma, 60.0, 1e-6,
+               "the crystal reindexed too");
+}
+
+} // namespace mxi

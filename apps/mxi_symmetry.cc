@@ -249,13 +249,18 @@ int run_symmetry(int argc, char **argv) {
                                  " has no crystal: index it first");
     const UnitCell cell = experiments[0].crystal->cell();
     for (std::size_t i = 1; i < experiments.size(); ++i) {
-      const UnitCell other = experiments[i].crystal->cell();
-      const double worst = std::max(
-          {std::fabs(other.a / cell.a - 1.0), std::fabs(other.b / cell.b - 1.0),
-           std::fabs(other.c / cell.c - 1.0),
-           std::fabs(other.alpha - cell.alpha) / 90.0,
-           std::fabs(other.beta - cell.beta) / 90.0,
-           std::fabs(other.gamma - cell.gamma) / 90.0});
+      // Its lattice in the first's setting: sweeps indexed apart may take
+      // different bases for one lattice -- gamma 60 or 120 for a hexagonal
+      // one, by the noise in alpha and beta (symmetry.hh, align_lattice).
+      // Compared after, not before.
+      const LatticeAlignment aligned =
+          align_lattice(*experiments[0].crystal, *experiments[i].crystal);
+      if (!aligned.identity && aligned.worst <= 0.02) {
+        reindex_experiment(experiments, reflections, i, aligned.cb);
+        mxi::print("Experiment %zu reindexed by %s to the first's setting\n", i,
+                   describe(aligned.cb).c_str());
+      }
+      const double worst = aligned.worst;
       if (worst > 0.02)
         throw std::runtime_error(
             "experiment " + std::to_string(i) +

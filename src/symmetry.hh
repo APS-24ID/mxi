@@ -74,6 +74,32 @@ public:
 void reindex(ExperimentList &experiments, Table &reflections,
              const ChangeOfBasis &cb, const SpaceGroup &group);
 
+//: The change of basis in DIALS' notation, "a,-b,-c": each new axis in
+//: terms of the old, for integral coefficients.
+std::string describe(const ChangeOfBasis &cb);
+
+//: The change of basis taking `other`'s lattice to the setting nearest
+//: `reference`'s: integer matrices with entries -1 to 1 and determinant +1
+//: (handedness kept), the cell after each compared as mxi symmetry compares
+//: sweeps' cells -- the largest of the edges' relative differences and the
+//: angles' differences over 90 degrees -- the nearest kept, the identity
+//: whenever it is as near. Sweeps indexed apart may take different, equally
+//: valid bases for one lattice: a hexagonal lattice's a = b, alpha = beta =
+//: 90 cell with gamma 60 or 120, the choice falling to whether alpha and beta
+//: came out a little under 90 or a little over (Graeme, 25 November: ten
+//: sweeps, two at 120, mxi symmetry refusing to pool them).
+struct LatticeAlignment {
+  ChangeOfBasis cb;
+  double worst = 0.0; //: the measure after cb
+  bool identity = true;
+};
+LatticeAlignment align_lattice(const Crystal &reference, const Crystal &other);
+
+//: As reindex, but experiment `index` alone: its crystal, and the rows of
+//: the table whose id is `index`; its space group as it was.
+void reindex_experiment(ExperimentList &experiments, Table &reflections,
+                        std::size_t index, const ChangeOfBasis &cb);
+
 //: A rotation of the lattice, as an integer matrix acting on fractional
 //: coordinates, row major: x' = R x. On Miller indices it acts as its
 //: transpose, h' = R^T h.

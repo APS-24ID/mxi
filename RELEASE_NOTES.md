@@ -37,6 +37,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   held figure had left out each box's background.
 
 **Fixed**
+- mxi symmetry refused sweeps indexed apart whose cells were one lattice in
+  different bases -- a hexagonal crystal's sweeps with gamma 60 and gamma 120,
+  the choice falling to the noise in alpha and beta -- saying they differed by
+  67 per cent. Each sweep's lattice is now brought to the first's setting by
+  the nearest small change of basis before the cells are compared, and the
+  change is reported.
 - mxi symmetry takes only reflections integrated by summation as well as by
   profile fitting, as dials.symmetry does. Summation fails where a spot
   reaches a masked pixel, and the profile fits of spots clipped by a backstop

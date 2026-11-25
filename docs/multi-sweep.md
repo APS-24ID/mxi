@@ -202,6 +202,15 @@ inner shell a little better (I/sigma 26.3 against 26.1, R_merge 0.032 against
 0.033). `--joint` refines all in one fit, sharing what they share, until a case
 needs it; `--shared-crystal`, one crystal across sweeps, implies it.
 mxi symmetry then finds the crystals' orientations apart and runs cosym, which
-puts them in one setting. Insulin as four sweeps (mxi import --split 4),
-indexed apart: four cells, cosym's cosines 0.999 to 1.000, I 2 3, R merge 0.040
-and CC half 0.986, as indexed together (0.040, 0.985).
+puts them in one setting. Insulin as four sweeps (mxi import --split 4), indexed
+apart: four cells, cosym's cosines 0.999 to 1.000, I 2 3, R merge 0.040 and CC
+half 0.986, as indexed together (0.040, 0.985). Before that, each sweep's
+lattice is brought to the first's setting: sweeps indexed apart may take
+different but equally valid bases for one lattice, which cosym, working with the
+lattice's rotations, cannot relate -- a hexagonal lattice's cell has gamma 60 or
+120 by whether alpha and beta came out a little under 90 or over, and b becomes
+a + b between them, a change of basis, not a rotation. So mxi symmetry tries the
+integer changes of basis with entries -1 to 1 (determinant 1) and takes the one
+bringing the cell nearest the first's, saying so ("Experiment 7 reindexed by
+..."); only a cell no such change brings within 2 per cent is refused (Graeme,
+25 November: ten sweeps, two indexed with gamma 120).

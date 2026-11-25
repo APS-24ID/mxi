@@ -165,6 +165,98 @@ void ChangeOfBasis::apply(Crystal &crystal) const {
     a = a * t;
 }
 
+std::string describe(const ChangeOfBasis &cb) {
+  std::string out;
+  const char axis[3] = {'a', 'b', 'c'};
+  for (std::size_t j = 0; j < 3; ++j) {
+    std::string term;
+    for (std::size_t i = 0; i < 3; ++i) {
+      const auto k = static_cast<std::int32_t>(std::lround(cb.M(i, j)));
+      if (k == 0)
+        continue;
+      if (k < 0)
+        term += '-';
+      else if (!term.empty())
+        term += '+';
+      if (std::abs(k) != 1)
+        term += std::to_string(std::abs(k));
+      term += axis[i];
+    }
+    out += (j ? "," : "") + (term.empty() ? std::string("0") : term);
+  }
+  return out;
+}
+
+namespace {
+// The measure mxi symmetry pools sweeps by: the edges' relative differences
+// and the angles' differences over 90 degrees, the largest.
+double cell_difference(const UnitCell &a, const UnitCell &b) {
+  return std::max(
+      {std::fabs(b.a / a.a - 1.0), std::fabs(b.b / a.b - 1.0),
+       std::fabs(b.c / a.c - 1.0), std::fabs(b.alpha - a.alpha) / 90.0,
+       std::fabs(b.beta - a.beta) / 90.0, std::fabs(b.gamma - a.gamma) / 90.0});
+}
+} // namespace
+
+LatticeAlignment align_lattice(const Crystal &reference, const Crystal &other) {
+  const UnitCell want = reference.cell();
+  LatticeAlignment best;
+  best.cb.M = Mat3::identity();
+  best.worst = cell_difference(want, other.cell());
+  best.identity = true;
+  std::int32_t m[9];
+  for (std::int32_t code = 0; code < 19683; ++code) { // 3^9
+    std::int32_t rest = code;
+    for (std::int32_t k = 0; k < 9; ++k) {
+      m[k] = rest % 3 - 1;
+      rest /= 3;
+    }
+    const std::int64_t det =
+        static_cast<std::int64_t>(m[0]) * (m[4] * m[8] - m[5] * m[7]) -
+        static_cast<std::int64_t>(m[1]) * (m[3] * m[8] - m[5] * m[6]) +
+        static_cast<std::int64_t>(m[2]) * (m[3] * m[7] - m[4] * m[6]);
+    if (det != 1)
+      continue;
+    ChangeOfBasis cb;
+    for (std::size_t k = 0; k < 9; ++k)
+      cb.M.m[k] = static_cast<double>(m[k]);
+    Crystal trial = other;
+    cb.apply(trial);
+    const double d = cell_difference(want, trial.cell());
+    // Strictly nearer, by more than rounding: the identity kept on a tie.
+    if (d < best.worst - 1e-9) {
+      best.cb = cb;
+      best.worst = d;
+      best.identity = false;
+    }
+  }
+  return best;
+}
+
+void reindex_experiment(ExperimentList &experiments, Table &reflections,
+                        std::size_t index, const ChangeOfBasis &cb) {
+  Experiment &e = experiments[index];
+  if (e.crystal)
+    cb.apply(*e.crystal);
+  if (!reflections.has("miller_index") || !reflections.has("id"))
+    return;
+  const Column &id = reflections.at("id");
+  Column miller = reflections.at("miller_index");
+  for (std::size_t i = 0; i < reflections.nrows; ++i) {
+    if (id.ints[i] != static_cast<std::int64_t>(index))
+      continue;
+    const Miller h{static_cast<std::int32_t>(miller.ints[i * 3]),
+                   static_cast<std::int32_t>(miller.ints[i * 3 + 1]),
+                   static_cast<std::int32_t>(miller.ints[i * 3 + 2])};
+    if (h[0] == 0 && h[1] == 0 && h[2] == 0)
+      continue;
+    const Miller n = cb.apply(h);
+    for (std::size_t k = 0; k < 3; ++k)
+      miller.ints[i * 3 + k] = n[k];
+  }
+  reflections.set("miller_index", std::move(miller));
+}
+
 void reindex(ExperimentList &experiments, Table &reflections,
              const ChangeOfBasis &cb, const SpaceGroup &group) {
   for (Experiment &e : experiments) {

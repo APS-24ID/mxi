@@ -41,6 +41,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   held figure had left out each box's background.
 
 **Fixed**
+- mxi symmetry printed "?" for the Patterson group P -3 1 m: its two-folds lie
+  between the conventional a and b, which no rotation of it fixes, and only
+  fixed vectors were tried as axes. Vectors perpendicular to an axis of order
+  three or more are tried too.
 - mxi symmetry judged a scaled file on its integrated intensities, its scale
   factors ignored; it now takes the table's scaled intensities wherever it has
   them.

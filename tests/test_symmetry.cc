@@ -251,3 +251,32 @@ TEST(a_hexagonal_lattice_indexed_with_gamma_120_aligns_to_one_with_60) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+// Graeme, 25 November, o1333 of A71EV2AZ: a subgroup of the hexagonal
+// lattice, its three-fold with the two-folds along [1 1 0], [2 -1 0] and
+// [1 -2 0], printed "?" -- P -3 1 m, whose two-folds lie between the
+// conventional a and b, so that no rotation fixes either and they were never
+// candidates for an axis. P -3 m 1, its two-folds along a and b, was named.
+TEST(the_trigonal_patterson_groups_are_both_named) {
+  const UnitCell cell{61.4, 61.4, 77.6, 90.0, 90.0, 120.0};
+  for (const char *name : {"P -3 1 m", "P -3 m 1"}) {
+    std::vector<Rotation> proper;
+    for (const Rotation &r : SpaceGroup::from_name(name).rotations()) {
+      const std::int64_t det =
+          static_cast<std::int64_t>(r[0]) * (r[4] * r[8] - r[5] * r[7]) -
+          static_cast<std::int64_t>(r[1]) * (r[3] * r[8] - r[5] * r[6]) +
+          static_cast<std::int64_t>(r[2]) * (r[3] * r[7] - r[4] * r[6]);
+      if (det == 1)
+        proper.push_back(r);
+    }
+    const std::optional<Setting> s = reference_setting(proper, cell);
+    check::is_true(s.has_value(), std::string(name) + " named");
+    if (s)
+      check::is_true(s->group.name() == name,
+                     std::string(name) + " as " + s->group.name());
+  }
+}
+
+} // namespace mxi

@@ -501,6 +501,45 @@ std::optional<Setting> reference_setting(const std::vector<Rotation> &rotations,
       if (a.cross(b).length() > 1e-6 * a.length() * b.length())
         spans = true;
     }
+  // With an axis of order three or more, the conventional a and b lie
+  // perpendicular to it, and need not be fixed by any rotation of the group:
+  // in P -3 1 m the two-folds lie between them, along [1 -1 0] and its
+  // equivalents, and the group went unnamed, printed "?" (Graeme, 25
+  // November, o1333 of A71EV2AZ). So the vectors perpendicular to such an
+  // axis are candidates too, as for a group of one axis below.
+  if (spans) {
+    const auto order = [&](const Rotation &r) {
+      Rotation p = r;
+      for (std::int32_t k = 1; k <= 6; ++k) {
+        if (p == kIdentity)
+          return k;
+        Rotation q{};
+        for (std::size_t i = 0; i < 3; ++i)
+          for (std::size_t j = 0; j < 3; ++j)
+            for (std::size_t l = 0; l < 3; ++l)
+              q[i * 3 + j] += p[i * 3 + l] * r[l * 3 + j];
+        p = q;
+      }
+      return 0;
+    };
+    for (const Rotation &r : rotations) {
+      if (r == kIdentity || order(r) < 3)
+        continue;
+      for (const auto &v : all)
+        if (image(r, v) == v) {
+          const gemmi::Vec3 axis = cartesian(v);
+          for (const auto &u : all) {
+            const gemmi::Vec3 c = cartesian(u);
+            if (std::abs(c.dot(axis)) < 0.035 * c.length() * axis.length() &&
+                std::find(candidates.begin(), candidates.end(), u) ==
+                    candidates.end())
+              candidates.push_back(u);
+          }
+          break;
+        }
+      break;
+    }
+  }
   if (rotations.size() <= 1) {
     candidates = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}; // P -1: the cell as it is
   } else if (!spans && !fixed_axes.empty()) {

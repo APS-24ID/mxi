@@ -258,15 +258,15 @@ Merging and the outlier rejection before it, tried, made no difference here.
 
 ## Scaled in P1 first: --scale-p1 (25 November)
 
-Four of 30 A71EV2AZ sweeps (an OpenBind trial, Enterovirus A71 2A protease, P
-61) came out monoclinic or triclinic when processed alone. Their Laue class is
-6/m: on a good sweep, o1324, the two-, three- and six-folds about c each
-correlated 0.942 against the identity's 0.946, the two-folds across c 0.26,
-rightly absent. On o1323 the identity was 0.932 but the two-fold about c 0.859,
-the three-fold 0.705 and the six-fold 0.686; on o1332, 0.922 against 0.691,
-0.623 and 0.641. Symmetry mates measured 120 and 60 degrees apart disagreed
-where Friedel pairs did not: a sweep's systematic changes -- absorption, decay,
-damage, or, on o1328, a split crystal -- not the symmetry.
+Four of 30 A71EV2AZ sweeps (an OpenBind trial of Enterovirus A71 2A protease,
+space group P 61) came out monoclinic or triclinic when processed alone. Their
+Laue class is 6/m: on a good sweep, o1324, the two-, three- and six-folds about
+c each correlated 0.942 against the identity's 0.946, the two-folds across c
+0.26, rightly absent. On o1323 the identity was 0.932 but the two-fold about c
+0.859, the three-fold 0.705 and the six-fold 0.686; on o1332, 0.922 against
+0.691, 0.623 and 0.641. Symmetry mates measured 120 and 60 degrees apart
+disagreed where Friedel pairs did not: a sweep's systematic changes --
+absorption, decay, damage, or, on o1328, a split crystal -- not the symmetry.
 
 `--scale-p1` scales in P1 first, with mxi scale's model -- scale, decay and
 absorption through the sweep -- and judges the symmetry on the scaled

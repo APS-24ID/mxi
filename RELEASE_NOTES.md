@@ -4,7 +4,7 @@ Newest first. Each release lists first what changes results or commands -- a
 default changed, an option renamed or gone -- then what is new, then what is
 fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 
-## Unreleased -- since 1.3.3, for 1.3.4
+## 1.3.4 -- 26 November 2026
 
 **New**
 - The wheels go to PyPI, mxi and mxi-cuda, by trusted publishing after each

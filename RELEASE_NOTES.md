@@ -66,7 +66,9 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   the choice falling to the noise in alpha and beta -- saying they differed by
   67 per cent. Each sweep's lattice is now brought to the first's setting by
   the nearest small change of basis before the cells are compared, and the
-  change is reported.
+  change is reported. A sweep whose cell already agrees is left as it is: a
+  change of basis fitting the cells' noise a little better may be a lattice
+  symmetry the crystal lacks, its indexing ambiguity.
 - mxi symmetry takes only reflections integrated by summation as well as by
   profile fitting, as dials.symmetry does. Summation fails where a spot
   reaches a masked pixel, and the profile fits of spots clipped by a backstop

@@ -280,3 +280,39 @@ TEST(the_trigonal_patterson_groups_are_both_named) {
 }
 
 } // namespace mxi
+
+namespace mxi {
+
+// o1328's two domains (Graeme, 26 November): cells agreeing within 0.4 per
+// cent, and yet experiment 1 "reindexed by b,a,-c to the first's setting" --
+// a swap of a and b fitted the noise in alpha and beta a little better. For
+// P 61 that is the indexing ambiguity of 6/m in a 6/mmm lattice, not a
+// symmetry of the crystal. Cells already in the setting are left alone.
+TEST(a_cell_already_in_the_setting_is_not_reindexed_for_its_noise) {
+  const auto cell_crystal = [](double a, double b, double c, double alpha,
+                               double beta, double gamma) {
+    const double pi = 3.14159265358979323846;
+    const double ca = std::cos(alpha * pi / 180.0),
+                 cb = std::cos(beta * pi / 180.0),
+                 cg = std::cos(gamma * pi / 180.0),
+                 sg = std::sin(gamma * pi / 180.0);
+    const Vec3 va{a, 0, 0}, vb{b * cg, b * sg, 0};
+    const double cx = c * cb, cy = c * (ca - cb * cg) / sg;
+    const Vec3 vc{cx, cy, std::sqrt(c * c - cx * cx - cy * cy)};
+    return Crystal::from_real_space(va, vb, vc);
+  };
+  const Crystal first =
+      cell_crystal(61.666, 61.638, 77.717, 90.014, 89.917, 59.991);
+  const Crystal second =
+      cell_crystal(61.645, 61.584, 77.643, 89.869, 89.697, 60.043);
+  const LatticeAlignment kept = align_lattice(first, second);
+  check::is_true(kept.identity, "left alone, as it passes");
+  // Asked for the nearest whatever, a swap fits the noise better -- which is
+  // why the identity must win when it passes.
+  const LatticeAlignment nearest = align_lattice(first, second, 0.0);
+  check::is_true(!nearest.identity,
+                 "a swap the nearest: " + describe(nearest.cb));
+  check::is_true(nearest.worst < kept.worst, "and nearer, by the noise");
+}
+
+} // namespace mxi

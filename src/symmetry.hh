@@ -93,7 +93,12 @@ struct LatticeAlignment {
   double worst = 0.0; //: the measure after cb
   bool identity = true;
 };
-LatticeAlignment align_lattice(const Crystal &reference, const Crystal &other);
+//: The identity whenever it already passes (`accept`, 2 per cent): a change
+//: of basis that fits the cells' noise a little better may be a lattice
+//: symmetry the crystal lacks -- on o1328's two domains, P 61, b,a,-c, the
+//: indexing ambiguity of 6/m in a 6/mmm lattice, taken (26 November).
+LatticeAlignment align_lattice(const Crystal &reference, const Crystal &other,
+                               double accept = 0.02);
 
 //: As reindex, but experiment `index` alone: its crystal, and the rows of
 //: the table whose id is `index`; its space group as it was.

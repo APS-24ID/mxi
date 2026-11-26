@@ -198,12 +198,15 @@ double cell_difference(const UnitCell &a, const UnitCell &b) {
 }
 } // namespace
 
-LatticeAlignment align_lattice(const Crystal &reference, const Crystal &other) {
+LatticeAlignment align_lattice(const Crystal &reference, const Crystal &other,
+                               double accept) {
   const UnitCell want = reference.cell();
   LatticeAlignment best;
   best.cb.M = Mat3::identity();
   best.worst = cell_difference(want, other.cell());
   best.identity = true;
+  if (best.worst <= accept)
+    return best; // in the setting already: left alone
   std::int32_t m[9];
   for (std::int32_t code = 0; code < 19683; ++code) { // 3^9
     std::int32_t rest = code;

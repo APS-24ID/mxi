@@ -18,7 +18,7 @@ namespace mxi {
 //: dials.merge uses: the inverse-variance mean, sigma 1/sqrt(sum w). With
 //: Friedel mates apart (anomalous), an acentric reflection's two
 //: hemispheres are merged apart; a centric one has one.
-struct MergedSet {
+struct MergedEquivalents {
   std::vector<Miller> hkl; //: in the asymmetric unit
   std::vector<double> value, sigma;
   std::vector<std::int32_t> n;
@@ -28,10 +28,11 @@ struct MergedSet {
   std::size_t size() const { return hkl.size(); }
 };
 
-MergedSet merge_equivalents(const std::vector<Miller> &hkl,
-                            const std::vector<double> &intensity,
-                            const std::vector<double> &variance,
-                            const gemmi::SpaceGroup &group, bool anomalous);
+MergedEquivalents merge_equivalents(const std::vector<Miller> &hkl,
+                                    const std::vector<double> &intensity,
+                                    const std::vector<double> &variance,
+                                    const gemmi::SpaceGroup &group,
+                                    bool anomalous);
 
 //: Posterior amplitudes, French and Wilson (1978), as dials.merge's own
 //: implementation computes them: the expected intensity the standardised

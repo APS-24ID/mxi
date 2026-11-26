@@ -156,8 +156,8 @@ int run_forward(int argc, char **argv) {
       for (std::size_t j = 0; j < box.size(); ++j) {
         observed[j] = static_cast<double>(box.data[j]);
       }
-      const Moments a = moments_of(box, observed, true);
-      const Moments b = moments_of(box, model, false);
+      const ShoeboxMoments a = moments_of(box, observed, true);
+      const ShoeboxMoments b = moments_of(box, model, false);
       if (!a.valid || !b.valid || a.total <= 50.0)
         continue;
 

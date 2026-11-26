@@ -53,13 +53,13 @@ std::vector<double> render_shoebox(const Experiment &e, const Shoebox &box,
 //: Centre of mass and second moments of a set of counts over a shoebox, in
 //: PIXELS and IMAGES -- the units the detector records in, so that a model and
 //: an observation can be compared without either being transformed.
-struct Moments {
+struct ShoeboxMoments {
   bool valid = false;
   double com_fast = 0.0, com_slow = 0.0, com_z = 0.0;
   double width_fast = 0.0, width_slow = 0.0, width_z = 0.0;
   double total = 0.0;
 };
-Moments moments_of(const Shoebox &box, const std::vector<double> &counts,
-                   bool subtract_background);
+ShoeboxMoments moments_of(const Shoebox &box, const std::vector<double> &counts,
+                          bool subtract_background);
 
 } // namespace mxi

@@ -133,12 +133,12 @@ Written write_merged(const Selected &s, const gemmi::SpaceGroup *group,
   w.left_out = s.left_out;
   if (s.hkl.empty())
     throw std::runtime_error("no observations left to merge for " + output);
-  const MergedSet mean =
+  const MergedEquivalents mean =
       merge_equivalents(s.hkl, s.intensity, s.variance, *group, false);
-  MergedSet anom;
+  MergedEquivalents anom;
   if (anomalous)
     anom = merge_equivalents(s.hkl, s.intensity, s.variance, *group, true);
-  const auto d_star_cubed = [&](const MergedSet &m) {
+  const auto d_star_cubed = [&](const MergedEquivalents &m) {
     std::vector<double> out(m.size());
     for (std::size_t i = 0; i < m.size(); ++i) {
       const double d =

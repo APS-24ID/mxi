@@ -10,10 +10,11 @@
 
 namespace mxi {
 
-MergedSet merge_equivalents(const std::vector<Miller> &hkl,
-                            const std::vector<double> &intensity,
-                            const std::vector<double> &variance,
-                            const gemmi::SpaceGroup &group, bool anomalous) {
+MergedEquivalents merge_equivalents(const std::vector<Miller> &hkl,
+                                    const std::vector<double> &intensity,
+                                    const std::vector<double> &variance,
+                                    const gemmi::SpaceGroup &group,
+                                    bool anomalous) {
   const gemmi::GroupOps ops = group.operations();
   const gemmi::ReciprocalAsu asu(&group);
   struct Sum {
@@ -55,7 +56,7 @@ MergedSet merge_equivalents(const std::vector<Miller> &hkl,
   std::sort(sums.begin(), sums.end(), [](const Sum &a, const Sum &b) {
     return a.h != b.h ? a.h < b.h : a.hemisphere > b.hemisphere;
   });
-  MergedSet out;
+  MergedEquivalents out;
   for (const Sum &s : sums) {
     out.hkl.push_back(s.h);
     out.value.push_back(s.wi / s.w);

@@ -60,6 +60,12 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   held figure had left out each box's background.
 
 **Fixed**
+- Two pairs of mxi's internal types shared a name -- the forward model's and
+  triage's Moments since before 1.3.3, and mxi merge's MergedSet beside mxi
+  correlation's -- which C++ forbids and nothing reports: the linker keeps one
+  copy of each inline member for both. MergedSet's crashed the C++ tests on
+  Linux and Windows (1.3.4-rc1's builds); Moments' had no effect seen.
+  Renamed, and a test now fails on any type defined twice.
 - mxi symmetry printed "?" for the Patterson group P -3 1 m: its two-folds lie
   between the conventional a and b, which no rotation of it fixes, and only
   fixed vectors were tried as axes. Vectors perpendicular to an axis of order

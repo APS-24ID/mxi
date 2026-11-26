@@ -137,9 +137,9 @@ std::vector<double> render_shoebox(const Experiment &e, const Shoebox &box,
   return out;
 }
 
-Moments moments_of(const Shoebox &box, const std::vector<double> &counts,
-                   bool subtract_background) {
-  Moments out;
+ShoeboxMoments moments_of(const Shoebox &box, const std::vector<double> &counts,
+                          bool subtract_background) {
+  ShoeboxMoments out;
   if (counts.size() != box.size())
     return out;
   double sum = 0.0, mf = 0.0, ms = 0.0, mz = 0.0;

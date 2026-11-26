@@ -18,7 +18,7 @@ TEST(equivalents_merge_and_friedel_mates_stay_apart_when_asked) {
   const std::vector<Miller> hkl = {
       {1, 2, 3}, {-2, 1, 3}, {-1, -2, -3}, {3, 1, 0}, {-3, -1, 0}};
   const std::vector<double> I = {100, 120, 80, 50, 70}, v = {4, 4, 4, 1, 1};
-  const MergedSet mean = merge_equivalents(hkl, I, v, *p4, false);
+  const MergedEquivalents mean = merge_equivalents(hkl, I, v, *p4, false);
   check::equal(static_cast<std::int64_t>(mean.size()), 2, "two reflections");
   // (1 2 3) with its mates, all three: (100 + 120 + 80) / 3.
   std::int32_t found = 0;
@@ -34,7 +34,7 @@ TEST(equivalents_merge_and_friedel_mates_stay_apart_when_asked) {
     }
   }
   check::equal(found, 2, "both found");
-  const MergedSet anom = merge_equivalents(hkl, I, v, *p4, true);
+  const MergedEquivalents anom = merge_equivalents(hkl, I, v, *p4, true);
   check::equal(static_cast<std::int64_t>(anom.size()), 3,
                "I(+), I(-), and one centric");
   for (std::size_t i = 0; i < anom.size(); ++i) {

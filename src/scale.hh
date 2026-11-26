@@ -325,6 +325,12 @@ merging_statistics(const ScaleData &data, const std::vector<double> &g,
                    const SpaceGroup &group, const Crystal &crystal,
                    std::int32_t shells, MergingShell *overall);
 
+//: The table of merging statistics as mxi scale prints it, the shells and
+//: the overall row -- mxi merge's the same, from the same observations
+//: (26 November: so that merging is seen to reproduce scaling's figures).
+void print_merging_table(const std::vector<MergingShell> &shells,
+                         const MergingShell &overall);
+
 struct ScaleRunOptions {
   //: Each variance from the model's intensity once there is one
   //: (model_variances); false keeps the integrated variances, as before.

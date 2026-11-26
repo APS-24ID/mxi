@@ -27,6 +27,7 @@
 #include "output.hh"
 #include "refl.hh"
 #include "rflx.hh"
+#include "scale.hh"
 #include "symmetry.hh"
 #include "views.hh"
 
@@ -60,6 +61,8 @@ void usage() {
       "                             flag a hash of the index under the\n"
       "                             lattice's symmetry, so the same in every\n"
       "                             data set of one lattice; 0 for none\n"
+      "  --shells N                 the merging statistics' resolution shells\n"
+      "                             (20), as mxi scale's\n"
       "  --crystal-name NAME        (XTAL)\n"
       "  --project-name NAME        (mxi)\n"
       "  --dataset-name NAME        (NATIVE)\n");
@@ -115,6 +118,66 @@ Selected select(const Table &in, const gemmi::UnitCell &cell,
     s.variance.push_back(v / (g * g));
   }
   return s;
+}
+
+// The merging statistics of what was merged, as mxi scale prints them and
+// from the same observations: build_scale_data's, with each one's intensity,
+// variance and inverse scale factor as scaling wrote them, and those scaling
+// left out (an outlier, excluded, no scaled variance) left out. So a merge
+// is seen to reproduce scaling's figures (Graeme, 26 November).
+void print_statistics(const ExperimentList &experiments, const Table &in,
+                      const std::string &hall, std::int64_t only_id,
+                      std::int32_t shells) {
+  const SpaceGroup group = SpaceGroup::from_hall(hall);
+  // The rows scaling had: not those it excluded -- beyond its resolution
+  // limit, say, which never entered its data -- but its outliers, which did,
+  // marked so. Its random halves are dealt over exactly those, so CC half
+  // comes out the same to the digit (9uoa's outer shell: 0.243 against
+  // scaling's 0.286, the rows beyond 1.76 A in the deal).
+  constexpr std::int64_t kOutlier = std::int64_t{1} << 23;
+  std::vector<std::size_t> keep;
+  {
+    const Column &flags = in.at("flags");
+    const Column &variance = in.at("intensity.scale.variance");
+    const Column &factor = in.at("inverse_scale_factor");
+    const bool has_id = in.has("id");
+    for (std::size_t r = 0; r < in.nrows; ++r) {
+      if (only_id >= 0 && (!has_id || in.at("id").integer(r) != only_id))
+        continue;
+      const std::int64_t f = flags.integer(r);
+      const bool outlier = (f & kOutlier) != 0;
+      const bool excluded = (f & (kBadForScaling & ~kOutlier)) != 0 ||
+                            !(factor.real(r) > 0.0) ||
+                            !(variance.real(r) > 0.0);
+      if (outlier || !excluded)
+        keep.push_back(r);
+    }
+  }
+  const Table rows = select_rows(in, keep);
+  ScaleData data =
+      build_scale_data(experiments, rows, group, ScaleModelShape{1, 0, 0});
+  const Column &flags = rows.at("flags");
+  const Column &value = rows.at("intensity.scale.value");
+  const Column &variance = rows.at("intensity.scale.variance");
+  const Column &factor = rows.at("inverse_scale_factor");
+  std::vector<double> g(data.size(), 1.0);
+  for (std::size_t i = 0; i < data.size(); ++i) {
+    const std::size_t r = data.row[i];
+    const double gr = factor.real(r), v = variance.real(r);
+    if ((flags.integer(r) & kBadForScaling) != 0 || !(gr > 0.0) || !(v > 0.0)) {
+      data.outlier[i] = true;
+      continue;
+    }
+    data.intensity[i] = value.real(r);
+    data.variance[i] = v;
+    g[i] = gr;
+  }
+  const std::size_t crystal =
+      only_id >= 0 ? static_cast<std::size_t>(only_id) : 0;
+  MergingShell all;
+  const std::vector<MergingShell> table = merging_statistics(
+      data, g, group, *experiments[crystal].crystal, shells, &all);
+  print_merging_table(table, all);
 }
 
 struct Written {
@@ -320,7 +383,8 @@ int run_merge(int argc, char **argv) {
                                        "--free-fraction",
                                        "--crystal-name",
                                        "--project-name",
-                                       "--dataset-name"};
+                                       "--dataset-name",
+                                       "--shells"};
   std::set<std::string> takes_value = known;
   for (const char *flag : {"--each", "--no-anomalous", "--no-truncate"})
     takes_value.erase(flag);
@@ -379,6 +443,8 @@ int run_merge(int argc, char **argv) {
     const double d_min = args.number("--d-min", 0.0);
     const double d_max = args.number("--d-max", 0.0);
     const std::string output = args.value("-o", args.value("--output", ""));
+    const std::int32_t shells =
+        static_cast<std::int32_t>(args.number("--shells", 20.0));
 
     // The cell: the median of each parameter over the crystals merged, as
     // dials.merge's determine_best_unit_cell.
@@ -414,6 +480,7 @@ int run_merge(int argc, char **argv) {
       mxi::print(
           "\n  space group %s; cell %.3f %.3f %.3f A, %.3f %.3f %.3f deg\n",
           group->hm, c.a, c.b, c.c, c.alpha, c.beta, c.gamma);
+      print_statistics(experiments, in, hall, only_id, shells);
     };
     if (each) {
       const std::string stem =

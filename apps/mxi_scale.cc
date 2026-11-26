@@ -464,20 +464,7 @@ int run_scale(int argc, char **argv) {
     const std::vector<MergingShell> table = merging_statistics(
         data, run.g, group, *experiments[0].crystal, shells, &all);
     phase("merging statistics");
-    mxi::print("\nMerging statistics, Friedel mates merged\n");
-    mxi::print("  %6s %6s %7s %6s %6s %6s %8s %7s %6s %7s %6s %6s\n", "d_max",
-               "d_min", "#obs", "#uniq", "mult.", "%comp", "<I>", "<I/sI>",
-               "r_mrg", "r_meas", "r_pim", "cc1/2");
-    const auto row = [](const MergingShell &m) {
-      mxi::print("  %6.2f %6.2f %7zu %6zu %6.2f %6.2f %8.1f %7.1f %6.3f %7.3f "
-                 "%6.3f %6.3f\n",
-                 m.d_max, m.d_min, m.observations, m.unique, m.multiplicity,
-                 100.0 * m.completeness, m.mean_i, m.i_over_sigma, m.rmerge,
-                 m.rmeas, m.rpim, m.cc_half);
-    };
-    for (const MergingShell &m : table)
-      row(m);
-    row(all);
+    print_merging_table(table, all);
 
     // The resolution limit, as dials.estimate_resolution finds it: a tanh in
     // d*^2 through CC half in 50 bins of equal count, where it crosses 0.3;

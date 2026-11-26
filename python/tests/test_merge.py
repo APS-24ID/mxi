@@ -75,3 +75,25 @@ def test_each_crystal_merged_alone(tmp_path):
     out = run("merge", "scaled.rflx", "--each", "-o", "per.mtz", cwd=tmp_path)
     assert "per_0.mtz" in out
     assert (tmp_path / "per_0.mtz").exists()
+
+
+def _table(text):
+    lines = text.splitlines()
+    start = lines.index("Merging statistics, Friedel mates merged")
+    out = []
+    for line in lines[start:]:
+        if not line.strip() or line.startswith("  columns:"):
+            break
+        out.append(line)
+    return out
+
+
+def test_the_merge_reproduces_scalings_merging_statistics(tmp_path):
+    """Graeme, 26 November: since we are merging, it should at least reproduce
+    the merging statistics -- the same table, line for line, as mxi scale's,
+    from the same observations."""
+    scaled = run("scale", DATA, "-o", "scaled.rflx", cwd=tmp_path)
+    merged = run("merge", "scaled.rflx", "-o", "merged.mtz", cwd=tmp_path)
+    table = _table(scaled)
+    assert len(table) > 5
+    assert _table(merged) == table

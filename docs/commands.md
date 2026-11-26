@@ -451,6 +451,8 @@ usage: mxi merge [options] FILE.rflx | EXPT REFL
                              flag a hash of the index under the
                              lattice's symmetry, so the same in every
                              data set of one lattice; 0 for none
+  --shells N                 the merging statistics' resolution shells
+                             (20), as mxi scale's
   --crystal-name NAME        (XTAL)
   --project-name NAME        (mxi)
   --dataset-name NAME        (NATIVE)

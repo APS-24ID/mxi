@@ -17,7 +17,8 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   F(-) and DANO as dials.merge computes them (cctbx's tables), and FreeR flags
   in CCP4's convention, a hash of the index under the lattice's symmetry so
   that every data set of one lattice shares one free set. --each merges each
-  crystal alone (docs/merge.md).
+  crystal alone. Each merge prints the merging statistics, mxi scale's table
+  from the same observations, line for line (docs/merge.md).
 - mxeq lattice-map: where indexed spots lie around their lattice points, in
   reciprocal space -- along the crystal's axes, and radially, along the
   rotation and across in each reflection's own frame, the crystal scan-varying

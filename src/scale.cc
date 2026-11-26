@@ -1,5 +1,7 @@
 #include "scale.hh"
 
+#include "output.hh"
+
 #include "parallel.hh"
 #include "portable_random.hh"
 #include "processing.hh"
@@ -2122,6 +2124,24 @@ void propagate_scale_variances(ScaleData &data, const std::vector<double> &g,
     data.scale_term[i] = g[i] > 0.0 ? data.intensity[i] * data.intensity[i] *
                                           g_variance[i] / (g[i] * g[i])
                                     : 0.0;
+}
+
+void print_merging_table(const std::vector<MergingShell> &shells,
+                         const MergingShell &overall) {
+  mxi::print("\nMerging statistics, Friedel mates merged\n");
+  mxi::print("  %6s %6s %7s %6s %6s %6s %8s %7s %6s %7s %6s %6s\n", "d_max",
+             "d_min", "#obs", "#uniq", "mult.", "%comp", "<I>", "<I/sI>",
+             "r_mrg", "r_meas", "r_pim", "cc1/2");
+  const auto row = [](const MergingShell &m) {
+    mxi::print("  %6.2f %6.2f %7zu %6zu %6.2f %6.2f %8.1f %7.1f %6.3f %7.3f "
+               "%6.3f %6.3f\n",
+               m.d_max, m.d_min, m.observations, m.unique, m.multiplicity,
+               100.0 * m.completeness, m.mean_i, m.i_over_sigma, m.rmerge,
+               m.rmeas, m.rpim, m.cc_half);
+  };
+  for (const MergingShell &m : shells)
+    row(m);
+  row(overall);
 }
 
 } // namespace mxi

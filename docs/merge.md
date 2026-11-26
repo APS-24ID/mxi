@@ -32,6 +32,20 @@ alone, as dials.merge's `match_bijvoet_mates` puts singles there. The cell is
 the median of each parameter over the crystals merged (dials.merge's
 `determine_best_unit_cell`).
 
+## The merging statistics
+
+Each merge prints the merging statistics, the table mxi scale prints -- the same
+code (print_merging_table, merging_statistics) on the same observations:
+build_scale_data's, each with the intensity, variance and inverse scale factor
+scaling wrote, the rows scaling excluded left out -- beyond its resolution
+limit, say, which never entered its data -- and its outliers kept and marked, as
+they were in scaling. So the table is scaling's, line for line, CC half's random
+halves included: insulin unmerged and 9uoa in P 41 21 2 scaled to 1.76 A both
+give mxi scale's table to the digit (Graeme, 26 November: since we are merging
+it should at least reproduce the merging statistics). The figure "left out" in
+the summary line counts the same rows: on 9uoa, 83,145 -- those beyond 1.76 A
+and the outliers. --shells N as mxi scale's.
+
 ## Amplitudes
 
 French and Wilson (1978) as dials.merge's own implementation: the expected

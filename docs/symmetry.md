@@ -255,3 +255,29 @@ C 2 2 21. mxi symmetry now takes the same reflections as dials.symmetry, 402,452
 observations, and finds P 4/m m m, likelihood 0.53 against C m m m's 0.20; P 41
 21 2. The 20 IQR cut in each element's pairs, as DIALS's, mxi had already.
 Merging and the outlier rejection before it, tried, made no difference here.
+
+## Scaled in P1 first: --scale-p1 (25 November)
+
+Four of 30 A71EV2AZ sweeps (an OpenBind trial, Enterovirus A71 2A protease, P
+61) came out monoclinic or triclinic when processed alone. Their Laue class is
+6/m: on a good sweep, o1324, the two-, three- and six-folds about c each
+correlated 0.942 against the identity's 0.946, the two-folds across c 0.26,
+rightly absent. On o1323 the identity was 0.932 but the two-fold about c 0.859,
+the three-fold 0.705 and the six-fold 0.686; on o1332, 0.922 against 0.691,
+0.623 and 0.641. Symmetry mates measured 120 and 60 degrees apart disagreed
+where Friedel pairs did not: a sweep's systematic changes -- absorption, decay,
+damage, or, on o1328, a split crystal -- not the symmetry.
+
+`--scale-p1` scales in P1 first, with mxi scale's model -- scale, decay and
+absorption through the sweep -- and judges the symmetry on the scaled
+intensities, as POINTLESS fits a scale and B per batch before scoring. It is for
+the judgement alone: the scaling runs on a copy of the table, and the file
+written stays unscaled, its flags as they were. And the P1 merge now takes a
+scaled table's own scaled intensities (intensity.scale.value and its variance)
+wherever it has them: it had taken the integrated ones, so a scaled file was
+judged on raw intensities.
+
+On insulin and 9uoa the judgement is the same with it (I 2 3; P 41 21 2); 9uoa's
+elements are no better, its trouble having been clipped spots, not the sweep.
+Whether it mends the four A71EV2AZ sweeps, and so whether it should be the
+default, is for them to say.

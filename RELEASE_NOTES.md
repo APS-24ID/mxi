@@ -7,6 +7,10 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.3.3
 
 **New**
+- mxi symmetry --scale-p1: scaled in P1 first, scale, decay and absorption
+  through the sweep, for the symmetry's judgement alone, the file written
+  unscaled -- for sweeps whose systematic changes part symmetry mates measured
+  far apart in rotation (docs/symmetry.md).
 - mxi scale ends with the cell refined from two-theta laid out to be copied:
   the refinement's reflections and RMSD on one line, then "Unit cell:" with
   the e.s.d.s and "Symmetry:" with the space group as CCP4 writes it (P41212).
@@ -37,6 +41,9 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   held figure had left out each box's background.
 
 **Fixed**
+- mxi symmetry judged a scaled file on its integrated intensities, its scale
+  factors ignored; it now takes the table's scaled intensities wherever it has
+  them.
 - mxi symmetry refused sweeps indexed apart whose cells were one lattice in
   different bases -- a hexagonal crystal's sweeps with gamma 60 and gamma 120,
   the choice falling to the noise in alpha and beta -- saying they differed by

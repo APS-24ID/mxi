@@ -25,6 +25,7 @@
 #include "processing.hh"
 #include "refl.hh"
 #include "rflx.hh"
+#include "scale.hh"
 #include "symmetry.hh"
 #include "timing.hh"
 #include "views.hh"
@@ -109,6 +110,11 @@ void usage() {
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
       "                    core this job may use (0)\n"
+      "  --scale-p1        scale in P1 first (scale, decay and absorption, as\n"
+      "                    mxi scale), for the symmetry's judgement alone: a\n"
+      "                    sweep's systematic changes -- absorption, decay,\n"
+      "                    damage -- part symmetry mates measured far apart\n"
+      "                    in rotation; the file written stays unscaled\n"
       "  --no-cosym        several crystals pooled as they are, not first\n"
       "                    brought to one setting by cosym\n"
       "  --small-molecule  every space group, not only those of proper\n"
@@ -134,11 +140,12 @@ int run_symmetry(int argc, char **argv) {
   const std::set<std::string> known = {
       "--max-delta",        "--threads",     "--no-cosym",    "-o",
       "--same-orientation", "--output-expt", "--output-refl", "--timing",
-      "--small-molecule"};
+      "--small-molecule",   "--scale-p1"};
   std::set<std::string> takes_value = known;
   takes_value.erase("--timing");
   takes_value.erase("--no-cosym");
   takes_value.erase("--small-molecule");
+  takes_value.erase("--scale-p1");
   Arguments args = parse_arguments(argc, argv, known, takes_value);
   // One .rflx stands for the experiment list and the reflections
   // (docs/rflx.md).
@@ -382,9 +389,34 @@ int run_symmetry(int argc, char **argv) {
       mxi::print("\n");
     }
 
+    // --scale-p1: scaled in P1 first, for the judgement alone (Graeme, 25
+    // November: four of 30 A71EV2AZ sweeps, P 61, came out monoclinic or
+    // triclinic -- the three- and six-fold mates, measured 120 and 60
+    // degrees apart, correlating 0.62 to 0.71 where the identity's Friedel
+    // pairs did 0.92 to 0.93; the good sweeps' every element 0.94). On a copy
+    // of the table: the file written stays unscaled, its flags as they were.
+    Table prescaled;
+    const bool scale_p1 = args.has("--scale-p1");
+    if (scale_p1) {
+      prescaled = reflections;
+      ScaleRunOptions p1_options;
+      const ScaleRun p1 = scale_sweep(experiments, prescaled,
+                                      SpaceGroup::from_name("P 1"), p1_options);
+      write_scaling(prescaled, p1.data, p1.g, p1.g_variance);
+      double lo = 1e300, hi = 0.0;
+      for (double g : p1.g)
+        if (g > 0.0) {
+          lo = std::min(lo, g);
+          hi = std::max(hi, g);
+        }
+      mxi::print("Scaled in P1 first (--scale-p1), for this judgement alone: "
+                 "%zu observations, the scale %.3f to %.3f\n",
+                 p1.data.size(), lo, hi);
+      phase("scaling in P1");
+    }
+    const Table &judged = scale_p1 ? prescaled : reflections;
     P1Selection selection;
-    const P1Intensities merged =
-        merge_in_p1(experiments, reflections, &selection);
+    const P1Intensities merged = merge_in_p1(experiments, judged, &selection);
     phase("merging in P1, and the resolution limit");
     mxi::print("%zu observations; %zu removed with I/sigma below -5\n",
                selection.observations, selection.negative);
@@ -396,10 +428,9 @@ int run_symmetry(int argc, char **argv) {
     // The Laue group analysis on the sigmas corrected as dials.symmetry
     // corrects unscaled data's (laue.hh, merge_in_p1); scaled data, whose
     // sigmas the error model has already set, as they are -- as there.
-    const bool unscaled = !reflections.has("inverse_scale_factor");
+    const bool unscaled = !judged.has("inverse_scale_factor");
     P1Intensities normalised =
-        unscaled ? merge_in_p1(experiments, reflections, nullptr, true)
-                 : merged;
+        unscaled ? merge_in_p1(experiments, judged, nullptr, true) : merged;
     WilsonFit wilson_fit;
     const std::size_t wilson = normalise(normalised, 200, &wilson_fit);
     if (wilson_fit.fitted) {

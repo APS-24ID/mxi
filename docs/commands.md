@@ -327,6 +327,11 @@ the Laue group and its setting.
 usage: mxi symmetry [options] INTEGRATED_EXPT INTEGRATED_REFL
   -j, --threads N   threads for everything this does in parallel; 0, every
                     core this job may use (0)
+  --scale-p1        scale in P1 first (scale, decay and absorption, as
+                    mxi scale), for the symmetry's judgement alone: a
+                    sweep's systematic changes -- absorption, decay,
+                    damage -- part symmetry mates measured far apart
+                    in rotation; the file written stays unscaled
   --no-cosym        several crystals pooled as they are, not first
                     brought to one setting by cosym
   --small-molecule  every space group, not only those of proper

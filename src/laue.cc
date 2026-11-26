@@ -701,6 +701,24 @@ P1Intensities merge_in_p1(const ExperimentList &experiments,
   ScaleData data =
       build_scale_data(experiments, selected, SpaceGroup::from_name("P 1"),
                        ScaleModelShape{1, 0, 0});
+  // Scaled data's own scaled intensities, where the table has them -- a
+  // scaled file, or mxi symmetry --scale-p1's: build_scale_data takes the
+  // integrated intensities, so scale factors were ignored and a scaled
+  // file judged on raw ones. A row the scaling left out (variance 0) is out.
+  if (selected.has("intensity.scale.value") &&
+      selected.has("intensity.scale.variance")) {
+    const Column &value = selected.at("intensity.scale.value");
+    const Column &variance = selected.at("intensity.scale.variance");
+    for (std::size_t i = 0; i < data.size(); ++i) {
+      const std::size_t r = data.row[i];
+      if (variance.reals[r] > 0.0) {
+        data.intensity[i] = value.reals[r];
+        data.variance[i] = variance.reals[r];
+      } else {
+        data.outlier[i] = true;
+      }
+    }
+  }
   P1Selection sel;
   sel.observations = data.size();
   for (std::size_t i = 0; i < data.size(); ++i)

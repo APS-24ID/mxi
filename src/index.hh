@@ -346,6 +346,11 @@ struct LatticesResult {
   std::size_t known = 0;
   std::size_t n_indexed = 0;
   std::size_t n_ambiguous = 0; //: indexed by more than one lattice
+  //: --ambiguous exclude asked, but leaving the ambiguous out would have
+  //: taken more than half of a lattice's spots: each given to the nearer
+  //: instead. The lattice, and what it would have kept of how many.
+  bool exclusion_declined = false;
+  std::size_t declined_lattice = 0, declined_kept = 0, declined_of = 0;
   //: Each lattice's RMS scatter, in reciprocal space (1/A): its indexed spots'
   //: distance from their own points, the yardstick of ambiguity.
   std::vector<double> scatter;

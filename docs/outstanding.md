@@ -525,13 +525,18 @@ history on 20 October: four closed, nine rewritten to what is now true.
     exclude, the default, left 11 of o1328's 301,373 spots once its second
     domain was found (151,809 claimed by both lattices); closest gave 75.9 per
     cent indexed at the 0.3 tolerance, RMSD 3.1 px, 2.2 px, 5.3 images --
-    workable only with a tighter tolerance.
+    workable only with a tighter tolerance. Guarded (26 November): exclusion
+    declined, each given to the nearer, where it would take more than half of a
+    lattice's spots; o1328 then 75.9 per cent indexed, two domains -- the
+    refinement poor until 100 is done.
 * **102.** **index -- implausible lattices.** On o1328, a third lattice from the
     leftover spots had an axis of 6.0 A (6.0, 57.0, 59.0 A); at --tolerance 0.15
     the second came out 61.6, 77.6, 106.8 A, 90, 90, 90 deg -- the
     orthohexagonal C cell, twice the primitive volume, half its points absent. A
     lattice should be reduced to its primitive cell, and one whose cell is
-    unlike any sensible crystal's refused.
+    unlike any sensible crystal's refused. Guarded (26 November): a lattice of
+    volume outside two thirds to three halves of the first's refused, the search
+    stopped; the reduction of a supercell to its primitive cell still to do.
 * **96.** **scale -- the calibration's robust columns, where boxes are empty.**
     Noted by Graeme, 15 November: a pathological set, nothing made. (1.4826
     MAD)^2 assumes the deviations vary continuously; where over half a shell's

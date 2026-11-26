@@ -147,7 +147,13 @@ std::int32_t report_lattices(const ExperimentList &sweep, Table &reflections,
       joint.experiments[l].identifier = known_ids[l];
       reflections.identifiers[l] = known_ids[l];
     }
-  if (r.n_ambiguous > 0)
+  if (r.n_ambiguous > 0 && r.exclusion_declined)
+    mxi::print("%zu spots indexed by more than one lattice: each given to the "
+               "lattice it lies nearest -- left out, lattice %zu would have "
+               "kept %zu of its %zu\n",
+               r.n_ambiguous, r.declined_lattice + 1, r.declined_kept,
+               r.declined_of);
+  else if (r.n_ambiguous > 0)
     mxi::print("%zu spots indexed by more than one lattice: %s\n",
                r.n_ambiguous,
                ambiguous == Ambiguous::Exclude

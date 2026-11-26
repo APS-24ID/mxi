@@ -1581,6 +1581,24 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
                        std::to_string(rows.size()) + " spots left";
       break;
     }
+    // A lattice whose cell is unlike the first's -- its volume outside two
+    // thirds to three halves of it -- is made of leftovers, not a crystal:
+    // on o1328 of A71EV2AZ a third lattice of 5.8, 64.8, 64.7 A took 840
+    // spots and, refined with the rest, wrecked them all (Graeme, 26
+    // November). Refused, and the search stopped.
+    if (!found.empty()) {
+      const double v1 = 1.0 / std::fabs(found[0].A.determinant());
+      const double v = 1.0 / std::fabs(trial[0].crystal->A.determinant());
+      if (v < v1 * 2.0 / 3.0 || v > v1 * 1.5) {
+        char why[160];
+        std::snprintf(why, sizeof why,
+                      "one whose cell is unlike the first's (volume %.0f A^3 "
+                      "against %.0f), refused, in the %zu spots left",
+                      v, v1, rows.size());
+        result.stopped = why;
+        break;
+      }
+    }
     const Column &m = remaining.at("miller_index");
     std::size_t got = 0;
     for (std::size_t k = 0; k < rows.size(); ++k) {
@@ -1713,6 +1731,7 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
     // that refinement pulls neither model towards it; or kept with the
     // lattice nearest in index units, as assigned above.
     result.n_ambiguous = 0;
+    std::vector<bool> contested(n, false);
     if (joint.size() > 1)
       for (std::size_t i = 0; i < n; ++i) {
         if (lattice_of[i] < 0)
@@ -1725,12 +1744,39 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
         if (near < 2)
           continue;
         ++result.n_ambiguous;
-        if (ambiguous == Ambiguous::Exclude) {
+        contested[i] = true;
+      }
+    // Leaving the ambiguous out is for a few contested spots. Where it would
+    // take more than half of a lattice's own -- two domains of a split
+    // crystal close together, most spots claimed by both: o1328, 267,811 of
+    // 301,373, 0.7 per cent left and the refinement wrecked -- each is given
+    // to the nearer instead, and said.
+    bool exclude = ambiguous == Ambiguous::Exclude;
+    if (exclude && result.n_ambiguous > 0) {
+      std::vector<std::size_t> own(joint.size(), 0), lost(joint.size(), 0);
+      for (std::size_t i = 0; i < n; ++i)
+        if (lattice_of[i] >= 0) {
+          ++own[static_cast<std::size_t>(lattice_of[i])];
+          if (contested[i])
+            ++lost[static_cast<std::size_t>(lattice_of[i])];
+        }
+      for (std::size_t l = 0; l < joint.size(); ++l)
+        if (own[l] > 0 && 2 * lost[l] > own[l]) {
+          exclude = false;
+          result.exclusion_declined = true;
+          result.declined_lattice = l;
+          result.declined_kept = own[l] - lost[l];
+          result.declined_of = own[l];
+          break;
+        }
+    }
+    if (exclude)
+      for (std::size_t i = 0; i < n; ++i)
+        if (contested[i]) {
           lattice_of[i] = -1;
           std::fill(hkl.begin() + static_cast<std::int64_t>(3 * i),
                     hkl.begin() + static_cast<std::int64_t>(3 * i + 3), 0);
         }
-      }
     Column &id = reflections.modify_int_column("id", "int", 1);
     Column &m = reflections.modify_int_column("miller_index",
                                               "cctbx::miller::index<>", 3);

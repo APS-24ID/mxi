@@ -41,7 +41,13 @@ def pure(tmp_path_factory):
         text=True,
     )
     if run.returncode != 0:
-        pytest.skip(f"no wheel built here: {run.stderr[-300:]}")
+        # Built without isolation, with the setuptools installed: the licence
+        # as an SPDX expression (PEP 639) needs 77 or later -- older, and
+        # every test here skipped quietly (26 November).
+        pytest.skip(
+            "no wheel built here -- python/pyproject.toml needs setuptools 77 "
+            f"or later (pip install -U setuptools): {run.stderr[-300:]}"
+        )
     (wheel,) = out.glob("mxi-*-py3-none-any.whl")
     return wheel
 
@@ -154,3 +160,84 @@ def test_a_candidates_wheel_says_so_throughout(pure, program, tmp_path):
             body = e[path][0]
             want = base64.urlsafe_b64encode(hashlib.sha256(body).digest()).rstrip(b"=")
             assert digest == "sha256=" + want.decode() and int(size) == len(body), path
+
+
+def _notices(directory, names):
+    directory.mkdir()
+    for n in names:
+        (directory / n).write_text(f"the notice {n}\n")
+    return directory
+
+
+def _metadata_head(wheel):
+    with zipfile.ZipFile(wheel) as z:
+        meta = z.read(next(n for n in z.namelist() if n.endswith("METADATA"))).decode()
+    return meta.split("\n\n")[0].splitlines()
+
+
+def test_the_wheel_carries_its_builds_notices_and_says_their_licences(
+    pure, program, tmp_path
+):
+    """--licences (Graeme, 26 November): the notices package_release.sh put in
+    the build's archive go into its wheel too, and the licence expression is
+    composed from them -- FFTW's GPL exactly when the build has FFTW."""
+    names = [
+        "mxi.txt",
+        "gemmi.txt",
+        "bitshuffle.txt",
+        "lz4.txt",
+        "mimalloc.txt",
+        "hdf5.txt",
+        "libaec.txt",
+        "zlib.txt",
+        "fftw.txt",
+        "README",
+    ]
+    lic = _notices(tmp_path / "licenses", names)
+    wheel = make_wheel.make(
+        pure, program, "linux-x86_64", tmp_path / "out", licences=lic
+    )
+    head = _metadata_head(wheel)
+    expression = next(l for l in head if l.startswith("License-Expression: "))
+    assert expression == (
+        "License-Expression: BSD-3-Clause AND MPL-2.0 AND MIT AND "
+        "BSD-2-Clause AND LicenseRef-HDF5 AND Zlib AND GPL-2.0-or-later"
+    )
+    files = [l.split(": ", 1)[1] for l in head if l.startswith("License-File: ")]
+    assert set(f"notices/{n}" for n in names) <= set(files)
+    with zipfile.ZipFile(wheel) as z:
+        inside = {n.split("licenses/", 1)[1] for n in z.namelist() if "/licenses/" in n}
+        record = z.read(next(n for n in z.namelist() if n.endswith("RECORD"))).decode()
+    assert set(f"notices/{n}" for n in names) <= inside
+    assert all(f"licenses/notices/{n}" in record for n in names)
+    licenses = pytest.importorskip("packaging.licenses")
+    assert licenses.canonicalize_license_expression(expression.split(": ", 1)[1])
+
+
+def test_no_gpl_without_fftw_and_an_unknown_notice_refuses(pure, program, tmp_path):
+    lic = _notices(tmp_path / "plain", ["mxi.txt", "gemmi.txt", "zlib.txt", "README"])
+    wheel = make_wheel.make(
+        pure, program, "macos-arm64", tmp_path / "out", licences=lic
+    )
+    expression = next(
+        l for l in _metadata_head(wheel) if l.startswith("License-Expression")
+    )
+    assert "GPL" not in expression and "MPL-2.0" in expression
+    odd = _notices(tmp_path / "odd", ["mxi.txt", "newlib.txt"])
+    with pytest.raises(SystemExit, match="newlib.txt"):
+        make_wheel.make(pure, program, "linux-x86_64", tmp_path / "out2", licences=odd)
+
+
+def test_every_notice_package_release_writes_is_named():
+    """make_wheel refuses a notice it cannot name; so every notice
+    scripts/package_release.sh can write into licenses/ must be in NOTICES --
+    checked here, not first in a release's build."""
+    import re
+
+    script = (ROOT / "scripts/package_release.sh").read_text()
+    written = set(re.findall(r'\$lic/([A-Za-z0-9_.-]+)(?=["\s])', script))
+    loop = re.search(r"for package in ([a-z0-9 ]+); do", script)
+    assert loop, "the vcpkg notices' loop"
+    written |= {f"{p}.txt" for p in loop.group(1).split()}
+    assert written, "the notices found"
+    assert written <= set(make_wheel.NOTICES), written - set(make_wheel.NOTICES)

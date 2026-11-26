@@ -101,7 +101,8 @@ jobs:
           python -m pip install -q build
           python -m build --wheel --outdir purewheel python
           case "$TAG" in v[0-9]*) tag="$TAG" ;; *) tag= ;; esac
-          python scripts/make_wheel.py purewheel/*.whl build/mxi.exe windows-x86_64 dist $tag
+          python scripts/make_wheel.py purewheel/*.whl build/mxi.exe windows-x86_64 dist $tag \
+            --licences "mxi-${TAG#v}-windows-x86_64/licenses"
           python -m venv "$RUNNER_TEMP/try"
           "$RUNNER_TEMP/try/Scripts/pip" install -q --no-deps dist/*.whl
           "$RUNNER_TEMP/try/Scripts/mxi.exe" --version

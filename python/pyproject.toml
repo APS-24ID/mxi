@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,7 +8,12 @@ version = "1.3.3"
 description = "mxi, for macromolecular crystallography: the programs, and in Python its interface (mxi-ui), viewer (mxi-view), the referee mxeq and mxi_tools"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "BSD-3-Clause" }
+# An SPDX expression and the licence's text (PEP 639): the wheels carry the
+# compiled mxi, and BSD-3 asks a binary distribution to carry the licence.
+# python/LICENSE is a copy of the repository's, kept so by
+# tests/test_licence_copy.py -- setuptools takes no path outside python/.
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 authors = [{ name = "Graeme Winter", email = "graeme.winter@gmail.com" }]
 # Every Python tool of mxi's, one wheel (formerly mxeq's alone): mxeq, the
 # referee, under its own import name; mxi_tools, reading .rflx and images;

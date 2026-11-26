@@ -4,7 +4,7 @@
 `pip install mxi` gives mxi, mxi-ui, mxi-view and mxeq at once, of one version
 (Graeme, 8 November: everything in the wheel; the release archives mxi alone).
 
-    scripts/make_wheel.py PURE.whl BINARY PLATFORM OUTDIR [TAG]
+    scripts/make_wheel.py PURE.whl BINARY PLATFORM OUTDIR [TAG] [--licences DIR]
 
 PLATFORM as the release names its archives: linux-x86_64, linux-arm64,
 macos-arm64, windows-x86_64, and the -cuda ones -- those a wheel of their own
@@ -19,6 +19,17 @@ TAG, the release's git tag, gives the wheel its version as Python writes it
 that a candidate's wheel says it is one, as its tag does (Graeme, 8
 November). Its release number must be the source's: a tag that is not
 refuses, rather than a wheel saying a version it is not.
+
+--licences DIR, the build's notices as scripts/package_release.sh gathers them
+for its archive (mxi-VERSION-PLATFORM/licenses): each goes into the wheel too,
+NAME-VERSION.dist-info/licenses/notices/, a License-File; and the wheel's
+License-Expression is composed from the notices there, each named in NOTICES --
+so that FFTW's GPL is declared exactly when the build has FFTW, NVIDIA's terms
+for a CUDA build, mimalloc's for Linux (Graeme, 26 November: before PyPI, the
+wheels carrying their build's notices as its archive does). A notice not in
+NOTICES refuses: a library new to the build needs its licence named here.
+Without --licences, the pure wheel's own expression stands (BSD-3-Clause, the
+source's), right only for a build without FFTW -- the releases give it.
 """
 
 import base64
@@ -27,6 +38,41 @@ import pathlib
 import re
 import sys
 import zipfile
+
+# Each notice package_release.sh may put in licenses/, and its SPDX licence;
+# None for the README. HDF5's licence and NVIDIA's EULA have no SPDX
+# identifier, so LicenseRef- (PEP 639).
+NOTICES = {
+    "mxi.txt": "BSD-3-Clause",
+    "gemmi.txt": "MPL-2.0",
+    "bitshuffle.txt": "MIT",
+    "lz4.txt": "BSD-2-Clause",
+    "mimalloc.txt": "MIT",
+    "hdf5.txt": "LicenseRef-HDF5",
+    "libaec.txt": "BSD-2-Clause",
+    "zlib.txt": "Zlib",
+    "fftw.txt": "GPL-2.0-or-later",
+    "nvidia-cuda-runtime.txt": "LicenseRef-NVIDIA-CUDA-EULA",
+    "README": None,
+}
+
+
+def notices(directory):
+    """The notice files in DIRECTORY, sorted, and the licence expression
+    they make: each SPDX identifier once, in NOTICES' order."""
+    files = sorted(p for p in pathlib.Path(directory).iterdir() if p.is_file())
+    if not files:
+        raise SystemExit(f"make_wheel: no notices in {directory}")
+    unknown = [f.name for f in files if f.name not in NOTICES]
+    if unknown:
+        raise SystemExit(f"make_wheel: notices not named in NOTICES: {', '.join(unknown)}")
+    present = {f.name for f in files}
+    ids = []
+    for name, spdx in NOTICES.items():
+        if name in present and spdx and spdx not in ids:
+            ids.append(spdx)
+    return files, " AND ".join(ids)
+
 
 TAGS = {
     "linux-x86_64": "manylinux_2_28_x86_64",
@@ -52,7 +98,7 @@ def record_line(path, data):
     return f"{path},sha256={digest},{len(data)}"
 
 
-def make(pure, binary, platform, outdir, tag=None):
+def make(pure, binary, platform, outdir, tag=None, licences=None):
     cuda = platform.endswith("-cuda")
     base = platform[: -len("-cuda")] if cuda else platform
     if base not in TAGS:
@@ -65,6 +111,7 @@ def make(pure, binary, platform, outdir, tag=None):
     version = wheel_version(tag, source) if tag else source
     name = "mxi_cuda" if cuda else "mxi"  # the wheel's normalised name
     exe = "mxi.exe" if base.startswith("windows") else "mxi"
+    notice_files, expression = notices(licences) if licences else ([], None)
     entries = []  # (path, bytes, executable)
     with zipfile.ZipFile(pure) as z:
         for info in z.infolist():
@@ -84,8 +131,25 @@ def make(pure, binary, platform, outdir, tag=None):
                                   text, count=1, flags=re.M)
                     text = re.sub(r"^Version: .*$", f"Version: {version}", text, count=1,
                                   flags=re.M)
+                    if expression:
+                        text, n = re.subn(r"^License-Expression: .*$",
+                                          f"License-Expression: {expression}", text,
+                                          count=1, flags=re.M)
+                        if n != 1:
+                            raise SystemExit("make_wheel: the pure wheel has no License-Expression")
+                        # The notices' License-File lines after the last of the
+                        # pure wheel's own, in the headers before the README.
+                        head, sep, body = text.partition("\n\n")
+                        lines = head.split("\n")
+                        last = max(i for i, l in enumerate(lines) if l.startswith("License-File: "))
+                        lines[last + 1:last + 1] = [f"License-File: notices/{f.name}"
+                                                    for f in notice_files]
+                        text = "\n".join(lines) + sep + body
                     data = text.encode()
             entries.append((path, data, False))
+    for f in notice_files:
+        entries.append((f"{name}-{version}.dist-info/licenses/notices/{f.name}",
+                        f.read_bytes(), False))
     entries.append((f"{name}-{version}.data/scripts/{exe}",
                     pathlib.Path(binary).read_bytes(), True))
     record = f"{name}-{version}.dist-info/RECORD"
@@ -103,6 +167,14 @@ def make(pure, binary, platform, outdir, tag=None):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (5, 6):
+    args = sys.argv[1:]
+    licences = None
+    if "--licences" in args:
+        at = args.index("--licences")
+        if at + 1 >= len(args):
+            raise SystemExit(__doc__)
+        licences = args[at + 1]
+        del args[at:at + 2]
+    if len(args) not in (4, 5):
         raise SystemExit(__doc__)
-    print(make(*sys.argv[1:]))
+    print(make(*args, licences=licences))

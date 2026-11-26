@@ -7,6 +7,11 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
 ## Unreleased -- since 1.3.3
 
 **New**
+- The wheels go to PyPI, mxi and mxi-cuda, by trusted publishing after each
+  GitHub release (docs/release.md). They carry their build's licence notices,
+  as the release archives do, and a licence expression composed from them --
+  FFTW's GPL included where the build has FFTW; before, a wheel carried mxi's
+  licence alone and said BSD-3-Clause.
 - mxi merge: a merged MTZ from scaled data, as dials.merge writes one --
   IMEAN, I(+) and I(-) with their multiplicities, French and Wilson's F, F(+),
   F(-) and DANO as dials.merge computes them (cctbx's tables), and FreeR flags

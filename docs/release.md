@@ -109,6 +109,45 @@ build; and a README saying which is which, and what FFTW makes of the whole.
 contains FFTW the build does not record -- a new library linked in needs its
 own added.
 
+The wheels carry the same notices (26 November, before PyPI):
+scripts/make_wheel.py --licences takes the build's licenses/ as
+package_release.sh made it, puts each notice in the wheel's
+dist-info/licenses/notices/, a License-File, and composes the wheel's
+License-Expression from them -- each notice's SPDX licence named in its NOTICES,
+HDF5's and NVIDIA's terms as LicenseRef-HDF5 and LicenseRef-NVIDIA-CUDA-EULA,
+FFTW's GPL-2.0-or-later exactly when the build has FFTW. A notice not named
+there refuses, and python/tests/test_make_wheel.py checks that every notice
+package_release.sh can write is named. The pure Python wheel's own expression is
+BSD-3-Clause, the source's, with LICENSE (python/LICENSE, a copy kept identical
+by a test).
+
+## PyPI
+
+Each release's wheels go to PyPI by trusted publishing: no token in GitHub, PyPI
+trusting this repository's release.yml in a named GitHub environment. Two
+projects, mxi (four wheels: Linux x86_64 and arm64, macOS arm64, Windows x86_64)
+and mxi-cuda (two: Linux x86_64 and arm64), uploaded by the jobs pypi and
+pypi-cuda after the GitHub release is made, each counting its wheels and running
+twine check --strict first. Release candidates too: pip takes 1.3.4rc1 and the
+like only with --pre.
+
+Set up once, outside the repository (Graeme, 26 November): on PyPI, under the
+account's Publishing page, a pending GitHub publisher for each project -- mxi
+with the environment pypi, mxi-cuda with pypi-cuda, both the workflow
+release.yml, as PyPI allows a workflow and environment pending for one project
+name only; and in the repository's Settings, Environments, the two environments,
+pypi and pypi-cuda, each holding its upload for a reviewer's approval and to
+tags v*. The first upload creates the project and turns its pending publisher
+into a normal one; until then the name is not reserved.
+
+An upload is for ever: a version on PyPI cannot be uploaded again, even deleted
+-- a release with a fault takes a new version. A run by hand for a tag pushed
+already runs from a branch, which the environments' rule refuses: it remakes the
+GitHub release but publishes nothing on PyPI. PyPI refuses a file over 100 MB
+unless asked to raise the limit, which the CUDA wheels may want. mxi and
+mxi-cuda install the same mxi command and Python packages: one or the other in
+an environment, not both.
+
 ## macOS
 
 The binaries are not signed, so macOS blocks them once downloaded. Clear the

@@ -108,12 +108,32 @@ class Beam:
 
 
 @dataclass
+class Goniometer:
+    """The rotation axis and the fixed and setting rotations (row-major 3x3).
+
+    A reciprocal-lattice point (the rlp column) lies in the frame before the
+    fixed rotation F, so the rotation axis there is F^T applied to the axis.
+    """
+
+    rotation_axis: np.ndarray
+    fixed_rotation: np.ndarray = field(default_factory=lambda: np.eye(3))
+    setting_rotation: np.ndarray = field(default_factory=lambda: np.eye(3))
+
+    @property
+    def axis_in_crystal_frame(self) -> np.ndarray:
+        """The rotation axis in the rlp column's frame, a unit vector."""
+        v = self.fixed_rotation.T @ self.rotation_axis
+        return v / np.linalg.norm(v)
+
+
+@dataclass
 class Experiment:
     identifier: str = ""
     crystal: Crystal | None = None
     scan: Scan | None = None
     detector: Detector | None = None
     beam: Beam | None = None
+    goniometer: Goniometer | None = None
 
 
 @dataclass
@@ -230,6 +250,23 @@ def loads(text: str) -> ExperimentList:
         for b in doc.get("beam", [])
     ]
 
+    def matrix(value) -> np.ndarray:
+        return (
+            np.array(value, dtype=float).reshape(3, 3)
+            if value is not None and len(value) == 9
+            else np.eye(3)
+        )
+
+    goniometers = [
+        Goniometer(
+            rotation_axis=np.array(g["rotation_axis"], dtype=float),
+            fixed_rotation=matrix(g.get("fixed_rotation")),
+            setting_rotation=matrix(g.get("setting_rotation")),
+        )
+        for g in doc.get("goniometer", [])
+        if "rotation_axis" in g
+    ]
+
     def pick(pool: list, index: object):
         # A missing model is serialised as -1 or as a null, not as an absent
         # key, so both have to mean "no model" rather than "index -1".
@@ -246,6 +283,7 @@ def loads(text: str) -> ExperimentList:
                 scan=pick(scans, e.get("scan")),
                 detector=pick(detectors, e.get("detector")),
                 beam=pick(beams, e.get("beam")),
+                goniometer=pick(goniometers, e.get("goniometer")),
             )
         )
     return out

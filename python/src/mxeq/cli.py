@@ -160,6 +160,18 @@ def build_parser() -> argparse.ArgumentParser:
         "which needs a network connection once to draw",
     )
 
+    lm = sub.add_parser(
+        "lattice-map",
+        help="where indexed spots lie around their lattice points, in "
+        "reciprocal space: offsets along the crystal's axes and in each "
+        "reflection's frame (radial, along the rotation, across)",
+    )
+    lm.add_argument("path", help="an indexed or refined .rflx")
+    lm.add_argument("--shells", type=int, default=8, help="resolution shells (8)")
+    lm.add_argument(
+        "--no-histograms", action="store_true", help="the summary tables only"
+    )
+
     rs = sub.add_parser(
         "residuals",
         help="an HTML report of how well positions were predicted, from "
@@ -814,6 +826,16 @@ def main(argv: list[str] | None = None) -> int:
                     f"Wrote the {table.nrows} {r.intensity} observations furthest from "
                     f"their equivalents to {path}, for dials.image_viewer"
                 )
+        return 0
+
+    if args.command == "lattice-map":
+        from . import latticemap
+
+        print(
+            latticemap.run(
+                args.path, shells=args.shells, histograms=not args.no_histograms
+            )
+        )
         return 0
 
     if args.command == "residuals":

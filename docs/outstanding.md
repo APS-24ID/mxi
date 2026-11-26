@@ -507,36 +507,40 @@ history on 20 October: four closed, nine rewritten to what is now true.
     shell whose summed intensity is near zero the ratio is meaningless -- 9uoa's
     1.94 to 1.89 A shell printed R merge 1,044,173 -- and the table should print
     '-' there.
-* **100.** **index -- the tolerance, and chance coincidences.** A spot counts as
-    indexed within 0.3 of an integer in each index; spots of anything else fall
-    so by chance (0.6)^3 = 22 per cent of the time. On o1328 of A71EV2AZ
-    (strong.rflx, 301,373 spots, a crystal split by 1.8 degrees), about 55,000
-    of lattice 1's 147,290 spots were such: their deviations rising towards the
-    cut-off, the unindexed at the median of random ones (0.415), 20,138 hkl with
-    three or more spots. They inflate sigma_m (0.20 degrees there, 0.09 to 0.10
-    on the good sweeps). At --tolerance 0.15, two lattices, closest: 7,495
-    ambiguous, RMSD 0.44 px, 0.62 px, 1.50 images against one lattice's 0.55,
-    0.93, 2.03 at 0.3. Not a trivial problem (Graeme): to be explored, the
-    deviations' two populations -- a peak near nought, a rising tail -- one way
-    to set it from the data; DIALS keeps the nearest spot of each hkl (12.6 per
-    cent indexed there). And the philosophy (Graeme): more than one lattice, or
-    one lattice with a complex reciprocal-space structure?
-* **101.** **index -- ambiguous spots where domains are close.** --ambiguous
-    exclude, the default, left 11 of o1328's 301,373 spots once its second
-    domain was found (151,809 claimed by both lattices); closest gave 75.9 per
-    cent indexed at the 0.3 tolerance, RMSD 3.1 px, 2.2 px, 5.3 images --
-    workable only with a tighter tolerance. Guarded (26 November): exclusion
-    declined, each given to the nearer, where it would take more than half of a
-    lattice's spots; o1328 then 75.9 per cent indexed, two domains -- the
-    refinement poor until 100 is done.
-* **102.** **index -- implausible lattices.** On o1328, a third lattice from the
-    leftover spots had an axis of 6.0 A (6.0, 57.0, 59.0 A); at --tolerance 0.15
-    the second came out 61.6, 77.6, 106.8 A, 90, 90, 90 deg -- the
-    orthohexagonal C cell, twice the primitive volume, half its points absent. A
-    lattice should be reduced to its primitive cell, and one whose cell is
-    unlike any sensible crystal's refused. Guarded (26 November): a lattice of
-    volume outside two thirds to three halves of the first's refused, the search
-    stopped; the reduction of a supercell to its primitive cell still to do.
+* **100.** **index -- split crystals, close domains, and the tolerance.** Found
+    on o1328 of A71EV2AZ (strong.rflx, 301,373 spots; 25 and 26 November), a
+    crystal split into two domains 1.8 degrees apart (dials.index, max_lattices
+    2: the second related to the first by -178.2 degrees about a, a lattice
+    two-fold and the split). (a) same_lattice calls two solutions one if their
+    bases match within a tenth in each element, which lets some five degrees
+    through: the second domain stops the search as "one found already". (b) At
+    the 0.3 tolerance about 55,000 of lattice 1's 147,290 spots were chance
+    coincidences -- their deviations rising towards the cut-off, 20,138 hkl with
+    three or more spots -- inflating sigma_m (0.20 degrees; 0.09 to 0.10 on good
+    sweeps). At 0.15 with two lattices, closest: RMSD 0.44 px, 0.62 px, 1.50
+    images against one lattice's 0.55, 0.93, 2.03. (c) With the domain found,
+    --ambiguous exclude left 0.7 per cent of the spots and the refinement was
+    wrecked (a distance of 175.6 mm); closest at 0.3 gave 75.9 per cent indexed
+    but RMSD 3.1 px, 2.2 px, 5.3 images. Tried and backed out (26 November,
+    Graeme: heuristic territory): a misorientation test of half a degree in
+    same_lattice, a guard refusing lattices of volume outside two thirds to
+    three halves of the first's, and declining exclusion where it took over half
+    a lattice's spots. To be done on principle, not thresholds; the question to
+    settle first (Graeme): more than one lattice, or one lattice with a complex
+    reciprocal-space structure? A reciprocal-space map around the first
+    lattice's points would show discrete domains, a continuous spread or a
+    chance background -- only meaningful where the first lattice is a good
+    solution, which on o1328 it is not. Not to be pursued for the sake of
+    recovering poor data sets.
+* **101.** **index -- supercells.** At --tolerance 0.15 on o1328 the second
+    domain came out 61.6, 77.6, 106.8 A, 90, 90, 90 deg -- the orthohexagonal C
+    cell, twice the primitive volume, half its points absent; and a lattice from
+    leftovers had an axis of 6.0 A. A lattice should be reduced to its primitive
+    cell.
+* **102.** **index -- saying when much is left unexplained.** The four A71EV2AZ
+    sweeps that came out in the wrong symmetry indexed 49 to 78 per cent of
+    their strong spots, the good ones 99 per cent. A note when the fraction
+    indexed is low would have flagged all four, deciding nothing for the user.
 * **96.** **scale -- the calibration's robust columns, where boxes are empty.**
     Noted by Graeme, 15 November: a pathological set, nothing made. (1.4826
     MAD)^2 assumes the deviations vary continuously; where over half a shell's

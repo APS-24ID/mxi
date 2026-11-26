@@ -1452,29 +1452,9 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
   return result;
 }
 
-// Two crystals of one lattice in one orientation: the reciprocal bases related
-// by an integer matrix of determinant +-1 -- the same lattice in another basis
-// -- to within a tenth in each element, and then, the bases so matched, turned
-// from one another by no more than kSameOrientationDeg. The tenth alone let
-// a misorientation of some five degrees pass: on Graeme's o1328 of A71EV2AZ
-// (25 November), a split crystal, the second domain, 1.8 degrees from the
-// first (dials.index found it, related by -178.2 degrees about a, a
-// two-fold of the lattice and the split), was taken for the first found
-// again, and its spots, near the first's, indexed as the first's by chance.
-// The angle turning b's lattice onto a's, their bases matched by the nearest
-// integer matrix: R = A_b (A_a M)^-1 is a rotation where the cells agree,
-// its angle from its trace.
-double misorientation_deg(const Crystal &a, const Crystal &b) {
-  const Mat3 m = a.A.inverse() * b.A;
-  Mat3 r;
-  for (std::int32_t k = 0; k < 9; ++k)
-    r.m[k] = std::round(m.m[k]);
-  const Mat3 rot = b.A * (a.A * r).inverse();
-  const double c =
-      std::clamp(0.5 * (rot.m[0] + rot.m[4] + rot.m[8] - 1.0), -1.0, 1.0);
-  return std::acos(c) * 180.0 / std::numbers::pi;
-}
-constexpr double kSameOrientationDeg = 0.5;
+// Two crystals of one lattice: the reciprocal bases related by an integer
+// matrix of determinant +-1 -- the same lattice in another basis -- to within
+// a tenth in each element.
 bool same_lattice(const Crystal &a, const Crystal &b) {
   const Mat3 m = a.A.inverse() * b.A;
   Mat3 r;
@@ -1483,9 +1463,7 @@ bool same_lattice(const Crystal &a, const Crystal &b) {
     if (std::fabs(m.m[k] - r.m[k]) > 0.1)
       return false;
   }
-  if (std::fabs(std::fabs(r.determinant()) - 1.0) >= 1e-6)
-    return false;
-  return misorientation_deg(a, b) <= kSameOrientationDeg;
+  return std::fabs(std::fabs(r.determinant()) - 1.0) < 1e-6;
 }
 
 // Several lattices in one sweep, as dials.index finds them (max_lattices;
@@ -1580,24 +1558,6 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
       result.stopped = "one found already, in the " +
                        std::to_string(rows.size()) + " spots left";
       break;
-    }
-    // A lattice whose cell is unlike the first's -- its volume outside two
-    // thirds to three halves of it -- is made of leftovers, not a crystal:
-    // on o1328 of A71EV2AZ a third lattice of 5.8, 64.8, 64.7 A took 840
-    // spots and, refined with the rest, wrecked them all (Graeme, 26
-    // November). Refused, and the search stopped.
-    if (!found.empty()) {
-      const double v1 = 1.0 / std::fabs(found[0].A.determinant());
-      const double v = 1.0 / std::fabs(trial[0].crystal->A.determinant());
-      if (v < v1 * 2.0 / 3.0 || v > v1 * 1.5) {
-        char why[160];
-        std::snprintf(why, sizeof why,
-                      "one whose cell is unlike the first's (volume %.0f A^3 "
-                      "against %.0f), refused, in the %zu spots left",
-                      v, v1, rows.size());
-        result.stopped = why;
-        break;
-      }
     }
     const Column &m = remaining.at("miller_index");
     std::size_t got = 0;
@@ -1731,7 +1691,6 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
     // that refinement pulls neither model towards it; or kept with the
     // lattice nearest in index units, as assigned above.
     result.n_ambiguous = 0;
-    std::vector<bool> contested(n, false);
     if (joint.size() > 1)
       for (std::size_t i = 0; i < n; ++i) {
         if (lattice_of[i] < 0)
@@ -1744,39 +1703,12 @@ LatticesResult index_lattices(const ExperimentList &sweep, Table &reflections,
         if (near < 2)
           continue;
         ++result.n_ambiguous;
-        contested[i] = true;
-      }
-    // Leaving the ambiguous out is for a few contested spots. Where it would
-    // take more than half of a lattice's own -- two domains of a split
-    // crystal close together, most spots claimed by both: o1328, 267,811 of
-    // 301,373, 0.7 per cent left and the refinement wrecked -- each is given
-    // to the nearer instead, and said.
-    bool exclude = ambiguous == Ambiguous::Exclude;
-    if (exclude && result.n_ambiguous > 0) {
-      std::vector<std::size_t> own(joint.size(), 0), lost(joint.size(), 0);
-      for (std::size_t i = 0; i < n; ++i)
-        if (lattice_of[i] >= 0) {
-          ++own[static_cast<std::size_t>(lattice_of[i])];
-          if (contested[i])
-            ++lost[static_cast<std::size_t>(lattice_of[i])];
-        }
-      for (std::size_t l = 0; l < joint.size(); ++l)
-        if (own[l] > 0 && 2 * lost[l] > own[l]) {
-          exclude = false;
-          result.exclusion_declined = true;
-          result.declined_lattice = l;
-          result.declined_kept = own[l] - lost[l];
-          result.declined_of = own[l];
-          break;
-        }
-    }
-    if (exclude)
-      for (std::size_t i = 0; i < n; ++i)
-        if (contested[i]) {
+        if (ambiguous == Ambiguous::Exclude) {
           lattice_of[i] = -1;
           std::fill(hkl.begin() + static_cast<std::int64_t>(3 * i),
                     hkl.begin() + static_cast<std::int64_t>(3 * i + 3), 0);
         }
+      }
     Column &id = reflections.modify_int_column("id", "int", 1);
     Column &m = reflections.modify_int_column("miller_index",
                                               "cctbx::miller::index<>", 3);

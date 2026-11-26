@@ -204,13 +204,14 @@ mxi integrate refined.rflx            # summation and profile fitting           
 mxi symmetry  integrated.rflx         # the Laue group and space group, reindexed  -> symmetrized.rflx
 mxi scale     symmetrized.rflx        # scaled, with merging statistics            -> scaled.rflx
 mxi export    scaled.rflx             # an unmerged MTZ                            -> scaled.mtz
+mxi merge     scaled.rflx             # a merged MTZ, with amplitudes              -> merged.mtz
 ```
 
-Or all eight in turn, for routine data, with the options they share sent to
-the steps they belong to -- `-j` to every step, `--gpu` to spot finding and
-integration, a known cell and space group to indexing and scaling,
-`--no-joint` to indexing for several crystals, `--small-molecule` to symmetry,
-`--d-min-auto` to scaling:
+Or the first eight in turn, for routine data (mxi merge is not among them), with
+the options they share sent to the steps they belong to -- `-j` to every step,
+`--gpu` to spot finding and integration, a known cell and space group to
+indexing and scaling, `--no-joint` to indexing for several crystals,
+`--small-molecule` to symmetry, `--d-min-auto` to scaling:
 
 ```sh
 mxi process master.nxs --gpu -j 8 --d-min-auto

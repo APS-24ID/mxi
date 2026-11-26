@@ -77,23 +77,33 @@ def test_each_crystal_merged_alone(tmp_path):
     assert (tmp_path / "per_0.mtz").exists()
 
 
-def _table(text):
+def _summary(text):
+    """The summary's lines, Overall to Total unique; a Suggested column (mxi
+    scale's, where it suggests a cut) dropped."""
     lines = text.splitlines()
-    start = lines.index("Merging statistics, Friedel mates merged")
+    start = next(i for i, l in enumerate(lines) if "Summary of merging statistics" in l)
+    end = next(
+        i for i in range(start, len(lines)) if lines[i].startswith("Total unique")
+    )
+    block = [l for l in lines[start + 1 : end + 1] if l.strip()]
+    suggested = "Suggested" in block[0]
     out = []
-    for line in lines[start:]:
-        if not line.strip() or line.startswith("  columns:"):
-            break
-        out.append(line)
+    for line in block:
+        if suggested:
+            head, _, last = line.rstrip().rpartition(" ")
+            # A row with four values ends with the suggested one.
+            if len(line[44:].split()) == 4:
+                line = head
+        out.append(line.rstrip())
     return out
 
 
 def test_the_merge_reproduces_scalings_merging_statistics(tmp_path):
-    """Graeme, 26 November: since we are merging, it should at least reproduce
-    the merging statistics -- the same table, line for line, as mxi scale's,
-    from the same observations."""
+    """Graeme, 26 November: since we are merging it should at least reproduce
+    the merging statistics -- the summary, Overall, Low and High, as mxi
+    scale's from the same observations, line for line."""
     scaled = run("scale", DATA, "-o", "scaled.rflx", cwd=tmp_path)
     merged = run("merge", "scaled.rflx", "-o", "merged.mtz", cwd=tmp_path)
-    table = _table(scaled)
-    assert len(table) > 5
-    assert _table(merged) == table
+    summary = _summary(scaled)
+    assert len(summary) > 15
+    assert _summary(merged) == summary

@@ -331,6 +331,15 @@ merging_statistics(const ScaleData &data, const std::vector<double> &g,
 void print_merging_table(const std::vector<MergingShell> &shells,
                          const MergingShell &overall);
 
+//: The summary dials.scale ends with, as mxi scale prints it: overall, the
+//: lowest shell and the highest (shells as merging_statistics made them),
+//: and the data cut at a suggested limit where there is one (null for
+//: none); the anomalous lines unless the group is centrosymmetric. mxi merge
+//: prints it too (Graeme, 26 November: this table, not the long one).
+void print_merging_summary(const std::vector<MergingShell> &shells,
+                           const MergingShell &all,
+                           const MergingShell *suggested, bool centrosymmetric);
+
 struct ScaleRunOptions {
   //: Each variance from the model's intensity once there is one
   //: (model_variances); false keeps the integrated variances, as before.

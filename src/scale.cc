@@ -2144,4 +2144,77 @@ void print_merging_table(const std::vector<MergingShell> &shells,
   row(overall);
 }
 
+void print_merging_summary(const std::vector<MergingShell> &table,
+                           const MergingShell &all,
+                           const MergingShell *suggested,
+                           bool centrosymmetric) {
+  const bool cut = suggested != nullptr;
+  const MergingShell &low = table.front(), &high = table.back();
+  mxi::print("\n            -------------Summary of merging "
+             "statistics--------------\n\n");
+  if (cut)
+    mxi::print("%-44s %8s %7s %7s %9s\n", "", "Overall", "Low", "High",
+               "Suggested");
+  else
+    mxi::print("%-44s %8s %7s %7s\n", "", "Overall", "Low", "High");
+  const auto line = [&](const char *what, double MergingShell::*f,
+                        const char *fmt, double scale) {
+    char x[4][32];
+    const MergingShell *m[4] = {&all, &low, &high, cut ? suggested : &all};
+    for (std::int32_t k = 0; k < 4; ++k)
+      std::snprintf(x[k], sizeof x[k], fmt, scale * (m[k]->*f));
+    if (cut)
+      mxi::print("%-44s %8s %7s %7s %9s\n", what, x[0], x[1], x[2], x[3]);
+    else
+      mxi::print("%-44s %8s %7s %7s\n", what, x[0], x[1], x[2]);
+  };
+  const auto count = [&](const char *what, std::size_t MergingShell::*f) {
+    if (cut)
+      mxi::print("%-44s %8zu %7zu %7zu %9zu\n", what, all.*f, low.*f, high.*f,
+                 suggested->*f);
+    else
+      mxi::print("%-44s %8zu %7zu %7zu\n", what, all.*f, low.*f, high.*f);
+  };
+  const auto only = [&](const char *what, double v, const char *fmt) {
+    char x[32];
+    std::snprintf(x, sizeof x, fmt, v);
+    mxi::print("%-44s %8s\n", what, x);
+  };
+  line("High resolution limit", &MergingShell::d_min, "%.2f", 1.0);
+  line("Low resolution limit", &MergingShell::d_max, "%.2f", 1.0);
+  line("Completeness", &MergingShell::completeness, "%.1f", 100.0);
+  line("Multiplicity", &MergingShell::multiplicity, "%.1f", 1.0);
+  line("I/sigma", &MergingShell::i_over_sigma, "%.1f", 1.0);
+  line("Rmerge(I)", &MergingShell::rmerge, "%.3f", 1.0);
+  line("Rmerge(I+/-)", &MergingShell::rmerge_anom, "%.3f", 1.0);
+  line("Rmeas(I)", &MergingShell::rmeas, "%.3f", 1.0);
+  line("Rmeas(I+/-)", &MergingShell::rmeas_anom, "%.3f", 1.0);
+  line("Rpim(I)", &MergingShell::rpim, "%.3f", 1.0);
+  line("Rpim(I+/-)", &MergingShell::rpim_anom, "%.3f", 1.0);
+  line("CC half", &MergingShell::cc_half, "%.3f", 1.0);
+  // In a centrosymmetric group every reflection is centric, its Friedel
+  // mate itself: no anomalous difference exists to measure. The lines
+  // had been printed anyway -- completeness 0, multiplicity the
+  // multiplicity, every centric reflection a group of its own (Graeme's
+  // small molecule in R -3 m, 13 November) -- and are said so instead.
+  if (centrosymmetric) {
+    mxi::print("%-44s %s\n", "Anomalous statistics",
+               "none: the group is centrosymmetric");
+  } else {
+    line("Anomalous completeness", &MergingShell::anom_completeness, "%.1f",
+         100.0);
+    line("Anomalous multiplicity", &MergingShell::anom_multiplicity, "%.1f",
+         1.0);
+    line("Anomalous correlation", &MergingShell::cc_anom, "%.3f", 1.0);
+    only("Anomalous slope", all.anom_slope, "%.3f");
+    // Its control: random halves, no signal -- near 1 if the sigmas are
+    // right, so the slope above it is the signal (docs/scaling.md).
+    only("  random halves", all.anom_slope_random, "%.3f");
+    only("dF/F", all.df_over_f, "%.3f");
+    only("dI/s(dI)", all.di_over_sig_di, "%.3f");
+  }
+  count("Total observations", &MergingShell::observations);
+  count("Total unique", &MergingShell::unique);
+}
+
 } // namespace mxi

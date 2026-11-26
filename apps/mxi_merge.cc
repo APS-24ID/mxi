@@ -120,7 +120,8 @@ Selected select(const Table &in, const gemmi::UnitCell &cell,
   return s;
 }
 
-// The merging statistics of what was merged, as mxi scale prints them and
+// The summary of the merging statistics of what was merged, as mxi scale
+// prints it (Graeme, 26 November: this table, not the long one), and
 // from the same observations: build_scale_data's, with each one's intensity,
 // variance and inverse scale factor as scaling wrote them, and those scaling
 // left out (an outlier, excluded, no scaled variance) left out. So a merge
@@ -177,7 +178,7 @@ void print_statistics(const ExperimentList &experiments, const Table &in,
   MergingShell all;
   const std::vector<MergingShell> table = merging_statistics(
       data, g, group, *experiments[crystal].crystal, shells, &all);
-  print_merging_table(table, all);
+  print_merging_summary(table, all, nullptr, group.centrosymmetric());
 }
 
 struct Written {

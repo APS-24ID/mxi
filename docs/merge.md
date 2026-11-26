@@ -34,17 +34,20 @@ the median of each parameter over the crystals merged (dials.merge's
 
 ## The merging statistics
 
-Each merge prints the merging statistics, the table mxi scale prints -- the same
-code (print_merging_table, merging_statistics) on the same observations:
+Each merge prints the summary of the merging statistics -- Overall, Low and
+High, the anomalous figures, the totals -- as mxi scale prints it, by the same
+code (merging_statistics, print_merging_summary) from the same observations:
 build_scale_data's, each with the intensity, variance and inverse scale factor
 scaling wrote, the rows scaling excluded left out -- beyond its resolution
 limit, say, which never entered its data -- and its outliers kept and marked, as
-they were in scaling. So the table is scaling's, line for line, CC half's random
-halves included: insulin unmerged and 9uoa in P 41 21 2 scaled to 1.76 A both
-give mxi scale's table to the digit (Graeme, 26 November: since we are merging
-it should at least reproduce the merging statistics). The figure "left out" in
-the summary line counts the same rows: on 9uoa, 83,145 -- those beyond 1.76 A
-and the outliers. --shells N as mxi scale's.
+they were in scaling. So the summary is scaling's, line for line, CC half's
+random halves included; only scaling's Suggested column, where it suggests a
+cut, has no place here. Insulin unmerged and 9uoa in P 41 21 2 scaled to 1.76 A
+both give mxi scale's summary to the digit (Graeme, 26 November: since we are
+merging it should at least reproduce the merging statistics -- this table, not
+the long one). The figure "left out" in the line above it counts the same rows:
+on 9uoa, 83,145, those beyond 1.76 A and the outliers. --shells N as mxi
+scale's, which sets the Low and High shells.
 
 ## Amplitudes
 

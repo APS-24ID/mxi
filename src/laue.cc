@@ -701,19 +701,27 @@ P1Intensities merge_in_p1(const ExperimentList &experiments,
   ScaleData data =
       build_scale_data(experiments, selected, SpaceGroup::from_name("P 1"),
                        ScaleModelShape{1, 0, 0});
-  // Scaled data's own scaled intensities, where the table has them -- a
-  // scaled file, or mxi symmetry --scale-p1's: build_scale_data takes the
-  // integrated intensities, so scale factors were ignored and a scaled
-  // file judged on raw ones. A row the scaling left out (variance 0) is out.
+  // Scaled data's scaled intensities, where the table has them -- a scaled
+  // file, or mxi symmetry --scale-p1's: build_scale_data takes the integrated
+  // intensities, so scale factors were ignored and a scaled file judged on
+  // raw ones. As in DIALS, intensity.scale.value is the corrected intensity
+  // before scaling, and the scaled one is it over inverse_scale_factor
+  // (write_scaling; mxi export divides so). Until 26 November it was taken
+  // as scaled already, undivided: --scale-p1 fitted its scales and never
+  // applied them. A row the scaling left out (variance or factor nought) is
+  // out.
   if (selected.has("intensity.scale.value") &&
-      selected.has("intensity.scale.variance")) {
+      selected.has("intensity.scale.variance") &&
+      selected.has("inverse_scale_factor")) {
     const Column &value = selected.at("intensity.scale.value");
     const Column &variance = selected.at("intensity.scale.variance");
+    const Column &factor = selected.at("inverse_scale_factor");
     for (std::size_t i = 0; i < data.size(); ++i) {
       const std::size_t r = data.row[i];
-      if (variance.reals[r] > 0.0) {
-        data.intensity[i] = value.reals[r];
-        data.variance[i] = variance.reals[r];
+      const double g = factor.reals[r];
+      if (variance.reals[r] > 0.0 && g > 0.0) {
+        data.intensity[i] = value.reals[r] / g;
+        data.variance[i] = variance.reals[r] / (g * g);
       } else {
         data.outlier[i] = true;
       }

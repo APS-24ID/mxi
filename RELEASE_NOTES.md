@@ -54,8 +54,11 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   fixed vectors were tried as axes. Vectors perpendicular to an axis of order
   three or more are tried too.
 - mxi symmetry judged a scaled file on its integrated intensities, its scale
-  factors ignored; it now takes the table's scaled intensities wherever it has
-  them.
+  factors ignored; it now takes the scaled ones, intensity.scale.value over
+  inverse_scale_factor. (A first version of this fix, during 1.3.3's
+  successor, took intensity.scale.value as scaled already: --scale-p1 fitted
+  its scales and never applied them. With them applied, on 9uoa its symmetry
+  elements' CCs rise from 0.70 to 0.77, the four-fold's from 0.665 to 0.756.)
 - mxi symmetry refused sweeps indexed apart whose cells were one lattice in
   different bases -- a hexagonal crystal's sweeps with gamma 60 and gamma 120,
   the choice falling to the noise in alpha and beta -- saying they differed by

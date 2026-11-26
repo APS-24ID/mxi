@@ -279,7 +279,12 @@ own scaled intensities (intensity.scale.value and its variance) wherever it has
 them: it had taken the integrated ones, so a scaled file was judged on raw
 intensities.
 
-On insulin and 9uoa the judgement is the same with it (I 2 3; P 41 21 2); 9uoa's
-elements are no better, its trouble having been clipped spots, not the sweep.
-Whether it mends the four A71EV2AZ sweeps, and so whether it should be the
-default, is for them to say.
+Correction (26 November): until then the P1 merge took intensity.scale.value as
+the scaled intensity, and it is not -- as in DIALS it is the corrected intensity
+before scaling, the scaled one being it over inverse_scale_factor -- so
+--scale-p1 fitted its scales and never applied them, and the judgements above
+with it were the plain ones. With them applied, on 9uoa every element's CC rises
+(the four-fold 0.665 to 0.756, the two-folds about 0.70 to 0.77) and P 4/m m m's
+likelihood from 0.530 to 0.885; insulin is I 2 3 either way. Whether it mends
+the four A71EV2AZ sweeps is to be seen again: their trouble was a second
+lattice, which scaling cannot mend.

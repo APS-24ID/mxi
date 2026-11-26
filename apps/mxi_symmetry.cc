@@ -110,8 +110,9 @@ void usage() {
       "  -j, --threads N   threads for everything this does in parallel; 0, "
       "every\n"
       "                    core this job may use (0)\n"
-      "  --scale-p1        scale in P1 first (scale, decay and absorption, as\n"
-      "                    mxi scale), for the symmetry's judgement alone: a\n"
+      "  --scale-p1        scale in P1 first (scale and decay through the\n"
+      "                    sweep, as mxi scale --no-absorption), for the\n"
+      "                    symmetry's judgement alone: a\n"
       "                    sweep's systematic changes -- absorption, decay,\n"
       "                    damage -- part symmetry mates measured far apart\n"
       "                    in rotation; the file written stays unscaled\n"
@@ -399,7 +400,11 @@ int run_symmetry(int argc, char **argv) {
     const bool scale_p1 = args.has("--scale-p1");
     if (scale_p1) {
       prescaled = reflections;
+      // Scale and decay only (Graeme, 25 November): robust in P1, where
+      // equivalents are fewest; absorption's harmonics the least
+      // constrained, and not wanted for a judgement of symmetry.
       ScaleRunOptions p1_options;
+      p1_options.absorption = false;
       const ScaleRun p1 = scale_sweep(experiments, prescaled,
                                       SpaceGroup::from_name("P 1"), p1_options);
       write_scaling(prescaled, p1.data, p1.g, p1.g_variance);
@@ -409,8 +414,8 @@ int run_symmetry(int argc, char **argv) {
           lo = std::min(lo, g);
           hi = std::max(hi, g);
         }
-      mxi::print("Scaled in P1 first (--scale-p1), for this judgement alone: "
-                 "%zu observations, the scale %.3f to %.3f\n",
+      mxi::print("Scaled in P1 first (--scale-p1; scale and decay), for this "
+                 "judgement alone: %zu observations, the scale %.3f to %.3f\n",
                  p1.data.size(), lo, hi);
       phase("scaling in P1");
     }

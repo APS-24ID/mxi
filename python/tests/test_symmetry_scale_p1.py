@@ -45,7 +45,7 @@ def test_scaled_in_p1_first_the_same_group_and_the_table_unscaled(tmp_path):
         cwd=tmp_path,
     )
     assert plain.returncode == 0 and p1.returncode == 0, p1.stderr[-2000:]
-    assert "Scaled in P1 first (--scale-p1)" in p1.stdout
+    assert "Scaled in P1 first (--scale-p1; scale and decay)" in p1.stdout
     assert recommended(p1.stdout) == recommended(plain.stdout)
     table = refl.load(str(tmp_path / "p1.rflx"))
     assert "inverse_scale_factor" not in table.columns, "the file written unscaled"

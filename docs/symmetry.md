@@ -268,14 +268,16 @@ c each correlated 0.942 against the identity's 0.946, the two-folds across c
 disagreed where Friedel pairs did not: a sweep's systematic changes --
 absorption, decay, damage, or, on o1328, a split crystal -- not the symmetry.
 
-`--scale-p1` scales in P1 first, with mxi scale's model -- scale, decay and
-absorption through the sweep -- and judges the symmetry on the scaled
-intensities, as POINTLESS fits a scale and B per batch before scoring. It is for
-the judgement alone: the scaling runs on a copy of the table, and the file
-written stays unscaled, its flags as they were. And the P1 merge now takes a
-scaled table's own scaled intensities (intensity.scale.value and its variance)
-wherever it has them: it had taken the integrated ones, so a scaled file was
-judged on raw intensities.
+`--scale-p1` scales in P1 first, with mxi scale's model of scale and decay
+through the sweep -- no absorption surface: in P1, where equivalents are fewest,
+its harmonics are the least constrained part, and scale and decay alone are
+robust (Graeme) -- and judges the symmetry on the scaled intensities, as
+POINTLESS fits a scale and B per batch before scoring. It is for the judgement
+alone: the scaling runs on a copy of the table, and the file written stays
+unscaled, its flags as they were. And the P1 merge now takes a scaled table's
+own scaled intensities (intensity.scale.value and its variance) wherever it has
+them: it had taken the integrated ones, so a scaled file was judged on raw
+intensities.
 
 On insulin and 9uoa the judgement is the same with it (I 2 3; P 41 21 2); 9uoa's
 elements are no better, its trouble having been clipped spots, not the sweep.

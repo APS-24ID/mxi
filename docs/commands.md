@@ -327,8 +327,9 @@ the Laue group and its setting.
 usage: mxi symmetry [options] INTEGRATED_EXPT INTEGRATED_REFL
   -j, --threads N   threads for everything this does in parallel; 0, every
                     core this job may use (0)
-  --scale-p1        scale in P1 first (scale, decay and absorption, as
-                    mxi scale), for the symmetry's judgement alone: a
+  --scale-p1        scale in P1 first (scale and decay through the
+                    sweep, as mxi scale --no-absorption), for the
+                    symmetry's judgement alone: a
                     sweep's systematic changes -- absorption, decay,
                     damage -- part symmetry mates measured far apart
                     in rotation; the file written stays unscaled

@@ -507,6 +507,31 @@ history on 20 October: four closed, nine rewritten to what is now true.
     shell whose summed intensity is near zero the ratio is meaningless -- 9uoa's
     1.94 to 1.89 A shell printed R merge 1,044,173 -- and the table should print
     '-' there.
+* **100.** **index -- the tolerance, and chance coincidences.** A spot counts as
+    indexed within 0.3 of an integer in each index; spots of anything else fall
+    so by chance (0.6)^3 = 22 per cent of the time. On o1328 of A71EV2AZ
+    (strong.rflx, 301,373 spots, a crystal split by 1.8 degrees), about 55,000
+    of lattice 1's 147,290 spots were such: their deviations rising towards the
+    cut-off, the unindexed at the median of random ones (0.415), 20,138 hkl with
+    three or more spots. They inflate sigma_m (0.20 degrees there, 0.09 to 0.10
+    on the good sweeps). At --tolerance 0.15, two lattices, closest: 7,495
+    ambiguous, RMSD 0.44 px, 0.62 px, 1.50 images against one lattice's 0.55,
+    0.93, 2.03 at 0.3. Not a trivial problem (Graeme): to be explored, the
+    deviations' two populations -- a peak near nought, a rising tail -- one way
+    to set it from the data; DIALS keeps the nearest spot of each hkl (12.6 per
+    cent indexed there). And the philosophy (Graeme): more than one lattice, or
+    one lattice with a complex reciprocal-space structure?
+* **101.** **index -- ambiguous spots where domains are close.** --ambiguous
+    exclude, the default, left 11 of o1328's 301,373 spots once its second
+    domain was found (151,809 claimed by both lattices); closest gave 75.9 per
+    cent indexed at the 0.3 tolerance, RMSD 3.1 px, 2.2 px, 5.3 images --
+    workable only with a tighter tolerance.
+* **102.** **index -- implausible lattices.** On o1328, a third lattice from the
+    leftover spots had an axis of 6.0 A (6.0, 57.0, 59.0 A); at --tolerance 0.15
+    the second came out 61.6, 77.6, 106.8 A, 90, 90, 90 deg -- the
+    orthohexagonal C cell, twice the primitive volume, half its points absent. A
+    lattice should be reduced to its primitive cell, and one whose cell is
+    unlike any sensible crystal's refused.
 * **96.** **scale -- the calibration's robust columns, where boxes are empty.**
     Noted by Graeme, 15 November: a pathological set, nothing made. (1.4826
     MAD)^2 assumes the deviations vary continuously; where over half a shell's

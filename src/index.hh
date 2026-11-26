@@ -316,9 +316,16 @@ Mat3 reduce_basis(const Mat3 &real_space_rows);
 IndexResult index(ExperimentList &experiments, Table &reflections,
                   const IndexOptions &options = {});
 
-//: Two crystals of one lattice: their reciprocal bases related by an integer
-//: matrix of determinant +-1, to within a tenth in each element.
+//: Two crystals of one lattice in one orientation: the bases related by an
+//: integer matrix of determinant +-1 to within a tenth in each element, and,
+//: so matched, turned from one another by at most half a degree. A split
+//: crystal's second domain is another lattice: o1328 of A71EV2AZ, 1.8
+//: degrees, had been taken for the first found again.
 bool same_lattice(const Crystal &a, const Crystal &b);
+
+//: The angle, degrees, turning b's lattice onto a's, their bases matched by
+//: the nearest integer matrix -- a lattice symmetry absorbed by the match.
+double misorientation_deg(const Crystal &a, const Crystal &b);
 
 //: What index_lattices found: one experiment a lattice, sharing the sweep's
 //: beam and detector (beam_of, detector_of), each its own crystal; for each,

@@ -41,6 +41,14 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   held figure had left out each box's background.
 
 **Fixed**
+- mxi index --max-lattices took a split crystal's second domain for the first
+  found again: two solutions were the same lattice if their bases matched
+  within a tenth, which lets some five degrees of misorientation through. They
+  are now the same only if turned from one another by at most half a degree;
+  o1328 of A71EV2AZ, split by 1.8 degrees, now finds its second domain. Its
+  spots lie close to the first's, though, and what follows is not yet right
+  for so close a pair (docs/outstanding.md, items 100 to 102): with the
+  default --ambiguous exclude, the spots both lattices claim are most of them.
 - mxi symmetry printed "?" for the Patterson group P -3 1 m: its two-folds lie
   between the conventional a and b, which no rotation of it fixes, and only
   fixed vectors were tried as axes. Vectors perpendicular to an axis of order

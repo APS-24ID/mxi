@@ -1452,9 +1452,29 @@ IndexResult index(ExperimentList &experiments, Table &reflections,
   return result;
 }
 
-// Two crystals of one lattice: the reciprocal bases related by an integer
-// matrix of determinant +-1 -- the same lattice in another basis -- to within
-// a tenth in each element.
+// Two crystals of one lattice in one orientation: the reciprocal bases related
+// by an integer matrix of determinant +-1 -- the same lattice in another basis
+// -- to within a tenth in each element, and then, the bases so matched, turned
+// from one another by no more than kSameOrientationDeg. The tenth alone let
+// a misorientation of some five degrees pass: on Graeme's o1328 of A71EV2AZ
+// (25 November), a split crystal, the second domain, 1.8 degrees from the
+// first (dials.index found it, related by -178.2 degrees about a, a
+// two-fold of the lattice and the split), was taken for the first found
+// again, and its spots, near the first's, indexed as the first's by chance.
+// The angle turning b's lattice onto a's, their bases matched by the nearest
+// integer matrix: R = A_b (A_a M)^-1 is a rotation where the cells agree,
+// its angle from its trace.
+double misorientation_deg(const Crystal &a, const Crystal &b) {
+  const Mat3 m = a.A.inverse() * b.A;
+  Mat3 r;
+  for (std::int32_t k = 0; k < 9; ++k)
+    r.m[k] = std::round(m.m[k]);
+  const Mat3 rot = b.A * (a.A * r).inverse();
+  const double c =
+      std::clamp(0.5 * (rot.m[0] + rot.m[4] + rot.m[8] - 1.0), -1.0, 1.0);
+  return std::acos(c) * 180.0 / std::numbers::pi;
+}
+constexpr double kSameOrientationDeg = 0.5;
 bool same_lattice(const Crystal &a, const Crystal &b) {
   const Mat3 m = a.A.inverse() * b.A;
   Mat3 r;
@@ -1463,7 +1483,9 @@ bool same_lattice(const Crystal &a, const Crystal &b) {
     if (std::fabs(m.m[k] - r.m[k]) > 0.1)
       return false;
   }
-  return std::fabs(std::fabs(r.determinant()) - 1.0) < 1e-6;
+  if (std::fabs(std::fabs(r.determinant()) - 1.0) >= 1e-6)
+    return false;
+  return misorientation_deg(a, b) <= kSameOrientationDeg;
 }
 
 // Several lattices in one sweep, as dials.index finds them (max_lattices;

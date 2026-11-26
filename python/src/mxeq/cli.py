@@ -171,6 +171,14 @@ def build_parser() -> argparse.ArgumentParser:
     lm.add_argument(
         "--no-histograms", action="store_true", help="the summary tables only"
     )
+    lm.add_argument(
+        "-o",
+        "--output",
+        help="also an HTML page: histograms on a log scale with the Gaussian of "
+        "the robust width, reciprocal-space maps of two offsets at once, trends "
+        "with resolution and image",
+    )
+    lm.add_argument("--title", default="lattice map")
 
     rs = sub.add_parser(
         "residuals",
@@ -831,6 +839,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "lattice-map":
         from . import latticemap
 
+        if args.output:
+            o = latticemap.gather(refl.load(args.path), expt.load(args.path))
+            print(latticemap.write(o, args.output, title=args.title))
+            return 0
         print(
             latticemap.run(
                 args.path, shells=args.shells, histograms=not args.no_histograms

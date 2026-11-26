@@ -813,7 +813,7 @@ emulation matches the CPU, the CUDA and Metal kernels are not built here.
 | `mxeq explain A B` | why observations went unpartnered; run it first when the match rate is low |
 | `mxeq disagree A B -o out.refl` | only the reflections that disagree, for `dials.image_viewer` |
 | `mxeq residuals A -o r.html` | how well positions were predicted, from `xyzres.px` |
-| `mxeq lattice-map A` | where indexed spots lie around their lattice points, in reciprocal space: offsets along the crystal's axes, and radially, along the rotation and across in each reflection's frame -- widths, tails beyond three widths, histograms, trends with resolution; from an indexed or refined file |
+| `mxeq lattice-map A [-o map.html]` | where indexed spots lie around their lattice points, in reciprocal space: offsets along the crystal's axes, and radially, along the rotation and across in each reflection's frame -- widths, tails beyond three widths, histograms, trends with resolution; with `-o`, a page of the histograms on a log scale against the Gaussian of the robust width, reciprocal-space maps of two offsets at once, and trends with resolution and image; from an indexed or refined file |
 | `mxeq profiles profiles.txt -o p.png` | the learned reference profiles, from `--save-profiles` |
 
 Matching pairs observations, not reflections: Miller index and entering flag

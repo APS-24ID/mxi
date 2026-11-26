@@ -238,3 +238,232 @@ def run(path: str, shells: int = 8, histograms: bool = True) -> str:
     return report(
         gather(refl.load(path), expt.load(path)), shells=shells, histograms=histograms
     )
+
+
+# The HTML page: binned data only, so that it stays small whatever the
+# number of spots; drawn with plotly from its CDN, as mxeq residuals is.
+
+NAMES = ["dh", "dk", "dl", "radial", "along the rotation", "across"]
+UNITS = ["index units", "index units", "index units", "x 1e-4", "deg", "deg"]
+SCALES = [1.0, 1.0, 1.0, 1e4, 1.0, 1.0]
+MAPS = [(4, 5), (0, 1), (1, 2), (0, 2)]  # along x across, dh x dk, dk x dl, dh x dl
+
+
+def _binned(x, y, n_bins, equal_count=True):
+    """Median and robust width of y in bins of x."""
+    ok = np.isfinite(x) & np.isfinite(y)
+    x, y = x[ok], y[ok]
+    if x.size < 2 * n_bins:
+        return None
+    edges = (
+        np.quantile(x, np.linspace(0, 1, n_bins + 1))
+        if equal_count
+        else np.linspace(x.min(), x.max(), n_bins + 1)
+    )
+    centre, median, width = [], [], []
+    for lo, hi in zip(edges[:-1], edges[1:]):
+        m = (x >= lo) & (x <= hi)
+        if m.sum() < 5:
+            continue
+        centre.append(float(np.median(x[m])))
+        median.append(float(np.median(y[m])))
+        width.append(_width(y[m]))
+    return {"x": centre, "median": median, "width": width}
+
+
+def build(o: Offsets, bins: int = 61, map_bins: int = 61, n_trend: int = 20) -> dict:
+    values = _values(o)
+    stats = [summary(v) for v in values]
+    out = {
+        "indexed": o.indexed,
+        "total": o.total,
+        "names": NAMES,
+        "units": UNITS,
+        "summary": [
+            {
+                "name": name,
+                "unit": unit,
+                "median": s["median"] * scale,
+                "width": s["width"] * scale,
+                "rms": s["rms"] * scale,
+                "beyond_3": s["beyond_3"],
+                "n": s["n"],
+            }
+            for name, unit, scale, s in zip(NAMES, UNITS, SCALES, stats)
+        ],
+    }
+    # Histograms across +-8 widths about nought, counts per bin; the page
+    # draws the Gaussian of the robust width over each.
+    hists = []
+    for v, s, scale in zip(values, stats, SCALES):
+        w = s["width"] if s["width"] and np.isfinite(s["width"]) else 1.0
+        edges = np.linspace(-8 * w, 8 * w, bins + 1)
+        counts, _ = np.histogram(v[np.isfinite(v)], bins=edges)
+        hists.append(
+            {
+                "centre": (0.5 * (edges[:-1] + edges[1:]) * scale).tolist(),
+                "counts": counts.tolist(),
+                "step": float((edges[1] - edges[0]) * scale),
+                "below": int(np.sum(v < edges[0])),
+                "above": int(np.sum(v > edges[-1])),
+            }
+        )
+    out["histograms"] = hists
+    # The reciprocal-space maps: two offsets at once, +-6 widths each.
+    maps = []
+    for i, j in MAPS:
+        a, b = values[i], values[j]
+        ok = np.isfinite(a) & np.isfinite(b)
+        wa, wb = stats[i]["width"], stats[j]["width"]
+        ea = np.linspace(-6 * wa, 6 * wa, map_bins + 1)
+        eb = np.linspace(-6 * wb, 6 * wb, map_bins + 1)
+        h, _, _ = np.histogram2d(a[ok], b[ok], bins=[ea, eb])
+        maps.append(
+            {
+                "x": (0.5 * (ea[:-1] + ea[1:]) * SCALES[i]).tolist(),
+                "y": (0.5 * (eb[:-1] + eb[1:]) * SCALES[j]).tolist(),
+                "z": h.T.astype(int).tolist(),  # rows are y
+                "xname": NAMES[i],
+                "yname": NAMES[j],
+                "xunit": UNITS[i],
+                "yunit": UNITS[j],
+            }
+        )
+    out["maps"] = maps
+    # Against resolution (1/d^2, equal counts) and against image.
+    s2 = 1.0 / o.d**2
+    out["against_resolution"] = []
+    out["against_image"] = []
+    for k in (3, 4, 5):
+        r = _binned(s2, values[k], n_trend)
+        if r:
+            r["x"] = [1.0 / np.sqrt(v) for v in r["x"]]
+            r["median"] = [m * SCALES[k] for m in r["median"]]
+            r["width"] = [w * SCALES[k] for w in r["width"]]
+        out["against_resolution"].append(r)
+        r = _binned(o.image, values[k], n_trend, equal_count=False)
+        if r:
+            r["median"] = [m * SCALES[k] for m in r["median"]]
+            r["width"] = [w * SCALES[k] for w in r["width"]]
+        out["against_image"].append(r)
+    return out
+
+
+PAGE = """<!doctype html>
+<meta charset="utf-8">
+<title>__TITLE__</title>
+<script src="__PLOTLY__"></script>
+<style>
+ body { font: 14px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 1100px; color: #222; }
+ h1 { font-size: 1.4rem; } h2 { font-size: 1.1rem; margin-top: 2.2rem; border-top: 1px solid #ddd; padding-top: 1rem; }
+ table { border-collapse: collapse; margin: 0.5rem 0 1rem; }
+ td, th { padding: 0.2rem 0.8rem; text-align: right; border-bottom: 1px solid #eee; }
+ th { font-weight: 600; } .note { color: #666; font-size: 0.9rem; }
+ .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem; }
+ .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+</style>
+<h1>__TITLE__</h1>
+<p class="note">__SUBTITLE__</p>
+<div id="body"></div>
+<script>
+const R = __DATA__;
+const body = document.getElementById("body");
+const cfg = {displayModeBar: false, responsive: true};
+const margin = {t: 36, l: 55, r: 10, b: 45};
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
+function plot(where, traces, layout) { const d = el("div"); where.appendChild(d); Plotly.newPlot(d, traces, layout, cfg); }
+function fmt(v) { return Math.abs(v) >= 0.1 ? v.toFixed(3) : v.toPrecision(3); }
+
+body.appendChild(el("h2", null, "Summary"));
+const t = el("table");
+t.innerHTML = "<tr><th></th><th>median</th><th>width</th><th>RMS</th><th>beyond 3 widths</th></tr>" +
+  R.summary.map(s => `<tr><td style="text-align:left">${s.name} (${s.unit})</td>` +
+    `<td>${fmt(s.median)}</td><td>${fmt(s.width)}</td><td>${fmt(s.rms)}</td>` +
+    `<td>${(100 * s.beyond_3).toFixed(2)}%</td></tr>`).join("");
+body.appendChild(t);
+body.appendChild(el("p", "note",
+  "Width is 1.4826 x the median absolute deviation, the sigma a Gaussian core would have. A Gaussian has 0.27% " +
+  "beyond three widths; more is a tail -- chance coincidences, a second lattice, outliers. dh, dk, dl are fractional " +
+  "index offsets along the crystal's axes; radial, along the rotation and across are each reflection's own frame, " +
+  "relative to |r|: radial for the cell, wavelength and distance, along for the rocking width and image centroids, " +
+  "across for the beam's divergence."));
+
+body.appendChild(el("h2", null, "Histograms"));
+body.appendChild(el("p", "note",
+  "Counts on a logarithmic scale, so that tails and asymmetry show; the red line is the Gaussian of the robust " +
+  "width, scaled to the same number of spots. Spots beyond +-8 widths are counted in the titles."));
+const h = el("div", "grid"); body.appendChild(h);
+R.histograms.forEach((g, k) => {
+  const s = R.summary[k], w = s.width, n = s.n;
+  const gauss = g.centre.map(x => n * g.step / (w * Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * ((x - s.median) / w) ** 2));
+  plot(h, [
+    {x: g.centre, y: g.counts, type: "bar", marker: {color: "rgba(31,119,180,0.65)"}, name: "spots"},
+    {x: g.centre, y: gauss, mode: "lines", line: {color: "#d62728", width: 1.5}, name: "Gaussian"}
+  ], {height: 280, title: `${s.name} (${s.unit}); ${g.below} below, ${g.above} above`, showlegend: false,
+      bargap: 0, yaxis: {type: "log", title: "spots"}, xaxis: {title: s.unit}, margin});
+});
+
+body.appendChild(el("h2", null, "Reciprocal-space maps"));
+body.appendChild(el("p", "note",
+  "Two offsets at once, counts on a logarithmic colour scale, +-6 widths each way. One round blob is a clean " +
+  "lattice; a second blob a second lattice or domain; a streak a spread -- a bent crystal, mosaicity -- in that " +
+  "direction; an even floor chance coincidences."));
+const m = el("div", "grid2"); body.appendChild(m);
+R.maps.forEach(map => {
+  const z = map.z.map(row => row.map(v => v > 0 ? Math.log10(v) : null));
+  plot(m, [{x: map.x, y: map.y, z, type: "heatmap", colorscale: "Viridis", colorbar: {title: "log10 n"}}],
+       {height: 420, title: `${map.yname} against ${map.xname}`,
+        xaxis: {title: `${map.xname} (${map.xunit})`}, yaxis: {title: `${map.yname} (${map.yunit})`}, margin});
+});
+
+function against(title, blocks, xtitle, note, reversed) {
+  body.appendChild(el("h2", null, title));
+  body.appendChild(el("p", "note", note));
+  const g = el("div", "grid"); body.appendChild(g);
+  blocks.forEach((b, i) => {
+    if (!b) return;
+    const k = 3 + i;
+    const upper = b.median.map((v, j) => v + b.width[j]), lower = b.median.map((v, j) => v - b.width[j]);
+    plot(g, [
+      {x: b.x.concat(b.x.slice().reverse()), y: upper.concat(lower.reverse()), fill: "toself",
+       fillcolor: "rgba(31,119,180,0.15)", line: {width: 0}, hoverinfo: "skip", showlegend: false},
+      {x: b.x, y: b.median, mode: "lines+markers", line: {color: "#1f77b4"}, marker: {size: 4}, showlegend: false},
+      {x: [Math.min(...b.x), Math.max(...b.x)], y: [0, 0], mode: "lines", line: {dash: "dot", color: "#999", width: 1}, showlegend: false}
+    ], {height: 280, title: `${R.names[k]} (${R.units[k]})`, margin,
+        xaxis: Object.assign({title: xtitle}, reversed ? {autorange: "reversed"} : {})});
+  });
+}
+against("Against resolution", R.against_resolution, "d (A)",
+  "Median and robust width in bins of equal count. A radial median that is constant but not nought is a cell " +
+  "error; one that trends with resolution is not -- the detector model, the distance, or centroids biased " +
+  "by resolution.", true);
+against("Against image", R.against_image, "image",
+  "Median and width through the scan: a median that wanders is the crystal or the beam moving in a way the " +
+  "refinement did not follow.", false);
+</script>
+"""
+
+
+def write(
+    o: Offsets, path: str, title: str = "lattice map", plotly_src: str | None = None
+) -> str:
+    import html
+    import json
+
+    from .htmlreport import PLOTLY_CDN
+
+    data = build(o)
+    subtitle = (
+        f"{o.indexed} of {o.total} spots indexed "
+        f"({100.0 * o.indexed / max(o.total, 1):.1f}%): each against its lattice point, "
+        "the crystal as refined, scan-varying where it is."
+    )
+    page = (
+        PAGE.replace("__TITLE__", html.escape(title))
+        .replace("__SUBTITLE__", html.escape(subtitle))
+        .replace("__PLOTLY__", html.escape(plotly_src or PLOTLY_CDN, quote=True))
+        .replace("__DATA__", json.dumps(data))
+    )
+    with open(path, "w") as f:
+        f.write(page)
+    return report(o, histograms=False) + f"\n\nWrote {path}"

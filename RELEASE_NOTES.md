@@ -12,7 +12,9 @@ fixed. The tag of each (`git tag -n99 v1.0.5`) carries the same summary.
   rotation and across in each reflection's own frame, the crystal scan-varying
   where it is; robust widths, the fraction beyond three widths, histograms and
   trends with resolution. A measure of indexing quality, for data whose first
-  lattice is a good solution.
+  lattice is a good solution. With -o, an HTML page: the histograms on a log
+  scale against the Gaussian of the robust width, reciprocal-space maps of two
+  offsets at once, and trends with resolution and image.
 - mxi symmetry --scale-p1: scaled in P1 first, scale and decay through the
   sweep, for the symmetry's judgement alone, the file written unscaled -- for
   sweeps whose systematic changes part symmetry mates measured far apart in

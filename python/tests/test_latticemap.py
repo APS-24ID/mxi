@@ -95,3 +95,25 @@ def test_random_spots_show_as_a_tail():
     assert 0.07 < tail < 0.12, tail
     text = latticemap.report(o, shells=4)
     assert "beyond 3 widths" in text and "histogram" in text
+
+
+def test_the_page_carries_the_histograms_maps_and_trends(tmp_path):
+    import json
+    import re
+
+    e, hkl, z, r = setup(n=8000)
+    rng = np.random.default_rng(3)
+    r = r + rng.normal(0, 2e-5, r.shape)
+    o = gather(e, hkl, z, r)
+    data = latticemap.build(o)
+    assert len(data["histograms"]) == 6 and len(data["maps"]) == 4
+    for g in data["histograms"][:3]:  # dh, dk, dl: every spot somewhere
+        assert sum(g["counts"]) + g["below"] + g["above"] == o.indexed
+    assert all(len(m["z"]) == len(m["y"]) for m in data["maps"])
+    assert all(b is not None for b in data["against_resolution"])
+    path = tmp_path / "map.html"
+    text = latticemap.write(o, str(path))
+    page = path.read_text()
+    assert "Wrote" in text and "beyond 3 widths" in text
+    blob = re.search(r"const R = (\{.*?\});\n", page, re.S).group(1)
+    assert json.loads(blob)["indexed"] == o.indexed

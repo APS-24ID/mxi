@@ -35,6 +35,7 @@ MXI_PROGRAM(integrate)
 MXI_PROGRAM(symmetry)
 MXI_PROGRAM(scale)
 MXI_PROGRAM(export)
+MXI_PROGRAM(merge)
 MXI_PROGRAM(correlation)
 MXI_PROGRAM(combine)
 MXI_PROGRAM(split)
@@ -76,6 +77,7 @@ const Command kCommands[] = {
     {"symmetry", mxi_symmetry_main, "the Laue group and its setting", false},
     {"scale", mxi_scale_main, "scaled and merged intensities", false},
     {"export", mxi_export_main, "MTZ and the like", false},
+    {"merge", mxi_merge_main, "a merged MTZ, with amplitudes", false},
     {"process", mxi_process_main, "every step above in turn, import to export",
      false},
     {"correlation", mxi_correlation_main, "crystals clustered, as cosym",

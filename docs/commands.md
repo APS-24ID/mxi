@@ -16,6 +16,7 @@ programs do and why; this says what each takes. Every command also takes
 | [`mxi symmetry`](#mxi-symmetry) | the Laue group and its setting |
 | [`mxi scale`](#mxi-scale) | scaled and merged intensities |
 | [`mxi export`](#mxi-export) | MTZ and the like |
+| [`mxi merge`](#mxi-merge) | a merged MTZ, with amplitudes |
 | [`mxi process`](#mxi-process) | every step above in turn, import to export |
 | [`mxi correlation`](#mxi-correlation) | crystals clustered, as cosym |
 | [`mxi triage`](#mxi-triage) | twinning and the intensities' statistics, as xtriage |
@@ -423,6 +424,36 @@ usage: mxi export [options] FILE.rflx | EXPT REFL
   --d-min D                  leave out d below D
   --crystal-name NAME        (XTAL)
   --project-name NAME        (mxi)
+```
+
+## mxi merge
+
+a merged MTZ, with amplitudes.
+
+```
+usage: mxi merge [options] FILE.rflx | EXPT REFL
+  -j, --threads N   threads for everything this does in parallel; 0, every
+                    core this job may use (0)
+  A merged MTZ from scaled data, as dials.merge writes one: IMEAN,
+  SIGIMEAN and N; with Friedel mates apart (the default) I(+), I(-),
+  N(+), N(-); French and Wilson's F, F(+), F(-) and DANO; and
+  FreeR_flag. Every experiment merged together, or each alone.
+  -o, --output PATH          the MTZ (merged.mtz); with --each, the
+                             stem of each crystal's (merged_N.mtz)
+  --each                     each crystal merged alone, one MTZ apiece
+  --d-min D, --d-max D       the resolution range
+  --partiality-threshold P   leave out partiality below P (0.4)
+  --no-anomalous             Friedel mates merged only: no I(+), I(-),
+                             F(+), F(-), DANO
+  --no-truncate              no amplitudes (French and Wilson)
+  --free-fraction X          the FreeR test set's share, CCP4's flags
+                             0 to 1/X - 1, 0 the test set (0.05); the
+                             flag a hash of the index under the
+                             lattice's symmetry, so the same in every
+                             data set of one lattice; 0 for none
+  --crystal-name NAME        (XTAL)
+  --project-name NAME        (mxi)
+  --dataset-name NAME        (NATIVE)
 ```
 
 ## mxi process

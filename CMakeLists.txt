@@ -202,6 +202,7 @@ add_library(mxi
   src/postrefine.cc
   src/symmetry.cc
   src/laue.cc
+  src/merge.cc
   src/scale_model.cc
   src/parallel.cc
   src/fit_batch.cc
@@ -258,6 +259,10 @@ target_compile_options(mxi_gemmi_mtz PRIVATE -w)
 add_library(mxi_export OBJECT apps/mxi_export.cc)
 target_link_libraries(mxi_export PRIVATE mxi mxi_gemmi_mtz)
 target_compile_options(mxi_export PRIVATE ${MXI_WARNINGS})
+
+add_library(mxi_merge OBJECT apps/mxi_merge.cc)
+target_link_libraries(mxi_merge PRIVATE mxi mxi_gemmi_mtz)
+target_compile_options(mxi_merge PRIVATE ${MXI_WARNINGS})
 
 add_library(mxi_symmetry OBJECT apps/mxi_symmetry.cc)
 target_link_libraries(mxi_symmetry PRIVATE mxi)
@@ -525,6 +530,7 @@ add_executable(mxi_tests
   tests/test_real_geometry.cc
   tests/test_multi_axis.cc
   tests/test_index.cc
+  tests/test_merge.cc
   tests/test_refine.cc
   tests/test_args.cc
   tests/test_derivatives.cc
@@ -571,7 +577,8 @@ add_test(NAME mxi_tests COMMAND mxi_tests)
 # binary rather than 24, each of which carried its own HDF5 and library -- 156
 # MB where one is some 8 -- and one name to install (Graeme, 28 October).
 set(MXI_PROGRAMS
-  mxi_background mxi_combine mxi_convert mxi_correlation mxi_export mxi_find
+  mxi_background mxi_combine mxi_convert mxi_correlation mxi_export mxi_merge
+  mxi_find
   mxi_foreground mxi_forward mxi_grid mxi_import mxi_index mxi_integrate
   mxi_max mxi_profile mxi_readtest mxi_refine mxi_report mxi_residuals
   mxi_scale mxi_show mxi_split mxi_symmetry mxi_untrusted mxi_verify mxi_process mxi_triage

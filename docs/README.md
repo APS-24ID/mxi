@@ -30,6 +30,7 @@ its conclusions sometimes overturned later, with an index of those.
 | [`docs/regression.md`](regression.md) | built; bisecting next | regression runs over real data sets: mxeq regress, its directory, the figures kept and how runs are compared |
 | [`docs/correlation.md`](correlation.md) | built | mxi correlation: clustering data sets by their intensities, as dials.correlation_matrix -- the matrix, the coordinates, OPTICS |
 | [`docs/export.md`](export.md) | design, built | mxi export, an unmerged MTZ as dials.export writes it: the intensities and their corrections, the columns, the batches and their headers |
+| [`docs/merge.md`](merge.md) | built | mxi merge, a merged MTZ as dials.merge writes it: IMEAN, I(+), I(-), French and Wilson's amplitudes, DANO, FreeR flags shared by every data set of one lattice |
 | [`docs/import.md`](import.md) | reference | `mxi import`, and checking it against dials.import |
 | [`docs/integration.md`](integration.md) | reference | `mxi integrate` |
 | [`docs/symmetry.md`](symmetry.md) | reference | `mxi symmetry` |
